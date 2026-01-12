@@ -3,23 +3,22 @@ import { Star, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const RestaurantCard = ({ restaurant }) => {
-  const {
-    id,
-    name,
-    cuisine,
-    rating,
-    deliveryTime,
-    distance,
-    image,
-    description
-  } = restaurant;
+  // Handle different data structures from API vs mock data
+  const id = restaurant._id || restaurant.id;
+  const name = restaurant.name;
+  const cuisine = Array.isArray(restaurant.cuisineType) ? restaurant.cuisineType.join(' • ') : restaurant.cuisine || 'Various Cuisines';
+  const rating = restaurant.rating?.average || restaurant.rating || 0;
+  const deliveryTime = restaurant.deliveryTime || '30-45 min';
+  const distance = restaurant.distance || 'N/A';
+  const image = restaurant.images?.coverPhoto || restaurant.image || '/placeholder-restaurant.jpg';
+  const description = restaurant.description;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
       <div className="h-48 overflow-hidden">
-        <img 
-          src={image || '/placeholder-restaurant.jpg'} 
-          alt={name} 
+        <img
+          src={image}
+          alt={name}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
       </div>
@@ -33,7 +32,7 @@ const RestaurantCard = ({ restaurant }) => {
         </div>
         <p className="text-gray-600 mb-3">{cuisine}</p>
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{description}</p>
-        
+
         <div className="flex items-center text-sm text-gray-500 mb-4 space-x-4">
           <div className="flex items-center">
             <Clock className="h-4 w-4 mr-1" />
@@ -44,7 +43,7 @@ const RestaurantCard = ({ restaurant }) => {
             <span>{distance}</span>
           </div>
         </div>
-        
+
         <Link
           to={`/restaurant/${id}`}
           className="block w-full bg-orange-500 hover:bg-orange-600 text-white text-center py-3 rounded-lg font-semibold transition-colors duration-200"
