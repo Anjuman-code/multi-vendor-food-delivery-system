@@ -2,81 +2,91 @@ import React, { useState, useEffect } from "react";
 import RestaurantCard from "./RestaurantCard";
 import apiService from "../services/apiService";
 
-const FeaturedRestaurants = () => {
+const RestaurantsList = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchFeaturedRestaurants = async () => {
+    const fetchAllRestaurants = async () => {
       try {
         setLoading(true);
-        const response = await apiService.getFeaturedRestaurants();
-        setRestaurants(response.data.data);
-        setError(null);
+        setError(null); // Reset error before making the request
+        console.log('Fetching restaurants...');
+        const response = await apiService.getAllRestaurants();
+        console.log('API Response:', response);
+
+        // Check if response has the expected structure
+        if (response && response.data && response.data.data) {
+          setRestaurants(response.data.data);
+        } else {
+          console.error('Unexpected API response structure:', response);
+          throw new Error('Unexpected API response structure');
+        }
       } catch (err) {
-        console.error('Error fetching featured restaurants:', err);
-        setError('Failed to load featured restaurants. Please try again later.');
+        console.error('Error fetching restaurants:', err);
+        console.error('Error details:', err.response || err.message || err);
+        setError('Failed to load restaurants. Please try again later.');
         // Fallback to mock data if API call fails
         setRestaurants([
           {
-            _id: 1,
+            id: 1,
             name: "Panshi",
-            cuisineType: ["Bangladeshi", "Biryani"],
-            rating: { average: 4.7 },
+            cuisine: "Bangladeshi • Biryani",
+            rating: 4.7,
             deliveryTime: "30-45 min",
             distance: "1.2 km",
-            images: { coverPhoto: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&h=400&fit=crop" },
+            image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&h=400&fit=crop",
             description: "Authentic Kacchi Biryani and traditional Bangladeshi cuisine from Sylhet."
           },
           {
-            _id: 2,
+            id: 2,
             name: "Kacchi Bhai",
-            cuisineType: ["Bangladeshi", "Traditional"],
-            rating: { average: 4.5 },
+            cuisine: "Bangladeshi • Traditional",
+            rating: 4.5,
             deliveryTime: "25-40 min",
             distance: "2.5 km",
-            images: { coverPhoto: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=400&fit=crop" },
+            image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=400&fit=crop",
             description: "Specializing in authentic Dhaka-style Kacchi Biryani."
           },
           {
-            _id: 3,
+            id: 3,
             name: "Woondaal",
-            cuisineType: ["Bangladeshi", "Fusion"],
-            rating: { average: 4.8 },
+            cuisine: "Bangladeshi • Fusion",
+            rating: 4.8,
             deliveryTime: "35-50 min",
             distance: "3.0 km",
-            images: { coverPhoto: "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&h=400&fit=crop" },
+            image: "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&h=400&fit=crop",
             description: "Modern twist on traditional Bangladeshi cuisine."
           },
           {
-            _id: 4,
+            id: 4,
             name: "Sylhet Tea House",
-            cuisineType: ["Bangladeshi", "Sylheti"],
-            rating: { average: 4.6 },
+            cuisine: "Bangladeshi • Sylheti",
+            rating: 4.6,
             deliveryTime: "20-35 min",
             distance: "4.2 km",
-            images: { coverPhoto: "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&h=400&fit=crop" },
+            image: "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&h=400&fit=crop",
             description: "Authentic Sylheti cuisine and traditional tea house atmosphere."
           },
           {
-            _id: 5,
+            id: 5,
             name: "Chillox",
-            cuisineType: ["Fast Food", "Burgers"],
-            rating: { average: 4.4 },
+            cuisine: "Fast Food • Burgers",
+            rating: 4.4,
             deliveryTime: "15-25 min",
             distance: "0.8 km",
-            images: { coverPhoto: "https://images.unsplash.com/photo-1565299507177-b0ac6676234d?w=800&h=400&fit=crop" },
+            image: "https://images.unsplash.com/photo-1565299507177-b0ac6676234d?w=800&h=400&fit=crop",
             description: "Popular Bangladeshi fast food chain known for burgers."
           },
           {
-            _id: 6,
+            id: 6,
             name: "Nando's Bangladesh",
-            cuisineType: ["International", "Chicken"],
-            rating: { average: 4.3 },
+            cuisine: "International • Chicken",
+            rating: 4.3,
             deliveryTime: "25-35 min",
             distance: "1.5 km",
-            images: { coverPhoto: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=400&fit=crop" },
+            image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=400&fit=crop",
             description: "International flame-grilled PERi-PERi chicken restaurant."
           }
         ]);
@@ -85,7 +95,7 @@ const FeaturedRestaurants = () => {
       }
     };
 
-    fetchFeaturedRestaurants();
+    fetchAllRestaurants();
   }, []);
 
   if (loading) {
@@ -93,7 +103,7 @@ const FeaturedRestaurants = () => {
       <div className="py-16 bg-white flex justify-center items-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading featured restaurants...</p>
+          <p className="mt-4 text-gray-600">Loading restaurants...</p>
         </div>
       </div>
     );
@@ -104,11 +114,10 @@ const FeaturedRestaurants = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-800 mb-4">
-            Featured Restaurants
+            Popular Restaurants
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Discover our most popular restaurants offering great food and
-            service
+            Discover the best restaurants in your area with delicious food and great service
           </p>
         </div>
 
@@ -128,4 +137,4 @@ const FeaturedRestaurants = () => {
   );
 };
 
-export default FeaturedRestaurants;
+export default RestaurantsList;
