@@ -1,8 +1,15 @@
 const express = require("express");
 const app = express();
 require("dotenv").config();
+const cors = require("cors");
 const mongoose = require("mongoose");
 const Name = require("./models/name");
+
+const corsOptions = {
+  origin: "http://localhost:5173",
+};
+
+app.use(cors(corsOptions));
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -16,7 +23,6 @@ mongoose
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
-
 
 app.get("/save/:name", async (req, res) => {
   try {
