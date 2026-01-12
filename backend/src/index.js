@@ -4,12 +4,14 @@ require("dotenv").config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const Name = require("./models/name");
+const restaurantRoutes = require('./routes/restaurantRoutes');
 
 const corsOptions = {
   origin: "http://localhost:5173",
 };
 
 app.use(cors(corsOptions));
+app.use(express.json());
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -19,6 +21,9 @@ mongoose
   .catch((error) => {
     console.error("MongoDB connection error:", error);
   });
+
+// Routes
+app.use('/api/restaurants', restaurantRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
