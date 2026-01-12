@@ -84,16 +84,16 @@ const Footer = () => {
             <ul className="space-y-2">
               <li className="flex items-center">
                 <Mail className="h-4 w-4 mr-2" />
-                <span className="text-gray-300">contact@Anfi.com</span>
+                <span className="text-gray-300">contact@anfi.com</span>
               </li>
               <li className="flex items-center">
                 <Phone className="h-4 w-4 mr-2" />
-                <span className="text-gray-300">+1 (555) 123-4567</span>
+                <span className="text-gray-300">+880 1637 429498</span>
               </li>
               <li className="flex items-center">
                 <MapPin className="h-4 w-4 mr-2" />
                 <span className="text-gray-300">
-                  123 Food St, Culinary City
+                  30/7 Lovely Road, Sylhet, Bangladesh
                 </span>
               </li>
             </ul>
@@ -140,7 +140,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-700 mt-8 pt-8 text-center">
           <p className="text-gray-300">
-            © 2025 Multi-Vendor Food Delivery System. All rights reserved.
+            © 2026 Anfi Food Delivery System. All rights reserved.
           </p>
         </div>
       </div>
