@@ -14,12 +14,13 @@ router.route('/')
   .get(getAllRestaurants)
   .post(createRestaurant);
 
+// Specific routes first (to avoid conflicts with dynamic routes)
+router.route('/featured').get(getFeaturedRestaurants);
+
+// Dynamic routes last
 router.route('/:id')
   .get(getRestaurantById)
   .put(updateRestaurant)
   .delete(deleteRestaurant);
-
-// Additional routes
-router.route('/featured').get(getFeaturedRestaurants);
 
 module.exports = router;
