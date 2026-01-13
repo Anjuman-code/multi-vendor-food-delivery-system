@@ -1,23 +1,26 @@
-const Restaurant = require('../models/restaurantModel');
+const Restaurant = require("../models/restaurantModel");
 
 // Get all active restaurants
 const getAllRestaurants = async (req, res) => {
   try {
-    const restaurants = await Restaurant.find({ isActive: true, approvalStatus: 'approved' })
-      .select('-__v')
+    const restaurants = await Restaurant.find({
+      isActive: true,
+      approvalStatus: "approved",
+    })
+      .select("-__v")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       count: restaurants.length,
-      data: restaurants
+      data: restaurants,
     });
   } catch (error) {
-    console.error('Error fetching restaurants:', error);
+    console.error("Error fetching restaurants:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching restaurants',
-      error: error.message
+      message: "Server error while fetching restaurants",
+      error: error.message,
     });
   }
 };
@@ -25,41 +28,40 @@ const getAllRestaurants = async (req, res) => {
 // Get a single restaurant by ID
 const getRestaurantById = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id)
-      .select('-__v');
+    const restaurant = await Restaurant.findById(req.params.id).select("-__v");
 
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found'
+        message: "Restaurant not found",
       });
     }
 
-    if (!restaurant.isActive || restaurant.approvalStatus !== 'approved') {
+    if (!restaurant.isActive || restaurant.approvalStatus !== "approved") {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found'
+        message: "Restaurant not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: restaurant
+      data: restaurant,
     });
   } catch (error) {
-    console.error('Error fetching restaurant:', error);
-    
-    if (error.name === 'CastError') {
+    console.error("Error fetching restaurant:", error);
+
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: 'Invalid restaurant ID format'
+        message: "Invalid restaurant ID format",
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching restaurant',
-      error: error.message
+      message: "Server error while fetching restaurant",
+      error: error.message,
     });
   }
 };
@@ -72,26 +74,26 @@ const createRestaurant = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Restaurant created successfully',
-      data: restaurant
+      message: "Restaurant created successfully",
+      data: restaurant,
     });
   } catch (error) {
-    console.error('Error creating restaurant:', error);
-    
+    console.error("Error creating restaurant:", error);
+
     // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Validation error',
-        errors
+        message: "Validation error",
+        errors,
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Server error while creating restaurant',
-      error: error.message
+      message: "Server error while creating restaurant",
+      error: error.message,
     });
   }
 };
@@ -104,45 +106,45 @@ const updateRestaurant = async (req, res) => {
       req.body,
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
-    ).select('-__v');
+    ).select("-__v");
 
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found'
+        message: "Restaurant not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Restaurant updated successfully',
-      data: restaurant
+      message: "Restaurant updated successfully",
+      data: restaurant,
     });
   } catch (error) {
-    console.error('Error updating restaurant:', error);
-    
-    if (error.name === 'CastError') {
+    console.error("Error updating restaurant:", error);
+
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: 'Invalid restaurant ID format'
+        message: "Invalid restaurant ID format",
       });
     }
 
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Validation error',
-        errors
+        message: "Validation error",
+        errors,
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Server error while updating restaurant',
-      error: error.message
+      message: "Server error while updating restaurant",
+      error: error.message,
     });
   }
 };
@@ -155,56 +157,55 @@ const deleteRestaurant = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found'
+        message: "Restaurant not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Restaurant deleted successfully',
-      data: restaurant
+      message: "Restaurant deleted successfully",
+      data: restaurant,
     });
   } catch (error) {
-    console.error('Error deleting restaurant:', error);
-    
-    if (error.name === 'CastError') {
+    console.error("Error deleting restaurant:", error);
+
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: 'Invalid restaurant ID format'
+        message: "Invalid restaurant ID format",
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Server error while deleting restaurant',
-      error: error.message
+      message: "Server error while deleting restaurant",
+      error: error.message,
     });
   }
 };
 
-// Get featured restaurants (active and highly rated)
+// Get featured restaurants (top rated and most reviewed)
 const getFeaturedRestaurants = async (req, res) => {
   try {
-    const restaurants = await Restaurant.find({ 
-      isActive: true, 
-      approvalStatus: 'approved',
-      'rating.average': { $gte: 4.0 }
+    const restaurants = await Restaurant.find({
+      isActive: true,
+      approvalStatus: "approved",
     })
-      .select('-__v')
-      .sort({ 'rating.average': -1, createdAt: -1 })
+      .select("-__v")
+      .sort({ "rating.average": -1, "rating.count": -1, createdAt: -1 })
       .limit(6);
 
     res.status(200).json({
       success: true,
       count: restaurants.length,
-      data: restaurants
+      data: restaurants,
     });
   } catch (error) {
-    console.error('Error fetching featured restaurants:', error);
+    console.error("Error fetching featured restaurants:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching featured restaurants',
-      error: error.message
+      message: "Server error while fetching featured restaurants",
+      error: error.message,
     });
   }
 };
@@ -215,5 +216,5 @@ module.exports = {
   createRestaurant,
   updateRestaurant,
   deleteRestaurant,
-  getFeaturedRestaurants
+  getFeaturedRestaurants,
 };
