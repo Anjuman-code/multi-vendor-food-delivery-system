@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, Lock, Eye, EyeOff, Check, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import authService from '../services/authService';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -39,10 +40,7 @@ const Register = () => {
         return '';
       case 'password':
         if (!value) return 'Password is required';
-        if (value.length < 8) return 'Password must be at least 8 characters';
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(value)) {
-          return 'Password must contain uppercase, lowercase, number, and special character';
-        }
+        if (value.length < 6) return 'Password must be at least 6 characters';
         return '';
       case 'confirmPassword':
         if (!value) return 'Please confirm your password';
@@ -59,21 +57,17 @@ const Register = () => {
   const calculatePasswordStrength = (password) => {
     if (!password) return '';
     let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[@$!%*?&]/.test(password)) strength++;
+    if (password.length >= 6) strength++;  // Reduced from 8 to 6
 
-    if (strength <= 2) return 'weak';
-    if (strength <= 3) return 'medium';
+    if (strength <= 1) return 'weak';
+    if (strength <= 2) return 'medium';
     return 'strong';
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? checked : value;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: val
@@ -104,7 +98,7 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const newErrors = {};
     Object.keys(formData).forEach(key => {
@@ -120,13 +114,27 @@ const Register = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const response = await authService.register({
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        phoneNumber: formData.phone,
+        deliveryAddress: formData.deliveryAddress
+      });
+
+      if (response.success) {
+        // On successful registration, redirect to verification page
+        navigate('/verify-email');
+      } else {
+        setErrors({ general: response.message || 'Registration failed' });
+      }
+    } catch (error) {
+      setErrors({ general: 'An error occurred during registration' });
+    } finally {
       setIsLoading(false);
-      // On successful registration, redirect to verification or dashboard
-      navigate('/verify-email');
-    }, 1500);
+    }
   };
 
   const handleSocialRegister = (provider) => {
@@ -190,6 +198,12 @@ const Register = () => {
 
               {/* Registration Form */}
               <form onSubmit={handleSubmit}>
+                {errors.general && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
+                    {errors.general}
+                  </div>
+                )}
+
                 {/* Full Name Field */}
                 <div className="mb-4">
                   <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -299,10 +313,10 @@ const Register = () => {
                   {/* Password Strength Indicator */}
                   <div className="mt-2">
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full ${
-                          passwordStrength === 'weak' ? 'bg-red-500 w-1/3' :
-                          passwordStrength === 'medium' ? 'bg-yellow-500 w-2/3' :
+                          passwordStrength === 'weak' ? 'bg-red-500 w-1/2' :
+                          passwordStrength === 'medium' ? 'bg-yellow-500 w-3/4' :
                           passwordStrength === 'strong' ? 'bg-green-500 w-full' : 'w-0'
                         }`}
                       ></div>
@@ -352,44 +366,12 @@ const Register = () => {
                   <p>Password must contain:</p>
                   <ul className="space-y-1 mt-1">
                     <li className="flex items-center">
-                      {formData.password && formData.password.length >= 8 ? (
+                      {formData.password && formData.password.length >= 6 ? (
                         <Check className="w-4 h-4 text-green-500 mr-2" />
                       ) : (
                         <X className="w-4 h-4 text-gray-400 mr-2" />
                       )}
-                      <span>At least 8 characters</span>
-                    </li>
-                    <li className="flex items-center">
-                      {formData.password && /[a-z]/.test(formData.password) ? (
-                        <Check className="w-4 h-4 text-green-500 mr-2" />
-                      ) : (
-                        <X className="w-4 h-4 text-gray-400 mr-2" />
-                      )}
-                      <span>One lowercase letter</span>
-                    </li>
-                    <li className="flex items-center">
-                      {formData.password && /[A-Z]/.test(formData.password) ? (
-                        <Check className="w-4 h-4 text-green-500 mr-2" />
-                      ) : (
-                        <X className="w-4 h-4 text-gray-400 mr-2" />
-                      )}
-                      <span>One uppercase letter</span>
-                    </li>
-                    <li className="flex items-center">
-                      {formData.password && /\d/.test(formData.password) ? (
-                        <Check className="w-4 h-4 text-green-500 mr-2" />
-                      ) : (
-                        <X className="w-4 h-4 text-gray-400 mr-2" />
-                      )}
-                      <span>One number</span>
-                    </li>
-                    <li className="flex items-center">
-                      {formData.password && /[@$!%*?&]/.test(formData.password) ? (
-                        <Check className="w-4 h-4 text-green-500 mr-2" />
-                      ) : (
-                        <X className="w-4 h-4 text-gray-400 mr-2" />
-                      )}
-                      <span>One special character</span>
+                      <span>At least 6 characters</span>
                     </li>
                   </ul>
                 </div>
