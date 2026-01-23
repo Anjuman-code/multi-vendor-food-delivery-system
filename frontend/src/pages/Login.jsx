@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import authService from '../services/authService';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -23,7 +24,7 @@ const Login = () => {
         return '';
       case 'password':
         if (!value) return 'Password is required';
-        if (value.length < 6) return 'Password must be at least 6 characters';
+        if (value.length < 4) return 'Password must be at least 4 characters';
         return '';
       default:
         return '';
@@ -33,7 +34,7 @@ const Login = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? checked : value;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: val
@@ -59,7 +60,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const newErrors = {};
     Object.keys(formData).forEach(key => {
@@ -75,13 +76,25 @@ const Login = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const response = await authService.login({
+        email: formData.email,
+        password: formData.password,
+        rememberMe: formData.rememberMe
+      });
+
+      if (response.success) {
+        // On successful login, redirect to home or dashboard
+        navigate('/');
+      } else {
+        setErrors({ general: response.message || 'Login failed' });
+      }
+    } catch (error) {
+      setErrors({ general: 'An error occurred during login' });
+    } finally {
       setIsLoading(false);
-      // On successful login, redirect to home or dashboard
-      navigate('/');
-    }, 1500);
+    }
   };
 
   const handleSocialLogin = (provider) => {
@@ -145,6 +158,12 @@ const Login = () => {
 
               {/* Login Form */}
               <form onSubmit={handleSubmit}>
+                {errors.general && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
+                    {errors.general}
+                  </div>
+                )}
+
                 {/* Email Field */}
                 <div className="mb-4">
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">

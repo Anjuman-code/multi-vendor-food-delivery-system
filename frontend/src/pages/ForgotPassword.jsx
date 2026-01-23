@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import authService from '../services/authService';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const emailError = validateEmail(email);
     if (emailError) {
       setErrors({ email: emailError });
@@ -27,12 +28,20 @@ const ForgotPassword = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const response = await authService.forgotPassword(email);
+
+      if (response.success) {
+        setIsSubmitted(true);
+      } else {
+        setErrors({ general: response.message || 'Failed to send reset link' });
+      }
+    } catch (error) {
+      setErrors({ general: 'An error occurred while sending reset link' });
+    } finally {
       setIsLoading(false);
-      setIsSubmitted(true);
-    }, 1500);
+    }
   };
 
   const handleBackToLogin = () => {
@@ -86,6 +95,12 @@ const ForgotPassword = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
+              {errors.general && (
+                <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
+                  {errors.general}
+                </div>
+              )}
+
               {/* Email Field */}
               <div className="mb-6">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
