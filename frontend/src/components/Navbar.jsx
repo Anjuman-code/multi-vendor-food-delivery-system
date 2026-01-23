@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Menu, X, Utensils } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Navbar = () => {
@@ -17,7 +17,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <Utensils className="h-8 w-8 text-orange-500" />
+              <img src="/logo.svg" alt="Anfi Logo" className="h-8 w-8 invert" />
               <span className="text-xl font-bold text-gray-800">Anfi</span>
             </Link>
           </div>
