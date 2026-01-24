@@ -1,29 +1,38 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import ForgotPassword from './pages/ForgotPassword';
-import VerifyEmail from './pages/VerifyEmail';
-import Terms from './pages/Terms';
+import Home from './pages/Home';
+import LoginPage from './pages/LoginPage';
 import Privacy from './pages/Privacy';
+import RegisterPage from './pages/RegisterPage';
+import Terms from './pages/Terms';
+import VerifyEmail from './pages/VerifyEmail';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/restaurants" element={<div className="p-8">Restaurants Page</div>} />
-        <Route path="/categories" element={<div className="p-8">Categories Page</div>} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route
+          path="/restaurants"
+          element={<div className="p-8">Restaurants Page</div>}
+        />
+        <Route
+          path="/categories"
+          element={<div className="p-8">Categories Page</div>}
+        />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
-        <Route path="/restaurant/:id" element={<div className="p-8">Restaurant Detail Page</div>} />
+        <Route
+          path="/restaurant/:id"
+          element={<div className="p-8">Restaurant Detail Page</div>}
+        />
       </Routes>
     </Router>
   );
 }
 
-export default App
+export default App;
