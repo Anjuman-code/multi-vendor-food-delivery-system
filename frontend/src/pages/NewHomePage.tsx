@@ -1,7 +1,7 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
 import NewHeroSection from '../components/NewHeroSection';
-import OrderAndDeliveryProcess from '../components/OrderAndDeliveryProcess';
+import HowItWorksSection from '../components/HowItWorksSection';
 import BannerSearchSection from '../components/BannerSearchSection';
 import NearbyRestaurants from '../components/NearbyRestaurants';
 import TopFoodCategories from '../components/TopFoodCategories';
@@ -16,7 +16,7 @@ const NewHomePage: React.FC = () => {
       <Navbar />
       <main id="main-content" role="main">
         <NewHeroSection />
-        <OrderAndDeliveryProcess />
+        <HowItWorksSection />
         <BannerSearchSection />
         <NearbyRestaurants />
         <TopFoodCategories />
