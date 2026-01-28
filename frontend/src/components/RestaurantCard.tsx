@@ -2,12 +2,33 @@ import React from 'react';
 import { Star, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const RestaurantCard = ({ restaurant }) => {
+interface Restaurant {
+  _id?: string;
+  id?: string;
+  name: string;
+  cuisineType?: string[];
+  cuisine?: string;
+  rating?: number | { average: number };
+  deliveryTime?: string;
+  distance?: string;
+  images?: {
+    coverPhoto?: string;
+  };
+  image?: string;
+  description?: string;
+  [key: string]: any; // Allow additional properties
+}
+
+interface RestaurantCardProps {
+  restaurant: Restaurant;
+}
+
+const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
   // Handle different data structures from API vs mock data
   const id = restaurant._id || restaurant.id;
   const name = restaurant.name;
   const cuisine = Array.isArray(restaurant.cuisineType) ? restaurant.cuisineType.join(' • ') : restaurant.cuisine || 'Various Cuisines';
-  const rating = restaurant.rating?.average || restaurant.rating || 0;
+  const rating = typeof restaurant.rating === 'object' && restaurant.rating !== null ? restaurant.rating.average || 0 : restaurant.rating || 0;
   const deliveryTime = restaurant.deliveryTime || '30-45 min';
   const distance = restaurant.distance || 'N/A';
   const image = restaurant.images?.coverPhoto || restaurant.image || '/placeholder-restaurant.jpg';

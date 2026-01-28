@@ -2,10 +2,17 @@ import React, { useState, useEffect } from "react";
 import RestaurantCard from "./RestaurantCard";
 import apiService from "../services/apiService";
 
-const RestaurantsList = () => {
-  const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+interface Restaurant {
+  _id?: string;
+  id?: string;
+  name: string;
+  [key: string]: any; // Allow additional properties
+}
+
+const RestaurantsList: React.FC = () => {
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAllRestaurants = async () => {
@@ -23,7 +30,7 @@ const RestaurantsList = () => {
           console.error('Unexpected API response structure:', response);
           throw new Error('Unexpected API response structure');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching restaurants:', err);
         console.error('Error details:', err.response || err.message || err);
         setError('Failed to load restaurants. Please try again later.');
