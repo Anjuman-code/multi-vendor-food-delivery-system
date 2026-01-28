@@ -1,25 +1,40 @@
 import { useState, useEffect } from 'react';
 import httpClient from '../lib/httpClient';
 
+// Define types
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  headers?: Record<string, string>;
+  data?: any;
+  [key: string]: any;
+}
+
+interface ApiResponse<T = any> {
+  data: T;
+  status: number;
+  statusText: string;
+  headers: any;
+}
+
 // Custom hook for making API calls with loading and error states
-const useApi = (url, options = {}) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const useApi = <T = any>(url: string, options: RequestOptions = {}) => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const response = await httpClient({
+
+        const response: ApiResponse<T> = await httpClient({
           url,
           ...options,
         });
-        
+
         setData(response.data);
-      } catch (err) {
+      } catch (err: any) {
         setError(err.message || 'An error occurred while fetching data');
         console.error('API Error:', err);
       } finally {
@@ -39,25 +54,25 @@ const useApi = (url, options = {}) => {
 };
 
 // Specific hooks for common HTTP methods
-const useGet = (url) => {
-  return useApi(url, { method: 'GET' });
+const useGet = <T = any>(url: string) => {
+  return useApi<T>(url, { method: 'GET' });
 };
 
-const usePost = (url, body) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const usePost = <T = any>(url: string, body: any) => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const postData = async () => {
+  const postData = async (): Promise<ApiResponse<T>> => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await httpClient.post(url, body);
+
+      const response: ApiResponse<T> = await httpClient.post(url, body);
       setData(response.data);
-      
+
       return response;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'An error occurred while posting data');
       console.error('POST Error:', err);
       throw err;
@@ -69,21 +84,21 @@ const usePost = (url, body) => {
   return { data, loading, error, postData };
 };
 
-const usePut = (url, body) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const usePut = <T = any>(url: string, body: any) => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const putData = async () => {
+  const putData = async (): Promise<ApiResponse<T>> => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await httpClient.put(url, body);
+
+      const response: ApiResponse<T> = await httpClient.put(url, body);
       setData(response.data);
-      
+
       return response;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'An error occurred while updating data');
       console.error('PUT Error:', err);
       throw err;
@@ -95,19 +110,19 @@ const usePut = (url, body) => {
   return { data, loading, error, putData };
 };
 
-const useDelete = (url) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const useDelete = (url: string) => {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const deleteData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await httpClient.delete(url);
-      
+
       return response;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'An error occurred while deleting data');
       console.error('DELETE Error:', err);
       throw err;

@@ -1,8 +1,14 @@
 import React from 'react';
 import { ShoppingBag, CreditCard, Truck, CheckCircle } from 'lucide-react';
 
-const HowItWorks = () => {
-  const steps = [
+interface Step {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}
+
+const HowItWorks: React.FC = () => {
+  const steps: Step[] = [
     {
       icon: ShoppingBag,
       title: "Choose a Restaurant",
@@ -34,11 +40,11 @@ const HowItWorks = () => {
             Ordering food has never been easier. Follow these simple steps to get delicious food delivered to your door.
           </p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {steps.map((step, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="bg-white rounded-2xl p-6 text-center shadow-md hover:shadow-lg transition-shadow duration-300"
             >
               <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">

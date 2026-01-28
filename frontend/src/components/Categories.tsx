@@ -2,16 +2,21 @@ import React from "react";
 import {
   Soup,
   Pizza,
-  Coffee,
   ChefHat,
   IceCream,
-  Heart,
   Utensils,
   Apple,
 } from "lucide-react";
 
-const Categories = () => {
-  const categories = [
+interface Category {
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bgColor: string;
+  iconColor: string;
+}
+
+const Categories: React.FC = () => {
+  const categories: Category[] = [
     {
       name: "Fast Food",
       icon: Utensils,
