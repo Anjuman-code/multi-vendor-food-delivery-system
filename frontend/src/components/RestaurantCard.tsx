@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 interface Restaurant {
   _id?: string;
@@ -65,11 +66,10 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
           </div>
         </div>
 
-        <Link
-          to={`/restaurant/${id}`}
-          className="block w-full bg-orange-500 hover:bg-orange-600 text-white text-center py-3 rounded-lg font-semibold transition-colors duration-200"
-        >
-          View Menu
+        <Link to={`/restaurant/${id}`}>
+          <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors duration-200">
+            View Menu
+          </Button>
         </Link>
       </div>
     </div>

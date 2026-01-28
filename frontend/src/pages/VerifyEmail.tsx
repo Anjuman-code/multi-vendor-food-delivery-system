@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -25,11 +26,10 @@ const VerifyEmail: React.FC = () => {
               Didn't receive the email? <Link to="#" className="text-orange-500 hover:text-orange-600 font-medium">Resend verification email</Link>
             </p>
 
-            <Link
-              to="/"
-              className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200 inline-block text-center"
-            >
-              Back to Home
+            <Link to="/">
+              <Button className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium hover:from-orange-600 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200">
+                Back to Home
+              </Button>
             </Link>
           </div>
         </div>

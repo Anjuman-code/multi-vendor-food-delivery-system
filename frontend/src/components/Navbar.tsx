@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   name: string;
@@ -44,11 +45,10 @@ const Navbar: React.FC = () => {
             >
               Login
             </Link>
-            <Link
-              to="/register"
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
-            >
-              Register
+            <Link to="/register">
+              <Button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium">
+                Register
+              </Button>
             </Link>
           </div>
 
@@ -89,12 +89,10 @@ const Navbar: React.FC = () => {
             >
               Login
             </Link>
-            <Link
-              to="/register"
-              className="block px-3 py-2 rounded-md text-base font-medium bg-orange-500 text-white hover:bg-orange-600"
-              onClick={() => setIsOpen(false)}
-            >
-              Register
+            <Link to="/register" onClick={() => setIsOpen(false)}>
+              <Button className="w-full justify-center bg-orange-500 text-white hover:bg-orange-600">
+                Register
+              </Button>
             </Link>
           </div>
         </div>
