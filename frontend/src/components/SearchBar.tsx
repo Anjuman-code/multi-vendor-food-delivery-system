@@ -1,5 +1,7 @@
 import React from 'react';
 import { Search, MapPin } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const SearchBar: React.FC = () => {
   return (
@@ -10,7 +12,7 @@ const SearchBar: React.FC = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
             </div>
-            <input
+            <Input
               type="text"
               placeholder="Search restaurant or food..."
               className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
@@ -20,7 +22,7 @@ const SearchBar: React.FC = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MapPin className="h-5 w-5 text-gray-400" />
             </div>
-            <input
+            <Input
               type="text"
               placeholder="Enter your location..."
               className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
@@ -28,9 +30,9 @@ const SearchBar: React.FC = () => {
           </div>
         </div>
         <div className="mt-4 flex justify-center">
-          <button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200">
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200">
             Search
-          </button>
+          </Button>
         </div>
       </div>
     </div>
