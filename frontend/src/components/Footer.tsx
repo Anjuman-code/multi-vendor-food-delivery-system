@@ -10,7 +10,7 @@ import {
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-gray-800 text-white">
+    <footer className="bg-gray-800 text-white" role="contentinfo">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
@@ -19,22 +19,25 @@ const Footer: React.FC = () => {
               The best food delivery service connecting you with your favorite
               restaurants.
             </p>
-            <div className="flex space-x-4">
+            <div className="flex space-x-4" aria-label="Social media links">
               <a
                 href="#"
-                className="text-gray-300 hover:text-white transition-colors"
+                className="text-gray-300 hover:text-white transition-colors focus-outline"
+                aria-label="Facebook"
               >
                 <Facebook className="h-5 w-5" />
               </a>
               <a
                 href="#"
-                className="text-gray-300 hover:text-white transition-colors"
+                className="text-gray-300 hover:text-white transition-colors focus-outline"
+                aria-label="Twitter"
               >
                 <Twitter className="h-5 w-5" />
               </a>
               <a
                 href="#"
-                className="text-gray-300 hover:text-white transition-colors"
+                className="text-gray-300 hover:text-white transition-colors focus-outline"
+                aria-label="Instagram"
               >
                 <Instagram className="h-5 w-5" />
               </a>
@@ -47,7 +50,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   About Anfi
                 </a>
@@ -55,7 +58,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Our Team
                 </a>
@@ -63,7 +66,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Careers
                 </a>
@@ -71,7 +74,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Press
                 </a>
@@ -83,15 +86,25 @@ const Footer: React.FC = () => {
             <h4 className="text-lg font-semibold mb-4">Contact Info</h4>
             <ul className="space-y-2">
               <li className="flex items-center">
-                <Mail className="h-4 w-4 mr-2" />
-                <span className="text-gray-300">contact@anfi.com</span>
+                <Mail className="h-4 w-4 mr-2" aria-hidden="true" />
+                <a
+                  href="mailto:contact@anfi.com"
+                  className="text-gray-300 hover:text-white focus-outline"
+                >
+                  contact@anfi.com
+                </a>
               </li>
               <li className="flex items-center">
-                <Phone className="h-4 w-4 mr-2" />
-                <span className="text-gray-300">+880 1637 429498</span>
+                <Phone className="h-4 w-4 mr-2" aria-hidden="true" />
+                <a
+                  href="tel:+8801637429498"
+                  className="text-gray-300 hover:text-white focus-outline"
+                >
+                  +880 1637 429498
+                </a>
               </li>
               <li className="flex items-center">
-                <MapPin className="h-4 w-4 mr-2" />
+                <MapPin className="h-4 w-4 mr-2" aria-hidden="true" />
                 <span className="text-gray-300">
                   30/7 Lovely Road, Sylhet, Bangladesh
                 </span>
@@ -105,7 +118,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Terms & Conditions
                 </a>
@@ -113,7 +126,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Privacy Policy
                 </a>
@@ -121,7 +134,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Refund Policy
                 </a>
@@ -129,7 +142,7 @@ const Footer: React.FC = () => {
               <li>
                 <a
                   href="#"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors focus-outline"
                 >
                   Cookie Policy
                 </a>
