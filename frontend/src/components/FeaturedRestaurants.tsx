@@ -2,19 +2,26 @@ import React, { useState, useEffect } from "react";
 import RestaurantCard from "./RestaurantCard";
 import apiService from "../services/apiService";
 
-const FeaturedRestaurants = () => {
-  const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+interface Restaurant {
+  _id?: string;
+  id?: string;
+  name: string;
+  [key: string]: any; // Allow additional properties
+}
+
+const FeaturedRestaurants: React.FC = () => {
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchFeaturedRestaurants = async () => {
       try {
         setLoading(true);
         const response = await apiService.getFeaturedRestaurants();
-        setRestaurants(response.data.data);
+        setRestaurants(response.data?.data || []);
         setError(null);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching featured restaurants:', err);
         setError('Failed to load featured restaurants. Please try again later.');
         setRestaurants([]); // Set empty array instead of mock data

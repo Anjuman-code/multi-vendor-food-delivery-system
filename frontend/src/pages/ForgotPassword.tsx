@@ -1,24 +1,29 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import authService from '../services/authService';
 
-const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+interface Errors {
+  email?: string;
+  general?: string;
+}
+
+const ForgotPassword: React.FC = () => {
+  const [email, setEmail] = useState<string>('');
+  const [errors, setErrors] = useState<Errors>({});
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const validateEmail = (email) => {
+  const validateEmail = (email: string): string => {
     if (!email) return 'Email is required';
     if (!/\S+@\S+\.\S+/.test(email)) return 'Email address is invalid';
     return '';
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const emailError = validateEmail(email);
@@ -37,7 +42,7 @@ const ForgotPassword = () => {
       } else {
         setErrors({ general: response.message || 'Failed to send reset link' });
       }
-    } catch (error) {
+    } catch (error: any) {
       setErrors({ general: 'An error occurred while sending reset link' });
     } finally {
       setIsLoading(false);
@@ -52,19 +57,19 @@ const ForgotPassword = () => {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Navbar />
-        
+
         <div className="flex items-center justify-center flex-1 p-4">
           <div className="w-full max-w-md">
             <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg text-center">
               <div className="text-green-500 mb-6">
                 <CheckCircle className="w-16 h-16 mx-auto" />
               </div>
-              
+
               <h1 className="text-2xl font-bold text-gray-800 mb-4">Check your email</h1>
               <p className="text-gray-600 mb-8">
                 We've sent a password reset link to <span className="font-semibold">{email}</span>
               </p>
-              
+
               <button
                 onClick={handleBackToLogin}
                 className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200"
@@ -83,7 +88,7 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
-      
+
       <div className="flex items-center justify-center flex-1 p-4">
         <div className="w-full max-w-md">
           <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg">

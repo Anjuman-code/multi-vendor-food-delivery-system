@@ -1,4 +1,31 @@
-import axios from 'axios';
+import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+
+// Define types
+interface AuthResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+interface UserData {
+  email: string;
+  password: string;
+  [key: string]: any;
+}
+
+interface Credentials {
+  email: string;
+  password: string;
+}
+
+interface ResetData {
+  token: string;
+  newPassword: string;
+}
+
+interface VerificationData {
+  token: string;
+}
 
 // Create axios instance
 const api = axios.create({
@@ -6,26 +33,33 @@ const api = axios.create({
   withCredentials: true, // Important for cookies
 });
 
+// Extend the AxiosRequestConfig interface to include our custom property
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    _retry?: boolean;
+  }
+}
+
 // Request interceptor to add token to requests
 api.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers!.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );
 
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     return response;
   },
-  async (error) => {
+  async (error: any) => {
     const originalRequest = error.config;
 
     // If token expired and not already tried to refresh
@@ -40,7 +74,7 @@ api.interceptors.response.use(
 
         if (response.data.success) {
           localStorage.setItem('token', response.data.data.token);
-          originalRequest.headers.Authorization = `Bearer ${response.data.data.token}`;
+          originalRequest.headers!.Authorization = `Bearer ${response.data.data.token}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
@@ -57,9 +91,9 @@ api.interceptors.response.use(
 // Authentication service
 const authService = {
   // Register a new user
-  async register(userData) {
+  async register(userData: UserData): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post<AuthResponse>('/auth/register', userData);
       if (response.data.success) {
         // Store tokens
         localStorage.setItem('token', response.data.data.token);
@@ -69,7 +103,7 @@ const authService = {
         }
       }
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -87,15 +121,15 @@ const authService = {
   },
 
   // Login user
-  async login(credentials) {
+  async login(credentials: Credentials): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/login', credentials);
+      const response = await api.post<AuthResponse>('/auth/login', credentials);
       if (response.data.success) {
         // Store token
         localStorage.setItem('token', response.data.data.token);
       }
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -113,24 +147,24 @@ const authService = {
   },
 
   // Logout user
-  async logout() {
+  async logout(): Promise<AuthResponse> {
     try {
       await api.post('/auth/logout');
       // Clear stored tokens
       localStorage.removeItem('token');
       return { success: true, message: 'Logged out successfully' };
-    } catch (error) {
+    } catch (error: any) {
       localStorage.removeItem('token');
       return { success: true, message: 'Logged out successfully' }; // Still remove token even if API fails
     }
   },
 
   // Forgot password
-  async forgotPassword(email) {
+  async forgotPassword(email: string): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/forgot-password', { email });
+      const response = await api.post<AuthResponse>('/auth/forgot-password', { email });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -148,11 +182,11 @@ const authService = {
   },
 
   // Reset password
-  async resetPassword(resetData) {
+  async resetPassword(resetData: ResetData): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/reset-password', resetData);
+      const response = await api.post<AuthResponse>('/auth/reset-password', resetData);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -170,11 +204,11 @@ const authService = {
   },
 
   // Verify email
-  async verifyEmail(verificationData) {
+  async verifyEmail(verificationData: VerificationData): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/verify-email', verificationData);
+      const response = await api.post<AuthResponse>('/auth/verify-email', verificationData);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -192,11 +226,11 @@ const authService = {
   },
 
   // Resend verification email
-  async resendVerification(email) {
+  async resendVerification(email: string): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/resend-verification', { email });
+      const response = await api.post<AuthResponse>('/auth/resend-verification', { email });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -214,11 +248,11 @@ const authService = {
   },
 
   // Get current user
-  async getCurrentUser() {
+  async getCurrentUser(): Promise<AuthResponse> {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get<AuthResponse>('/auth/me');
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -236,11 +270,11 @@ const authService = {
   },
 
   // Update profile
-  async updateProfile(profileData) {
+  async updateProfile(profileData: Partial<UserData>): Promise<AuthResponse> {
     try {
-      const response = await api.put('/auth/profile', profileData);
+      const response = await api.put<AuthResponse>('/auth/profile', profileData);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -258,11 +292,11 @@ const authService = {
   },
 
   // Change password
-  async changePassword(passwordData) {
+  async changePassword(passwordData: { oldPassword: string; newPassword: string }): Promise<AuthResponse> {
     try {
-      const response = await api.put('/auth/change-password', passwordData);
+      const response = await api.put<AuthResponse>('/auth/change-password', passwordData);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         return error.response.data;
       } else if (error.request) {
@@ -280,13 +314,13 @@ const authService = {
   },
 
   // Check if user is authenticated
-  isAuthenticated() {
+  isAuthenticated(): boolean {
     const token = localStorage.getItem('token');
     return !!token;
   },
 
   // Get token
-  getToken() {
+  getToken(): string | null {
     return localStorage.getItem('token');
   }
 };

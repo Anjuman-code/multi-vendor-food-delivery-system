@@ -2,10 +2,15 @@ import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface NavItem {
+  name: string;
+  path: string;
+}
 
-  const navLinks = [
+const Navbar: React.FC = () => {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const navLinks: NavItem[] = [
     { name: "Home", path: "/" },
     { name: "Restaurants", path: "/restaurants" },
     { name: "Categories", path: "/categories" },
