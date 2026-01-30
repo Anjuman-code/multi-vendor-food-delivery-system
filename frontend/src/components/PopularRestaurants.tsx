@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
-import { Star, Clock, MapPin, ChefHat } from 'lucide-react';
-import { Transition } from '@headlessui/react';
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  Star,
+  Clock,
+  MapPin,
+  ChefHat,
+  ArrowRight,
+  Utensils,
+} from "lucide-react";
 
-// Mock data for popular restaurants
+// Mock data (Same as before, just slight structure tweaks if needed)
 const mockPopularRestaurants = [
   {
     id: 1,
@@ -11,9 +18,12 @@ const mockPopularRestaurants = [
     rating: 4.9,
     deliveryTime: "25-35 min",
     distance: "1.5 km",
-    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=500&q=80",
-    description: "Fresh seafood caught daily from local waters. Our chefs prepare your meal with the finest ingredients and traditional techniques.",
-    specialties: ["Grilled Salmon", "Lobster Thermidor", "Fish & Chips"]
+    image:
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+    description:
+      "Fresh seafood caught daily. Experience the finest ingredients and traditional coastal techniques.",
+    specialties: ["Grilled Salmon", "Lobster Thermidor", "Fish & Chips"],
+    tags: ["Fresh", "Sustainable"],
   },
   {
     id: 2,
@@ -22,9 +32,12 @@ const mockPopularRestaurants = [
     rating: 4.8,
     deliveryTime: "30-40 min",
     distance: "2.1 km",
-    image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80",
-    description: "Award-winning chef with Michelin-starred experience brings gourmet dining to your home. Each dish is a work of art.",
-    specialties: ["Beef Wellington", "Truffle Risotto", "Chocolate Soufflé"]
+    image:
+      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+    description:
+      "Award-winning chef with Michelin-starred experience. Each dish is a crafted work of art.",
+    specialties: ["Beef Wellington", "Truffle Risotto", "Soufflé"],
+    tags: ["Michelin", "Romantic"],
   },
   {
     id: 3,
@@ -33,122 +46,160 @@ const mockPopularRestaurants = [
     rating: 4.7,
     deliveryTime: "20-30 min",
     distance: "0.9 km",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=500&q=80",
-    description: "Authentic Indian flavors prepared with traditional spices and cooking methods. Family recipes passed down for generations.",
-    specialties: ["Butter Chicken", "Lamb Rogan Josh", "Garlic Naan"]
-  }
+    image:
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
+    description:
+      "Authentic flavors prepared with traditional spices. Family recipes passed down for generations.",
+    specialties: ["Butter Chicken", "Lamb Rogan Josh", "Garlic Naan"],
+    tags: ["Spicy", "Family Style"],
+  },
 ];
 
 const PopularRestaurants: React.FC = () => {
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-
-  const toggleExpand = (id: number) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
   return (
-    <section className="py-16 bg-white">
+    <section className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            Popular Restaurants
-          </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Discover the most loved dining experiences in your area
-          </p>
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
+          <div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight">
+              Popular Restaurants
+            </h2>
+            <p className="text-gray-500 text-lg">
+              Curated dining experiences near you
+            </p>
+          </div>
+          <button className="hidden md:flex items-center gap-2 text-orange-600 font-semibold hover:text-orange-700 transition-colors">
+            View all restaurants <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-        
-        <div className="space-y-6">
+
+        {/* Grid Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {mockPopularRestaurants.map((restaurant) => (
-            <div 
-              key={restaurant.id} 
-              className="border border-gray-200 rounded-2xl overflow-hidden shadow-md"
-            >
-              <button
-                className="w-full flex items-center justify-between p-6 text-left bg-white hover:bg-gray-50 transition-colors duration-200"
-                onClick={() => toggleExpand(restaurant.id)}
-              >
-                <div className="flex items-center">
-                  <div className="w-16 h-16 rounded-lg overflow-hidden mr-6">
-                    <img 
-                      src={restaurant.image} 
-                      alt={restaurant.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">{restaurant.name}</h3>
-                    <div className="flex items-center mt-1">
-                      <div className="flex items-center mr-4">
-                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                        <span className="ml-1 text-sm text-gray-600">{restaurant.rating}</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{restaurant.cuisine}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <div className="mr-6 text-right hidden md:block">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Clock className="w-4 h-4 mr-1" />
-                      <span>{restaurant.deliveryTime}</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 mt-1">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      <span>{restaurant.distance}</span>
-                    </div>
-                  </div>
-                  <svg 
-                    className={`w-5 h-5 text-gray-500 transform transition-transform duration-300 ${expandedId === restaurant.id ? 'rotate-180' : ''}`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
-              
-              <Transition
-                show={expandedId === restaurant.id}
-                enter="transition-all duration-300 ease-out"
-                enterFrom="opacity-0 max-h-0"
-                enterTo="opacity-100 max-h-[1000px]"
-                leave="transition-all duration-300 ease-out"
-                leaveFrom="opacity-100 max-h-[1000px]"
-                leaveTo="opacity-0 max-h-0"
-              >
-                <div className="px-6 pb-6 pt-2 bg-gray-50 border-t border-gray-200">
-                  <p className="text-gray-700 mb-4">{restaurant.description}</p>
-                  
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-gray-800 mb-2 flex items-center">
-                      <ChefHat className="w-4 h-4 mr-2 text-orange-500" />
-                      Specialties
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {restaurant.specialties.map((specialty, idx) => (
-                        <span 
-                          key={idx} 
-                          className="bg-orange-100 text-orange-800 text-sm px-3 py-1 rounded-full"
-                        >
-                          {specialty}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <button className="w-full md:w-auto bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-300">
-                    Order Now
-                  </button>
-                </div>
-              </Transition>
-            </div>
+            <RestaurantCard key={restaurant.id} data={restaurant} />
           ))}
         </div>
+
+        {/* Mobile View All Button */}
+        <button className="w-full md:hidden mt-8 flex items-center justify-center gap-2 bg-white border border-gray-200 py-4 rounded-xl text-gray-900 font-semibold shadow-sm">
+          View all restaurants <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
     </section>
+  );
+};
+
+// Extracted Card Component for cleanliness
+const RestaurantCard = ({
+  data,
+}: {
+  data: (typeof mockPopularRestaurants)[0];
+}) => {
+  return (
+    <motion.div
+      className="group relative h-[500px] w-full rounded-[2rem] overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-shadow duration-500"
+      initial="rest"
+      whileHover="hover"
+      animate="rest"
+    >
+      {/* Background Image with Zoom Effect */}
+      <motion.div
+        className="absolute inset-0"
+        variants={{
+          rest: { scale: 1 },
+          hover: { scale: 1.1 },
+        }}
+        transition={{ duration: 0.6 }}
+      >
+        <img
+          src={data.image}
+          alt={data.name}
+          className="w-full h-full object-cover"
+        />
+        {/* Gradient Overlay - darker at bottom for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80" />
+      </motion.div>
+
+      {/* Floating Badge (Top Right) */}
+      <div className="absolute top-6 right-6 bg-white/20 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10">
+        <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+        <span className="text-white font-bold text-sm">{data.rating}</span>
+      </div>
+
+      {/* Content Container */}
+      <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+        {/* Always Visible Content */}
+        <div className="mb-2">
+          {/* Tags Row */}
+          <div className="flex gap-2 mb-3">
+            <span className="text-xs font-medium text-orange-300 bg-orange-500/20 px-2 py-1 rounded backdrop-blur-sm border border-orange-500/20">
+              {data.cuisine}
+            </span>
+            {data.tags.slice(0, 1).map((tag) => (
+              <span
+                key={tag}
+                className="text-xs font-medium text-gray-300 bg-white/10 px-2 py-1 rounded backdrop-blur-sm"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <h3 className="text-3xl font-bold text-white mb-2 leading-tight">
+            {data.name}
+          </h3>
+
+          {/* Meta Info Row */}
+          <div className="flex items-center gap-4 text-gray-300 text-sm font-medium">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              {data.deliveryTime}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-4 h-4" />
+              {data.distance}
+            </div>
+          </div>
+        </div>
+
+        {/* Hidden Content (Reveals on Hover) */}
+        <motion.div
+          variants={{
+            rest: { height: 0, opacity: 0, marginTop: 0 },
+            hover: { height: "auto", opacity: 1, marginTop: 16 },
+          }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="overflow-hidden"
+        >
+          <div className="pt-4 border-t border-white/20">
+            <p className="text-gray-300 text-sm mb-4 line-clamp-2">
+              {data.description}
+            </p>
+
+            <div className="mb-6">
+              <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2 block flex items-center gap-2">
+                <ChefHat className="w-3 h-3" /> Chef Favorites
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {data.specialties.map((item, i) => (
+                  <span
+                    key={i}
+                    className="text-xs text-white bg-white/10 px-2 py-1 rounded-md"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <button className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn">
+              View Menu{" "}
+              <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
   );
 };
 
