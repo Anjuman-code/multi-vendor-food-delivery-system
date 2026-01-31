@@ -1,6 +1,7 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
+import ScrollToTop from "@/components/ScrollToTop";
 
 /**
  * RootLayout - The outermost layout wrapper for the entire application.
@@ -16,6 +17,9 @@ import { Toaster } from "@/components/ui/toaster";
 const RootLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
+      {/* Scroll to top on route change */}
+      <ScrollToTop />
+
       {/* Skip link for accessibility - navigates to main content */}
       <a
         href="#main-content"
