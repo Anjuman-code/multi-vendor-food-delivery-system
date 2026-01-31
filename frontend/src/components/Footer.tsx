@@ -11,6 +11,7 @@ import {
   MapPin,
   ArrowRight,
   Heart,
+  Code,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,15 +22,15 @@ const Footer: React.FC = () => {
   const footerLinks = {
     company: [
       { name: "About Us", href: "/about" },
+      { name: "Contact Us", href: "/contact" },
       { name: "Careers", href: "/careers" },
       { name: "Blog", href: "/blog" },
-      { name: "Press", href: "/press" },
     ],
     support: [
-      { name: "Help Center", href: "/help" },
-      { name: "Safety", href: "/safety" },
+      { name: "Help Center / FAQ", href: "/faq" },
       { name: "Partner with Us", href: "/partner" },
       { name: "Become a Rider", href: "/rider" },
+      { name: "Safety", href: "/safety" },
     ],
     legal: [
       { name: "Terms of Service", href: "/terms" },
@@ -224,11 +225,21 @@ const Footer: React.FC = () => {
             <p className="text-gray-400 text-sm text-center md:text-left">
               © {currentYear} Anfi Food Delivery. All rights reserved.
             </p>
-            <p className="text-gray-500 text-sm flex items-center gap-1">
-              Made with{" "}
-              <Heart className="w-4 h-4 text-red-500 fill-red-500 inline" /> in
-              Sylhet, Bangladesh
-            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+              <p className="text-gray-500 text-sm flex items-center gap-1">
+                Made with{" "}
+                <Heart className="w-4 h-4 text-red-500 fill-red-500 inline" />{" "}
+                in Sylhet, Bangladesh
+              </p>
+              <div className="flex items-center gap-1 text-gray-500 text-sm">
+                <Code className="w-4 h-4" />
+                <span>
+                  Developed by{" "}
+                  <span className="text-orange-400 font-medium">Anjuman</span> &{" "}
+                  <span className="text-orange-400 font-medium">Shafi</span>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
