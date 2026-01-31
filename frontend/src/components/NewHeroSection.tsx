@@ -1,205 +1,228 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowRight, Star, Clock, Leaf, Smartphone, MapPin, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  Star,
+  Clock,
+  Leaf,
+  Smartphone,
+  MapPin,
+  Sparkles,
+  Play,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const NewHeroSection: React.FC = () => {
-  const [isVisible, setIsVisible] = useState(false);
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
 
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    },
+  };
+
+  const benefits = [
+    { icon: Clock, text: "30 min delivery", bg: "bg-green-50" },
+    { icon: Leaf, text: "Fresh ingredients", bg: "bg-emerald-50" },
+    { icon: Smartphone, text: "Live tracking", bg: "bg-blue-50" },
+  ];
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-orange-50 via-white to-red-50">
-      {/* Decorative background elements */}
+      {/* Decorative Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-orange-100 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-red-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-1/4 left-1/2 w-60 h-60 bg-yellow-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-orange-200/40 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-red-200/30 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 py-16 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left Side - Text Content */}
+      <div className="container mx-auto px-4 pt-24 pb-16 lg:pt-32 lg:pb-24 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+          {/* Left Side - Content */}
           <motion.div
-            className="text-content"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : -50 }}
-            transition={{ duration: 0.8 }}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="max-w-xl"
           >
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800 leading-tight mb-4">
-              <span className="text-3xl md:text-4xl lg:text-5xl text-orange-500 block mb-2">Hungry?</span>
-              Get <span className="text-orange-500">Fresh Food</span> Delivered Fast!
-            </h1>
-            <p className="text-lg text-gray-600 mb-8 max-w-lg">
-              Discover delicious meals from your favorite local restaurants
-            </p>
-            
-            {/* Search Bar */}
-            <div className="mb-8">
-              <div className="flex flex-col md:flex-row gap-2">
-                <div className="relative flex-grow">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <Input
-                    type="text"
-                    placeholder="Search food or restaurant..."
-                    className="block w-full pl-10 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+            {/* Badge */}
+            <motion.div variants={itemVariants} className="mb-6">
+              <span className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-600 rounded-full text-sm font-medium">
+                <Sparkles className="w-4 h-4" />
+                #1 Food Delivery in Sylhet
+              </span>
+            </motion.div>
+
+            {/* Headline */}
+            <motion.h1
+              variants={itemVariants}
+              className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] mb-6"
+            >
+              <span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
+                Hungry?
+              </span>
+              <br />
+              <span className="text-gray-900">Get Food </span>
+              <span className="relative inline-block">
+                <span className="text-gray-900">Fast!</span>
+                <svg
+                  className="absolute -bottom-1 left-0 w-full"
+                  viewBox="0 0 100 8"
+                  fill="none"
+                >
+                  <path
+                    d="M1 5C25 1 75 1 99 5"
+                    stroke="url(#underline-gradient)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
                   />
+                  <defs>
+                    <linearGradient
+                      id="underline-gradient"
+                      x1="0"
+                      y1="0"
+                      x2="100"
+                      y2="0"
+                    >
+                      <stop stopColor="#f97316" />
+                      <stop offset="1" stopColor="#ef4444" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
+            </motion.h1>
+
+            {/* Subtitle */}
+            <motion.p
+              variants={itemVariants}
+              className="text-lg text-gray-600 mb-8"
+            >
+              Delicious meals from 500+ local restaurants, delivered to your
+              door.
+            </motion.p>
+
+            {/* Benefits - Inline */}
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-wrap gap-3 mb-8"
+            >
+              {benefits.map((benefit, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center gap-2 px-4 py-2 ${benefit.bg} rounded-full`}
+                >
+                  <benefit.icon className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {benefit.text}
+                  </span>
                 </div>
-                <div className="relative flex-grow">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <Input
-                    type="text"
-                    placeholder="Enter your location..."
-                    className="block w-full pl-10 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
-                  />
-                </div>
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-4 rounded-lg font-semibold transition-colors duration-200 whitespace-nowrap">
-                  Search
-                </Button>
-              </div>
-            </div>
-            
-            {/* Benefits List */}
-            <ul className="space-y-4 mb-10">
-              <motion.li 
-                className="flex items-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <div className="bg-green-100 p-2 rounded-full mr-3">
-                  <Clock className="w-5 h-5 text-green-600" />
-                </div>
-                <span className="text-gray-700">Fast delivery in under 30 minutes</span>
-              </motion.li>
-              <motion.li 
-                className="flex items-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <div className="bg-green-100 p-2 rounded-full mr-3">
-                  <Leaf className="w-5 h-5 text-green-600" />
-                </div>
-                <span className="text-gray-700">Quality ingredients sourced locally</span>
-              </motion.li>
-              <motion.li 
-                className="flex items-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <div className="bg-green-100 p-2 rounded-full mr-3">
-                  <Smartphone className="w-5 h-5 text-green-600" />
-                </div>
-                <span className="text-gray-700">Easy online ordering with tracking</span>
-              </motion.li>
-            </ul>
-            
+              ))}
+            </motion.div>
+
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <motion.button
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg flex items-center justify-center group transition-all duration-300 transform hover:scale-105 shadow-lg"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10"
+            >
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-6 rounded-xl font-semibold text-lg shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-1 group"
               >
                 Order Now
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </motion.button>
-              
-              <motion.button
-                className="border-2 border-orange-500 text-orange-500 hover:bg-orange-50 font-medium py-4 px-8 rounded-lg transition-colors duration-300"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-                transition={{ duration: 0.5, delay: 0.6 }}
-              >
-                Browse Restaurants
-              </motion.button>
-            </div>
-            
-            {/* Trust Indicators */}
-            <motion.div 
-              className="mt-10 flex flex-wrap items-center gap-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isVisible ? 1 : 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
-            >
-              <div className="flex items-center">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <span className="ml-2 text-gray-700 font-medium">4.8★ from 5,000+ reviews</span>
-              </div>
-              <div className="text-gray-700 font-medium">500+ restaurants available</div>
+                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              <button className="flex items-center gap-3 text-gray-700 hover:text-orange-500 transition-colors group">
+                <span className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg group-hover:shadow-xl transition-shadow">
+                  <Play className="w-5 h-5 fill-orange-500 text-orange-500" />
+                </span>
+                <span className="font-medium">See how it works</span>
+              </button>
             </motion.div>
+
+            {/* Trust Indicators */}
           </motion.div>
-          
-          {/* Right Side - Visual Area */}
+
+          {/* Right Side - Illustration */}
           <motion.div
-            className="illustration-container flex justify-center"
             initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : 50 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="relative flex justify-center lg:justify-end"
           >
-            <div className="relative w-full max-w-lg">
-              {/* Main illustration container */}
-              <div className="relative bg-white rounded-3xl shadow-2xl p-6 overflow-hidden transform rotate-3">
-                <div className="w-full h-96 flex items-center justify-center">
-                  <img
-                    src="/src/assets/illustrations/delivery.svg"
-                    alt="Delivery person with food"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                
-                {/* Floating elements */}
-                <motion.div 
-                  className="absolute -top-6 -right-6 bg-white rounded-full p-4 shadow-lg"
-                  animate={{ y: [-10, 10, -10] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                >
-                  <div className="bg-orange-100 rounded-full p-3">
-                    <MapPin className="h-8 w-8 text-orange-500" />
-                  </div>
-                </motion.div>
-                
-                <motion.div 
-                  className="absolute -bottom-6 -left-6 bg-white rounded-full p-4 shadow-lg"
-                  animate={{ y: [10, -10, 10] }}
-                  transition={{ duration: 4, repeat: Infinity, delay: 0.5 }}
-                >
-                  <div className="bg-red-100 rounded-full p-3">
-                    <Star className="h-8 w-8 text-red-500" />
-                  </div>
-                </motion.div>
-                
-                {/* Additional floating elements */}
-                <motion.div 
-                  className="absolute top-1/3 -left-8 bg-white rounded-full p-3 shadow-lg"
-                  animate={{ x: [-10, 10, -10] }}
-                  transition={{ duration: 5, repeat: Infinity, delay: 1 }}
-                >
-                  <div className="bg-green-100 rounded-full p-2">
-                    <Leaf className="h-6 w-6 text-green-500" />
-                  </div>
-                </motion.div>
+            <div className="relative w-full max-w-md lg:max-w-lg">
+              {/* Illustration - No background */}
+              <div className="relative w-full aspect-square">
+                <img
+                  src="/src/assets/illustrations/delivery.svg"
+                  alt="Delivery person on scooter"
+                  className="w-full h-full object-contain drop-shadow-2xl"
+                />
               </div>
-              
-              {/* Additional decorative elements */}
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl opacity-50 animate-blob"></div>
-              <div className="absolute -top-4 -left-4 w-24 h-24 bg-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-50 animate-blob animation-delay-2000"></div>
+
+              {/* Floating Elements */}
+              <motion.div
+                className="absolute top-8 right-0 lg:-right-4"
+                animate={{ y: [-8, 8, -8] }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
+                <div className="bg-white rounded-2xl shadow-xl p-3 border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl">
+                      <MapPin className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Delivering to</p>
+                      <p className="font-semibold text-gray-800 text-sm">
+                        Sylhet, BD
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="absolute bottom-16 -left-4 lg:left-0"
+                animate={{ y: [8, -8, 8] }}
+                transition={{
+                  duration: 5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.5,
+                }}
+              >
+                <div className="bg-white rounded-2xl shadow-xl p-3 border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-xl">
+                      <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 text-sm">
+                        4.8 Rating
+                      </p>
+                      <p className="text-xs text-gray-500">5,000+ reviews</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Decorative Blobs */}
+              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-br from-orange-300/20 to-red-300/20 rounded-full blur-2xl -z-10" />
+              <div className="absolute top-0 -left-4 w-24 h-24 bg-gradient-to-br from-yellow-300/20 to-orange-300/20 rounded-full blur-2xl -z-10" />
             </div>
           </motion.div>
         </div>
