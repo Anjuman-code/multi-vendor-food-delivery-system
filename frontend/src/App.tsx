@@ -9,6 +9,13 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 
+// Public informational pages
+import AboutPage from "./pages/AboutPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsPage from "./pages/TermsPage";
+import ContactPage from "./pages/ContactPage";
+import FAQPage from "./pages/FAQPage";
+
 function App(): React.ReactElement {
   return (
     <Router>
@@ -18,6 +25,13 @@ function App(): React.ReactElement {
           {/* Public pages with Navbar/Footer */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<NewHomePage />} />
+            {/* Informational pages */}
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/help" element={<FAQPage />} />
           </Route>
 
           {/* Auth pages with split-screen layout */}
