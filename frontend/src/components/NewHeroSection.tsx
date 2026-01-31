@@ -153,7 +153,7 @@ const NewHeroSection: React.FC = () => {
             {/* Trust Indicators */}
           </motion.div>
 
-          {/* Right Side - Illustration */}
+          {/* Right Side - Image Collage */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -161,18 +161,72 @@ const NewHeroSection: React.FC = () => {
             className="relative flex justify-center lg:justify-end"
           >
             <div className="relative w-full max-w-md lg:max-w-lg">
-              {/* Illustration - No background */}
+              {/* Image Collage Grid */}
               <div className="relative w-full aspect-square">
-                <img
-                  src="/src/assets/illustrations/delivery.svg"
-                  alt="Delivery person on scooter"
-                  className="w-full h-full object-contain drop-shadow-2xl"
-                />
+                {/* Main Large Image */}
+                <motion.div
+                  className="absolute top-0 left-0 w-[60%] h-[55%] rounded-3xl overflow-hidden shadow-2xl"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                  <img
+                    src="/src/assets/images/deliveryman.jpg"
+                    alt="Delivery rider"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </motion.div>
+
+                {/* Top Right Image */}
+                <motion.div
+                  className="absolute top-4 right-0 w-[45%] h-[40%] rounded-3xl overflow-hidden shadow-xl"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                >
+                  <img
+                    src="https://images.pexels.com/photos/2233729/pexels-photo-2233729.jpeg?auto=compress&cs=tinysrgb&w=600"
+                    alt="Gourmet burger"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </motion.div>
+
+                {/* Bottom Left Image */}
+                <motion.div
+                  className="absolute bottom-8 left-4 w-[40%] h-[38%] rounded-3xl overflow-hidden shadow-xl"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                >
+                  <img
+                    src="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600"
+                    alt="Delicious healthy food bowl"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </motion.div>
+
+                {/* Bottom Right Image */}
+                <motion.div
+                  className="absolute bottom-0 right-4 w-[50%] h-[45%] rounded-3xl overflow-hidden shadow-2xl border-4 border-white"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 0.7 }}
+                >
+                  <img
+                    src="https://images.pexels.com/photos/4393021/pexels-photo-4393021.jpeg?auto=compress&cs=tinysrgb&w=600"
+                    alt="Food delivery package"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                </motion.div>
               </div>
 
               {/* Floating Elements */}
               <motion.div
-                className="absolute top-8 right-0 lg:-right-4"
+                className="absolute top-0 right-0 lg:-right-4 z-20"
                 animate={{ y: [-8, 8, -8] }}
                 transition={{
                   duration: 4,
@@ -196,7 +250,7 @@ const NewHeroSection: React.FC = () => {
               </motion.div>
 
               <motion.div
-                className="absolute bottom-16 -left-4 lg:left-0"
+                className="absolute bottom-4 -left-4 lg:left-0 z-20"
                 animate={{ y: [8, -8, 8] }}
                 transition={{
                   duration: 5,
@@ -221,8 +275,9 @@ const NewHeroSection: React.FC = () => {
               </motion.div>
 
               {/* Decorative Blobs */}
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-br from-orange-300/20 to-red-300/20 rounded-full blur-2xl -z-10" />
-              <div className="absolute top-0 -left-4 w-24 h-24 bg-gradient-to-br from-yellow-300/20 to-orange-300/20 rounded-full blur-2xl -z-10" />
+              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-br from-orange-300/30 to-red-300/30 rounded-full blur-2xl -z-10" />
+              <div className="absolute top-0 -left-4 w-24 h-24 bg-gradient-to-br from-yellow-300/30 to-orange-300/30 rounded-full blur-2xl -z-10" />
+              <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-gradient-to-br from-red-300/20 to-orange-300/20 rounded-full blur-xl -z-10" />
             </div>
           </motion.div>
         </div>
