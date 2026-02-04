@@ -117,9 +117,17 @@ const RestaurantCard = ({
           alt={data.name}
           className="w-full h-full object-cover"
         />
-        {/* Gradient Overlay - darker at bottom for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80" />
       </motion.div>
+
+      {/* Gradient Overlay - animates darker on hover */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"
+        variants={{
+          rest: { opacity: 0.7 },
+          hover: { opacity: 1 },
+        }}
+        transition={{ duration: 0.3 }}
+      />
 
       {/* Floating Badge (Top Right) */}
       <div className="absolute top-6 right-6 bg-white/20 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10">

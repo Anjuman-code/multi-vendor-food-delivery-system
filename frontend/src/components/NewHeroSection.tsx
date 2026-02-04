@@ -142,12 +142,6 @@ const NewHeroSection: React.FC = () => {
                 Order Now
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
-              <button className="flex items-center gap-3 text-gray-700 hover:text-orange-500 transition-colors group">
-                <span className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg group-hover:shadow-xl transition-shadow">
-                  <Play className="w-5 h-5 fill-orange-500 text-orange-500" />
-                </span>
-                <span className="font-medium">See how it works</span>
-              </button>
             </motion.div>
 
             {/* Trust Indicators */}
