@@ -422,7 +422,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 flex flex-col md:flex-row transition-shadow duration-300"
     >
       {/* Image Section */}
-      <div className="relative w-full md:w-72 h-48 md:h-auto flex-shrink-0 overflow-hidden">
+      <div className="relative w-full md:w-72 h-48 flex-shrink-0 overflow-hidden">
         <motion.img
           src={restaurant.image}
           alt={restaurant.name}
@@ -682,7 +682,7 @@ const RestaurantsPage: React.FC = () => {
         <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-gradient-to-tl from-red-100/30 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 pt-8 pb-16 relative z-10">
+      <div className="container mx-auto px-4 pt-28 pb-16 relative z-10">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Mobile Filter Toggle */}
           <div className="lg:hidden flex items-center justify-between">
