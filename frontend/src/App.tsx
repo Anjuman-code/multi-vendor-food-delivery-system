@@ -15,6 +15,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
 import ContactPage from "./pages/ContactPage";
 import FAQPage from "./pages/FAQPage";
+import RestaurantsPage from "./pages/RestaurantsPage";
 
 function App(): React.ReactElement {
   return (
@@ -32,6 +33,7 @@ function App(): React.ReactElement {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/help" element={<FAQPage />} />
+            <Route path="/restaurants" element={<RestaurantsPage />} />
           </Route>
 
           {/* Auth pages with split-screen layout */}
