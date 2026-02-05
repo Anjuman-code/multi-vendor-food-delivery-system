@@ -163,7 +163,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
           >
             <SelectTrigger
               id="guests-select"
-              className="w-full h-11 border-gray-200 hover:border-orange-300 focus:border-orange-400 focus:ring-orange-200"
+              className="w-full h-11 bg-white border-gray-300 hover:border-orange-300 focus:border-orange-400 focus:ring-orange-200 shadow-sm"
               aria-describedby="guests-hint"
             >
               <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
                 <SelectValue placeholder="Guests" />
               </div>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50 bg-white shadow-lg border border-gray-200">
               {guestOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -191,11 +191,11 @@ const BookingControls: React.FC<BookingControlsProps> = ({
               <button
                 type="button"
                 className={cn(
-                  "w-full h-11 flex items-center gap-2 px-3 bg-white border rounded-md text-sm transition-colors",
+                  "w-full h-11 flex items-center gap-2 px-3 bg-white border rounded-md text-sm transition-colors shadow-sm",
                   "hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2",
                   errors.date
                     ? "border-red-300 focus:ring-red-400"
-                    : "border-gray-200",
+                    : "border-gray-300",
                   !selectedDate && "text-gray-500",
                 )}
                 aria-label={
@@ -218,7 +218,10 @@ const BookingControls: React.FC<BookingControlsProps> = ({
                 )}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent
+              className="w-auto p-0 z-50 bg-white shadow-lg border border-gray-200"
+              align="start"
+            >
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -246,7 +249,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
           <Select value={filters.time || ""} onValueChange={handleTimeChange}>
             <SelectTrigger
               id="time-select"
-              className="w-full h-11 border-gray-200 hover:border-orange-300 focus:border-orange-400 focus:ring-orange-200"
+              className="w-full h-11 bg-white border-gray-300 hover:border-orange-300 focus:border-orange-400 focus:ring-orange-200 shadow-sm"
               aria-describedby="time-hint"
             >
               <div className="flex items-center gap-2">
@@ -254,7 +257,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
                 <SelectValue placeholder="Time" />
               </div>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50 bg-white shadow-lg border border-gray-200">
               {timeOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
