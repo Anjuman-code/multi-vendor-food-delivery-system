@@ -40,7 +40,7 @@ const NewHeroSection: React.FC = () => {
   ];
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-orange-50 via-white to-red-50">
+    <section className="relative min-h-screen flex items-center overflow-hidden">
       {/* Decorative Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-orange-200/40 to-transparent rounded-full blur-3xl" />
