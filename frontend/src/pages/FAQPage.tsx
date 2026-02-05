@@ -285,7 +285,7 @@ const FAQPage: React.FC = () => {
       : faqCategories.filter((c) => c.id === activeCategory);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
+    <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative pt-32 pb-16 overflow-hidden">
         {/* Decorative Background */}

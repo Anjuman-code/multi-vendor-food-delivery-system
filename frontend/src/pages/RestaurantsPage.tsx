@@ -563,7 +563,7 @@ const RestaurantsPage: React.FC = () => {
   // ============================================================================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-red-50/30 overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden">
       {/* Decorative Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-orange-100/40 to-transparent rounded-full blur-3xl" />
