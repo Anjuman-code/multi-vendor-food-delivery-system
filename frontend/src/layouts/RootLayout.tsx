@@ -16,7 +16,7 @@ import ScrollToTop from "@/components/ScrollToTop";
  */
 const RootLayout: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 antialiased">
       {/* Scroll to top on route change */}
       <ScrollToTop />
 

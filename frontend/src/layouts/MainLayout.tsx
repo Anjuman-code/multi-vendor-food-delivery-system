@@ -39,7 +39,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
-        {children || <Outlet />}
+        <div className="max-w-7xl mx-auto w-full">
+          {children || <Outlet />}
+        </div>
       </motion.main>
 
       {/* Footer */}
