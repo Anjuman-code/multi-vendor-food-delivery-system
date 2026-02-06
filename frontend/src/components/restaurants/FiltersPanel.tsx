@@ -487,7 +487,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="w-80 overflow-y-auto"
+            className="w-80 overflow-y-auto bg-white"
             aria-label="Filters panel"
           >
             <SheetHeader>
