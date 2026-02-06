@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -413,17 +413,28 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
   </button>
 );
 
+// Session storage key for cart
+const CART_STORAGE_KEY = "food_delivery_cart";
+
 // Enhanced Menu Item Card Component
 interface MenuItemCardProps {
   item: MenuItem;
   onAddToCart: (item: MenuItem, event: React.MouseEvent) => void;
+  onUpdateQuantity: (
+    id: number,
+    quantity: number,
+    event: React.MouseEvent,
+  ) => void;
   viewMode: ViewMode;
+  cartQuantity: number;
 }
 
 const MenuItemCard: React.FC<MenuItemCardProps> = ({
   item,
   onAddToCart,
+  onUpdateQuantity,
   viewMode,
+  cartQuantity,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const hasDiscount = item.originalPrice && item.originalPrice > item.price;
@@ -531,15 +542,48 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               </div>
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => onAddToCart(item, e)}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              Add to Cart
-            </motion.button>
+            {cartQuantity > 0 ? (
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={(e) =>
+                    onUpdateQuantity(item.id, cartQuantity - 1, e)
+                  }
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center"
+                >
+                  <Minus className="w-4 h-4" />
+                </motion.button>
+                <motion.span
+                  key={cartQuantity}
+                  initial={{ scale: 1.3 }}
+                  animate={{ scale: 1 }}
+                  className="text-gray-900 font-bold text-lg w-8 text-center"
+                >
+                  {cartQuantity}
+                </motion.span>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={(e) =>
+                    onUpdateQuantity(item.id, cartQuantity + 1, e)
+                  }
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md"
+                >
+                  <Plus className="w-4 h-4" />
+                </motion.button>
+              </div>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => onAddToCart(item, e)}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Add to Cart
+              </motion.button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -647,14 +691,43 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             )}
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={(e) => onAddToCart(item, e)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-          </motion.button>
+          {cartQuantity > 0 ? (
+            <div className="flex items-center gap-1">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => onUpdateQuantity(item.id, cartQuantity - 1, e)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold w-9 h-9 rounded-lg transition-all duration-200 flex items-center justify-center"
+              >
+                <Minus className="w-4 h-4" />
+              </motion.button>
+              <motion.span
+                key={cartQuantity}
+                initial={{ scale: 1.3 }}
+                animate={{ scale: 1 }}
+                className="text-gray-900 font-bold text-base w-7 text-center"
+              >
+                {cartQuantity}
+              </motion.span>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => onUpdateQuantity(item.id, cartQuantity + 1, e)}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-9 h-9 rounded-lg transition-all duration-200 flex items-center justify-center shadow-md"
+              >
+                <Plus className="w-4 h-4" />
+              </motion.button>
+            </div>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => onAddToCart(item, e)}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+            </motion.button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -757,43 +830,29 @@ const CategoriesPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [showVegOnly, setShowVegOnly] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([
-    {
-      id: 6,
-      name: "Devil Burger Cheese",
-      description:
-        "Spicy beef patty with jalapeños, pepper jack cheese, spicy mayo, and crispy onion rings.",
-      price: 50.0,
-      image:
-        "https://images.unsplash.com/photo-1550317138-10000687a72b?auto=format&fit=crop&w=800&q=80",
-      category: "burger",
-      quantity: 2,
-      extras: ["Extra Cheese"],
-    },
-    {
-      id: 5,
-      name: "Big Burger Bite",
-      description:
-        "Double beef patty with aged cheddar, crispy bacon, and signature sauce.",
-      price: 50.0,
-      image:
-        "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80",
-      category: "burger",
-      quantity: 1,
-      extras: ["Extra Cheese"],
-    },
-    {
-      id: 2,
-      name: "Sweet Potato Fries",
-      description: "Crispy sweet potato fries seasoned with herbs and spices.",
-      price: 26.0,
-      image:
-        "https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=800&q=80",
-      category: "starter",
-      quantity: 1,
-    },
-  ]);
+
+  // Initialize cart from sessionStorage (empty on new session)
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const savedCart = sessionStorage.getItem(CART_STORAGE_KEY);
+      if (savedCart) {
+        return JSON.parse(savedCart);
+      }
+    } catch (error) {
+      console.error("Error loading cart from sessionStorage:", error);
+    }
+    return [];
+  });
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+
+  // Save cart to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch (error) {
+      console.error("Error saving cart to sessionStorage:", error);
+    }
+  }, [cart]);
 
   // Get filtered and sorted items
   const filteredAndSortedItems = useMemo(() => {
@@ -855,7 +914,7 @@ const CategoriesPage: React.FC = () => {
     });
   };
 
-  const handleUpdateQuantity = (id: number, quantity: number) => {
+  const handleUpdateQuantity = useCallback((id: number, quantity: number) => {
     if (quantity <= 0) {
       setCart((prevCart) => prevCart.filter((item) => item.id !== id));
     } else {
@@ -863,7 +922,25 @@ const CategoriesPage: React.FC = () => {
         prevCart.map((item) => (item.id === id ? { ...item, quantity } : item)),
       );
     }
-  };
+  }, []);
+
+  // Handler for updating quantity from menu card (with event)
+  const handleMenuCardQuantityUpdate = useCallback(
+    (id: number, quantity: number, event: React.MouseEvent) => {
+      event.stopPropagation();
+      handleUpdateQuantity(id, quantity);
+    },
+    [handleUpdateQuantity],
+  );
+
+  // Helper to get quantity of an item in cart
+  const getCartQuantity = useCallback(
+    (itemId: number): number => {
+      const cartItem = cart.find((item) => item.id === itemId);
+      return cartItem ? cartItem.quantity : 0;
+    },
+    [cart],
+  );
 
   const handleRemoveFromCart = (id: number) => {
     setCart((prevCart) => prevCart.filter((item) => item.id !== id));
@@ -1036,7 +1113,9 @@ const CategoriesPage: React.FC = () => {
                       <MenuItemCard
                         item={item}
                         onAddToCart={handleAddToCart}
+                        onUpdateQuantity={handleMenuCardQuantityUpdate}
                         viewMode={viewMode}
+                        cartQuantity={getCartQuantity(item.id)}
                       />
                     </motion.div>
                   ))
