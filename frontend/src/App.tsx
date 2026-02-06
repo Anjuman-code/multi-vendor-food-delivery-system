@@ -16,6 +16,7 @@ import TermsPage from "./pages/TermsPage";
 import ContactPage from "./pages/ContactPage";
 import FAQPage from "./pages/FAQPage";
 import RestaurantsPage from "./pages/RestaurantsPage";
+import RestaurantDetailsPage from "./pages/RestaurantDetailsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 
 function App(): React.ReactElement {
@@ -35,6 +36,10 @@ function App(): React.ReactElement {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/help" element={<FAQPage />} />
             <Route path="/restaurants" element={<RestaurantsPage />} />
+            <Route
+              path="/restaurants/:id"
+              element={<RestaurantDetailsPage />}
+            />
             <Route path="/categories" element={<CategoriesPage />} />
           </Route>
 
