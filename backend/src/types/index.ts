@@ -2,42 +2,16 @@ import { Request } from "express";
 import { HydratedDocument } from "mongoose";
 
 // ────────────────────────────────────────────────────────────────
-// User
+// Re-export all user types from the dedicated module
 // ────────────────────────────────────────────────────────────────
-
-/** Plain user data interface (matches Mongoose schema fields) */
-export interface IUser {
-  fullName: string;
-  email: string;
-  password: string;
-  phoneNumber?: string;
-  deliveryAddress?: string;
-  isEmailVerified: boolean;
-  emailVerificationToken?: string;
-  emailVerificationExpires?: Date;
-  passwordResetToken?: string;
-  passwordResetExpires?: Date;
-  isActive: boolean;
-  role: "customer" | "restaurant_owner" | "admin";
-  lastLoginAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/** Instance methods on User documents */
-export interface IUserMethods {
-  comparePassword(candidatePassword: string): Promise<boolean>;
-}
-
-/** Hydrated User document type (Mongoose methods + instance methods) */
-export type UserDocument = HydratedDocument<IUser, IUserMethods>;
+export * from "./user.types";
 
 // ────────────────────────────────────────────────────────────────
 // Restaurant
 // ────────────────────────────────────────────────────────────────
 
-/** Address sub-document */
-export interface IAddress {
+/** Restaurant address sub-document */
+export interface IRestaurantAddress {
   street: string;
   city: string;
   state: string;
@@ -88,7 +62,7 @@ export interface IRating {
 export interface IRestaurant {
   name: string;
   description: string;
-  address: IAddress;
+  address: IRestaurantAddress;
   contactInfo: IContactInfo;
   cuisineType: string[];
   images: IImages;
@@ -120,7 +94,7 @@ export interface IName {
 
 /** Express Request extended with an authenticated user */
 export interface AuthRequest extends Request {
-  user?: UserDocument;
+  user?: import("./user.types").IUserDocument;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -137,7 +111,7 @@ export interface ApiResponse<T = unknown> {
   count?: number;
 }
 
-/** JWT token payload */
+/** JWT token payload (legacy, prefer TokenPayload from user.types) */
 export interface JwtTokenPayload {
   id: string;
   iat?: number;
