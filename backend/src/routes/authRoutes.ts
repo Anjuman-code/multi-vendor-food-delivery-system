@@ -1,6 +1,5 @@
-const express = require("express");
-const router = express.Router();
-const { 
+import { Router } from "express";
+import {
   register,
   login,
   logout,
@@ -11,13 +10,13 @@ const {
   getCurrentUser,
   updateProfile,
   changePassword,
-  refreshToken
-} = require("../controllers/authController");
+  refreshToken,
+} from "../controllers/authController";
+import { protect } from "../middleware/auth";
 
-// Middleware for protecting routes
-const { protect } = require("../middleware/auth");
+const router = Router();
 
-// Public routes
+// ── Public routes ────────────────────────────────────────────────
 router.post("/register", register);
 router.post("/login", login);
 router.post("/logout", logout);
@@ -27,9 +26,9 @@ router.post("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerification);
 router.post("/refresh-token", refreshToken);
 
-// Protected routes
+// ── Protected routes ─────────────────────────────────────────────
 router.get("/me", protect, getCurrentUser);
 router.put("/profile", protect, updateProfile);
 router.put("/change-password", protect, changePassword);
 
-module.exports = router;
+export default router;
