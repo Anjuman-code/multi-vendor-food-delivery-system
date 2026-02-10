@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Mail, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import authService from "../services/authService";
 
 /**
  * VerifyEmail - Email verification prompt page.
@@ -11,22 +12,52 @@ import { useToast } from "@/hooks/use-toast";
  * This page is wrapped by AuthLayout which provides:
  * - Split-screen layout with branding
  * - Logo and footer
+ *
+ * Expects `location.state.email` to have been set by RegisterPage.
  */
 const VerifyEmail: React.FC = () => {
   const [isResending, setIsResending] = useState(false);
   const { toast } = useToast();
+  const location = useLocation();
+  const email = (location.state as { email?: string } | null)?.email;
 
   const handleResendEmail = async () => {
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Email address is missing. Please register again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsResending(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await authService.resendVerification(email);
+
+      if (response.success) {
+        toast({
+          title: "Email sent",
+          description: "A new verification email has been sent to your inbox.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description:
+            response.message || "Failed to resend verification email.",
+          variant: "destructive",
+        });
+      }
+    } catch {
       toast({
-        title: "Email sent",
-        description: "A new verification email has been sent to your inbox.",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
       });
+    } finally {
       setIsResending(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -48,8 +79,13 @@ const VerifyEmail: React.FC = () => {
         Verify your email
       </h2>
       <p className="text-gray-600 mb-8 leading-relaxed">
-        We've sent a verification link to your email address. Please check your
-        inbox and click the link to verify your account.
+        We've sent a verification link to{" "}
+        {email ? (
+          <span className="font-semibold text-gray-800">{email}</span>
+        ) : (
+          "your email address"
+        )}
+        . Please check your inbox and click the link to verify your account.
       </p>
 
       {/* Status Indicator */}
@@ -64,10 +100,10 @@ const VerifyEmail: React.FC = () => {
 
       {/* Actions */}
       <div className="space-y-4">
-        <Link to="/">
+        <Link to="/login">
           <Button className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11">
             <CheckCircle className="w-4 h-4 mr-2" />
-            Go to Home
+            Go to Login
           </Button>
         </Link>
 
