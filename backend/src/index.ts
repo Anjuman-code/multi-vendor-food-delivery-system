@@ -3,8 +3,8 @@ import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
 import rateLimit from "express-rate-limit";
+import { mongoSanitiseMiddleware } from "./middleware/sanitize.middleware";
 
 import { connectDatabase } from "./config/database";
 import { RATE_LIMITS } from "./config/constants";
@@ -17,7 +17,7 @@ const app = express();
 
 // ── Security middleware ──────────────────────────────────────────
 app.use(helmet());
-app.use(mongoSanitize());
+app.use(mongoSanitiseMiddleware);
 
 // General rate limit
 app.use(

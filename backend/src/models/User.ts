@@ -127,7 +127,7 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
 
 userSchema.index({ email: 1, isActive: 1 });
 userSchema.index({ role: 1, isActive: 1 });
-userSchema.index({ phoneNumber: 1 });
+// phoneNumber already has an index via `unique: true` on the field definition
 userSchema.index({ emailVerificationToken: 1 }, { sparse: true });
 userSchema.index({ passwordResetToken: 1 }, { sparse: true });
 
