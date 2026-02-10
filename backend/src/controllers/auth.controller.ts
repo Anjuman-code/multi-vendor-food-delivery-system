@@ -99,10 +99,13 @@ export const register = async (
     // Create linked customer profile
     await CustomerProfile.create({ userId: user._id });
 
-    // Log verification token (email sending deferred)
-    console.log(
-      `[EMAIL] Verification token for ${email}: ${verificationToken}`,
-    );
+    // Log verification token prominently (email sending deferred)
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION]");
+    console.log(`  User:  ${email}`);
+    console.log(`  Token: ${verificationToken}`);
+    console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
+    console.log("========================================\n");
 
     successResponse(
       res,
@@ -333,9 +336,12 @@ export const resendVerification = async (
     const verificationToken = user.generateEmailVerificationToken();
     await user.save({ validateBeforeSave: false });
 
-    console.log(
-      `[EMAIL] Re-sent verification token for ${email}: ${verificationToken}`,
-    );
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION - RESEND]");
+    console.log(`  User:  ${email}`);
+    console.log(`  Token: ${verificationToken}`);
+    console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
+    console.log("========================================\n");
 
     successResponse(res, null, "Verification email sent");
   } catch (error) {
@@ -370,7 +376,11 @@ export const forgotPassword = async (
     const resetToken = user.generatePasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    console.log(`[EMAIL] Password reset token for ${email}: ${resetToken}`);
+    console.log("\n========================================");
+    console.log("[PASSWORD RESET]");
+    console.log(`  User:  ${email}`);
+    console.log(`  Token: ${resetToken}`);
+    console.log("========================================\n");
 
     successResponse(
       res,
