@@ -6,7 +6,14 @@ export default {
     "./src/components/ui/**/*.{ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        destructive: {
+          DEFAULT: "#ef4444",
+          foreground: "#ffffff",
+        },
+      },
+    },
   },
   plugins: [],
-}
+};
