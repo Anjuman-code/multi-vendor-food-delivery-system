@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import SocialButton from "../components/SocialButton";
 import { registerSchema, type RegisterFormData } from "../lib/validation";
+import authService from "../services/authService";
 
 /**
  * RegisterPage - User registration page.
@@ -36,7 +37,8 @@ const RegisterPage: React.FC = () => {
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      fullName: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phoneNumber: "",
       password: "",
@@ -48,29 +50,39 @@ const RegisterPage: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const isSuccess = Math.random() > 0.1; // 90% success rate
+    try {
+      const response = await authService.register({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        password: data.password,
+      });
 
-      if (isSuccess) {
-        console.log("Registration data:", data); // Using the data parameter to prevent the warning
+      if (response.success) {
         toast({
           title: "Success",
-          description: "Account created successfully! Redirecting...",
+          description:
+            "Account created successfully! Please check your email to verify.",
         });
-        setTimeout(() => {
-          navigate("/");
-        }, 1500);
+        // Navigate to verify-email page, passing email via router state
+        navigate("/verify-email", { state: { email: data.email } });
       } else {
         toast({
           title: "Error",
-          description: "Email already exists",
+          description: response.message || "Registration failed",
           variant: "destructive",
         });
       }
-
+    } catch {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSocialLogin = (provider: "google" | "facebook") => {
@@ -111,26 +123,50 @@ const RegisterPage: React.FC = () => {
       {/* Registration Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          <FormField
-            control={form.control}
-            name="fullName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="Enter your full name"
-                    {...field}
-                    className={
-                      form.formState.errors.fullName ? "border-red-500" : ""
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* First / Last name – side-by-side */}
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>First Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      placeholder="First name"
+                      {...field}
+                      className={
+                        form.formState.errors.firstName ? "border-red-500" : ""
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      placeholder="Last name"
+                      {...field}
+                      className={
+                        form.formState.errors.lastName ? "border-red-500" : ""
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
@@ -158,11 +194,11 @@ const RegisterPage: React.FC = () => {
             name="phoneNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone Number (Optional)</FormLabel>
+                <FormLabel>Phone Number</FormLabel>
                 <FormControl>
                   <Input
                     type="tel"
-                    placeholder="+880 or 01XXXXXXXXX"
+                    placeholder="e.g. +8801XXXXXXXXX"
                     {...field}
                     className={
                       form.formState.errors.phoneNumber ? "border-red-500" : ""

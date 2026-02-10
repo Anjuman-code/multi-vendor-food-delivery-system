@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import SocialButton from "../components/SocialButton";
 import { loginSchema, type LoginFormData } from "../lib/validation";
+import authService from "../services/authService";
 
 /**
  * LoginPage - User login page.
@@ -34,7 +35,7 @@ const LoginPage: React.FC = () => {
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      emailOrPhone: "",
       password: "",
     },
   });
@@ -42,29 +43,34 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const isSuccess = Math.random() > 0.1; // 90% success rate
+    try {
+      const response = await authService.login({
+        emailOrPhone: data.emailOrPhone,
+        password: data.password,
+      });
 
-      if (isSuccess) {
-        console.log("Login data:", data);
+      if (response.success) {
         toast({
           title: "Success",
-          description: "Welcome! Redirecting...",
+          description: "Welcome back! Redirecting...",
         });
-        setTimeout(() => {
-          navigate("/");
-        }, 1500);
+        navigate("/");
       } else {
         toast({
           title: "Error",
-          description: "Invalid credentials",
+          description: response.message || "Invalid credentials",
           variant: "destructive",
         });
       }
-
+    } catch {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSocialLogin = (provider: "google" | "facebook") => {
@@ -107,17 +113,17 @@ const LoginPage: React.FC = () => {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
           <FormField
             control={form.control}
-            name="email"
+            name="emailOrPhone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Email or Phone</FormLabel>
                 <FormControl>
                   <Input
-                    type="email"
-                    placeholder="Enter your email"
+                    type="text"
+                    placeholder="Enter your email or phone number"
                     {...field}
                     className={
-                      form.formState.errors.email
+                      form.formState.errors.emailOrPhone
                         ? "border-red-500 focus:ring-red-500"
                         : ""
                     }
