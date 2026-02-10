@@ -1,328 +1,230 @@
-import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+/**
+ * Authentication service – wraps all /api/auth endpoints.
+ * Uses the shared httpClient (which handles tokens + refresh).
+ */
+import httpClient from "../lib/httpClient";
 
-// Define types
-interface AuthResponse {
+// ── Types matching backend responses ───────────────────────────
+
+/** Standard envelope returned by every backend endpoint. */
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
+  errors?: string[];
 }
 
-interface UserData {
+/** Shape returned by POST /api/auth/register */
+export interface RegisterResponseData {
+  userId: string;
+}
+
+/** Shape returned by POST /api/auth/login */
+export interface LoginResponseData {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+}
+
+/** Safe user object returned after login */
+export interface AuthUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  isEmailVerified: boolean;
+}
+
+/** Payload sent to POST /api/auth/register */
+export interface RegisterPayload {
   email: string;
   password: string;
-  [key: string]: any;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
 }
 
-interface Credentials {
-  email: string;
+/** Payload sent to POST /api/auth/login */
+export interface LoginPayload {
+  emailOrPhone: string;
   password: string;
 }
 
-interface ResetData {
-  token: string;
-  newPassword: string;
-}
+// ── Helper ─────────────────────────────────────────────────────
 
-interface VerificationData {
-  token: string;
-}
-
-// Create axios instance
-const api = axios.create({
-  baseURL: 'http://localhost:2002/api',
-  withCredentials: true, // Important for cookies
-});
-
-// Extend the AxiosRequestConfig interface to include our custom property
-declare module 'axios' {
-  interface AxiosRequestConfig {
-    _retry?: boolean;
+/** Extract a user-friendly error message from an Axios error. */
+const extractError = (error: unknown): ApiResponse => {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const axiosErr = error as { response?: { data?: ApiResponse } };
+    if (axiosErr.response?.data) return axiosErr.response.data;
   }
-}
-
-// Request interceptor to add token to requests
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers!.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error: any) => {
-    return Promise.reject(error);
+  if (typeof error === "object" && error !== null && "request" in error) {
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
   }
-);
+  return { success: false, message: "An unexpected error occurred." };
+};
 
-// Response interceptor to handle token refresh
-api.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
-  async (error: any) => {
-    const originalRequest = error.config;
+// ── Service ────────────────────────────────────────────────────
 
-    // If token expired and not already tried to refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        // Try to refresh token
-        const response = await axios.post('http://localhost:2002/api/auth/refresh-token', {}, {
-          withCredentials: true
-        });
-
-        if (response.data.success) {
-          localStorage.setItem('token', response.data.data.token);
-          originalRequest.headers!.Authorization = `Bearer ${response.data.data.token}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // If refresh fails, redirect to login
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Authentication service
 const authService = {
-  // Register a new user
-  async register(userData: UserData): Promise<AuthResponse> {
+  /**
+   * POST /api/auth/register
+   * Creates a new customer account.
+   * Backend does NOT return tokens – the user must verify their email first.
+   */
+  async register(
+    payload: RegisterPayload,
+  ): Promise<ApiResponse<RegisterResponseData>> {
     try {
-      const response = await api.post<AuthResponse>('/auth/register', userData);
-      if (response.data.success) {
-        // Store tokens
-        localStorage.setItem('token', response.data.data.token);
-        if (response.data.data.refreshToken) {
-          // If refresh token is returned in response (not in cookie)
-          // In our implementation, refresh token is stored in cookie
-        }
-      }
+      const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
+        "/api/auth/register",
+        payload,
+      );
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<RegisterResponseData>;
     }
   },
 
-  // Login user
-  async login(credentials: Credentials): Promise<AuthResponse> {
+  /**
+   * POST /api/auth/login
+   * Authenticates a user and stores access + refresh tokens.
+   */
+  async login(payload: LoginPayload): Promise<ApiResponse<LoginResponseData>> {
     try {
-      const response = await api.post<AuthResponse>('/auth/login', credentials);
-      if (response.data.success) {
-        // Store token
-        localStorage.setItem('token', response.data.data.token);
+      const response = await httpClient.post<ApiResponse<LoginResponseData>>(
+        "/api/auth/login",
+        payload,
+      );
+
+      if (response.data.success && response.data.data) {
+        const { accessToken, refreshToken } = response.data.data;
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
       }
+
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<LoginResponseData>;
     }
   },
 
-  // Logout user
-  async logout(): Promise<AuthResponse> {
+  /**
+   * POST /api/auth/logout
+   * Invalidates the current refresh token on the server.
+   */
+  async logout(): Promise<ApiResponse> {
     try {
-      await api.post('/auth/logout');
-      // Clear stored tokens
-      localStorage.removeItem('token');
-      return { success: true, message: 'Logged out successfully' };
-    } catch (error: any) {
-      localStorage.removeItem('token');
-      return { success: true, message: 'Logged out successfully' }; // Still remove token even if API fails
+      const refreshToken = localStorage.getItem("refreshToken");
+      await httpClient.post("/api/auth/logout", { refreshToken });
+    } catch {
+      // Best-effort – always clear local storage even if the request fails.
     }
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    return { success: true, message: "Logged out successfully" };
   },
 
-  // Forgot password
-  async forgotPassword(email: string): Promise<AuthResponse> {
+  /**
+   * POST /api/auth/forgot-password
+   * Sends a password-reset email (backend always returns success to prevent enumeration).
+   */
+  async forgotPassword(email: string): Promise<ApiResponse> {
     try {
-      const response = await api.post<AuthResponse>('/auth/forgot-password', { email });
+      const response = await httpClient.post<ApiResponse>(
+        "/api/auth/forgot-password",
+        { email },
+      );
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error);
     }
   },
 
-  // Reset password
-  async resetPassword(resetData: ResetData): Promise<AuthResponse> {
+  /**
+   * POST /api/auth/reset-password
+   * Resets the password using a valid reset token.
+   */
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<ApiResponse> {
     try {
-      const response = await api.post<AuthResponse>('/auth/reset-password', resetData);
+      const response = await httpClient.post<ApiResponse>(
+        "/api/auth/reset-password",
+        { token, newPassword },
+      );
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error);
     }
   },
 
-  // Verify email
-  async verifyEmail(verificationData: VerificationData): Promise<AuthResponse> {
+  /**
+   * GET /api/auth/verify-email/:token
+   * Verifies a user's email address.
+   */
+  async verifyEmail(token: string): Promise<ApiResponse> {
     try {
-      const response = await api.post<AuthResponse>('/auth/verify-email', verificationData);
+      const response = await httpClient.get<ApiResponse>(
+        `/api/auth/verify-email/${encodeURIComponent(token)}`,
+      );
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error);
     }
   },
 
-  // Resend verification email
-  async resendVerification(email: string): Promise<AuthResponse> {
+  /**
+   * POST /api/auth/resend-verification
+   * Resends the email verification token.
+   */
+  async resendVerification(email: string): Promise<ApiResponse> {
     try {
-      const response = await api.post<AuthResponse>('/auth/resend-verification', { email });
+      const response = await httpClient.post<ApiResponse>(
+        "/api/auth/resend-verification",
+        { email },
+      );
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error);
     }
   },
 
-  // Get current user
-  async getCurrentUser(): Promise<AuthResponse> {
+  /**
+   * PUT /api/auth/change-password
+   * Changes the password for the currently authenticated user.
+   */
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<ApiResponse> {
     try {
-      const response = await api.get<AuthResponse>('/auth/me');
+      const response = await httpClient.put<ApiResponse>(
+        "/api/auth/change-password",
+        { currentPassword, newPassword },
+      );
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
+    } catch (error: unknown) {
+      return extractError(error);
     }
   },
 
-  // Update profile
-  async updateProfile(profileData: Partial<UserData>): Promise<AuthResponse> {
-    try {
-      const response = await api.put<AuthResponse>('/auth/profile', profileData);
-      return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
-    }
-  },
+  // ── Helpers ────────────────────────────────────────────────────
 
-  // Change password
-  async changePassword(passwordData: { oldPassword: string; newPassword: string }): Promise<AuthResponse> {
-    try {
-      const response = await api.put<AuthResponse>('/auth/change-password', passwordData);
-      return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        return error.response.data;
-      } else if (error.request) {
-        return {
-          success: false,
-          message: 'Network error. Please check your connection.'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred.'
-        };
-      }
-    }
-  },
-
-  // Check if user is authenticated
+  /** Check whether the user has an access token stored. */
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('token');
-    return !!token;
+    return !!localStorage.getItem("accessToken");
   },
 
-  // Get token
+  /** Return the stored access token (or null). */
   getToken(): string | null {
-    return localStorage.getItem('token');
-  }
+    return localStorage.getItem("accessToken");
+  },
 };
 
 export default authService;
