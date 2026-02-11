@@ -1,8 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ChevronDown, MapPin, ShoppingBag, User } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import {
+  Menu,
+  X,
+  ChevronDown,
+  MapPin,
+  ShoppingBag,
+  User,
+  LogOut,
+  Settings,
+} from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import authService from "@/services/authService";
+import { useToast } from "@/hooks/use-toast";
 
 interface NavItem {
   name: string;
@@ -14,6 +34,9 @@ const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout: logoutContext } = useAuth();
+  const { toast } = useToast();
 
   const navLinks: NavItem[] = [
     { name: "Home", path: "/" },
@@ -66,6 +89,29 @@ const Navbar: React.FC = () => {
   };
 
   const isActiveLink = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      logoutContext();
+      toast({
+        title: "Success",
+        description: "Logged out successfully",
+      });
+      navigate("/");
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getUserInitials = () => {
+    if (!user) return "U";
+    return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+  };
 
   return (
     <motion.nav
@@ -138,18 +184,79 @@ const Navbar: React.FC = () => {
               </span>
             </button>
 
-            {/* Auth Buttons */}
-            <Link
-              to="/login"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
-            >
-              Log in
-            </Link>
-            <Link to="/register">
-              <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-2 rounded-full font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-0.5">
-                Sign up
-              </Button>
-            </Link>
+            {/* Auth Section - Show user profile if logged in, otherwise show login/register */}
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                      {getUserInitials()}
+                    </div>
+                    <div className="text-left hidden xl:block">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">
+                        {user.role}
+                      </p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-white border border-gray-200 shadow-xl rounded-xl p-1"
+                >
+                  <DropdownMenuLabel className="px-3 py-2">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500 font-normal">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-gray-100" />
+                  <DropdownMenuItem
+                    onClick={() => navigate("/profile")}
+                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/settings")}
+                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-gray-100" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="px-3 py-2 rounded-lg cursor-pointer text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
+                >
+                  Log in
+                </Link>
+                <Link to="/register">
+                  <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-2 rounded-full font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-0.5">
+                    Sign up
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -268,19 +375,60 @@ const Navbar: React.FC = () => {
 
                 {/* Auth Section */}
                 <div className="space-y-3 pt-6 border-t border-gray-100">
-                  <Link
-                    to="/login"
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
-                  >
-                    <User className="w-4 h-4" />
-                    Log in
-                  </Link>
-                  <Link to="/register" onClick={() => setIsOpen(false)}>
-                    <Button className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-orange-500/25">
-                      Create Account
-                    </Button>
-                  </Link>
+                  {isAuthenticated && user ? (
+                    <>
+                      <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl">
+                        <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                          {getUserInitials()}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">
+                            {user.firstName} {user.lastName}
+                          </p>
+                          <p className="text-sm text-gray-600">{user.email}</p>
+                          <p className="text-xs text-orange-600 capitalize mt-0.5">
+                            {user.role}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsOpen(false);
+                          navigate("/profile");
+                        }}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        View Profile
+                      </button>
+                      <Button
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-medium"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Log out
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        Log in
+                      </Link>
+                      <Link to="/register" onClick={() => setIsOpen(false)}>
+                        <Button className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-orange-500/25">
+                          Create Account
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

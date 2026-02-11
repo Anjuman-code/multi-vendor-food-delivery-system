@@ -102,9 +102,10 @@ const authService = {
       );
 
       if (response.data.success && response.data.data) {
-        const { accessToken, refreshToken } = response.data.data;
+        const { accessToken, refreshToken, user } = response.data.data;
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
+        localStorage.setItem("user", JSON.stringify(user));
       }
 
       return response.data;
@@ -126,6 +127,7 @@ const authService = {
     }
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
     return { success: true, message: "Logged out successfully" };
   },
 
