@@ -168,12 +168,28 @@ const authService = {
 
   /**
    * GET /api/auth/verify-email/:token
-   * Verifies a user's email address.
+   * Verifies a user's email address via link token.
    */
   async verifyEmail(token: string): Promise<ApiResponse> {
     try {
       const response = await httpClient.get<ApiResponse>(
         `/api/auth/verify-email/${encodeURIComponent(token)}`,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  /**
+   * POST /api/auth/verify-otp
+   * Verifies a user's email address via 6-digit OTP.
+   */
+  async verifyOTP(email: string, otp: string): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.post<ApiResponse>(
+        "/api/auth/verify-otp",
+        { email, otp },
       );
       return response.data;
     } catch (error: unknown) {
