@@ -17,6 +17,7 @@ import { generateAccessToken, generateRefreshToken } from "../utils/jwt.util";
 import {
   generateVerificationToken,
   generateResetToken,
+  generateOTP,
   hashToken,
 } from "../utils/token.util";
 
@@ -110,6 +111,8 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     passwordResetExpires: { type: Date },
     emailVerificationToken: { type: String },
     emailVerificationExpires: { type: Date },
+    emailVerificationOTP: { type: String },
+    emailVerificationOTPExpires: { type: Date },
     refreshToken: { type: [String], default: [], select: false },
     lastLogin: { type: Date },
     failedLoginAttempts: { type: Number, default: 0 },
@@ -169,13 +172,21 @@ userSchema.methods.generateAuthToken = function (): {
   return { accessToken, refreshToken };
 };
 
-userSchema.methods.generateEmailVerificationToken = function (): string {
+userSchema.methods.generateEmailVerificationToken = function (): {
+  token: string;
+  otp: string;
+} {
   const token = generateVerificationToken();
+  const otp = generateOTP();
   this.emailVerificationToken = hashToken(token);
   this.emailVerificationExpires = new Date(
     Date.now() + AUTH.EMAIL_VERIFICATION_EXPIRY_HR * 60 * 60 * 1000,
   );
-  return token;
+  this.emailVerificationOTP = hashToken(otp);
+  this.emailVerificationOTPExpires = new Date(
+    Date.now() + AUTH.EMAIL_VERIFICATION_EXPIRY_HR * 60 * 60 * 1000,
+  );
+  return { token, otp };
 };
 
 userSchema.methods.generatePasswordResetToken = function (): string {
