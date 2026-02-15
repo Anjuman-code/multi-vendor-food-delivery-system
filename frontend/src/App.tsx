@@ -1,61 +1,66 @@
-import React from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { RootLayout, MainLayout, AuthLayout } from "./layouts";
+import React, { lazy, Suspense } from 'react';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { PageLoader } from './components/PageLoader';
+import { AuthProvider } from './contexts/AuthContext';
+import { AuthLayout, MainLayout, RootLayout } from './layouts';
 
-// Pages
-import NewHomePage from "./pages/NewHomePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ForgotPassword from "./pages/ForgotPassword";
-import VerifyEmail from "./pages/VerifyEmail";
-
-// Public informational pages
-import AboutPage from "./pages/AboutPage";
-import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
-import TermsPage from "./pages/TermsPage";
-import ContactPage from "./pages/ContactPage";
-import FAQPage from "./pages/FAQPage";
-import RestaurantsPage from "./pages/RestaurantsPage";
-import RestaurantDetailsPage from "./pages/RestaurantDetailsPage";
-import CategoriesPage from "./pages/CategoriesPage";
-import ProfilePage from "./pages/ProfilePage";
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const NewHomePage = lazy(() => import('./pages/NewHomePage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const RestaurantDetailsPage = lazy(
+  () => import('./pages/RestaurantDetailsPage'),
+);
+const RestaurantsPage = lazy(() => import('./pages/RestaurantsPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function App(): React.ReactElement {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          {/* Root Layout wraps everything */}
-          <Route element={<RootLayout />}>
-            {/* Public pages with Navbar/Footer */}
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<NewHomePage />} />
-              {/* Informational pages */}
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/privacy" element={<PrivacyPolicyPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/faq" element={<FAQPage />} />
-              <Route path="/help" element={<FAQPage />} />
-              <Route path="/restaurants" element={<RestaurantsPage />} />
-              <Route
-                path="/restaurants/:id"
-                element={<RestaurantDetailsPage />}
-              />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-            </Route>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route element={<RootLayout />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<NewHomePage />} />
 
-            {/* Auth pages with split-screen layout */}
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-            </Route>
-          </Route>
-        </Routes>
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/contact" element={<ContactPage />} />
+                  <Route path="/faq" element={<FAQPage />} />
+                  <Route path="/help" element={<FAQPage />} />
+                  <Route path="/restaurants" element={<RestaurantsPage />} />
+                  <Route
+                    path="/restaurants/:id"
+                    element={<RestaurantDetailsPage />}
+                  />
+                  <Route path="/categories" element={<CategoriesPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
+                </Route>
+              </Route>
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </AuthProvider>
     </Router>
   );
