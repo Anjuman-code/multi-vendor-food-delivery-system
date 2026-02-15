@@ -56,6 +56,8 @@ export interface IUser {
   passwordResetExpires?: Date;
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
+  emailVerificationOTP?: string;
+  emailVerificationOTPExpires?: Date;
   refreshToken: string[];
   lastLogin?: Date;
   failedLoginAttempts: number;
@@ -71,7 +73,7 @@ export interface IUser {
 export interface IUserMethods {
   comparePassword(candidatePassword: string): Promise<boolean>;
   generateAuthToken(): { accessToken: string; refreshToken: string };
-  generateEmailVerificationToken(): string;
+  generateEmailVerificationToken(): { token: string; otp: string };
   generatePasswordResetToken(): string;
   incrementFailedLoginAttempts(): Promise<void>;
   resetFailedLoginAttempts(): Promise<void>;

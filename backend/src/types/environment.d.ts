@@ -17,10 +17,8 @@ declare namespace NodeJS {
     PASSWORD_RESET_EXPIRY?: string;
     EMAIL_VERIFICATION_EXPIRY?: string;
 
-    // Email (placeholder)
-    EMAIL_FROM?: string;
-    EMAIL_SERVICE?: string;
-    EMAIL_USER?: string;
+    // Email
+    EMAIL_ADDRESS?: string;
     EMAIL_PASSWORD?: string;
 
     // Frontend
