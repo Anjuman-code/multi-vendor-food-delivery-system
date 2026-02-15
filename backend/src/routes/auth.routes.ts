@@ -8,6 +8,7 @@ import {
   refreshToken,
   logout,
   verifyEmail,
+  verifyOTP,
   resendVerification,
   forgotPassword,
   resetPassword,
@@ -22,6 +23,7 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   resendVerificationSchema,
+  otpVerificationSchema,
 } from "../validations/auth.validation";
 
 const router = Router();
@@ -31,6 +33,7 @@ router.post("/register", validate(registerSchema), register);
 router.post("/login", validate(loginSchema), login);
 router.post("/refresh", refreshToken);
 router.get("/verify-email/:token", verifyEmail);
+router.post("/verify-otp", validate(otpVerificationSchema), verifyOTP);
 router.post(
   "/resend-verification",
   validate(resendVerificationSchema),
