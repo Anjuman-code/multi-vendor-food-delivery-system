@@ -110,7 +110,12 @@ const Navbar: React.FC = () => {
 
   const getUserInitials = () => {
     if (!user) return "U";
-    return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    const firstNameInitial = user.firstName?.charAt(0) || '';
+    const lastNameInitial = user.lastName?.charAt(0) || '';
+
+    if (!firstNameInitial && !lastNameInitial) return "U";
+
+    return `${firstNameInitial}${lastNameInitial}`.toUpperCase();
   };
 
   return (
@@ -185,7 +190,7 @@ const Navbar: React.FC = () => {
             </button>
 
             {/* Auth Section - Show user profile if logged in, otherwise show login/register */}
-            {isAuthenticated && user ? (
+            {isAuthenticated && user && user.firstName && user.lastName ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -375,7 +380,7 @@ const Navbar: React.FC = () => {
 
                 {/* Auth Section */}
                 <div className="space-y-3 pt-6 border-t border-gray-100">
-                  {isAuthenticated && user ? (
+                  {isAuthenticated && user && user.firstName && user.lastName ? (
                     <>
                       <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl">
                         <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
