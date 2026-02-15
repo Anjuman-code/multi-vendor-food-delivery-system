@@ -22,7 +22,12 @@ import type {
   ResetPasswordInput,
   ChangePasswordInput,
   ResendVerificationInput,
+  OTPVerificationInput,
 } from "../validations/auth.validation";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../utils/email.util";
 
 // ────────────────────────────────────────────────────────────────
 // Helpers
@@ -93,16 +98,25 @@ export const register = async (
     });
 
     // Generate email verification token
-    const verificationToken = user.generateEmailVerificationToken();
+    const { token: verificationToken, otp } =
+      user.generateEmailVerificationToken();
     await user.save();
 
     // Create linked customer profile
     await CustomerProfile.create({ userId: user._id });
 
-    // Log verification token prominently (email sending deferred)
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, otp, verificationToken);
+    } catch (emailError) {
+      console.error("[EMAIL] Failed to send verification email:", emailError);
+    }
+
+    // Log verification token (dev fallback)
     console.log("\n========================================");
     console.log("[EMAIL VERIFICATION]");
     console.log(`  User:  ${email}`);
+    console.log(`  OTP:   ${otp}`);
     console.log(`  Token: ${verificationToken}`);
     console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
     console.log("========================================\n");
@@ -304,6 +318,8 @@ export const verifyEmail = async (
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
+    user.emailVerificationOTP = undefined;
+    user.emailVerificationOTPExpires = undefined;
     await user.save({ validateBeforeSave: false });
 
     successResponse(res, null, "Email verified successfully");
@@ -334,13 +350,25 @@ export const resendVerification = async (
     }
 
     const verificationToken = user.generateEmailVerificationToken();
+    const { token: rawToken, otp } = verificationToken;
     await user.save({ validateBeforeSave: false });
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, otp, rawToken);
+    } catch (emailError) {
+      console.error(
+        "[EMAIL] Failed to send verification email (resend):",
+        emailError,
+      );
+    }
 
     console.log("\n========================================");
     console.log("[EMAIL VERIFICATION - RESEND]");
     console.log(`  User:  ${email}`);
-    console.log(`  Token: ${verificationToken}`);
-    console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
+    console.log(`  OTP:   ${otp}`);
+    console.log(`  Token: ${rawToken}`);
+    console.log(`  Link:  /api/auth/verify-email/${rawToken}`);
     console.log("========================================\n");
 
     successResponse(res, null, "Verification email sent");
@@ -375,6 +403,13 @@ export const forgotPassword = async (
 
     const resetToken = user.generatePasswordResetToken();
     await user.save({ validateBeforeSave: false });
+
+    // Send password reset email
+    try {
+      await sendPasswordResetEmail(email, resetToken);
+    } catch (emailError) {
+      console.error("[EMAIL] Failed to send password reset email:", emailError);
+    }
 
     console.log("\n========================================");
     console.log("[PASSWORD RESET]");
@@ -474,6 +509,58 @@ export const changePassword = async (
     await user.save();
 
     successResponse(res, null, "Password changed successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/auth/verify-otp
+ * Verify a user's email address using a 6-digit OTP.
+ */
+export const verifyOTP = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { email, otp } = req.body as OTPVerificationInput;
+
+    const user = await User.findByEmail(email);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (user.isEmailVerified) {
+      throw new ValidationError("Email is already verified");
+    }
+
+    // Check OTP expiry
+    if (
+      !user.emailVerificationOTP ||
+      !user.emailVerificationOTPExpires ||
+      user.emailVerificationOTPExpires < new Date()
+    ) {
+      throw new AuthenticationError(
+        "OTP has expired. Please request a new verification email.",
+      );
+    }
+
+    // Compare hashed OTP
+    const hashedOTP = hashToken(otp);
+    if (user.emailVerificationOTP !== hashedOTP) {
+      throw new AuthenticationError("Invalid OTP. Please try again.");
+    }
+
+    // Mark email as verified and clear all verification fields
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    user.emailVerificationOTP = undefined;
+    user.emailVerificationOTPExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    successResponse(res, null, "Email verified successfully");
   } catch (error) {
     next(error);
   }
