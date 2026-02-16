@@ -1,27 +1,27 @@
-import React, { lazy, Suspense } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { PageLoader } from './components/PageLoader';
-import { AuthProvider } from './contexts/AuthContext';
-import { AuthLayout, MainLayout, RootLayout } from './layouts';
+import React, { lazy, Suspense } from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { PageLoader } from "./components/PageLoader";
+import { AuthProvider } from "./contexts/AuthContext";
+import { AccountLayout, AuthLayout, MainLayout, RootLayout } from "./layouts";
 
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const NewHomePage = lazy(() => import('./pages/NewHomePage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const AboutPage = lazy(() => import('./pages/AboutPage'));
-const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
-const ContactPage = lazy(() => import('./pages/ContactPage'));
-const FAQPage = lazy(() => import('./pages/FAQPage'));
-const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const NewHomePage = lazy(() => import("./pages/NewHomePage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+const FAQPage = lazy(() => import("./pages/FAQPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const RestaurantDetailsPage = lazy(
-  () => import('./pages/RestaurantDetailsPage'),
+  () => import("./pages/RestaurantDetailsPage"),
 );
-const RestaurantsPage = lazy(() => import('./pages/RestaurantsPage'));
-const TermsPage = lazy(() => import('./pages/TermsPage'));
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const RestaurantsPage = lazy(() => import("./pages/RestaurantsPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 function App(): React.ReactElement {
   return (
@@ -46,9 +46,12 @@ function App(): React.ReactElement {
                     element={<RestaurantDetailsPage />}
                   />
                   <Route path="/categories" element={<CategoriesPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
 
                   <Route path="*" element={<NotFoundPage />} />
+                </Route>
+
+                <Route element={<AccountLayout />}>
+                  <Route path="/profile" element={<ProfilePage />} />
                 </Route>
 
                 <Route element={<AuthLayout />}>
