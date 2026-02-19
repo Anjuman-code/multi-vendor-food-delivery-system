@@ -47,6 +47,7 @@ export interface IUser {
   phoneNumber: string;
   isPhoneVerified: boolean;
   profileImage?: string;
+  coverImage?: string;
   dateOfBirth?: Date;
 
   addresses: IAddress[];

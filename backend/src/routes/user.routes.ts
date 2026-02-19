@@ -15,8 +15,16 @@ import {
   removeFavorite,
   getFavorites,
   deactivateAccount,
+  uploadProfilePhoto as uploadProfilePhotoHandler,
+  uploadCoverPhotoHandler,
+  deleteProfilePhoto,
+  deleteCoverPhoto,
 } from "../controllers/user.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
+import {
+  uploadProfilePhoto as profilePhotoMulter,
+  uploadCoverPhoto as coverPhotoMulter,
+} from "../middleware/uploads/upload.middleware";
 import { validate } from "../middleware/validation.middleware";
 import {
   updateProfileSchema,
@@ -45,6 +53,12 @@ router.put(
 );
 router.delete("/me/addresses/:addressId", deleteAddress);
 router.patch("/me/addresses/:addressId/set-default", setDefaultAddress);
+
+// ── Photo uploads ──────────────────────────────────────────────
+router.post("/me/profile-photo", profilePhotoMulter, uploadProfilePhotoHandler);
+router.delete("/me/profile-photo", deleteProfilePhoto);
+router.post("/me/cover-photo", coverPhotoMulter, uploadCoverPhotoHandler);
+router.delete("/me/cover-photo", deleteCoverPhoto);
 
 // ── Preferences (customer only) ────────────────────────────────
 router.put(
