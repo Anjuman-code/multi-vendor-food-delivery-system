@@ -242,11 +242,20 @@ export const refreshToken = async (
       throw new AuthenticationError("Invalid refresh token");
     }
 
-    // Rotate tokens
+    // Rotate tokens (atomic update to avoid VersionError on concurrent requests)
     const newTokens = user.generateAuthToken();
-    user.refreshToken = user.refreshToken.filter((t) => t !== token);
-    user.refreshToken.push(newTokens.refreshToken);
-    await user.save({ validateBeforeSave: false });
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $pull: { refreshToken: token },
+      },
+    );
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $push: { refreshToken: newTokens.refreshToken },
+      },
+    );
 
     successResponse(
       res,
