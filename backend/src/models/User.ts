@@ -101,6 +101,7 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     },
     isPhoneVerified: { type: Boolean, default: false },
     profileImage: { type: String },
+    coverImage: { type: String },
     dateOfBirth: { type: Date },
 
     // Addresses
