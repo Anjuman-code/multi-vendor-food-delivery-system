@@ -13,6 +13,7 @@ import {
   ValidationError,
   ConflictError,
 } from "../utils/errors";
+import { removeOldFile } from "../middleware/uploads/upload.middleware";
 import type {
   UpdateProfileInput,
   AddAddressInput,
@@ -476,6 +477,127 @@ export const deactivateAccount = async (
     res.clearCookie("refreshToken");
 
     successResponse(res, null, "Account deactivated");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Photo Uploads
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/users/me/profile-photo
+ * Upload or replace the user's profile photo.
+ */
+export const uploadProfilePhoto = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+    if (!req.file) throw new ValidationError("No image file provided");
+
+    const user = await User.findById(req.user._id);
+    if (!user) throw new NotFoundError("User not found");
+
+    // Remove old file from disk
+    removeOldFile(user.profileImage);
+
+    // Store path relative to backend root, e.g. "/uploads/profiles/profile-xxx.jpg"
+    const imageUrl = `/uploads/profiles/${req.file.filename}`;
+    user.profileImage = imageUrl;
+    await user.save({ validateBeforeSave: false });
+
+    successResponse(
+      res,
+      { profileImage: imageUrl },
+      "Profile photo updated successfully",
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/users/me/cover-photo
+ * Upload or replace the user's cover photo.
+ */
+export const uploadCoverPhotoHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+    if (!req.file) throw new ValidationError("No image file provided");
+
+    const user = await User.findById(req.user._id);
+    if (!user) throw new NotFoundError("User not found");
+
+    // Remove old file from disk
+    removeOldFile(user.coverImage);
+
+    const imageUrl = `/uploads/covers/${req.file.filename}`;
+    user.coverImage = imageUrl;
+    await user.save({ validateBeforeSave: false });
+
+    successResponse(
+      res,
+      { coverImage: imageUrl },
+      "Cover photo updated successfully",
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/users/me/profile-photo
+ * Remove the user's profile photo.
+ */
+export const deleteProfilePhoto = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const user = await User.findById(req.user._id);
+    if (!user) throw new NotFoundError("User not found");
+
+    removeOldFile(user.profileImage);
+    user.profileImage = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    successResponse(res, null, "Profile photo removed");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/users/me/cover-photo
+ * Remove the user's cover photo.
+ */
+export const deleteCoverPhoto = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const user = await User.findById(req.user._id);
+    if (!user) throw new NotFoundError("User not found");
+
+    removeOldFile(user.coverImage);
+    user.coverImage = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    successResponse(res, null, "Cover photo removed");
   } catch (error) {
     next(error);
   }
