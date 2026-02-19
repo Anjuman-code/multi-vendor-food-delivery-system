@@ -19,6 +19,7 @@ import {
   uploadCoverPhotoHandler,
   deleteProfilePhoto,
   deleteCoverPhoto,
+  updateCoverPhotoPosition,
 } from "../controllers/user.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import {
@@ -59,6 +60,7 @@ router.post("/me/profile-photo", profilePhotoMulter, uploadProfilePhotoHandler);
 router.delete("/me/profile-photo", deleteProfilePhoto);
 router.post("/me/cover-photo", coverPhotoMulter, uploadCoverPhotoHandler);
 router.delete("/me/cover-photo", deleteCoverPhoto);
+router.patch("/me/cover-photo/position", updateCoverPhotoPosition);
 
 // ── Preferences (customer only) ────────────────────────────────
 router.put(

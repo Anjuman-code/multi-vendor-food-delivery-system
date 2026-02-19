@@ -595,9 +595,52 @@ export const deleteCoverPhoto = async (
 
     removeOldFile(user.coverImage);
     user.coverImage = undefined;
+    user.coverImagePosition = 50;
     await user.save({ validateBeforeSave: false });
 
     successResponse(res, null, "Cover photo removed");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/users/me/cover-photo/position
+ * Update the vertical position (0–100) used to display the cover photo.
+ */
+export const updateCoverPhotoPosition = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const { position } = req.body as { position?: number };
+    if (
+      position === undefined ||
+      typeof position !== "number" ||
+      position < 0 ||
+      position > 100
+    ) {
+      throw new ValidationError("Position must be a number between 0 and 100");
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { coverImagePosition: position },
+      { new: true, runValidators: true },
+    ).select(
+      "-password -refreshToken -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires -__v",
+    );
+
+    if (!user) throw new NotFoundError("User not found");
+
+    successResponse(
+      res,
+      { coverImagePosition: user.coverImagePosition },
+      "Cover photo position updated",
+    );
   } catch (error) {
     next(error);
   }
