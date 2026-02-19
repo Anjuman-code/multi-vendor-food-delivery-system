@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import CoverPhotoPositioner from "@/components/CoverPhotoPositioner";
 import authService from "@/services/authService";
 import userService from "@/services/userService";
 import type {
@@ -285,6 +286,26 @@ const ProfilePage: React.FC = () => {
     [toast],
   );
 
+  // Save cover photo vertical position
+  const handleSaveCoverPosition = useCallback(
+    async (position: number) => {
+      const res = await userService.updateCoverPhotoPosition(position);
+      if (res.success) {
+        setProfile((prev) =>
+          prev ? { ...prev, coverImagePosition: position } : prev,
+        );
+        toast({ title: "Cover position saved!" });
+      } else {
+        toast({
+          title: "Error",
+          description: res.message || "Could not update cover position.",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast],
+  );
+
   if (!user) return null;
 
   const getUserInitials = () =>
@@ -334,68 +355,120 @@ const ProfilePage: React.FC = () => {
           >
             {/* Banner */}
             <div className="group/banner relative h-32 sm:h-36 bg-gradient-to-r from-orange-400 via-red-400 to-pink-400 overflow-hidden">
-              {/* Cover photo image */}
-              {profile?.coverImage && (
-                <img
-                  src={getImageUrl(profile.coverImage)}
-                  alt="Cover"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              )}
-              {/* Fallback pattern overlay (hidden if cover photo exists) */}
-              {!profile?.coverImage && (
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
-              )}
-
-              {/* Stats pills inside banner (desktop) */}
-              <div className="absolute bottom-3 right-4 hidden sm:flex items-center gap-2">
-                {customerProfile && (
-                  <>
-                    <StatPill
-                      icon={<ShoppingBag className="w-3.5 h-3.5" />}
-                      value={customerProfile.totalOrders}
-                      label="Orders"
-                    />
-                    <StatPill
-                      icon={<Star className="w-3.5 h-3.5" />}
-                      value={customerProfile.loyaltyPoints}
-                      label="Points"
-                    />
-                  </>
-                )}
-                {profile?.createdAt && (
-                  <StatPill
-                    icon={<Calendar className="w-3.5 h-3.5" />}
-                    value={formatMemberSince(profile.createdAt)}
-                    label="Member Since"
-                  />
-                )}
-              </div>
-
-              {/* Cover photo upload affordance */}
-              <input
-                ref={coverPhotoRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={handleCoverPhotoChange}
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => coverPhotoRef.current?.click()}
-                    disabled={isUploadingCover}
-                    className="absolute top-3 right-3 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
-                  >
-                    {isUploadingCover ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Camera className="w-4 h-4" />
+              {/* Cover photo with repositioning support */}
+              {profile?.coverImage ? (
+                <CoverPhotoPositioner
+                  imageUrl={getImageUrl(profile.coverImage)!}
+                  initialPosition={profile.coverImagePosition ?? 50}
+                  onSave={handleSaveCoverPosition}
+                  className="absolute inset-0 w-full h-full"
+                >
+                  {/* Stats pills inside banner (desktop) */}
+                  <div className="absolute bottom-3 right-4 hidden sm:flex items-center gap-2 z-[5]">
+                    {customerProfile && (
+                      <>
+                        <StatPill
+                          icon={<ShoppingBag className="w-3.5 h-3.5" />}
+                          value={customerProfile.totalOrders}
+                          label="Orders"
+                        />
+                        <StatPill
+                          icon={<Star className="w-3.5 h-3.5" />}
+                          value={customerProfile.loyaltyPoints}
+                          label="Points"
+                        />
+                      </>
                     )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Change cover photo</TooltipContent>
-              </Tooltip>
+                    {profile?.createdAt && (
+                      <StatPill
+                        icon={<Calendar className="w-3.5 h-3.5" />}
+                        value={formatMemberSince(profile.createdAt)}
+                        label="Member Since"
+                      />
+                    )}
+                  </div>
+
+                  {/* Cover photo upload affordance */}
+                  <input
+                    ref={coverPhotoRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleCoverPhotoChange}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => coverPhotoRef.current?.click()}
+                        disabled={isUploadingCover}
+                        className="absolute top-3 right-3 z-10 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingCover ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Change cover photo</TooltipContent>
+                  </Tooltip>
+                </CoverPhotoPositioner>
+              ) : (
+                <>
+                  {/* Fallback pattern overlay (no cover photo) */}
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
+
+                  {/* Stats pills inside banner (desktop) */}
+                  <div className="absolute bottom-3 right-4 hidden sm:flex items-center gap-2">
+                    {customerProfile && (
+                      <>
+                        <StatPill
+                          icon={<ShoppingBag className="w-3.5 h-3.5" />}
+                          value={customerProfile.totalOrders}
+                          label="Orders"
+                        />
+                        <StatPill
+                          icon={<Star className="w-3.5 h-3.5" />}
+                          value={customerProfile.loyaltyPoints}
+                          label="Points"
+                        />
+                      </>
+                    )}
+                    {profile?.createdAt && (
+                      <StatPill
+                        icon={<Calendar className="w-3.5 h-3.5" />}
+                        value={formatMemberSince(profile.createdAt)}
+                        label="Member Since"
+                      />
+                    )}
+                  </div>
+
+                  {/* Cover photo upload affordance */}
+                  <input
+                    ref={coverPhotoRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleCoverPhotoChange}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => coverPhotoRef.current?.click()}
+                        disabled={isUploadingCover}
+                        className="absolute top-3 right-3 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingCover ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Change cover photo</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
             </div>
 
             {/* Profile info area */}
@@ -1452,6 +1525,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
 }) => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const isEdit = !!address;
 
   const form = useForm<AddAddressFormData>({
@@ -1665,43 +1739,87 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="latitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Latitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        {...field}
-                        className="rounded-xl"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            {/* Location detection */}
+            <div className="space-y-2">
+              <FormLabel>Location</FormLabel>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isDetectingLocation}
+                  className="rounded-xl gap-2 flex-shrink-0"
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      toast({
+                        title: "Not supported",
+                        description:
+                          "Geolocation is not supported by your browser.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setIsDetectingLocation(true);
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        form.setValue(
+                          "latitude",
+                          Math.round(pos.coords.latitude * 1e6) / 1e6,
+                          { shouldValidate: true },
+                        );
+                        form.setValue(
+                          "longitude",
+                          Math.round(pos.coords.longitude * 1e6) / 1e6,
+                          { shouldValidate: true },
+                        );
+                        setIsDetectingLocation(false);
+                        toast({ title: "Location detected!" });
+                      },
+                      (err) => {
+                        setIsDetectingLocation(false);
+                        toast({
+                          title: "Location error",
+                          description:
+                            err.code === 1
+                              ? "Location permission denied. Please allow location access in your browser settings."
+                              : "Could not detect your location. Please try again.",
+                          variant: "destructive",
+                        });
+                      },
+                      {
+                        enableHighAccuracy: true,
+                        timeout: 30000,
+                        maximumAge: 0,
+                      },
+                    );
+                  }}
+                >
+                  {isDetectingLocation ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MapPin className="w-4 h-4" />
+                  )}
+                  {isDetectingLocation ? "Detecting…" : "Use my location"}
+                </Button>
+                {form.watch("latitude") !== 0 &&
+                form.watch("longitude") !== 0 ? (
+                  <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Location set ({form.watch("latitude")?.toFixed(6)},{" "}
+                    {form.watch("longitude")?.toFixed(6)})
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    We need your location for delivery
+                  </span>
                 )}
-              />
-              <FormField
-                control={form.control}
-                name="longitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        {...field}
-                        className="rounded-xl"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              </div>
+              {(form.formState.errors.latitude ||
+                form.formState.errors.longitude) && (
+                <p className="text-sm font-medium text-destructive">
+                  Please detect your location before submitting
+                </p>
+              )}
             </div>
             <DialogFooter className="pt-2">
               <Button

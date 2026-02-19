@@ -54,6 +54,7 @@ export interface UserProfile {
   isPhoneVerified: boolean;
   profileImage?: string;
   coverImage?: string;
+  coverImagePosition?: number;
   dateOfBirth?: string;
   addresses: UserAddress[];
   isActive: boolean;
@@ -322,6 +323,22 @@ const userService = {
       return response.data;
     } catch (error: unknown) {
       return extractError(error);
+    }
+  },
+
+  /** PATCH /api/users/me/cover-photo/position – Update cover photo vertical position */
+  async updateCoverPhotoPosition(
+    position: number,
+  ): Promise<ApiResponse<{ coverImagePosition: number }>> {
+    try {
+      const response = await httpClient.patch<
+        ApiResponse<{ coverImagePosition: number }>
+      >("/api/users/me/cover-photo/position", { position });
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        coverImagePosition: number;
+      }>;
     }
   },
 };
