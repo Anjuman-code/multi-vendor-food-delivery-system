@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -154,6 +154,18 @@ const ProfilePage: React.FC = () => {
     useState<CustomerProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+  // Photo upload state
+  const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const profilePhotoRef = useRef<HTMLInputElement>(null);
+  const coverPhotoRef = useRef<HTMLInputElement>(null);
+
+  const API_BASE_URL =
+    import.meta.env?.VITE_API_BASE_URL || "http://localhost:2002";
+
+  const getImageUrl = (path?: string) =>
+    path ? `${API_BASE_URL}${path}` : undefined;
+
   // Redirect if not logged in
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -183,6 +195,95 @@ const ProfilePage: React.FC = () => {
       fetchProfile();
     }
   }, [isAuthenticated, fetchProfile]);
+
+  // ── Photo upload handlers ──────────────────────────────────
+  const handleProfilePhotoChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Validate client-side
+      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowed.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a JPEG, PNG, WebP, or GIF image.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Image must be under 5 MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsUploadingProfile(true);
+      const res = await userService.uploadProfilePhoto(file);
+      if (res.success && res.data) {
+        setProfile((prev) =>
+          prev ? { ...prev, profileImage: res.data!.profileImage } : prev,
+        );
+        toast({ title: "Profile photo updated!" });
+      } else {
+        toast({
+          title: "Upload failed",
+          description: res.message || "Could not upload photo.",
+          variant: "destructive",
+        });
+      }
+      setIsUploadingProfile(false);
+      // Reset input so re-selecting the same file triggers onChange
+      if (profilePhotoRef.current) profilePhotoRef.current.value = "";
+    },
+    [toast],
+  );
+
+  const handleCoverPhotoChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowed.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a JPEG, PNG, WebP, or GIF image.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Image must be under 5 MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsUploadingCover(true);
+      const res = await userService.uploadCoverPhoto(file);
+      if (res.success && res.data) {
+        setProfile((prev) =>
+          prev ? { ...prev, coverImage: res.data!.coverImage } : prev,
+        );
+        toast({ title: "Cover photo updated!" });
+      } else {
+        toast({
+          title: "Upload failed",
+          description: res.message || "Could not upload cover photo.",
+          variant: "destructive",
+        });
+      }
+      setIsUploadingCover(false);
+      if (coverPhotoRef.current) coverPhotoRef.current.value = "";
+    },
+    [toast],
+  );
 
   if (!user) return null;
 
@@ -232,8 +333,19 @@ const ProfilePage: React.FC = () => {
             className="relative bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4"
           >
             {/* Banner */}
-            <div className="group/banner relative h-32 sm:h-36 bg-gradient-to-r from-orange-400 via-red-400 to-pink-400">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
+            <div className="group/banner relative h-32 sm:h-36 bg-gradient-to-r from-orange-400 via-red-400 to-pink-400 overflow-hidden">
+              {/* Cover photo image */}
+              {profile?.coverImage && (
+                <img
+                  src={getImageUrl(profile.coverImage)}
+                  alt="Cover"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
+              {/* Fallback pattern overlay (hidden if cover photo exists) */}
+              {!profile?.coverImage && (
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
+              )}
 
               {/* Stats pills inside banner (desktop) */}
               <div className="absolute bottom-3 right-4 hidden sm:flex items-center gap-2">
@@ -261,10 +373,25 @@ const ProfilePage: React.FC = () => {
               </div>
 
               {/* Cover photo upload affordance */}
+              <input
+                ref={coverPhotoRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleCoverPhotoChange}
+              />
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="absolute top-3 right-3 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer">
-                    <Camera className="w-4 h-4" />
+                  <button
+                    onClick={() => coverPhotoRef.current?.click()}
+                    disabled={isUploadingCover}
+                    className="absolute top-3 right-3 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
+                  >
+                    {isUploadingCover ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Change cover photo</TooltipContent>
@@ -276,13 +403,38 @@ const ProfilePage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-end gap-3 -mt-12 sm:-mt-10">
                 {/* Avatar with camera overlay */}
                 <div className="group/avatar relative self-center sm:self-auto">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg ring-4 ring-white transition-transform duration-200 group-hover/avatar:scale-105">
-                    {getUserInitials()}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-lg ring-4 ring-white transition-transform duration-200 group-hover/avatar:scale-105 overflow-hidden">
+                    {profile?.profileImage ? (
+                      <img
+                        src={getImageUrl(profile.profileImage)}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
+                        {getUserInitials()}
+                      </div>
+                    )}
                   </div>
+                  <input
+                    ref={profilePhotoRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleProfilePhotoChange}
+                  />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 cursor-pointer">
-                        <Camera className="w-5 h-5 text-white" />
+                      <button
+                        onClick={() => profilePhotoRef.current?.click()}
+                        disabled={isUploadingProfile}
+                        className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingProfile ? (
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        ) : (
+                          <Camera className="w-5 h-5 text-white" />
+                        )}
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Change profile photo</TooltipContent>
