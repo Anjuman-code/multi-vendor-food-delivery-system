@@ -53,6 +53,7 @@ export interface UserProfile {
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   profileImage?: string;
+  coverImage?: string;
   dateOfBirth?: string;
   addresses: UserAddress[];
   isActive: boolean;
@@ -256,6 +257,68 @@ const userService = {
       const response = await httpClient.delete<ApiResponse>("/api/users/me", {
         data: { password },
       });
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  // ── Photo uploads ──────────────────────────────────────────
+
+  /** POST /api/users/me/profile-photo – Upload profile photo */
+  async uploadProfilePhoto(
+    file: File,
+  ): Promise<ApiResponse<{ profileImage: string }>> {
+    try {
+      const formData = new FormData();
+      formData.append("profilePhoto", file);
+      const response = await httpClient.post<
+        ApiResponse<{ profileImage: string }>
+      >("/api/users/me/profile-photo", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{ profileImage: string }>;
+    }
+  },
+
+  /** DELETE /api/users/me/profile-photo – Remove profile photo */
+  async deleteProfilePhoto(): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.delete<ApiResponse>(
+        "/api/users/me/profile-photo",
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  /** POST /api/users/me/cover-photo – Upload cover photo */
+  async uploadCoverPhoto(
+    file: File,
+  ): Promise<ApiResponse<{ coverImage: string }>> {
+    try {
+      const formData = new FormData();
+      formData.append("coverPhoto", file);
+      const response = await httpClient.post<
+        ApiResponse<{ coverImage: string }>
+      >("/api/users/me/cover-photo", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{ coverImage: string }>;
+    }
+  },
+
+  /** DELETE /api/users/me/cover-photo – Remove cover photo */
+  async deleteCoverPhoto(): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.delete<ApiResponse>(
+        "/api/users/me/cover-photo",
+      );
       return response.data;
     } catch (error: unknown) {
       return extractError(error);
