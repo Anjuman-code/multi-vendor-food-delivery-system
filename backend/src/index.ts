@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import path from "path";
 import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -48,6 +49,9 @@ app.use(
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ── Static uploads ───────────────────────────────────────────────
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // ── Database ─────────────────────────────────────────────────────
 connectDatabase();
