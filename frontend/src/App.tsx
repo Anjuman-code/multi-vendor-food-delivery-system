@@ -6,6 +6,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AccountLayout, AuthLayout, MainLayout, RootLayout } from "./layouts";
 
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const NewHomePage = lazy(() => import("./pages/NewHomePage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
@@ -20,6 +21,7 @@ const RestaurantDetailsPage = lazy(
   () => import("./pages/RestaurantDetailsPage"),
 );
 const RestaurantsPage = lazy(() => import("./pages/RestaurantsPage"));
+const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
@@ -52,12 +54,14 @@ function App(): React.ReactElement {
 
                 <Route element={<AccountLayout />}>
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/favorites" element={<FavoritesPage />} />
                 </Route>
 
                 <Route element={<AuthLayout />}>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/verify-email" element={<VerifyEmail />} />
                 </Route>
               </Route>

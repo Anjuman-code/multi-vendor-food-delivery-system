@@ -9,6 +9,7 @@ import {
   User,
   LogOut,
   Settings,
+  Heart,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -110,8 +111,8 @@ const Navbar: React.FC = () => {
 
   const getUserInitials = () => {
     if (!user) return "U";
-    const firstNameInitial = user.firstName?.charAt(0) || '';
-    const lastNameInitial = user.lastName?.charAt(0) || '';
+    const firstNameInitial = user.firstName?.charAt(0) || "";
+    const lastNameInitial = user.lastName?.charAt(0) || "";
 
     if (!firstNameInitial && !lastNameInitial) return "U";
 
@@ -229,6 +230,13 @@ const Navbar: React.FC = () => {
                   >
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/favorites")}
+                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                  >
+                    <Heart className="mr-2 h-4 w-4" />
+                    <span>Favorites</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => navigate("/settings")}
@@ -380,7 +388,10 @@ const Navbar: React.FC = () => {
 
                 {/* Auth Section */}
                 <div className="space-y-3 pt-6 border-t border-gray-100">
-                  {isAuthenticated && user && user.firstName && user.lastName ? (
+                  {isAuthenticated &&
+                  user &&
+                  user.firstName &&
+                  user.lastName ? (
                     <>
                       <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl">
                         <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
