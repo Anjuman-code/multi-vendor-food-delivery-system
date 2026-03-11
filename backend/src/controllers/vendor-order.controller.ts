@@ -9,7 +9,6 @@ import Notification, { NotificationType } from "../models/Notification";
 import { successResponse } from "../utils/response.util";
 import {
   AuthenticationError,
-  AuthorizationError,
   NotFoundError,
   ValidationError,
 } from "../utils/errors";
@@ -54,7 +53,7 @@ const getVendorRestaurantIds = async (req: Request) => {
 
 /**
  * GET /api/vendor/orders
- * List orders for the vendor's restaurants.
+ * List orders for the vendor's restaurants with advanced filtering.
  */
 export const getVendorOrders = async (
   req: Request,
@@ -70,19 +69,55 @@ export const getVendorOrders = async (
       Math.max(1, parseInt(req.query.limit as string) || 10),
     );
     const status = req.query.status as string | undefined;
+    const dateFrom = req.query.dateFrom as string | undefined;
+    const dateTo = req.query.dateTo as string | undefined;
+    const search = req.query.search as string | undefined;
+    const restaurantId = req.query.restaurantId as string | undefined;
+    const sortBy = (req.query.sortBy as string) || "-createdAt";
+
+    // Build filter
+    const matchRestaurants =
+      restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)
+        ? [new mongoose.Types.ObjectId(restaurantId)]
+        : restaurantIds;
 
     const filter: Record<string, unknown> = {
-      restaurantId: { $in: restaurantIds },
+      restaurantId: { $in: matchRestaurants },
     };
+
     if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
       filter.status = status;
     }
+
+    if (dateFrom || dateTo) {
+      const dateFilter: Record<string, Date> = {};
+      if (dateFrom) dateFilter.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      filter.createdAt = dateFilter;
+    }
+
+    if (search) {
+      filter.orderNumber = { $regex: search, $options: "i" };
+    }
+
+    // Parse sort
+    const sortMap: Record<string, Record<string, 1 | -1>> = {
+      "-createdAt": { createdAt: -1 },
+      createdAt: { createdAt: 1 },
+      "-total": { total: -1 },
+      total: { total: 1 },
+    };
+    const sortObj = sortMap[sortBy] || { createdAt: -1 };
 
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .populate("customerId", "firstName lastName phoneNumber")
         .populate("restaurantId", "name images.logo")
-        .sort("-createdAt")
+        .sort(sortObj)
         .skip((page - 1) * limit)
         .limit(limit),
       Order.countDocuments(filter),
