@@ -4,7 +4,13 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { PageLoader } from "./components/PageLoader";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
-import { AccountLayout, AuthLayout, MainLayout, RootLayout } from "./layouts";
+import {
+  AccountLayout,
+  AuthLayout,
+  MainLayout,
+  RootLayout,
+  VendorLayout,
+} from "./layouts";
 
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -30,6 +36,34 @@ const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+
+// Vendor pages
+const VendorDashboardPage = lazy(
+  () => import("./pages/vendor/VendorDashboardPage"),
+);
+const VendorRestaurantsPage = lazy(
+  () => import("./pages/vendor/VendorRestaurantsPage"),
+);
+const RestaurantFormPage = lazy(
+  () => import("./pages/vendor/RestaurantFormPage"),
+);
+const VendorMenuPage = lazy(() => import("./pages/vendor/VendorMenuPage"));
+const VendorOrdersPage = lazy(() => import("./pages/vendor/VendorOrdersPage"));
+const VendorOrderDetailPage = lazy(
+  () => import("./pages/vendor/VendorOrderDetailPage"),
+);
+const VendorReviewsPage = lazy(
+  () => import("./pages/vendor/VendorReviewsPage"),
+);
+const VendorPromotionsPage = lazy(
+  () => import("./pages/vendor/VendorPromotionsPage"),
+);
+const VendorAnalyticsPage = lazy(
+  () => import("./pages/vendor/VendorAnalyticsPage"),
+);
+const VendorSettingsPage = lazy(
+  () => import("./pages/vendor/VendorSettingsPage"),
+);
 
 function App(): React.ReactElement {
   return (
@@ -82,6 +116,45 @@ function App(): React.ReactElement {
                     <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/verify-email" element={<VerifyEmail />} />
                   </Route>
+                </Route>
+
+                {/* Vendor routes (outside RootLayout – uses its own sidebar layout) */}
+                <Route element={<VendorLayout />}>
+                  <Route path="/vendor" element={<VendorDashboardPage />} />
+                  <Route
+                    path="/vendor/restaurants"
+                    element={<VendorRestaurantsPage />}
+                  />
+                  <Route
+                    path="/vendor/restaurants/new"
+                    element={<RestaurantFormPage />}
+                  />
+                  <Route
+                    path="/vendor/restaurants/:id/edit"
+                    element={<RestaurantFormPage />}
+                  />
+                  <Route path="/vendor/menu" element={<VendorMenuPage />} />
+                  <Route path="/vendor/orders" element={<VendorOrdersPage />} />
+                  <Route
+                    path="/vendor/orders/:id"
+                    element={<VendorOrderDetailPage />}
+                  />
+                  <Route
+                    path="/vendor/reviews"
+                    element={<VendorReviewsPage />}
+                  />
+                  <Route
+                    path="/vendor/promotions"
+                    element={<VendorPromotionsPage />}
+                  />
+                  <Route
+                    path="/vendor/analytics"
+                    element={<VendorAnalyticsPage />}
+                  />
+                  <Route
+                    path="/vendor/settings"
+                    element={<VendorSettingsPage />}
+                  />
                 </Route>
               </Routes>
             </Suspense>

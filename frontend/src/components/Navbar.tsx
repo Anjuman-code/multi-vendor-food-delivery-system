@@ -12,6 +12,7 @@ import {
   Heart,
   Bell,
   Package,
+  Store,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -269,6 +270,15 @@ const Navbar: React.FC = () => {
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
+                  {user.role === "vendor" && (
+                    <DropdownMenuItem
+                      onClick={() => navigate("/vendor")}
+                      className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                    >
+                      <Store className="mr-2 h-4 w-4" />
+                      <span>Vendor Dashboard</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={() => navigate("/orders")}
                     className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
