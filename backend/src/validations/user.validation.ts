@@ -69,9 +69,30 @@ export const updatePreferencesSchema = z.object({
     .optional(),
 });
 
+// ── Payment methods ────────────────────────────────────────────
+
+export const addPaymentMethodSchema = z.object({
+  type: z.enum(["card", "upi", "wallet"]),
+  provider: z.string().min(1, "Provider is required").max(50).trim(),
+  token: z.string().min(1, "Token is required").trim(),
+  last4: z
+    .string()
+    .length(4, "last4 must be exactly 4 characters")
+    .regex(/^\d{4}$/, "last4 must be 4 digits"),
+  isDefault: z.boolean().optional().default(false),
+  expiryMonth: z.number().int().min(1).max(12).optional(),
+  expiryYear: z.number().int().min(2024).max(2050).optional(),
+});
+
+export const updatePaymentMethodSchema = addPaymentMethodSchema.partial();
+
 // ── Inferred types ─────────────────────────────────────────────
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type AddAddressInput = z.infer<typeof addAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
+export type AddPaymentMethodInput = z.infer<typeof addPaymentMethodSchema>;
+export type UpdatePaymentMethodInput = z.infer<
+  typeof updatePaymentMethodSchema
+>;

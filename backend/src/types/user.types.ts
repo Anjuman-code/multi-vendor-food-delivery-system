@@ -100,6 +100,7 @@ export interface IUserModel extends Model<IUserDocument> {
 // ────────────────────────────────────────────────────────────────
 
 export interface IPaymentMethod {
+  _id?: Types.ObjectId;
   type: PaymentMethodType;
   provider: string;
   token: string;
