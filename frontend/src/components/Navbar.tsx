@@ -10,6 +10,8 @@ import {
   LogOut,
   Settings,
   Heart,
+  Bell,
+  Package,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import authService from "@/services/authService";
+import notificationService from "@/services/notificationService";
 import { useToast } from "@/hooks/use-toast";
 
 interface NavItem {
@@ -37,7 +41,9 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout: logoutContext } = useAuth();
+  const { itemCount } = useCart();
   const { toast } = useToast();
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
 
   const navLinks: NavItem[] = [
     { name: "Home", path: "/" },
@@ -54,6 +60,18 @@ const Navbar: React.FC = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchUnread = async () => {
+      const res = await notificationService.getUnreadCount();
+      if (res.success && res.data) setUnreadNotifs(res.data.unreadCount);
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 60_000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -182,13 +200,33 @@ const Navbar: React.FC = () => {
               <ChevronDown className="w-3 h-3" />
             </button>
 
+            {/* Notifications */}
+            {isAuthenticated && (
+              <Link
+                to="/notifications"
+                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadNotifs > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                  </span>
+                )}
+              </Link>
+            )}
+
             {/* Cart */}
-            <button className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100">
+            <Link
+              to="/cart"
+              className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+            >
               <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                2
-              </span>
-            </button>
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {itemCount > 9 ? "9+" : itemCount}
+                </span>
+              )}
+            </Link>
 
             {/* Auth Section - Show user profile if logged in, otherwise show login/register */}
             {isAuthenticated && user && user.firstName && user.lastName ? (
@@ -232,11 +270,30 @@ const Navbar: React.FC = () => {
                     <span>Profile</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    onClick={() => navigate("/orders")}
+                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                  >
+                    <Package className="mr-2 h-4 w-4" />
+                    <span>Orders</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => navigate("/favorites")}
                     className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
                   >
                     <Heart className="mr-2 h-4 w-4" />
                     <span>Favorites</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/notifications")}
+                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                  >
+                    <Bell className="mr-2 h-4 w-4" />
+                    <span>Notifications</span>
+                    {unreadNotifs > 0 && (
+                      <span className="ml-auto text-xs bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
+                        {unreadNotifs}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => navigate("/settings")}
@@ -275,12 +332,14 @@ const Navbar: React.FC = () => {
           {/* Mobile Menu Button */}
           <div className="lg:hidden flex items-center gap-3">
             {/* Mobile Cart */}
-            <button className="relative p-2 text-gray-600">
+            <Link to="/cart" className="relative p-2 text-gray-600">
               <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                2
-              </span>
-            </button>
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {itemCount > 9 ? "9+" : itemCount}
+                </span>
+              )}
+            </Link>
 
             <button
               onClick={() => setIsOpen(!isOpen)}

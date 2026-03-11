@@ -3,6 +3,7 @@ import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { PageLoader } from "./components/PageLoader";
 import { AuthProvider } from "./contexts/AuthContext";
+import { CartProvider } from "./contexts/CartContext";
 import { AccountLayout, AuthLayout, MainLayout, RootLayout } from "./layouts";
 
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
@@ -24,50 +25,68 @@ const RestaurantsPage = lazy(() => import("./pages/RestaurantsPage"));
 const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const CartPage = lazy(() => import("./pages/CartPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const OrdersPage = lazy(() => import("./pages/OrdersPage"));
+const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 
 function App(): React.ReactElement {
   return (
     <Router>
       <AuthProvider>
-        <ErrorBoundary>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route element={<RootLayout />}>
-                <Route element={<MainLayout />}>
-                  <Route path="/" element={<NewHomePage />} />
+        <CartProvider>
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route element={<RootLayout />}>
+                  <Route element={<MainLayout />}>
+                    <Route path="/" element={<NewHomePage />} />
 
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                  <Route path="/terms" element={<TermsPage />} />
-                  <Route path="/contact" element={<ContactPage />} />
-                  <Route path="/faq" element={<FAQPage />} />
-                  <Route path="/help" element={<FAQPage />} />
-                  <Route path="/restaurants" element={<RestaurantsPage />} />
-                  <Route
-                    path="/restaurants/:id"
-                    element={<RestaurantDetailsPage />}
-                  />
-                  <Route path="/categories" element={<CategoriesPage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                    <Route path="/terms" element={<TermsPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/faq" element={<FAQPage />} />
+                    <Route path="/help" element={<FAQPage />} />
+                    <Route path="/restaurants" element={<RestaurantsPage />} />
+                    <Route
+                      path="/restaurants/:id"
+                      element={<RestaurantDetailsPage />}
+                    />
+                    <Route path="/categories" element={<CategoriesPage />} />
 
-                  <Route path="*" element={<NotFoundPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Route>
+
+                  <Route element={<AccountLayout />}>
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/favorites" element={<FavoritesPage />} />
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/orders" element={<OrdersPage />} />
+                    <Route path="/orders/:id" element={<OrderDetailsPage />} />
+                    <Route
+                      path="/notifications"
+                      element={<NotificationsPage />}
+                    />
+                  </Route>
+
+                  <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route
+                      path="/forgot-password"
+                      element={<ForgotPassword />}
+                    />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/verify-email" element={<VerifyEmail />} />
+                  </Route>
                 </Route>
-
-                <Route element={<AccountLayout />}>
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/favorites" element={<FavoritesPage />} />
-                </Route>
-
-                <Route element={<AuthLayout />}>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/verify-email" element={<VerifyEmail />} />
-                </Route>
-              </Route>
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </CartProvider>
       </AuthProvider>
     </Router>
   );
