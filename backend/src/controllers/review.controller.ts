@@ -105,7 +105,7 @@ export const getRestaurantReviews = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { restaurantId } = req.params;
+    const restaurantId = req.params.restaurantId as string;
 
     if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
       throw new ValidationError("Invalid restaurant ID");
