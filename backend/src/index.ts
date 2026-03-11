@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Express, Request, Response } from "express";
 import path from "path";
 import "dotenv/config";
 import cors from "cors";
@@ -14,7 +14,7 @@ import { errorHandler } from "./middleware/error.middleware";
 import Name from "./models/Name";
 
 // ── App setup ────────────────────────────────────────────────────
-const app = express();
+const app: Express = express();
 
 // ── CORS (must be before other middleware) ──────────────────────
 const corsOptions: cors.CorsOptions = {
