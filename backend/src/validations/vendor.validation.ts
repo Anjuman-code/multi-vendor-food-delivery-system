@@ -297,3 +297,60 @@ export const updateOrderStatusSchema = z.object({
 });
 
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+
+// ── Review Reply ───────────────────────────────────────────────
+
+export const replyToReviewSchema = z.object({
+  text: z
+    .string()
+    .min(1, "Reply text is required")
+    .max(500, "Reply cannot exceed 500 characters")
+    .trim(),
+});
+
+export type ReplyToReviewInput = z.infer<typeof replyToReviewSchema>;
+
+// ── Coupon CRUD ────────────────────────────────────────────────
+
+export const createCouponSchema = z.object({
+  code: z
+    .string()
+    .min(3, "Code must be at least 3 characters")
+    .max(20, "Code cannot exceed 20 characters")
+    .trim()
+    .transform((v) => v.toUpperCase()),
+  type: z.enum(["percentage", "fixed"], {
+    message: "Type must be percentage or fixed",
+  }),
+  value: z.number().min(0, "Value must be non-negative"),
+  minOrderAmount: z.number().min(0).optional().default(0),
+  maxDiscount: z.number().min(0).optional(),
+  validFrom: z.coerce.date(),
+  validTo: z.coerce.date(),
+  usageLimit: z.number().int().min(0).optional().default(0),
+  applicableRestaurants: z.array(z.string()).optional().default([]),
+  isActive: z.boolean().optional().default(true),
+});
+
+export type CreateCouponInput = z.infer<typeof createCouponSchema>;
+
+export const updateCouponSchema = z.object({
+  code: z
+    .string()
+    .min(3)
+    .max(20)
+    .trim()
+    .transform((v) => v.toUpperCase())
+    .optional(),
+  type: z.enum(["percentage", "fixed"]).optional(),
+  value: z.number().min(0).optional(),
+  minOrderAmount: z.number().min(0).optional(),
+  maxDiscount: z.number().min(0).nullable().optional(),
+  validFrom: z.coerce.date().optional(),
+  validTo: z.coerce.date().optional(),
+  usageLimit: z.number().int().min(0).optional(),
+  applicableRestaurants: z.array(z.string()).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateCouponInput = z.infer<typeof updateCouponSchema>;
