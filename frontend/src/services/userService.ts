@@ -93,6 +93,27 @@ export interface UpdatePreferencesPayload {
   notifications?: Partial<NotificationPreferences>;
 }
 
+export interface PaymentMethod {
+  _id: string;
+  type: "card" | "upi" | "wallet";
+  provider: string;
+  token: string;
+  last4: string;
+  isDefault: boolean;
+  expiryMonth?: number;
+  expiryYear?: number;
+}
+
+export interface AddPaymentMethodPayload {
+  type: "card" | "upi" | "wallet";
+  provider: string;
+  token: string;
+  last4: string;
+  isDefault?: boolean;
+  expiryMonth?: number;
+  expiryYear?: number;
+}
+
 // ── Helper ─────────────────────────────────────────────────────
 
 const extractError = (error: unknown): ApiResponse => {
@@ -338,6 +359,85 @@ const userService = {
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{
         coverImagePosition: number;
+      }>;
+    }
+  },
+
+  // ── Payment Methods ────────────────────────────────────────
+
+  /** GET /api/users/me/payment-methods */
+  async getPaymentMethods(): Promise<
+    ApiResponse<{ paymentMethods: PaymentMethod[] }>
+  > {
+    try {
+      const response = await httpClient.get<
+        ApiResponse<{ paymentMethods: PaymentMethod[] }>
+      >("/api/users/me/payment-methods");
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        paymentMethods: PaymentMethod[];
+      }>;
+    }
+  },
+
+  /** POST /api/users/me/payment-methods */
+  async addPaymentMethod(
+    payload: AddPaymentMethodPayload,
+  ): Promise<ApiResponse<{ paymentMethod: PaymentMethod }>> {
+    try {
+      const response = await httpClient.post<
+        ApiResponse<{ paymentMethod: PaymentMethod }>
+      >("/api/users/me/payment-methods", payload);
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        paymentMethod: PaymentMethod;
+      }>;
+    }
+  },
+
+  /** PUT /api/users/me/payment-methods/:methodId */
+  async updatePaymentMethod(
+    methodId: string,
+    payload: Partial<AddPaymentMethodPayload>,
+  ): Promise<ApiResponse<{ paymentMethod: PaymentMethod }>> {
+    try {
+      const response = await httpClient.put<
+        ApiResponse<{ paymentMethod: PaymentMethod }>
+      >(`/api/users/me/payment-methods/${methodId}`, payload);
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        paymentMethod: PaymentMethod;
+      }>;
+    }
+  },
+
+  /** DELETE /api/users/me/payment-methods/:methodId */
+  async deletePaymentMethod(methodId: string): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.delete<ApiResponse>(
+        `/api/users/me/payment-methods/${methodId}`,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  /** PATCH /api/users/me/payment-methods/:methodId/set-default */
+  async setDefaultPaymentMethod(
+    methodId: string,
+  ): Promise<ApiResponse<{ paymentMethod: PaymentMethod }>> {
+    try {
+      const response = await httpClient.patch<
+        ApiResponse<{ paymentMethod: PaymentMethod }>
+      >(`/api/users/me/payment-methods/${methodId}/set-default`);
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        paymentMethod: PaymentMethod;
       }>;
     }
   },
