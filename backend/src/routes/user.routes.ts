@@ -20,6 +20,11 @@ import {
   deleteProfilePhoto,
   deleteCoverPhoto,
   updateCoverPhotoPosition,
+  getPaymentMethods,
+  addPaymentMethod,
+  updatePaymentMethod,
+  deletePaymentMethod,
+  setDefaultPaymentMethod,
 } from "../controllers/user.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import {
@@ -32,6 +37,8 @@ import {
   addAddressSchema,
   updateAddressSchema,
   updatePreferencesSchema,
+  addPaymentMethodSchema,
+  updatePaymentMethodSchema,
 } from "../validations/user.validation";
 import { UserRole } from "../config/constants";
 
@@ -81,6 +88,35 @@ router.delete(
   "/me/favorites/:restaurantId",
   authorize(UserRole.CUSTOMER),
   removeFavorite,
+);
+
+// ── Payment Methods (customer only) ────────────────────────────
+router.get(
+  "/me/payment-methods",
+  authorize(UserRole.CUSTOMER),
+  getPaymentMethods,
+);
+router.post(
+  "/me/payment-methods",
+  authorize(UserRole.CUSTOMER),
+  validate(addPaymentMethodSchema),
+  addPaymentMethod,
+);
+router.put(
+  "/me/payment-methods/:methodId",
+  authorize(UserRole.CUSTOMER),
+  validate(updatePaymentMethodSchema),
+  updatePaymentMethod,
+);
+router.delete(
+  "/me/payment-methods/:methodId",
+  authorize(UserRole.CUSTOMER),
+  deletePaymentMethod,
+);
+router.patch(
+  "/me/payment-methods/:methodId/set-default",
+  authorize(UserRole.CUSTOMER),
+  setDefaultPaymentMethod,
 );
 
 export default router;

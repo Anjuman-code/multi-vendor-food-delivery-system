@@ -1,0 +1,26 @@
+/**
+ * Order routes – all routes require authentication (customer role).
+ */
+import { Router } from "express";
+import {
+  createOrder,
+  getOrders,
+  getOrderById,
+  cancelOrder,
+  reorder,
+} from "../controllers/order.controller";
+import { authenticate, authorize } from "../middleware/auth.middleware";
+import { UserRole } from "../config/constants";
+
+const router = Router();
+
+router.use(authenticate);
+router.use(authorize(UserRole.CUSTOMER));
+
+router.post("/", createOrder);
+router.get("/", getOrders);
+router.get("/:orderId", getOrderById);
+router.patch("/:orderId/cancel", cancelOrder);
+router.post("/:orderId/reorder", reorder);
+
+export default router;
