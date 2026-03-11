@@ -19,6 +19,8 @@ import type {
   AddAddressInput,
   UpdateAddressInput,
   UpdatePreferencesInput,
+  AddPaymentMethodInput,
+  UpdatePaymentMethodInput,
 } from "../validations/user.validation";
 
 /** Extract a single string from an Express param that may be string | string[]. */
@@ -640,6 +642,190 @@ export const updateCoverPhotoPosition = async (
       res,
       { coverImagePosition: user.coverImagePosition },
       "Cover photo position updated",
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Payment Methods
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/users/me/payment-methods
+ * List all saved payment methods.
+ */
+export const getPaymentMethods = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const profile = await CustomerProfile.findOne({ userId: req.user._id });
+    if (!profile) throw new NotFoundError("Customer profile not found");
+
+    successResponse(res, { paymentMethods: profile.paymentMethods });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/users/me/payment-methods
+ * Add a new payment method.
+ */
+export const addPaymentMethod = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const data = req.body as AddPaymentMethodInput;
+
+    const profile = await CustomerProfile.findOne({ userId: req.user._id });
+    if (!profile) throw new NotFoundError("Customer profile not found");
+
+    // If new is default, unset others
+    if (data.isDefault) {
+      profile.paymentMethods.forEach((pm) => {
+        pm.isDefault = false;
+      });
+    }
+
+    // If first, make default
+    if (profile.paymentMethods.length === 0) {
+      data.isDefault = true;
+    }
+
+    profile.paymentMethods.push(data as never);
+    await profile.save();
+
+    const added = profile.paymentMethods[profile.paymentMethods.length - 1];
+
+    successResponse(res, { paymentMethod: added }, "Payment method added", 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/users/me/payment-methods/:methodId
+ * Update an existing payment method.
+ */
+export const updatePaymentMethod = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const methodId = paramStr(req.params.methodId);
+    const data = req.body as UpdatePaymentMethodInput;
+
+    const profile = await CustomerProfile.findOne({ userId: req.user._id });
+    if (!profile) throw new NotFoundError("Customer profile not found");
+
+    const idx = profile.paymentMethods.findIndex(
+      (pm) => String(pm._id) === methodId,
+    );
+    if (idx === -1) throw new NotFoundError("Payment method not found");
+
+    if (data.isDefault) {
+      profile.paymentMethods.forEach((pm) => {
+        pm.isDefault = false;
+      });
+    }
+
+    Object.assign(profile.paymentMethods[idx], data);
+    await profile.save();
+
+    successResponse(
+      res,
+      { paymentMethod: profile.paymentMethods[idx] },
+      "Payment method updated",
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/users/me/payment-methods/:methodId
+ * Remove a payment method.
+ */
+export const deletePaymentMethod = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const methodId = paramStr(req.params.methodId);
+
+    const profile = await CustomerProfile.findOne({ userId: req.user._id });
+    if (!profile) throw new NotFoundError("Customer profile not found");
+
+    const idx = profile.paymentMethods.findIndex(
+      (pm) => String(pm._id) === methodId,
+    );
+    if (idx === -1) throw new NotFoundError("Payment method not found");
+
+    const wasDefault = profile.paymentMethods[idx].isDefault;
+    profile.paymentMethods.splice(idx, 1);
+
+    // If deleted was default, assign another
+    if (wasDefault && profile.paymentMethods.length > 0) {
+      profile.paymentMethods[0].isDefault = true;
+    }
+
+    await profile.save();
+
+    successResponse(res, null, "Payment method removed");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/users/me/payment-methods/:methodId/set-default
+ * Set a payment method as the default.
+ */
+export const setDefaultPaymentMethod = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) throw new AuthenticationError();
+
+    const methodId = paramStr(req.params.methodId);
+
+    const profile = await CustomerProfile.findOne({ userId: req.user._id });
+    if (!profile) throw new NotFoundError("Customer profile not found");
+
+    const idx = profile.paymentMethods.findIndex(
+      (pm) => String(pm._id) === methodId,
+    );
+    if (idx === -1) throw new NotFoundError("Payment method not found");
+
+    profile.paymentMethods.forEach((pm) => {
+      pm.isDefault = false;
+    });
+    profile.paymentMethods[idx].isDefault = true;
+
+    await profile.save();
+
+    successResponse(
+      res,
+      { paymentMethod: profile.paymentMethods[idx] },
+      "Default payment method updated",
     );
   } catch (error) {
     next(error);
