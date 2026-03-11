@@ -4,7 +4,7 @@
 import { Router } from "express";
 import { getMenu, getMenuItem } from "../controllers/menu.controller";
 
-const router = Router();
+const router: Router = Router();
 
 // Public routes – no auth required
 router.get("/:restaurantId/menu", getMenu);

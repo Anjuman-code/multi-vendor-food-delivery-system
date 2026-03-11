@@ -4,6 +4,7 @@
 import { Router } from "express";
 import {
   register,
+  registerVendor,
   login,
   refreshToken,
   logout,
@@ -25,11 +26,13 @@ import {
   resendVerificationSchema,
   otpVerificationSchema,
 } from "../validations/auth.validation";
+import { vendorRegisterSchema } from "../validations/vendor.validation";
 
-const router = Router();
+const router: Router = Router();
 
 // ── Public routes ──────────────────────────────────────────────
 router.post("/register", validate(registerSchema), register);
+router.post("/register/vendor", validate(vendorRegisterSchema), registerVendor);
 router.post("/login", validate(loginSchema), login);
 router.post("/refresh", refreshToken);
 router.get("/verify-email/:token", verifyEmail);

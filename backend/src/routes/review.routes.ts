@@ -10,7 +10,7 @@ import {
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { UserRole } from "../config/constants";
 
-const router = Router();
+const router: Router = Router();
 
 // Authenticated – customer only
 router.post("/", authenticate, authorize(UserRole.CUSTOMER), createReview);

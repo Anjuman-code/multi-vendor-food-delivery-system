@@ -10,7 +10,7 @@ import {
 } from "../controllers/notification.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate);
 

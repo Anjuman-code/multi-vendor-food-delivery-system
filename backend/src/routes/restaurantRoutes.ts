@@ -2,25 +2,19 @@ import { Router } from "express";
 import {
   getAllRestaurants,
   getRestaurantById,
-  createRestaurant,
-  updateRestaurant,
-  deleteRestaurant,
   getFeaturedRestaurants,
 } from "../controllers/restaurantController";
+import { authenticate, authorize } from "../middleware/auth.middleware";
+import { UserRole } from "../config/constants";
 
-const router = Router();
+const router: Router = Router();
 
-// Collection routes
-router.route("/").get(getAllRestaurants).post(createRestaurant);
+// Public read-only routes
+router.get("/", getAllRestaurants);
+router.get("/featured", getFeaturedRestaurants);
+router.get("/:id", getRestaurantById);
 
-// Specific routes first (to avoid conflicts with dynamic :id)
-router.route("/featured").get(getFeaturedRestaurants);
-
-// Dynamic routes
-router
-  .route("/:id")
-  .get(getRestaurantById)
-  .put(updateRestaurant)
-  .delete(deleteRestaurant);
+// Mutation routes are now handled via /api/vendor/restaurants
+// (secured with vendor auth). Legacy unprotected routes removed.
 
 export default router;
