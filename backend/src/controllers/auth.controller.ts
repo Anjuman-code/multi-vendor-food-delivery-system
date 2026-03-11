@@ -5,6 +5,7 @@
 import { Request, Response, NextFunction } from "express";
 import User from "../models/User";
 import CustomerProfile from "../models/CustomerProfile";
+import VendorProfile from "../models/VendorProfile";
 import { hashToken } from "../utils/token.util";
 import { verifyRefreshToken } from "../utils/jwt.util";
 import { validatePasswordStrength } from "../utils/password.util";
@@ -24,6 +25,7 @@ import type {
   ResendVerificationInput,
   OTPVerificationInput,
 } from "../validations/auth.validation";
+import type { VendorRegisterInput } from "../validations/vendor.validation";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -125,6 +127,94 @@ export const register = async (
       res,
       { userId: user._id },
       "Registration successful. Please verify your email.",
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/auth/register/vendor
+ * Register a new vendor account with business details.
+ */
+export const registerVendor = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      businessName,
+      businessLicense,
+      taxId,
+    } = req.body as VendorRegisterInput;
+
+    // Check duplicates
+    const existingEmail = await User.findByEmail(email);
+    if (existingEmail) {
+      throw new ConflictError("A user with this email already exists");
+    }
+
+    const existingPhone = await User.findByPhone(phoneNumber);
+    if (existingPhone) {
+      throw new ConflictError("A user with this phone number already exists");
+    }
+
+    // Validate password strength
+    const pwdCheck = validatePasswordStrength(password);
+    if (!pwdCheck.valid) {
+      throw new ValidationError(pwdCheck.errors.join(". "));
+    }
+
+    // Create user with vendor role
+    const user = new User({
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      role: "vendor",
+    });
+
+    // Generate email verification token
+    const { token: verificationToken, otp } =
+      user.generateEmailVerificationToken();
+    await user.save();
+
+    // Create linked vendor profile
+    await VendorProfile.create({
+      userId: user._id,
+      businessName,
+      businessLicense,
+      taxId,
+    });
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, otp, verificationToken);
+    } catch (emailError) {
+      console.error("[EMAIL] Failed to send verification email:", emailError);
+    }
+
+    // Log verification token (dev fallback)
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION - VENDOR]");
+    console.log(`  User:  ${email}`);
+    console.log(`  OTP:   ${otp}`);
+    console.log(`  Token: ${verificationToken}`);
+    console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
+    console.log("========================================\n");
+
+    successResponse(
+      res,
+      { userId: user._id },
+      "Vendor registration successful. Please verify your email.",
       201,
     );
   } catch (error) {
