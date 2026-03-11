@@ -1,10 +1,14 @@
 /**
- * Vendor controller – profile management and restaurant CRUD for vendors.
+ * Vendor controller – profile management, restaurant CRUD, dashboard & analytics.
  */
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import VendorProfile from "../models/VendorProfile";
 import Restaurant from "../models/Restaurant";
+import Order, { OrderStatus } from "../models/Order";
+import MenuItem from "../models/MenuItem";
+import Review from "../models/Review";
+import Notification, { NotificationType } from "../models/Notification";
 import { successResponse } from "../utils/response.util";
 import {
   AuthenticationError,
@@ -265,6 +269,370 @@ export const deleteMyRestaurant = async (
     await restaurant.save();
 
     successResponse(res, null, "Restaurant deactivated");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Dashboard Stats
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/vendor/dashboard
+ * Aggregate dashboard statistics across all vendor restaurants.
+ */
+export const getDashboardStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { profile } = await getVendorProfile(req);
+    const restaurantIds = profile.restaurantIds;
+
+    if (restaurantIds.length === 0) {
+      successResponse(res, {
+        totalRevenue: 0,
+        totalOrders: 0,
+        todayRevenue: 0,
+        todayOrders: 0,
+        pendingOrders: 0,
+        avgOrderValue: 0,
+        avgRating: 0,
+        ordersByStatus: {},
+        recentOrders: [],
+        popularItems: [],
+      });
+      return;
+    }
+
+    const now = new Date();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    // Parallel aggregations
+    const [
+      totalStats,
+      todayStats,
+      ordersByStatus,
+      recentOrders,
+      popularItems,
+      restaurants,
+    ] = await Promise.all([
+      // Total revenue and count (delivered orders)
+      Order.aggregate([
+        {
+          $match: {
+            restaurantId: { $in: restaurantIds },
+            status: OrderStatus.DELIVERED,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$total" },
+            totalOrders: { $sum: 1 },
+            avgOrderValue: { $avg: "$total" },
+          },
+        },
+      ]),
+
+      // Today's stats
+      Order.aggregate([
+        {
+          $match: {
+            restaurantId: { $in: restaurantIds },
+            createdAt: { $gte: todayStart },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            todayRevenue: {
+              $sum: {
+                $cond: [
+                  { $ne: ["$status", OrderStatus.CANCELLED] },
+                  "$total",
+                  0,
+                ],
+              },
+            },
+            todayOrders: { $sum: 1 },
+          },
+        },
+      ]),
+
+      // Orders by status
+      Order.aggregate([
+        { $match: { restaurantId: { $in: restaurantIds } } },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]),
+
+      // Recent 5 orders
+      Order.find({ restaurantId: { $in: restaurantIds } })
+        .populate("customerId", "firstName lastName")
+        .populate("restaurantId", "name")
+        .sort("-createdAt")
+        .limit(5)
+        .lean(),
+
+      // Top 5 popular items by frequency
+      Order.aggregate([
+        {
+          $match: {
+            restaurantId: { $in: restaurantIds },
+            status: { $ne: OrderStatus.CANCELLED },
+          },
+        },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.menuItemId",
+            name: { $first: "$items.name" },
+            totalOrdered: { $sum: "$items.quantity" },
+            totalRevenue: { $sum: "$items.itemTotal" },
+          },
+        },
+        { $sort: { totalOrdered: -1 } },
+        { $limit: 5 },
+      ]),
+
+      // Restaurants for avg rating
+      Restaurant.find({ _id: { $in: restaurantIds } })
+        .select("rating")
+        .lean(),
+    ]);
+
+    const total = totalStats[0] || {
+      totalRevenue: 0,
+      totalOrders: 0,
+      avgOrderValue: 0,
+    };
+    const today = todayStats[0] || { todayRevenue: 0, todayOrders: 0 };
+    const statusMap: Record<string, number> = {};
+    for (const s of ordersByStatus) {
+      statusMap[s._id] = s.count;
+    }
+
+    const avgRating =
+      restaurants.length > 0
+        ? restaurants.reduce((sum, r) => sum + (r.rating?.average || 0), 0) /
+          restaurants.length
+        : 0;
+
+    successResponse(res, {
+      totalRevenue: total.totalRevenue,
+      totalOrders: total.totalOrders,
+      avgOrderValue: Math.round((total.avgOrderValue || 0) * 100) / 100,
+      todayRevenue: today.todayRevenue,
+      todayOrders: today.todayOrders,
+      pendingOrders: statusMap[OrderStatus.PENDING] || 0,
+      avgRating: Math.round(avgRating * 10) / 10,
+      ordersByStatus: statusMap,
+      recentOrders,
+      popularItems,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Analytics
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/vendor/analytics?period=7d|30d|90d|12m
+ * Time-series analytics for the vendor's restaurants.
+ */
+export const getAnalytics = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { profile } = await getVendorProfile(req);
+    const restaurantIds = profile.restaurantIds;
+    const period = (req.query.period as string) || "7d";
+
+    const now = new Date();
+    let startDate: Date;
+    let groupFormat: string;
+
+    switch (period) {
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%m-%d";
+        break;
+      case "90d":
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%U"; // week
+        break;
+      case "12m":
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%m";
+        break;
+      default: // 7d
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%m-%d";
+    }
+
+    const baseMatch = {
+      restaurantId: { $in: restaurantIds },
+      createdAt: { $gte: startDate },
+    };
+
+    const [revenueOverTime, topSellingItems, peakHours, completionStats] =
+      await Promise.all([
+        // Revenue & order count over time
+        Order.aggregate([
+          { $match: { ...baseMatch, status: { $ne: OrderStatus.CANCELLED } } },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: groupFormat, date: "$createdAt" },
+              },
+              revenue: { $sum: "$total" },
+              orders: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ]),
+
+        // Top selling items
+        Order.aggregate([
+          { $match: { ...baseMatch, status: { $ne: OrderStatus.CANCELLED } } },
+          { $unwind: "$items" },
+          {
+            $group: {
+              _id: "$items.menuItemId",
+              name: { $first: "$items.name" },
+              quantity: { $sum: "$items.quantity" },
+              revenue: { $sum: "$items.itemTotal" },
+            },
+          },
+          { $sort: { quantity: -1 } },
+          { $limit: 10 },
+        ]),
+
+        // Peak order hours
+        Order.aggregate([
+          { $match: { ...baseMatch, status: { $ne: OrderStatus.CANCELLED } } },
+          {
+            $group: {
+              _id: { $hour: "$createdAt" },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ]),
+
+        // Completion rate
+        Order.aggregate([
+          { $match: baseMatch },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              delivered: {
+                $sum: {
+                  $cond: [{ $eq: ["$status", OrderStatus.DELIVERED] }, 1, 0],
+                },
+              },
+              cancelled: {
+                $sum: {
+                  $cond: [{ $eq: ["$status", OrderStatus.CANCELLED] }, 1, 0],
+                },
+              },
+            },
+          },
+        ]),
+      ]);
+
+    const stats = completionStats[0] || {
+      total: 0,
+      delivered: 0,
+      cancelled: 0,
+    };
+
+    successResponse(res, {
+      period,
+      revenueOverTime: revenueOverTime.map((r) => ({
+        date: r._id,
+        revenue: r.revenue,
+        orders: r.orders,
+      })),
+      topSellingItems,
+      peakHours: peakHours.map((h) => ({ hour: h._id, orders: h.count })),
+      completionRate:
+        stats.total > 0
+          ? Math.round((stats.delivered / stats.total) * 10000) / 100
+          : 0,
+      totalOrders: stats.total,
+      deliveredOrders: stats.delivered,
+      cancelledOrders: stats.cancelled,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Review Reply
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/vendor/reviews/:reviewId/reply
+ * Reply to a customer review on one of the vendor's restaurants.
+ */
+export const replyToReview = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { profile } = await getVendorProfile(req);
+    const { reviewId } = req.params;
+    const { text } = req.body as { text: string };
+
+    if (!text || text.trim().length === 0) {
+      throw new ValidationError("Reply text is required");
+    }
+    if (text.length > 500) {
+      throw new ValidationError("Reply cannot exceed 500 characters");
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) throw new NotFoundError("Review not found");
+
+    // Verify review is for one of vendor's restaurants
+    if (
+      !profile.restaurantIds.some(
+        (id) => id.toString() === review.restaurantId.toString(),
+      )
+    ) {
+      throw new AuthorizationError(
+        "You can only reply to reviews on your restaurants",
+      );
+    }
+
+    review.reply = { text: text.trim(), repliedAt: new Date() };
+    await review.save();
+
+    // Notify customer
+    await Notification.create({
+      userId: review.customerId,
+      type: NotificationType.REVIEW_REPLY,
+      title: "Reply to your review",
+      message: `The restaurant responded to your review.`,
+      data: { reviewId: review._id, restaurantId: review.restaurantId },
+    });
+
+    successResponse(res, { review }, "Reply posted");
   } catch (error) {
     next(error);
   }
