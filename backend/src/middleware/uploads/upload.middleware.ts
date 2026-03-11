@@ -7,7 +7,7 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { Request } from "express";
+import { Request, RequestHandler } from "express";
 
 // ── Upload directories ─────────────────────────────────────────
 const UPLOAD_ROOT = path.resolve(__dirname, "../../../uploads");
@@ -58,13 +58,13 @@ const fileFilter = (
 };
 
 // ── Export multer instances ────────────────────────────────────
-export const uploadProfilePhoto = multer({
+export const uploadProfilePhoto: RequestHandler = multer({
   storage,
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
 }).single("profilePhoto");
 
-export const uploadCoverPhoto = multer({
+export const uploadCoverPhoto: RequestHandler = multer({
   storage,
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
