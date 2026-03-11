@@ -42,7 +42,7 @@ import {
 } from "../validations/user.validation";
 import { UserRole } from "../config/constants";
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticate);

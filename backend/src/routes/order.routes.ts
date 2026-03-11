@@ -12,7 +12,7 @@ import {
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { UserRole } from "../config/constants";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate);
 router.use(authorize(UserRole.CUSTOMER));
