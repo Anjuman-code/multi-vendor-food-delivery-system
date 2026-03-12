@@ -17,6 +17,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const NewHomePage = lazy(() => import("./pages/NewHomePage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const VendorRegisterPage = lazy(() => import("./pages/VendorRegisterPage"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
@@ -109,6 +110,10 @@ function App(): React.ReactElement {
                   <Route element={<AuthLayout />}>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route
+                      path="/vendor/register"
+                      element={<VendorRegisterPage />}
+                    />
                     <Route
                       path="/forgot-password"
                       element={<ForgotPassword />}

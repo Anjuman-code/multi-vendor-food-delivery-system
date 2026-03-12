@@ -299,8 +299,8 @@ export const getDashboardStats = async (
         todayOrders: 0,
         pendingOrders: 0,
         avgOrderValue: 0,
-        avgRating: 0,
-        ordersByStatus: {},
+        averageRating: 0,
+        ordersByStatus: [],
         recentOrders: [],
         popularItems: [],
       });
@@ -413,16 +413,43 @@ export const getDashboardStats = async (
       avgOrderValue: 0,
     };
     const today = todayStats[0] || { todayRevenue: 0, todayOrders: 0 };
-    const statusMap: Record<string, number> = {};
-    for (const s of ordersByStatus) {
-      statusMap[s._id] = s.count;
-    }
 
-    const avgRating =
+    const ordersByStatusArray = ordersByStatus.map(
+      (s: { _id: string; count: number }) => ({
+        status: s._id,
+        count: s.count,
+      }),
+    );
+    const pendingCount =
+      ordersByStatus.find((s: { _id: string }) => s._id === OrderStatus.PENDING)
+        ?.count ?? 0;
+
+    const averageRating =
       restaurants.length > 0
         ? restaurants.reduce((sum, r) => sum + (r.rating?.average || 0), 0) /
           restaurants.length
         : 0;
+
+    const transformedRecentOrders = recentOrders.map((order) => {
+      const c = order.customerId as {
+        firstName?: string;
+        lastName?: string;
+      } | null;
+      const customerName =
+        c && typeof c === "object"
+          ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "—"
+          : "—";
+      return { ...order, customer: { name: customerName } };
+    });
+
+    const transformedPopularItems = popularItems.map(
+      (item: {
+        _id: string;
+        name: string;
+        totalOrdered: number;
+        totalRevenue: number;
+      }) => ({ ...item, orderCount: item.totalOrdered }),
+    );
 
     successResponse(res, {
       totalRevenue: total.totalRevenue,
@@ -430,11 +457,11 @@ export const getDashboardStats = async (
       avgOrderValue: Math.round((total.avgOrderValue || 0) * 100) / 100,
       todayRevenue: today.todayRevenue,
       todayOrders: today.todayOrders,
-      pendingOrders: statusMap[OrderStatus.PENDING] || 0,
-      avgRating: Math.round(avgRating * 10) / 10,
-      ordersByStatus: statusMap,
-      recentOrders,
-      popularItems,
+      pendingOrders: pendingCount,
+      averageRating: Math.round(averageRating * 10) / 10,
+      ordersByStatus: ordersByStatusArray,
+      recentOrders: transformedRecentOrders,
+      popularItems: transformedPopularItems,
     });
   } catch (error) {
     next(error);

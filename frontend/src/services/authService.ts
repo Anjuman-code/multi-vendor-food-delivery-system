@@ -45,6 +45,18 @@ export interface RegisterPayload {
   phoneNumber: string;
 }
 
+/** Payload sent to POST /api/auth/register/vendor */
+export interface VendorRegisterPayload {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  businessName: string;
+  businessLicense: string;
+  taxId: string;
+}
+
 /** Payload sent to POST /api/auth/login */
 export interface LoginPayload {
   emailOrPhone: string;
@@ -82,6 +94,25 @@ const authService = {
     try {
       const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
         "/api/auth/register",
+        payload,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<RegisterResponseData>;
+    }
+  },
+
+  /**
+   * POST /api/auth/register/vendor
+   * Creates a new vendor account.
+   * Backend does NOT return tokens – the user must verify their email first.
+   */
+  async registerVendor(
+    payload: VendorRegisterPayload,
+  ): Promise<ApiResponse<RegisterResponseData>> {
+    try {
+      const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
+        "/api/auth/register/vendor",
         payload,
       );
       return response.data;

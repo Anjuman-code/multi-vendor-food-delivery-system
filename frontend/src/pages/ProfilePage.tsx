@@ -2002,7 +2002,7 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
               </div>
               <Switch
                 checked={notifications[opt.key]}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked: boolean) =>
                   toggleNotification(opt.key, checked)
                 }
                 disabled={isSaving}

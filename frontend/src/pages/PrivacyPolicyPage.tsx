@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Shield, Lock, Eye, FileText, Code, Sparkles } from "lucide-react";
+import { Shield, Lock, Eye, FileText, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const PrivacyPolicyPage: React.FC = () => {

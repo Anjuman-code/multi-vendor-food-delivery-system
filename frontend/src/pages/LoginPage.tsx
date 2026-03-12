@@ -32,14 +32,14 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate(user?.role === "vendor" ? "/vendor" : "/", { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -66,7 +66,7 @@ const LoginPage: React.FC = () => {
           title: "Success",
           description: "Welcome back! Redirecting...",
         });
-        navigate("/");
+        navigate(response.data.user.role === "vendor" ? "/vendor" : "/");
       } else {
         toast({
           title: "Error",
