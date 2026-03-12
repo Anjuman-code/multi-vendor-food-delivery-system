@@ -5,7 +5,6 @@ import {
   Scale,
   AlertCircle,
   CheckCircle,
-  Code,
   Sparkles,
   ShoppingBag,
   CreditCard,

@@ -118,7 +118,7 @@ const VendorDashboardPage: React.FC = () => {
         />
         <StatCard
           title="Average Rating"
-          value={stats.averageRating.toFixed(1)}
+          value={(stats.averageRating ?? 0).toFixed(1)}
           icon={Star}
           color="bg-gradient-to-r from-yellow-500 to-amber-500"
         />
@@ -136,7 +136,7 @@ const VendorDashboardPage: React.FC = () => {
             Orders by Status
           </h3>
           <div className="space-y-3">
-            {stats.ordersByStatus.map((item) => {
+            {(stats.ordersByStatus ?? []).map((item) => {
               const total = stats.totalOrders || 1;
               const pct = Math.round((item.count / total) * 100);
               return (
@@ -172,7 +172,7 @@ const VendorDashboardPage: React.FC = () => {
             Popular Items
           </h3>
           <div className="space-y-3">
-            {stats.popularItems.map((item, idx) => (
+            {(stats.popularItems ?? []).map((item, idx) => (
               <div
                 key={item.name}
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -190,7 +190,7 @@ const VendorDashboardPage: React.FC = () => {
                 </span>
               </div>
             ))}
-            {stats.popularItems.length === 0 && (
+            {stats.popularItems?.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-4">
                 No data yet
               </p>
@@ -228,7 +228,7 @@ const VendorDashboardPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {stats.recentOrders.map((order) => (
+              {(stats.recentOrders ?? []).map((order) => (
                 <tr key={order._id} className="hover:bg-gray-50">
                   <td className="py-3">
                     <Link
@@ -270,7 +270,7 @@ const VendorDashboardPage: React.FC = () => {
                   </td>
                 </tr>
               ))}
-              {stats.recentOrders.length === 0 && (
+              {(stats.recentOrders?.length ?? 0) === 0 && (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-gray-400">
                     No recent orders

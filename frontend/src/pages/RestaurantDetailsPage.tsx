@@ -12,7 +12,6 @@ import {
   Heart,
   Share2,
   ThumbsUp,
-  Flag,
   X,
   ChevronLeft,
   ChevronRight,
@@ -728,7 +727,12 @@ const ReviewsSection: React.FC<{
   totalReviews: number;
   averageRating: number;
   recommendPercent: number;
-}> = ({ reviews, totalReviews, averageRating, recommendPercent }) => {
+}> = ({
+  reviews,
+  totalReviews,
+  averageRating,
+  recommendPercent: _recommendPercent,
+}) => {
   const [sortBy, setSortBy] = useState("newest");
 
   // Calculate rating distribution (mock data)

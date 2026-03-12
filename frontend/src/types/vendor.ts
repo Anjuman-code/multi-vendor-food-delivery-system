@@ -111,7 +111,6 @@ export interface VendorDashboardStats {
   todayOrders: number;
   pendingOrders: number;
   averageRating: number;
-  avgRating?: number;
   ordersByStatus: { status: string; count: number }[];
   recentOrders: VendorOrder[];
   popularItems: PopularItem[];

@@ -7,7 +7,6 @@ import {
   Clock,
   Send,
   MessageCircle,
-  Code,
   Sparkles,
   Facebook,
   Twitter,

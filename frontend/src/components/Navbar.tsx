@@ -13,6 +13,7 @@ import {
   Bell,
   Package,
   Store,
+  ClipboardList,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,8 @@ const Navbar: React.FC = () => {
   const { itemCount } = useCart();
   const { toast } = useToast();
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+  const isVendor = user?.role === "vendor";
 
   const navLinks: NavItem[] = [
     { name: "Home", path: "/" },
@@ -216,18 +219,20 @@ const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Cart */}
-            <Link
-              to="/cart"
-              className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
-            >
-              <ShoppingBag className="w-5 h-5" />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {itemCount > 9 ? "9+" : itemCount}
-                </span>
-              )}
-            </Link>
+            {/* Cart – hidden for vendor users */}
+            {!isVendor && (
+              <Link
+                to="/cart"
+                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {itemCount > 9 ? "9+" : itemCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Auth Section - Show user profile if logged in, otherwise show login/register */}
             {isAuthenticated && user && user.firstName && user.lastName ? (
@@ -263,36 +268,55 @@ const Navbar: React.FC = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-gray-100" />
-                  <DropdownMenuItem
-                    onClick={() => navigate("/profile")}
-                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  {user.role === "vendor" && (
-                    <DropdownMenuItem
-                      onClick={() => navigate("/vendor")}
-                      className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
-                    >
-                      <Store className="mr-2 h-4 w-4" />
-                      <span>Vendor Dashboard</span>
-                    </DropdownMenuItem>
+                  {isVendor ? (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/vendor")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <Store className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/vendor/restaurants")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        <span>My Restaurants</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/vendor/orders")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        <span>Vendor Orders</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/profile")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/orders")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        <span>Orders</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/favorites")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <Heart className="mr-2 h-4 w-4" />
+                        <span>Favorites</span>
+                      </DropdownMenuItem>
+                    </>
                   )}
-                  <DropdownMenuItem
-                    onClick={() => navigate("/orders")}
-                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
-                  >
-                    <Package className="mr-2 h-4 w-4" />
-                    <span>Orders</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate("/favorites")}
-                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
-                  >
-                    <Heart className="mr-2 h-4 w-4" />
-                    <span>Favorites</span>
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => navigate("/notifications")}
                     className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
@@ -324,6 +348,15 @@ const Navbar: React.FC = () => {
               </DropdownMenu>
             ) : (
               <>
+                {!isAuthenticated && (
+                  <Link
+                    to="/vendor/register"
+                    className="hidden xl:flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors rounded-full hover:bg-orange-50"
+                  >
+                    <Store className="w-4 h-4" />
+                    Sell on Anfi
+                  </Link>
+                )}
                 <Link
                   to="/login"
                   className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
@@ -341,15 +374,17 @@ const Navbar: React.FC = () => {
 
           {/* Mobile Menu Button */}
           <div className="lg:hidden flex items-center gap-3">
-            {/* Mobile Cart */}
-            <Link to="/cart" className="relative p-2 text-gray-600">
-              <ShoppingBag className="w-5 h-5" />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {itemCount > 9 ? "9+" : itemCount}
-                </span>
-              )}
-            </Link>
+            {/* Mobile Cart – hidden for vendors */}
+            {!isVendor && (
+              <Link to="/cart" className="relative p-2 text-gray-600">
+                <ShoppingBag className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {itemCount > 9 ? "9+" : itemCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -479,12 +514,16 @@ const Navbar: React.FC = () => {
                       <button
                         onClick={() => {
                           setIsOpen(false);
-                          navigate("/profile");
+                          navigate(isVendor ? "/vendor" : "/profile");
                         }}
                         className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
                       >
-                        <User className="w-4 h-4" />
-                        View Profile
+                        {isVendor ? (
+                          <Store className="w-4 h-4" />
+                        ) : (
+                          <User className="w-4 h-4" />
+                        )}
+                        {isVendor ? "Go to Dashboard" : "View Profile"}
                       </button>
                       <Button
                         onClick={() => {
@@ -512,6 +551,16 @@ const Navbar: React.FC = () => {
                           Create Account
                         </Button>
                       </Link>
+                      {!isAuthenticated && (
+                        <Link
+                          to="/vendor/register"
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors border border-orange-200"
+                        >
+                          <Store className="w-4 h-4" />
+                          Partner with us – Sell on Anfi
+                        </Link>
+                      )}
                     </>
                   )}
                 </div>

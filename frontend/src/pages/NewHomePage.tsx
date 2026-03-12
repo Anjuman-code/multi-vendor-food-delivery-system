@@ -7,6 +7,7 @@ import TopFoodCategories from "../components/TopFoodCategories";
 import TrendingFoodItems from "../components/TrendingFoodItems";
 import PopularRestaurants from "../components/PopularRestaurants";
 import ReviewsAndRatings from "../components/ReviewsAndRatings";
+import VendorCTASection from "../components/VendorCTASection";
 
 /**
  * NewHomePage - The main landing page of the application.
@@ -27,6 +28,7 @@ const NewHomePage: React.FC = () => {
       <TrendingFoodItems />
       <PopularRestaurants />
       <ReviewsAndRatings />
+      <VendorCTASection />
     </>
   );
 };

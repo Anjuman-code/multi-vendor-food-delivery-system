@@ -1,13 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  Star,
-  Clock,
-  MapPin,
-  ChefHat,
-  ArrowRight,
-  Utensils,
-} from "lucide-react";
+import { Star, Clock, MapPin, ChefHat, ArrowRight } from "lucide-react";
 
 // Mock data (Same as before, just slight structure tweaks if needed)
 const mockPopularRestaurants = [

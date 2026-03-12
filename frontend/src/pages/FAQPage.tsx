@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Shield,
   Phone,
-  Code,
   Sparkles,
   MessageCircle,
 } from "lucide-react";

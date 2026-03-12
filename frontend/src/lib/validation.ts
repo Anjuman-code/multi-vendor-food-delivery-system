@@ -131,3 +131,60 @@ export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 export type UpdateProfileFormData = z.infer<typeof updateProfileSchema>;
 export type AddAddressFormData = z.infer<typeof addAddressSchema>;
 export type DeactivateAccountFormData = z.infer<typeof deactivateAccountSchema>;
+
+// ── Vendor Registration schema ─────────────────────────────────
+export const vendorRegisterSchema = z
+  .object({
+    firstName: z
+      .string()
+      .min(2, "First name must be at least 2 characters")
+      .max(50, "First name cannot exceed 50 characters")
+      .trim(),
+    lastName: z
+      .string()
+      .min(2, "Last name must be at least 2 characters")
+      .max(50, "Last name cannot exceed 50 characters")
+      .trim(),
+    email: z.string().email("Please enter a valid email address"),
+    phoneNumber: z
+      .string()
+      .min(7, "Phone number is too short")
+      .max(20, "Phone number is too long")
+      .regex(/^\+?[\d\s\-()]+$/, "Please enter a valid phone number"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128, "Password must not exceed 128 characters")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(
+        /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
+        "Password must contain at least one special character",
+      ),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+    businessName: z
+      .string()
+      .min(2, "Business name must be at least 2 characters")
+      .max(100, "Business name cannot exceed 100 characters")
+      .trim(),
+    businessLicense: z
+      .string()
+      .min(1, "Business license number is required")
+      .max(100, "Business license cannot exceed 100 characters")
+      .trim(),
+    taxId: z
+      .string()
+      .min(1, "Tax ID is required")
+      .max(50, "Tax ID cannot exceed 50 characters")
+      .trim(),
+    agreedToTerms: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the terms and privacy policy",
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type VendorRegisterFormData = z.infer<typeof vendorRegisterSchema>;
