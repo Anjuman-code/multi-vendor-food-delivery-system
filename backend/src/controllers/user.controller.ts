@@ -1,7 +1,3 @@
-/**
- * User management controller – profile CRUD, addresses, preferences,
- * favourites, and account deactivation for customers.
- */
 import { Request, Response, NextFunction } from "express";
 import mongoose, { Types } from "mongoose";
 import User from "../models/User";
@@ -13,7 +9,11 @@ import {
   ValidationError,
   ConflictError,
 } from "../utils/errors";
-import { removeOldFile } from "../middleware/uploads/upload.middleware";
+import {
+  removeOldFile,
+  removeLocalFile as removeUploadedLocalFile,
+  uploadImageToCloud,
+} from "../middleware/uploads/upload.middleware";
 import type {
   UpdateProfileInput,
   AddAddressInput,
@@ -23,18 +23,9 @@ import type {
   UpdatePaymentMethodInput,
 } from "../validations/user.validation";
 
-/** Extract a single string from an Express param that may be string | string[]. */
 const paramStr = (value: string | string[]): string =>
   Array.isArray(value) ? value[0] : value;
 
-// ────────────────────────────────────────────────────────────────
-// Profile
-// ────────────────────────────────────────────────────────────────
-
-/**
- * GET /api/users/me
- * Fetch the authenticated user profile with customer data.
- */
 export const getProfile = async (
   req: Request,
   res: Response,
@@ -58,10 +49,6 @@ export const getProfile = async (
   }
 };
 
-/**
- * PUT /api/users/me
- * Update the authenticated user's basic profile fields.
- */
 export const updateProfile = async (
   req: Request,
   res: Response,
@@ -73,7 +60,6 @@ export const updateProfile = async (
     const { firstName, lastName, phoneNumber, profileImage, dateOfBirth } =
       req.body as UpdateProfileInput;
 
-    // Check phone uniqueness if changed
     if (phoneNumber && phoneNumber !== req.user.phoneNumber) {
       const existing = await User.findOne({
         phoneNumber,
@@ -84,7 +70,6 @@ export const updateProfile = async (
       }
     }
 
-    // Age validation (18+)
     if (dateOfBirth) {
       const dob = new Date(dateOfBirth);
       const ageDiffMs = Date.now() - dob.getTime();
@@ -118,14 +103,6 @@ export const updateProfile = async (
   }
 };
 
-// ────────────────────────────────────────────────────────────────
-// Addresses
-// ────────────────────────────────────────────────────────────────
-
-/**
- * POST /api/users/me/addresses
- * Add a new address.
- */
 export const addAddress = async (
   req: Request,
   res: Response,
@@ -139,14 +116,12 @@ export const addAddress = async (
     const user = await User.findById(req.user._id);
     if (!user) throw new NotFoundError("User not found");
 
-    // If new address is default, unset existing defaults
     if (addressData.isDefault) {
       user.addresses.forEach((addr) => {
         addr.isDefault = false;
       });
     }
 
-    // If first address, make it default
     if (user.addresses.length === 0) {
       addressData.isDefault = true;
     }
@@ -167,10 +142,6 @@ export const addAddress = async (
   }
 };
 
-/**
- * PUT /api/users/me/addresses/:addressId
- * Update an existing address.
- */
 export const updateAddress = async (
   req: Request,
   res: Response,
@@ -190,14 +161,12 @@ export const updateAddress = async (
     );
     if (addrIndex === -1) throw new NotFoundError("Address not found");
 
-    // Handle default flag
     if (updateData.isDefault) {
       user.addresses.forEach((addr) => {
         addr.isDefault = false;
       });
     }
 
-    // Apply updates
     Object.assign(user.addresses[addrIndex], updateData);
     await user.save({ validateBeforeSave: false });
 
@@ -211,10 +180,6 @@ export const updateAddress = async (
   }
 };
 
-/**
- * DELETE /api/users/me/addresses/:addressId
- * Remove an address.
- */
 export const deleteAddress = async (
   req: Request,
   res: Response,
@@ -233,7 +198,6 @@ export const deleteAddress = async (
     );
     if (addrIndex === -1) throw new NotFoundError("Address not found");
 
-    // Prevent deleting the only address
     if (user.addresses.length <= 1) {
       throw new ValidationError(
         "Cannot delete the only address. Add another address first.",
@@ -243,7 +207,6 @@ export const deleteAddress = async (
     const wasDefault = user.addresses[addrIndex].isDefault;
     user.addresses.splice(addrIndex, 1);
 
-    // If deleted address was default, set another as default
     if (wasDefault && user.addresses.length > 0) {
       user.addresses[0].isDefault = true;
     }
@@ -256,10 +219,6 @@ export const deleteAddress = async (
   }
 };
 
-/**
- * PATCH /api/users/me/addresses/:addressId/set-default
- * Set an address as the default.
- */
 export const setDefaultAddress = async (
   req: Request,
   res: Response,
@@ -295,14 +254,6 @@ export const setDefaultAddress = async (
   }
 };
 
-// ────────────────────────────────────────────────────────────────
-// Preferences
-// ────────────────────────────────────────────────────────────────
-
-/**
- * PUT /api/users/me/preferences
- * Update customer dietary preferences and notification settings.
- */
 export const updatePreferences = async (
   req: Request,
   res: Response,
@@ -342,14 +293,6 @@ export const updatePreferences = async (
   }
 };
 
-// ────────────────────────────────────────────────────────────────
-// Favourites
-// ────────────────────────────────────────────────────────────────
-
-/**
- * POST /api/users/me/favorites/:restaurantId
- * Add a restaurant to favourites.
- */
 export const addFavorite = async (
   req: Request,
   res: Response,
@@ -382,10 +325,6 @@ export const addFavorite = async (
   }
 };
 
-/**
- * DELETE /api/users/me/favorites/:restaurantId
- * Remove a restaurant from favourites.
- */
 export const removeFavorite = async (
   req: Request,
   res: Response,
@@ -416,10 +355,6 @@ export const removeFavorite = async (
   }
 };
 
-/**
- * GET /api/users/me/favorites
- * Get favourite restaurants for the authenticated customer.
- */
 export const getFavorites = async (
   req: Request,
   res: Response,
@@ -440,14 +375,6 @@ export const getFavorites = async (
   }
 };
 
-// ────────────────────────────────────────────────────────────────
-// Account Deactivation
-// ────────────────────────────────────────────────────────────────
-
-/**
- * DELETE /api/users/me
- * Soft-delete (deactivate) the authenticated user's account.
- */
 export const deactivateAccount = async (
   req: Request,
   res: Response,
@@ -484,14 +411,6 @@ export const deactivateAccount = async (
   }
 };
 
-// ────────────────────────────────────────────────────────────────
-// Photo Uploads
-// ────────────────────────────────────────────────────────────────
-
-/**
- * POST /api/users/me/profile-photo
- * Upload or replace the user's profile photo.
- */
 export const uploadProfilePhoto = async (
   req: Request,
   res: Response,
@@ -504,11 +423,20 @@ export const uploadProfilePhoto = async (
     const user = await User.findById(req.user._id);
     if (!user) throw new NotFoundError("User not found");
 
-    // Remove old file from disk
     removeOldFile(user.profileImage);
 
-    // Store path relative to backend root, e.g. "/uploads/profiles/profile-xxx.jpg"
-    const imageUrl = `/uploads/profiles/${req.file.filename}`;
+    const cloudImageUrl = await uploadImageToCloud(
+      req.file.path,
+      "profiles",
+      req.user._id.toString(),
+    );
+
+    const imageUrl = cloudImageUrl || `/uploads/profiles/${req.file.filename}`;
+
+    if (cloudImageUrl) {
+      removeUploadedLocalFile(req.file.path);
+    }
+
     user.profileImage = imageUrl;
     await user.save({ validateBeforeSave: false });
 
@@ -522,10 +450,6 @@ export const uploadProfilePhoto = async (
   }
 };
 
-/**
- * POST /api/users/me/cover-photo
- * Upload or replace the user's cover photo.
- */
 export const uploadCoverPhotoHandler = async (
   req: Request,
   res: Response,
@@ -538,10 +462,19 @@ export const uploadCoverPhotoHandler = async (
     const user = await User.findById(req.user._id);
     if (!user) throw new NotFoundError("User not found");
 
-    // Remove old file from disk
     removeOldFile(user.coverImage);
 
-    const imageUrl = `/uploads/covers/${req.file.filename}`;
+    const cloudImageUrl = await uploadImageToCloud(
+      req.file.path,
+      "covers",
+      req.user._id.toString(),
+    );
+    const imageUrl = cloudImageUrl || `/uploads/covers/${req.file.filename}`;
+
+    if (cloudImageUrl) {
+      removeUploadedLocalFile(req.file.path);
+    }
+
     user.coverImage = imageUrl;
     await user.save({ validateBeforeSave: false });
 
@@ -555,10 +488,6 @@ export const uploadCoverPhotoHandler = async (
   }
 };
 
-/**
- * DELETE /api/users/me/profile-photo
- * Remove the user's profile photo.
- */
 export const deleteProfilePhoto = async (
   req: Request,
   res: Response,
@@ -580,10 +509,6 @@ export const deleteProfilePhoto = async (
   }
 };
 
-/**
- * DELETE /api/users/me/cover-photo
- * Remove the user's cover photo.
- */
 export const deleteCoverPhoto = async (
   req: Request,
   res: Response,
@@ -606,10 +531,6 @@ export const deleteCoverPhoto = async (
   }
 };
 
-/**
- * PATCH /api/users/me/cover-photo/position
- * Update the vertical position (0–100) used to display the cover photo.
- */
 export const updateCoverPhotoPosition = async (
   req: Request,
   res: Response,
@@ -648,14 +569,6 @@ export const updateCoverPhotoPosition = async (
   }
 };
 
-// ────────────────────────────────────────────────────────────────
-// Payment Methods
-// ────────────────────────────────────────────────────────────────
-
-/**
- * GET /api/users/me/payment-methods
- * List all saved payment methods.
- */
 export const getPaymentMethods = async (
   req: Request,
   res: Response,
@@ -673,10 +586,6 @@ export const getPaymentMethods = async (
   }
 };
 
-/**
- * POST /api/users/me/payment-methods
- * Add a new payment method.
- */
 export const addPaymentMethod = async (
   req: Request,
   res: Response,
@@ -690,14 +599,12 @@ export const addPaymentMethod = async (
     const profile = await CustomerProfile.findOne({ userId: req.user._id });
     if (!profile) throw new NotFoundError("Customer profile not found");
 
-    // If new is default, unset others
     if (data.isDefault) {
       profile.paymentMethods.forEach((pm) => {
         pm.isDefault = false;
       });
     }
 
-    // If first, make default
     if (profile.paymentMethods.length === 0) {
       data.isDefault = true;
     }
@@ -713,10 +620,6 @@ export const addPaymentMethod = async (
   }
 };
 
-/**
- * PUT /api/users/me/payment-methods/:methodId
- * Update an existing payment method.
- */
 export const updatePaymentMethod = async (
   req: Request,
   res: Response,
@@ -755,10 +658,6 @@ export const updatePaymentMethod = async (
   }
 };
 
-/**
- * DELETE /api/users/me/payment-methods/:methodId
- * Remove a payment method.
- */
 export const deletePaymentMethod = async (
   req: Request,
   res: Response,
@@ -780,7 +679,6 @@ export const deletePaymentMethod = async (
     const wasDefault = profile.paymentMethods[idx].isDefault;
     profile.paymentMethods.splice(idx, 1);
 
-    // If deleted was default, assign another
     if (wasDefault && profile.paymentMethods.length > 0) {
       profile.paymentMethods[0].isDefault = true;
     }
@@ -793,10 +691,6 @@ export const deletePaymentMethod = async (
   }
 };
 
-/**
- * PATCH /api/users/me/payment-methods/:methodId/set-default
- * Set a payment method as the default.
- */
 export const setDefaultPaymentMethod = async (
   req: Request,
   res: Response,
