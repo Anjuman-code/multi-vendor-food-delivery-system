@@ -16,6 +16,11 @@ import {
 } from "@/lib/vendorValidation";
 import { useToast } from "@/hooks/use-toast";
 
+type SubmitErrorItem = {
+  field?: string;
+  message?: string;
+};
+
 const CUISINE_OPTIONS = [
   "Bengali",
   "Indian",
@@ -52,6 +57,7 @@ const RestaurantFormPage: React.FC = () => {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
+  const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
   const {
     register,
@@ -128,6 +134,8 @@ const RestaurantFormPage: React.FC = () => {
 
   const onSubmit = async (data: CreateRestaurantInput) => {
     setSubmitting(true);
+    setSubmitErrors([]);
+
     const res = isEdit
       ? await vendorService.updateRestaurant(id!, data)
       : await vendorService.createRestaurant(data);
@@ -137,15 +145,36 @@ const RestaurantFormPage: React.FC = () => {
         title: "Success",
         description: isEdit ? "Restaurant updated" : "Restaurant created",
       });
-      refreshRestaurants();
+      await refreshRestaurants();
       navigate("/vendor/restaurants");
     } else {
+      const parsedErrors = Array.isArray(res.errors)
+        ? res.errors
+            .map((error) => {
+              if (typeof error === "string") return error;
+              if (typeof error === "object" && error !== null) {
+                const issue = error as SubmitErrorItem;
+                if (issue.field && issue.message) {
+                  return `${issue.field}: ${issue.message}`;
+                }
+                return issue.message ?? null;
+              }
+              return null;
+            })
+            .filter((message): message is string => Boolean(message))
+        : [];
+
+      if (parsedErrors.length > 0) {
+        setSubmitErrors(parsedErrors);
+      }
+
       toast({
         title: "Error",
-        description: res.message,
+        description: parsedErrors[0] ?? res.message,
         variant: "destructive",
       });
     }
+
     setSubmitting(false);
   };
 
@@ -180,6 +209,19 @@ const RestaurantFormPage: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {submitErrors.length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+            <p className="text-sm font-semibold text-red-700">
+              Please fix the following issues:
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-red-700 list-disc pl-5">
+              {submitErrors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Basic Info */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -462,6 +504,7 @@ const RestaurantFormPage: React.FC = () => {
             type="button"
             variant="outline"
             onClick={() => navigate(-1)}
+            disabled={submitting}
             className="rounded-lg"
           >
             Cancel
@@ -476,7 +519,13 @@ const RestaurantFormPage: React.FC = () => {
             ) : (
               <Save className="w-4 h-4" />
             )}
-            {isEdit ? "Update Restaurant" : "Create Restaurant"}
+            {submitting
+              ? isEdit
+                ? "Updating..."
+                : "Creating..."
+              : isEdit
+                ? "Update Restaurant"
+                : "Create Restaurant"}
           </Button>
         </div>
       </form>

@@ -24,6 +24,51 @@ import type {
 } from "../types/vendor";
 import type { MenuItem, MenuCategory } from "../types/menu";
 
+const DEFAULT_RESTAURANT_IMAGES = {
+  logo: "placeholder-logo",
+  coverPhoto: "placeholder-cover",
+  gallery: [],
+};
+
+const normalizeRestaurantPayload = (
+  data: CreateRestaurantPayload | UpdateRestaurantPayload,
+  forCreate: boolean,
+): CreateRestaurantPayload | UpdateRestaurantPayload => {
+  const normalized: CreateRestaurantPayload | UpdateRestaurantPayload = {
+    ...data,
+  };
+
+  if (data.phone || data.email || data.contactInfo) {
+    normalized.contactInfo = data.contactInfo ?? {
+      phone: data.phone ?? "",
+      email: data.email ?? "",
+    };
+  }
+
+  if (forCreate) {
+    normalized.images = data.images ?? DEFAULT_RESTAURANT_IMAGES;
+  } else if (data.images) {
+    normalized.images = data.images;
+  }
+
+  if (data.operatingHours) {
+    normalized.operatingHours = data.operatingHours;
+  } else if (data.openingHours) {
+    normalized.operatingHours = data.openingHours.map((entry) => ({
+      day: entry.day,
+      openTime: entry.open,
+      closeTime: entry.close,
+      isOpen: !entry.isClosed,
+    }));
+  }
+
+  if (!data.deliveryTime && typeof data.estimatedDeliveryTime === "number") {
+    normalized.deliveryTime = `${data.estimatedDeliveryTime} min`;
+  }
+
+  return normalized;
+};
+
 const extractError = (error: unknown): ApiResponse => {
   if (typeof error === "object" && error !== null && "response" in error) {
     const axiosErr = error as { response?: { data?: ApiResponse } };
@@ -130,9 +175,10 @@ const vendorService = {
     data: CreateRestaurantPayload,
   ): Promise<ApiResponse<{ restaurant: VendorRestaurant }>> {
     try {
+      const payload = normalizeRestaurantPayload(data, true);
       const res = await httpClient.post<
         ApiResponse<{ restaurant: VendorRestaurant }>
-      >("/api/vendor/restaurants", data);
+      >("/api/vendor/restaurants", payload);
       return res.data;
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{
@@ -146,9 +192,10 @@ const vendorService = {
     data: UpdateRestaurantPayload,
   ): Promise<ApiResponse<{ restaurant: VendorRestaurant }>> {
     try {
+      const payload = normalizeRestaurantPayload(data, false);
       const res = await httpClient.put<
         ApiResponse<{ restaurant: VendorRestaurant }>
-      >(`/api/vendor/restaurants/${id}`, data);
+      >(`/api/vendor/restaurants/${id}`, payload);
       return res.data;
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{
