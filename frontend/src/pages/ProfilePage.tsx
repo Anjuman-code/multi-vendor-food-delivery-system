@@ -164,8 +164,11 @@ const ProfilePage: React.FC = () => {
   const API_BASE_URL =
     import.meta.env?.VITE_API_BASE_URL || "http://localhost:2002";
 
-  const getImageUrl = (path?: string) =>
-    path ? `${API_BASE_URL}${path}` : undefined;
+  const getImageUrl = (imagePath?: string) => {
+    if (!imagePath) return undefined;
+    if (/^https?:\/\//i.test(imagePath)) return imagePath;
+    return `${API_BASE_URL}${imagePath}`;
+  };
 
   // Redirect if not logged in
   useEffect(() => {
