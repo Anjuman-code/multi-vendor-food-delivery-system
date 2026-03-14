@@ -110,40 +110,48 @@ export const menuItemSchema = z.object({
 
 // ── Coupon schemas ───────────────────────────────────────────────
 
-export const couponSchema = z
-  .object({
-    code: z
-      .string()
-      .min(3, "Code must be at least 3 characters")
-      .max(20, "Code cannot exceed 20 characters")
-      .regex(
-        /^[A-Z0-9_-]+$/i,
-        "Code can only contain letters, numbers, hyphens, underscores",
-      ),
-    type: z.enum(["percentage", "fixed"], {
-      message: "Discount type is required",
-    }),
-    value: z.number().min(0.01, "Value must be greater than 0"),
-    minimumOrderAmount: z
-      .number()
-      .min(0, "Minimum order cannot be negative")
-      .optional(),
-    maxUses: z.number().int().min(1, "Max uses must be at least 1").optional(),
-    startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
-    applicableRestaurants: z
-      .array(z.string())
-      .min(1, "Select at least one restaurant"),
-  })
-  .refine(
-    (data) => {
-      if (data.type === "percentage" && data.value > 100) return false;
-      return true;
-    },
-    { message: "Percentage discount cannot exceed 100%", path: ["value"] },
-  );
+const couponSchemaBase = z.object({
+  code: z
+    .string()
+    .min(3, "Code must be at least 3 characters")
+    .max(20, "Code cannot exceed 20 characters")
+    .regex(
+      /^[A-Z0-9_-]+$/i,
+      "Code can only contain letters, numbers, hyphens, underscores",
+    ),
+  type: z.enum(["percentage", "fixed"], {
+    message: "Discount type is required",
+  }),
+  value: z.number().min(0.01, "Value must be greater than 0"),
+  minimumOrderAmount: z
+    .number()
+    .min(0, "Minimum order cannot be negative")
+    .optional(),
+  maxUses: z.number().int().min(1, "Max uses must be at least 1").optional(),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+  applicableRestaurants: z
+    .array(z.string())
+    .min(1, "Select at least one restaurant"),
+});
 
-export const updateCouponSchema = couponSchema.partial();
+export const couponSchema = couponSchemaBase.refine(
+  (data) => {
+    if (data.type === "percentage" && data.value > 100) return false;
+    return true;
+  },
+  { message: "Percentage discount cannot exceed 100%", path: ["value"] },
+);
+
+export const updateCouponSchema = couponSchemaBase.partial().refine(
+  (data) => {
+    if (data.type === "percentage" && typeof data.value === "number") {
+      return data.value <= 100;
+    }
+    return true;
+  },
+  { message: "Percentage discount cannot exceed 100%", path: ["value"] },
+);
 
 // ── Review reply schema ──────────────────────────────────────────
 

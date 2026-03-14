@@ -34,8 +34,13 @@ const VendorAnalyticsPage: React.FC = () => {
     load();
   }, [period]);
 
-  const formatCurrency = (amount: number) =>
-    `৳${amount.toLocaleString("en-BD")}`;
+  const toSafeNumber = (value: unknown): number => {
+    const parsed = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatCurrency = (amount: unknown) =>
+    `৳${toSafeNumber(amount).toLocaleString("en-BD")}`;
 
   if (loading) {
     return (
@@ -53,11 +58,56 @@ const VendorAnalyticsPage: React.FC = () => {
     );
   }
 
+  const revenueByDay =
+    analytics.revenueByDay ??
+    analytics.revenueOverTime?.map((point) => ({
+      date: point.date,
+      revenue: toSafeNumber(point.revenue),
+    })) ??
+    [];
+
+  const ordersByDay =
+    analytics.ordersByDay ??
+    analytics.revenueOverTime?.map((point) => ({
+      date: point.date,
+      count: toSafeNumber(point.orders),
+    })) ??
+    [];
+
+  const topItems =
+    analytics.topItems ??
+    analytics.topSellingItems?.map((item) => ({
+      name: item.name,
+      orderCount: toSafeNumber(item.quantity),
+      revenue: toSafeNumber(item.revenue),
+    })) ??
+    [];
+
+  const totalRevenue = toSafeNumber(analytics.totalRevenue);
+  const totalOrders = toSafeNumber(analytics.totalOrders);
+  const averageOrderValue = toSafeNumber(analytics.averageOrderValue);
+
+  const sanitizedRevenueByDay = revenueByDay.map((point) => ({
+    ...point,
+    revenue: toSafeNumber(point.revenue),
+  }));
+
+  const sanitizedOrdersByDay = ordersByDay.map((point) => ({
+    ...point,
+    count: toSafeNumber(point.count),
+  }));
+
+  const sanitizedTopItems = topItems.map((item) => ({
+    ...item,
+    orderCount: toSafeNumber(item.orderCount),
+    revenue: toSafeNumber(item.revenue),
+  }));
+
   const maxRevenue = Math.max(
-    ...analytics.revenueByDay.map((d) => d.revenue),
+    ...sanitizedRevenueByDay.map((d) => d.revenue),
     1,
   );
-  const maxOrders = Math.max(...analytics.ordersByDay.map((d) => d.count), 1);
+  const maxOrders = Math.max(...sanitizedOrdersByDay.map((d) => d.count), 1);
 
   return (
     <div className="space-y-6">
@@ -96,7 +146,7 @@ const VendorAnalyticsPage: React.FC = () => {
             <span className="text-sm text-gray-500">Total Revenue</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(analytics.totalRevenue)}
+            {formatCurrency(totalRevenue)}
           </p>
         </motion.div>
         <motion.div
@@ -111,9 +161,7 @@ const VendorAnalyticsPage: React.FC = () => {
             </div>
             <span className="text-sm text-gray-500">Total Orders</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {analytics.totalOrders}
-          </p>
+          <p className="text-2xl font-bold text-gray-900">{totalOrders}</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -128,7 +176,7 @@ const VendorAnalyticsPage: React.FC = () => {
             <span className="text-sm text-gray-500">Avg Order Value</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(analytics.averageOrderValue)}
+            {formatCurrency(averageOrderValue)}
           </p>
         </motion.div>
       </div>
@@ -146,11 +194,11 @@ const VendorAnalyticsPage: React.FC = () => {
             Revenue Over Time
           </h3>
         </div>
-        {analytics.revenueByDay.length === 0 ? (
+        {sanitizedRevenueByDay.length === 0 ? (
           <p className="text-gray-400 text-center py-8">No data available</p>
         ) : (
           <div className="flex items-end gap-1 h-48">
-            {analytics.revenueByDay.map((d, idx) => {
+            {sanitizedRevenueByDay.map((d, idx) => {
               const pct = (d.revenue / maxRevenue) * 100;
               return (
                 <div
@@ -166,7 +214,7 @@ const VendorAnalyticsPage: React.FC = () => {
                       style={{ height: `${Math.max(pct, 2)}%` }}
                     />
                   </div>
-                  {analytics.revenueByDay.length <= 14 && (
+                  {sanitizedRevenueByDay.length <= 14 && (
                     <span className="text-[10px] text-gray-400 -rotate-45 origin-top-left mt-1 whitespace-nowrap">
                       {d.date}
                     </span>
@@ -191,11 +239,11 @@ const VendorAnalyticsPage: React.FC = () => {
             Orders Over Time
           </h3>
         </div>
-        {analytics.ordersByDay.length === 0 ? (
+        {sanitizedOrdersByDay.length === 0 ? (
           <p className="text-gray-400 text-center py-8">No data available</p>
         ) : (
           <div className="flex items-end gap-1 h-48">
-            {analytics.ordersByDay.map((d, idx) => {
+            {sanitizedOrdersByDay.map((d, idx) => {
               const pct = (d.count / maxOrders) * 100;
               return (
                 <div
@@ -211,7 +259,7 @@ const VendorAnalyticsPage: React.FC = () => {
                       style={{ height: `${Math.max(pct, 2)}%` }}
                     />
                   </div>
-                  {analytics.ordersByDay.length <= 14 && (
+                  {sanitizedOrdersByDay.length <= 14 && (
                     <span className="text-[10px] text-gray-400 -rotate-45 origin-top-left mt-1 whitespace-nowrap">
                       {d.date}
                     </span>
@@ -224,7 +272,7 @@ const VendorAnalyticsPage: React.FC = () => {
       </motion.div>
 
       {/* Top Items */}
-      {analytics.topItems && analytics.topItems.length > 0 && (
+      {sanitizedTopItems.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -235,8 +283,8 @@ const VendorAnalyticsPage: React.FC = () => {
             Top Selling Items
           </h3>
           <div className="space-y-3">
-            {analytics.topItems.map((item, idx) => {
-              const maxCount = analytics.topItems[0].orderCount || 1;
+            {sanitizedTopItems.map((item, idx) => {
+              const maxCount = sanitizedTopItems[0].orderCount || 1;
               const pct = Math.round((item.orderCount / maxCount) * 100);
               return (
                 <div key={idx} className="flex items-center gap-3">
