@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, ImagePlus } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import vendorService from "@/services/vendorService";
 import { useVendor } from "@/contexts/VendorContext";
+import type { CreateRestaurantPayload } from "@/types/vendor";
 import {
   createRestaurantSchema,
   type CreateRestaurantInput,
@@ -49,6 +50,8 @@ const DAYS = [
   "Sunday",
 ];
 
+const MAX_IMAGE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+
 const RestaurantFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
@@ -70,6 +73,12 @@ const RestaurantFormPage: React.FC = () => {
     resolver: zodResolver(createRestaurantSchema),
     defaultValues: {
       cuisineType: [],
+      website: "",
+      images: {
+        logo: "",
+        coverPhoto: "",
+        gallery: [],
+      },
       openingHours: DAYS.map((day) => ({
         day,
         open: "09:00",
@@ -81,6 +90,8 @@ const RestaurantFormPage: React.FC = () => {
 
   const selectedCuisines = watch("cuisineType") || [];
   const openingHours = watch("openingHours") || [];
+  const logoPreview = watch("images.logo") || "";
+  const coverPreview = watch("images.coverPhoto") || "";
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -92,8 +103,14 @@ const RestaurantFormPage: React.FC = () => {
           name: r.name,
           description: r.description,
           cuisineType: r.cuisineType,
-          phone: r.phone || "",
-          email: r.email || "",
+          phone: r.phone || r.contactInfo?.phone || "",
+          email: r.email || r.contactInfo?.email || "",
+          website: r.contactInfo?.website || "",
+          images: {
+            logo: r.images?.logo || "",
+            coverPhoto: r.images?.coverPhoto || r.coverImage || "",
+            gallery: r.images?.gallery || [],
+          },
           address: r.address || {
             street: "",
             city: "",
@@ -119,8 +136,50 @@ const RestaurantFormPage: React.FC = () => {
     loadRestaurant();
   }, [isEdit, id, reset]);
 
+  const handleImageUpload = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    field: "images.logo" | "images.coverPhoto",
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file",
+        description: "Please select an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
+      toast({
+        title: "Image too large",
+        description: "Please choose an image smaller than 2MB.",
+        variant: "destructive",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setValue(field, reader.result, { shouldValidate: true });
+      }
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Upload failed",
+        description: "Could not read the selected image. Please try again.",
+        variant: "destructive",
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const toggleCuisine = (cuisine: string) => {
-    const current = selectedCuisines;
+    const current: string[] = selectedCuisines;
     if (current.includes(cuisine)) {
       setValue(
         "cuisineType",
@@ -136,9 +195,17 @@ const RestaurantFormPage: React.FC = () => {
     setSubmitting(true);
     setSubmitErrors([]);
 
+    const payload: CreateRestaurantPayload = {
+      ...data,
+      images: {
+        ...data.images,
+        gallery: data.images.gallery ?? [],
+      },
+    };
+
     const res = isEdit
-      ? await vendorService.updateRestaurant(id!, data)
-      : await vendorService.createRestaurant(data);
+      ? await vendorService.updateRestaurant(id!, payload)
+      : await vendorService.createRestaurant(payload);
 
     if (res.success) {
       toast({
@@ -286,6 +353,88 @@ const RestaurantFormPage: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* Restaurant Photos */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.04 }}
+          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
+        >
+          <h2 className="text-lg font-semibold text-gray-900">Photos</h2>
+          <p className="text-sm text-gray-500">
+            Add a logo and cover photo. You can upload files or paste image
+            URLs.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="images.logo">Logo</Label>
+              <div className="h-32 rounded-lg border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex items-center justify-center">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <ImagePlus className="w-5 h-5 mx-auto mb-1" />
+                    <p className="text-xs">Logo preview</p>
+                  </div>
+                )}
+              </div>
+              <Input
+                id="images.logo"
+                {...register("images.logo")}
+                placeholder="https://example.com/logo.jpg"
+              />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload(e, "images.logo")}
+              />
+              {errors.images?.logo && (
+                <p className="text-sm text-red-500">
+                  {errors.images.logo.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="images.coverPhoto">Cover Photo</Label>
+              <div className="h-32 rounded-lg border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex items-center justify-center">
+                {coverPreview ? (
+                  <img
+                    src={coverPreview}
+                    alt="Cover photo preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <ImagePlus className="w-5 h-5 mx-auto mb-1" />
+                    <p className="text-xs">Cover preview</p>
+                  </div>
+                )}
+              </div>
+              <Input
+                id="images.coverPhoto"
+                {...register("images.coverPhoto")}
+                placeholder="https://example.com/cover.jpg"
+              />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload(e, "images.coverPhoto")}
+              />
+              {errors.images?.coverPhoto && (
+                <p className="text-sm text-red-500">
+                  {errors.images.coverPhoto.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
         {/* Contact */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -323,6 +472,20 @@ const RestaurantFormPage: React.FC = () => {
               {errors.email && (
                 <p className="text-sm text-red-500 mt-1">
                   {errors.email.message}
+                </p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="website">Website (optional)</Label>
+              <Input
+                id="website"
+                {...register("website")}
+                placeholder="https://restaurant.com"
+                className="mt-1"
+              />
+              {errors.website && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.website.message}
                 </p>
               )}
             </div>
@@ -466,20 +629,36 @@ const RestaurantFormPage: React.FC = () => {
               <Input
                 id="minimumOrder"
                 type="number"
-                {...register("minimumOrder", { valueAsNumber: true })}
+                {...register("minimumOrder", {
+                  setValueAs: (value) =>
+                    value === "" ? undefined : Number(value),
+                })}
                 placeholder="0"
                 className="mt-1"
               />
+              {errors.minimumOrder && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.minimumOrder.message}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="deliveryFee">Delivery Fee (৳)</Label>
               <Input
                 id="deliveryFee"
                 type="number"
-                {...register("deliveryFee", { valueAsNumber: true })}
+                {...register("deliveryFee", {
+                  setValueAs: (value) =>
+                    value === "" ? undefined : Number(value),
+                })}
                 placeholder="0"
                 className="mt-1"
               />
+              {errors.deliveryFee && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.deliveryFee.message}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="estimatedDeliveryTime">
@@ -489,11 +668,17 @@ const RestaurantFormPage: React.FC = () => {
                 id="estimatedDeliveryTime"
                 type="number"
                 {...register("estimatedDeliveryTime", {
-                  valueAsNumber: true,
+                  setValueAs: (value) =>
+                    value === "" ? undefined : Number(value),
                 })}
                 placeholder="30"
                 className="mt-1"
               />
+              {errors.estimatedDeliveryTime && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.estimatedDeliveryTime.message}
+                </p>
+              )}
             </div>
           </div>
         </motion.div>

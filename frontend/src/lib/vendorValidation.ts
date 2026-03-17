@@ -22,6 +22,17 @@ export const createRestaurantSchema = z.object({
     .max(20, "Phone number is too long")
     .regex(/^\+?[\d\s\-()]+$/, "Please enter a valid phone number"),
   email: z.string().email("Please enter a valid email address"),
+  website: z
+    .string()
+    .trim()
+    .url("Please enter a valid website URL")
+    .optional()
+    .or(z.literal("")),
+  images: z.object({
+    logo: z.string().min(1, "Logo image is required"),
+    coverPhoto: z.string().min(1, "Cover photo is required"),
+    gallery: z.array(z.string()).optional(),
+  }),
   address: z.object({
     street: z.string().min(1, "Street is required"),
     city: z.string().min(1, "City is required"),
@@ -135,13 +146,18 @@ const couponSchemaBase = z.object({
     .min(1, "Select at least one restaurant"),
 });
 
-export const couponSchema = couponSchemaBase.refine(
-  (data) => {
-    if (data.type === "percentage" && data.value > 100) return false;
-    return true;
-  },
-  { message: "Percentage discount cannot exceed 100%", path: ["value"] },
-);
+export const couponSchema = couponSchemaBase
+  .refine(
+    (data) => {
+      if (data.type === "percentage" && data.value > 100) return false;
+      return true;
+    },
+    { message: "Percentage discount cannot exceed 100%", path: ["value"] },
+  )
+  .refine((data) => new Date(data.endDate) >= new Date(data.startDate), {
+    message: "End date must be on or after start date",
+    path: ["endDate"],
+  });
 
 export const updateCouponSchema = couponSchemaBase.partial().refine(
   (data) => {

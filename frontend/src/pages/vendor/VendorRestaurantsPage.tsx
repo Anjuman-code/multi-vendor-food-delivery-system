@@ -110,7 +110,18 @@ const VendorRestaurantsPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group"
+              className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group cursor-pointer"
+              onClick={() =>
+                navigate(`/vendor/restaurants/${restaurant._id}/edit`)
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/vendor/restaurants/${restaurant._id}/edit`);
+                }
+              }}
+              role="button"
+              tabIndex={0}
             >
               {/* Cover Image */}
               <div className="relative h-40 bg-gradient-to-r from-orange-100 to-red-100">
@@ -123,16 +134,22 @@ const VendorRestaurantsPage: React.FC = () => {
                 )}
                 <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() =>
-                      navigate(`/vendor/restaurants/${restaurant._id}/edit`)
-                    }
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/vendor/restaurants/${restaurant._id}/edit`);
+                    }}
                     className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
                     title="Edit"
                   >
                     <Edit className="w-4 h-4 text-gray-600" />
                   </button>
                   <button
-                    onClick={() => handleDelete(restaurant._id)}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(restaurant._id);
+                    }}
                     className="p-2 bg-white rounded-lg shadow hover:bg-red-50"
                     title="Delete"
                   >

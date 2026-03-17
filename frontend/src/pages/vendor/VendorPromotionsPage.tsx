@@ -343,7 +343,7 @@ const CouponFormModal: React.FC<{
   const selectedRestaurants = watch("applicableRestaurants") || [];
 
   const toggleRestaurant = (id: string) => {
-    const current = selectedRestaurants;
+    const current: string[] = selectedRestaurants;
     if (current.includes(id)) {
       setValue(
         "applicableRestaurants",
@@ -453,7 +453,10 @@ const CouponFormModal: React.FC<{
               <Label>Min Order (৳)</Label>
               <Input
                 type="number"
-                {...register("minimumOrderAmount", { valueAsNumber: true })}
+                {...register("minimumOrderAmount", {
+                  setValueAs: (value) =>
+                    value === "" ? undefined : Number(value),
+                })}
                 placeholder="0"
                 className="mt-1"
               />
@@ -485,7 +488,10 @@ const CouponFormModal: React.FC<{
             <Label>Max Uses (optional)</Label>
             <Input
               type="number"
-              {...register("maxUses", { valueAsNumber: true })}
+              {...register("maxUses", {
+                setValueAs: (value) =>
+                  value === "" ? undefined : Number(value),
+              })}
               placeholder="Unlimited"
               className="mt-1"
             />

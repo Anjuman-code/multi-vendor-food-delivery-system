@@ -14,6 +14,7 @@ import {
   X,
   Save,
   UtensilsCrossed,
+  ImagePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ type ModalState =
   | { type: "item"; item?: MenuItem };
 
 const VendorMenuPage: React.FC = () => {
-  const { selectedRestaurantId } = useVendor();
+  const { selectedRestaurantId, restaurants } = useVendor();
   const { toast } = useToast();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -131,6 +132,16 @@ const VendorMenuPage: React.FC = () => {
     (i) => !i.categoryId || !categories.find((c) => c._id === i.categoryId),
   );
 
+  const selectedRestaurant = restaurants.find(
+    (restaurant) => restaurant._id === selectedRestaurantId,
+  );
+
+  const selectedRestaurantImage =
+    selectedRestaurant?.images?.coverPhoto ||
+    selectedRestaurant?.images?.logo ||
+    selectedRestaurant?.coverImage ||
+    "";
+
   if (!selectedRestaurantId) {
     return (
       <div className="text-center py-16">
@@ -154,11 +165,29 @@ const VendorMenuPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+            {selectedRestaurantImage ? (
+              <img
+                src={selectedRestaurantImage}
+                alt={selectedRestaurant?.name || "Restaurant"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImagePlus className="w-4 h-4 text-gray-300" />
+              </div>
+            )}
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Menu Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {categories.length} categories · {items.length} items
-          </p>
+          <div>
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedRestaurant?.name || "Selected restaurant"}
+            </p>
+            <p className="text-sm text-gray-500">
+              {categories.length} categories · {items.length} items
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -404,31 +433,51 @@ const FormModal: React.FC<{
   // Category form state
   const [catName, setCatName] = useState("");
   const [catDesc, setCatDesc] = useState("");
+  const [catError, setCatError] = useState("");
 
   // Item form state
   const [itemName, setItemName] = useState("");
   const [itemDesc, setItemDesc] = useState("");
   const [itemPrice, setItemPrice] = useState("");
+  const [itemImage, setItemImage] = useState("");
   const [itemCategoryId, setItemCategoryId] = useState("");
   const [itemPrepTime, setItemPrepTime] = useState("");
+  const [itemError, setItemError] = useState("");
 
   useEffect(() => {
+    setCatError("");
+    setItemError("");
     if (modal.type === "category" && modal.category) {
       setCatName(modal.category.name);
       setCatDesc(modal.category.description || "");
+    } else if (modal.type === "category") {
+      setCatName("");
+      setCatDesc("");
     }
     if (modal.type === "item" && modal.item) {
       setItemName(modal.item.name);
       setItemDesc(modal.item.description);
       setItemPrice(String(modal.item.price));
+      setItemImage(modal.item.image || "");
       setItemCategoryId(modal.item.categoryId || "");
       setItemPrepTime(String(modal.item.preparationTime || ""));
+    } else if (modal.type === "item") {
+      setItemName("");
+      setItemDesc("");
+      setItemPrice("");
+      setItemImage("");
+      setItemCategoryId("");
+      setItemPrepTime("");
     }
   }, [modal]);
 
   const handleSaveCategory = async () => {
-    if (!catName.trim()) return;
+    if (!catName.trim()) {
+      setCatError("Category name is required.");
+      return;
+    }
     setSaving(true);
+    setCatError("");
     const data = { name: catName.trim(), description: catDesc.trim() };
     const isEdit = modal.type === "category" && modal.category;
     const res = isEdit
@@ -456,14 +505,41 @@ const FormModal: React.FC<{
   };
 
   const handleSaveItem = async () => {
-    if (!itemName.trim() || !itemPrice) return;
+    const parsedPrice = Number(itemPrice);
+    const parsedPrepTime = itemPrepTime ? Number(itemPrepTime) : undefined;
+
+    if (!itemName.trim()) {
+      setItemError("Item name is required.");
+      return;
+    }
+
+    if (!itemDesc.trim()) {
+      setItemError("Description is required.");
+      return;
+    }
+
+    if (!itemPrice || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      setItemError("Price must be greater than 0.");
+      return;
+    }
+
+    if (
+      itemPrepTime &&
+      (Number.isNaN(parsedPrepTime) || (parsedPrepTime ?? 0) < 1)
+    ) {
+      setItemError("Preparation time must be at least 1 minute.");
+      return;
+    }
+
+    setItemError("");
     setSaving(true);
     const data = {
       name: itemName.trim(),
       description: itemDesc.trim(),
-      price: Number(itemPrice),
+      price: parsedPrice,
+      image: itemImage.trim() || undefined,
       categoryId: itemCategoryId || undefined,
-      preparationTime: itemPrepTime ? Number(itemPrepTime) : undefined,
+      preparationTime: parsedPrepTime,
     };
     const isEdit = modal.type === "item" && modal.item;
     const res = isEdit
@@ -521,6 +597,11 @@ const FormModal: React.FC<{
 
         {modal.type === "category" ? (
           <div className="space-y-4">
+            {catError && (
+              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {catError}
+              </p>
+            )}
             <div>
               <Label>Name</Label>
               <Input
@@ -543,6 +624,11 @@ const FormModal: React.FC<{
           </div>
         ) : (
           <div className="space-y-4">
+            {itemError && (
+              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {itemError}
+              </p>
+            )}
             <div>
               <Label>Name</Label>
               <Input
@@ -559,6 +645,15 @@ const FormModal: React.FC<{
                 onChange={(e) => setItemDesc(e.target.value)}
                 placeholder="Describe the dish..."
                 rows={2}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Image URL (optional)</Label>
+              <Input
+                value={itemImage}
+                onChange={(e) => setItemImage(e.target.value)}
+                placeholder="https://example.com/item.jpg"
                 className="mt-1"
               />
             </div>

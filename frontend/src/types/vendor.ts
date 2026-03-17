@@ -307,6 +307,7 @@ export interface CreateRestaurantPayload {
   cuisineType: string[];
   phone: string;
   email: string;
+  website?: string;
   address: {
     street: string;
     city: string;
