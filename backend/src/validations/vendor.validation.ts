@@ -325,8 +325,20 @@ export const createCouponSchema = z.object({
   value: z.number().min(0, "Value must be non-negative"),
   minOrderAmount: z.number().min(0).optional().default(0),
   maxDiscount: z.number().min(0).optional(),
-  validFrom: z.coerce.date(),
-  validTo: z.coerce.date(),
+  validFrom: z.preprocess((value) => {
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") {
+      return new Date(value);
+    }
+    return value;
+  }, z.date()),
+  validTo: z.preprocess((value) => {
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") {
+      return new Date(value);
+    }
+    return value;
+  }, z.date()),
   usageLimit: z.number().int().min(0).optional().default(0),
   applicableRestaurants: z.array(z.string()).optional().default([]),
   isActive: z.boolean().optional().default(true),
@@ -346,8 +358,24 @@ export const updateCouponSchema = z.object({
   value: z.number().min(0).optional(),
   minOrderAmount: z.number().min(0).optional(),
   maxDiscount: z.number().min(0).nullable().optional(),
-  validFrom: z.coerce.date().optional(),
-  validTo: z.coerce.date().optional(),
+  validFrom: z
+    .preprocess((value) => {
+      if (value instanceof Date) return value;
+      if (typeof value === "string" || typeof value === "number") {
+        return new Date(value);
+      }
+      return value;
+    }, z.date())
+    .optional(),
+  validTo: z
+    .preprocess((value) => {
+      if (value instanceof Date) return value;
+      if (typeof value === "string" || typeof value === "number") {
+        return new Date(value);
+      }
+      return value;
+    }, z.date())
+    .optional(),
   usageLimit: z.number().int().min(0).optional(),
   applicableRestaurants: z.array(z.string()).optional(),
   isActive: z.boolean().optional(),

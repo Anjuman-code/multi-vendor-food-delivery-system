@@ -46,8 +46,8 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "12mb" }));
+app.use(express.urlencoded({ extended: true, limit: "12mb" }));
 app.use(cookieParser());
 
 // ── Static uploads ───────────────────────────────────────────────

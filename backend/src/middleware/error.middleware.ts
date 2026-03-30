@@ -58,6 +58,21 @@ export const errorHandler = (
     message = "Token has expired";
   }
 
+  // ── Body parser payload limit ────────────────────────────────
+  const payloadError = err as Error & {
+    type?: string;
+    limit?: number;
+  };
+  if (payloadError.type === "entity.too.large") {
+    statusCode = 413;
+    message = "Request payload is too large. Please upload smaller images.";
+    errors = payloadError.limit
+      ? [
+          `Payload exceeds server limit of ${Math.round(payloadError.limit / (1024 * 1024))}MB`,
+        ]
+      : undefined;
+  }
+
   // Log non-operational errors for debugging
   if (!(err instanceof AppError) || !err.isOperational) {
     console.error("Unhandled error:", err);

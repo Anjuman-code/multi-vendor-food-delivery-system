@@ -3,6 +3,7 @@
  * All operations verify the vendor owns the applicable restaurants.
  */
 import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import VendorProfile from "../models/VendorProfile";
 import Coupon from "../models/Coupon";
 import Order, { OrderStatus } from "../models/Order";
@@ -107,7 +108,9 @@ export const createVendorCoupon = async (
 
     const coupon = await Coupon.create({
       ...data,
-      applicableRestaurants,
+      applicableRestaurants: applicableRestaurants.map(
+        (restaurantId) => new mongoose.Types.ObjectId(restaurantId),
+      ),
     });
 
     successResponse(res, { coupon }, "Coupon created", 201);

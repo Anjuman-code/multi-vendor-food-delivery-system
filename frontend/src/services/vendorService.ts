@@ -38,10 +38,15 @@ const normalizeRestaurantPayload = (
     ...data,
   };
 
-  if (data.phone || data.email || data.contactInfo) {
-    normalized.contactInfo = data.contactInfo ?? {
-      phone: data.phone ?? "",
-      email: data.email ?? "",
+  const contactPhone = data.contactInfo?.phone ?? data.phone;
+  const contactEmail = data.contactInfo?.email ?? data.email;
+  const contactWebsite = data.contactInfo?.website ?? data.website;
+
+  if (contactPhone || contactEmail || contactWebsite) {
+    normalized.contactInfo = {
+      phone: contactPhone ?? "",
+      email: contactEmail ?? "",
+      website: contactWebsite,
     };
   }
 
@@ -63,7 +68,36 @@ const normalizeRestaurantPayload = (
   }
 
   if (!data.deliveryTime && typeof data.estimatedDeliveryTime === "number") {
-    normalized.deliveryTime = `${data.estimatedDeliveryTime} min`;
+    normalized.deliveryTime = `${Math.round(data.estimatedDeliveryTime)} min`;
+  }
+
+  return normalized;
+};
+
+const normalizeCouponPayload = (
+  data: CreateCouponPayload | UpdateCouponPayload,
+): CreateCouponPayload | UpdateCouponPayload => {
+  const normalized: CreateCouponPayload | UpdateCouponPayload = {
+    ...data,
+  };
+
+  if (
+    data.minimumOrderAmount !== undefined &&
+    data.minOrderAmount === undefined
+  ) {
+    normalized.minOrderAmount = data.minimumOrderAmount;
+  }
+
+  if (data.maxUses !== undefined && data.usageLimit === undefined) {
+    normalized.usageLimit = data.maxUses;
+  }
+
+  if (data.startDate && !data.validFrom) {
+    normalized.validFrom = data.startDate;
+  }
+
+  if (data.endDate && !data.validTo) {
+    normalized.validTo = data.endDate;
   }
 
   return normalized;
@@ -454,9 +488,10 @@ const vendorService = {
     data: CreateCouponPayload,
   ): Promise<ApiResponse<{ coupon: VendorCoupon }>> {
     try {
+      const payload = normalizeCouponPayload(data);
       const res = await httpClient.post<ApiResponse<{ coupon: VendorCoupon }>>(
         "/api/vendor/coupons",
-        data,
+        payload,
       );
       return res.data;
     } catch (error: unknown) {
@@ -469,9 +504,10 @@ const vendorService = {
     data: UpdateCouponPayload,
   ): Promise<ApiResponse<{ coupon: VendorCoupon }>> {
     try {
+      const payload = normalizeCouponPayload(data);
       const res = await httpClient.put<ApiResponse<{ coupon: VendorCoupon }>>(
         `/api/vendor/coupons/${couponId}`,
-        data,
+        payload,
       );
       return res.data;
     } catch (error: unknown) {
