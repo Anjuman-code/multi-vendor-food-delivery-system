@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  memo,
+} from "react";
 import { motion } from "framer-motion";
 import { Star, MapPin, Heart, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +28,8 @@ interface RestaurantCardProps {
   isLoading?: boolean;
 }
 
-const RestaurantCard: React.FC<RestaurantCardProps> = ({
+const RestaurantCard: React.FC<RestaurantCardProps> = memo(
+  ({
   restaurant,
   onFavoriteToggle,
   onBookClick,
@@ -310,6 +317,16 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       </motion.article>
     </TooltipProvider>
   );
-};
+},
+  (prevProps, nextProps) => {
+    // Custom comparison for memoization
+    return (
+      prevProps.restaurant.id === nextProps.restaurant.id &&
+      prevProps.restaurant.isFavorite === nextProps.restaurant.isFavorite &&
+      prevProps.isSelected === nextProps.isSelected &&
+      prevProps.isLoading === nextProps.isLoading
+    );
+  },
+);
 
 export default RestaurantCard;

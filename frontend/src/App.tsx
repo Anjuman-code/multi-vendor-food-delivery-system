@@ -12,6 +12,7 @@ import {
   VendorLayout,
 } from "./layouts";
 
+// Public pages
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -19,19 +20,22 @@ const NewHomePage = lazy(() => import("./pages/NewHomePage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const VendorRegisterPage = lazy(() => import("./pages/VendorRegisterPage"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+
+// Info pages
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 const FAQPage = lazy(() => import("./pages/FAQPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+
+// User pages
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const RestaurantDetailsPage = lazy(
   () => import("./pages/RestaurantDetailsPage"),
 );
 const RestaurantsPage = lazy(() => import("./pages/RestaurantsPage"));
 const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
-const TermsPage = lazy(() => import("./pages/TermsPage"));
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
@@ -65,6 +69,9 @@ const VendorAnalyticsPage = lazy(
 const VendorSettingsPage = lazy(
   () => import("./pages/vendor/VendorSettingsPage"),
 );
+
+// Fallback for not found
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 function App(): React.ReactElement {
   return (

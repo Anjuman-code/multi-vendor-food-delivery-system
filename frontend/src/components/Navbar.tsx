@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu,
@@ -36,7 +36,7 @@ interface NavItem {
   path: string;
 }
 
-const Navbar: React.FC = () => {
+const Navbar: React.FC = memo(() => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -571,6 +571,6 @@ const Navbar: React.FC = () => {
       </AnimatePresence>
     </motion.nav>
   );
-};
+});
 
 export default Navbar;
