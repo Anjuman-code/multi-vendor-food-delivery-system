@@ -6,7 +6,9 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "db:seed": "ts-node-dev --transpile-only ../scripts/seed.ts",
+    "db:reset": "ts-node-dev --transpile-only ../scripts/reset-db.ts"
   },
   "keywords": [],
   "author": "Anjuman",
