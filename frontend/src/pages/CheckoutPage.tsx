@@ -72,6 +72,8 @@ const CheckoutPage: React.FC = () => {
 
   // Load user data
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const loadData = async () => {
       setLoading(true);
       const [profileRes, pmRes] = await Promise.all([
@@ -93,7 +95,7 @@ const CheckoutPage: React.FC = () => {
       setLoading(false);
     };
     loadData();
-  }, []);
+  }, [isAuthenticated]);
 
   const selectedAddr = addresses.find((a) => a._id === selectedAddress);
   const selectedPm = paymentMethods.find((p) => p._id === selectedPayment);
@@ -131,6 +133,20 @@ const CheckoutPage: React.FC = () => {
 
   const placeOrder = useCallback(async () => {
     if (!selectedAddr || !selectedPm || !restaurantId) return;
+
+    const hasInvalidMenuIds = items.some(
+      (item) => !/^[0-9a-fA-F]{24}$/.test(item.menuItemId),
+    );
+    if (hasInvalidMenuIds) {
+      toast({
+        title: "Demo item in cart",
+        description:
+          "Some cart items are from demo data and cannot be ordered. Please add items from a live restaurant menu.",
+        variant: "destructive",
+      });
+      navigate("/restaurants");
+      return;
+    }
 
     setPlacing(true);
     const res = await orderService.createOrder({

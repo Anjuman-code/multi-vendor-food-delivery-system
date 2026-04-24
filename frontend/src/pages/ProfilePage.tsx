@@ -6,6 +6,7 @@ import {
   User,
   Mail,
   Phone,
+  CreditCard,
   Shield,
   Edit3,
   MapPin,
@@ -35,6 +36,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -75,6 +77,7 @@ import type {
   CustomerProfile,
   UserAddress,
   NotificationPreferences,
+  PaymentMethod,
 } from "@/services/userService";
 import {
   updateProfileSchema,
@@ -708,6 +711,17 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
+  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [newPaymentType, setNewPaymentType] = useState<"card" | "upi" | "wallet">("card");
+  const [newPaymentProvider, setNewPaymentProvider] = useState("");
+  const [newPaymentAccountRef, setNewPaymentAccountRef] = useState("");
+  const [newPaymentExpiryMonth, setNewPaymentExpiryMonth] = useState("");
+  const [newPaymentExpiryYear, setNewPaymentExpiryYear] = useState("");
+  const [newPaymentDefault, setNewPaymentDefault] = useState(false);
 
   const form = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
@@ -733,6 +747,25 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       });
     }
   }, [profile, form]);
+
+  const fetchPaymentMethods = useCallback(async () => {
+    setIsLoadingPayments(true);
+    const res = await userService.getPaymentMethods();
+    if (res.success && res.data) {
+      setPaymentMethods(res.data.paymentMethods);
+    } else {
+      toast({
+        title: "Error",
+        description: res.message || "Failed to load payment methods",
+        variant: "destructive",
+      });
+    }
+    setIsLoadingPayments(false);
+  }, [toast]);
+
+  useEffect(() => {
+    fetchPaymentMethods();
+  }, [fetchPaymentMethods]);
 
   const onSubmit = async (data: UpdateProfileFormData) => {
     setIsSaving(true);
@@ -769,6 +802,156 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     });
     setIsResendingVerification(false);
   };
+
+  const resetPaymentForm = useCallback(() => {
+    setNewPaymentType("card");
+    setNewPaymentProvider("");
+    setNewPaymentAccountRef("");
+    setNewPaymentExpiryMonth("");
+    setNewPaymentExpiryYear("");
+    setNewPaymentDefault(false);
+  }, []);
+
+  const handleAddPaymentMethod = useCallback(async () => {
+    const provider = newPaymentProvider.trim();
+    const accountRefDigits = newPaymentAccountRef.replace(/\D/g, "");
+
+    if (!provider) {
+      toast({
+        title: "Provider required",
+        description: "Enter a payment provider (for example Visa, bKash, Nagad).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (accountRefDigits.length < 4) {
+      toast({
+        title: "Invalid account reference",
+        description: "Enter at least 4 digits so we can store the last 4 securely.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload: {
+      type: "card" | "upi" | "wallet";
+      provider: string;
+      token: string;
+      last4: string;
+      isDefault?: boolean;
+      expiryMonth?: number;
+      expiryYear?: number;
+    } = {
+      type: newPaymentType,
+      provider,
+      token: `pm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      last4: accountRefDigits.slice(-4),
+      isDefault: newPaymentDefault,
+    };
+
+    if (newPaymentType === "card") {
+      const monthNum = Number(newPaymentExpiryMonth);
+      const yearNum = Number(newPaymentExpiryYear);
+      if (
+        !Number.isInteger(monthNum) ||
+        monthNum < 1 ||
+        monthNum > 12 ||
+        !Number.isInteger(yearNum) ||
+        yearNum < 2024 ||
+        yearNum > 2050
+      ) {
+        toast({
+          title: "Invalid expiry",
+          description: "Enter a valid card expiry month and year.",
+          variant: "destructive",
+        });
+        return;
+      }
+      payload.expiryMonth = monthNum;
+      payload.expiryYear = yearNum;
+    }
+
+    setIsAddingPayment(true);
+    const res = await userService.addPaymentMethod(payload);
+    if (res.success && res.data?.paymentMethod) {
+      setPaymentMethods((prev) => {
+        const next = res.data!.paymentMethod.isDefault
+          ? prev.map((pm) => ({ ...pm, isDefault: false }))
+          : prev;
+        return [...next, res.data!.paymentMethod];
+      });
+      setIsAddPaymentOpen(false);
+      resetPaymentForm();
+      toast({ title: "Payment method added" });
+    } else {
+      toast({
+        title: "Add payment failed",
+        description: res.message || "Could not add payment method.",
+        variant: "destructive",
+      });
+    }
+    setIsAddingPayment(false);
+  }, [
+    newPaymentProvider,
+    newPaymentAccountRef,
+    newPaymentType,
+    newPaymentDefault,
+    newPaymentExpiryMonth,
+    newPaymentExpiryYear,
+    resetPaymentForm,
+    toast,
+  ]);
+
+  const handleSetDefaultPayment = useCallback(
+    async (methodId: string) => {
+      setIsUpdatingPayment(true);
+      const res = await userService.updatePaymentMethod(methodId, {
+        isDefault: true,
+      });
+      if (res.success && res.data?.paymentMethod) {
+        setPaymentMethods((prev) =>
+          prev.map((pm) => ({
+            ...pm,
+            isDefault: pm._id === res.data!.paymentMethod._id,
+          })),
+        );
+        toast({ title: "Default payment updated" });
+      } else {
+        toast({
+          title: "Update failed",
+          description: res.message || "Could not update default payment method.",
+          variant: "destructive",
+        });
+      }
+      setIsUpdatingPayment(false);
+    },
+    [toast],
+  );
+
+  const handleDeletePaymentMethod = useCallback(
+    async (methodId: string) => {
+      const shouldDelete = window.confirm(
+        "Remove this payment method from your account?",
+      );
+      if (!shouldDelete) return;
+
+      setIsUpdatingPayment(true);
+      const res = await userService.deletePaymentMethod(methodId);
+      if (res.success) {
+        setPaymentMethods((prev) => prev.filter((pm) => pm._id !== methodId));
+        toast({ title: "Payment method removed" });
+      } else {
+        toast({
+          title: "Remove failed",
+          description: res.message || "Could not remove payment method.",
+          variant: "destructive",
+        });
+      }
+      setIsUpdatingPayment(false);
+    },
+    [toast],
+  );
 
   if (isLoading) return <ProfileSkeleton />;
 
@@ -1100,6 +1283,223 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         customerProfile={customerProfile}
         isLoading={isLoading}
       />
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-orange-500" />
+            Payment Methods
+          </h2>
+          <Button
+            type="button"
+            onClick={() => setIsAddPaymentOpen(true)}
+            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Payment Method
+          </Button>
+        </div>
+
+        {isLoadingPayments ? (
+          <div className="text-sm text-gray-500">Loading payment methods...</div>
+        ) : paymentMethods.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <p className="text-sm text-gray-600 mb-2">No saved payment methods yet.</p>
+            <p className="text-xs text-gray-500">Add a card, UPI, or wallet to checkout faster.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {paymentMethods.map((pm) => (
+              <div
+                key={pm._id}
+                className="border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 capitalize">
+                      {pm.type} · {pm.provider}
+                      {pm.isDefault && (
+                        <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                          Default
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      ****{pm.last4}
+                      {pm.expiryMonth && pm.expiryYear
+                        ? ` · Exp ${String(pm.expiryMonth).padStart(2, "0")}/${pm.expiryYear}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!pm.isDefault && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isUpdatingPayment}
+                      onClick={() => handleSetDefaultPayment(pm._id)}
+                      className="rounded-lg"
+                    >
+                      Set Default
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isUpdatingPayment}
+                    onClick={() => handleDeletePaymentMethod(pm._id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isAddPaymentOpen} onOpenChange={setIsAddPaymentOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Payment Method</DialogTitle>
+            <DialogDescription>
+              Save a payment method for faster checkout.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Type</Label>
+              <Select
+                value={newPaymentType}
+                onValueChange={(value: "card" | "upi" | "wallet") =>
+                  setNewPaymentType(value)
+                }
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="wallet">Wallet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Provider</Label>
+              <Input
+                value={newPaymentProvider}
+                onChange={(e) => setNewPaymentProvider(e.target.value)}
+                placeholder={
+                  newPaymentType === "card"
+                    ? "Visa / Mastercard"
+                    : newPaymentType === "upi"
+                      ? "bKash / Nagad"
+                      : "Wallet provider"
+                }
+                className="rounded-xl"
+              />
+            </div>
+
+            <div>
+              <Label>
+                {newPaymentType === "card"
+                  ? "Card Number"
+                  : "Account / Phone / UPI Reference"}
+              </Label>
+              <Input
+                value={newPaymentAccountRef}
+                onChange={(e) => setNewPaymentAccountRef(e.target.value)}
+                placeholder={
+                  newPaymentType === "card" ? "4111 1111 1111 1111" : "Enter reference with digits"
+                }
+                className="rounded-xl"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Only the last 4 digits are stored in your profile display.
+              </p>
+            </div>
+
+            {newPaymentType === "card" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Expiry Month</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={newPaymentExpiryMonth}
+                    onChange={(e) => setNewPaymentExpiryMonth(e.target.value)}
+                    placeholder="MM"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label>Expiry Year</Label>
+                  <Input
+                    type="number"
+                    min={2024}
+                    max={2050}
+                    value={newPaymentExpiryYear}
+                    onChange={(e) => setNewPaymentExpiryYear(e.target.value)}
+                    placeholder="YYYY"
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between rounded-xl border border-gray-200 p-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Set as default</p>
+                <p className="text-xs text-gray-500">Use this payment method first at checkout.</p>
+              </div>
+              <Switch
+                checked={newPaymentDefault}
+                onCheckedChange={setNewPaymentDefault}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsAddPaymentOpen(false);
+                resetPaymentForm();
+              }}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddPaymentMethod}
+              disabled={isAddingPayment}
+              className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+            >
+              {isAddingPayment ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Save Payment Method
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Phone Verification Dialog */}
       <PhoneVerificationDialog

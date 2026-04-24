@@ -76,6 +76,7 @@ httpClient.interceptors.response.use(
         // Refresh failed — clear tokens and redirect
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
         window.location.href = "/login";
       }
     }
