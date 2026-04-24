@@ -1,7 +1,11 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { UserRole, AddressType } from '../backend/src/config/constants';
+import CustomerProfile from '../backend/src/models/CustomerProfile';
+import MenuItem from '../backend/src/models/MenuItem';
 import Restaurant from '../backend/src/models/Restaurant';
-import { IRestaurant } from '../backend/src/types';
+import User from '../backend/src/models/User';
+import VendorProfile from '../backend/src/models/VendorProfile';
 
 const backendRequire = createRequire(
   path.resolve(__dirname, '../backend/package.json'),
@@ -10,321 +14,157 @@ const backendRequire = createRequire(
 backendRequire('dotenv/config');
 const mongoose = backendRequire('mongoose') as typeof import('mongoose');
 
-type SeedRestaurant = Omit<IRestaurant, 'createdAt' | 'updatedAt'>;
+const ADMIN_USER = {
+  email: 'admin@seed.com',
+  password: 'Admin@123456',
+  firstName: 'System',
+  lastName: 'Admin',
+  role: UserRole.ADMIN,
+  isEmailVerified: true,
+  isPhoneVerified: true,
+  isActive: true,
+} as const;
 
-const restaurantsData: SeedRestaurant[] = [
-  {
-    name: 'Panshi',
-    description:
-      'Authentic Kacchi Biryani and traditional Bangladeshi cuisine from Sylhet. Famous for its flavorful rice dishes and tender meat preparations.',
-    address: {
-      street: '123 Mirpur Road',
-      city: 'Dhaka',
-      state: 'Dhaka Division',
-      zipCode: '1207',
-      country: 'Bangladesh',
-    },
-    contactInfo: {
-      phone: '+880 1711-123456',
-      email: 'info@panshi.com',
-      website: 'www.panshi.com',
-    },
-    cuisineType: ['Bangladeshi', 'Biryani', 'Mughlai'],
-    images: {
-      logo: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=150&h=150&fit=crop',
-      coverPhoto:
-        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=400&fit=crop',
-      gallery: [
-        'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556912167-f50a1d068d8d?w=400&h=300&fit=crop',
-      ],
-    },
-    operatingHours: [
-      { day: 'Monday', openTime: '10:00', closeTime: '22:00', isOpen: true },
-      { day: 'Tuesday', openTime: '10:00', closeTime: '22:00', isOpen: true },
-      {
-        day: 'Wednesday',
-        openTime: '10:00',
-        closeTime: '22:00',
-        isOpen: true,
-      },
-      { day: 'Thursday', openTime: '10:00', closeTime: '22:00', isOpen: true },
-      { day: 'Friday', openTime: '10:00', closeTime: '23:00', isOpen: true },
-      { day: 'Saturday', openTime: '11:00', closeTime: '23:00', isOpen: true },
-      { day: 'Sunday', openTime: '11:00', closeTime: '21:00', isOpen: true },
-    ],
-    isActive: true,
-    approvalStatus: 'approved',
-    rating: { average: 4.7, count: 124 },
-    deliveryTime: '30-45 min',
-    deliveryFee: 60,
-    minimumOrder: 300,
-  },
-  {
-    name: 'Kacchi Bhai',
-    description:
-      'Specializing in authentic Dhaka-style Kacchi Biryani with premium ingredients and traditional cooking methods.',
-    address: {
-      street: '456 Dhanmondi Road',
-      city: 'Dhaka',
-      state: 'Dhaka Division',
-      zipCode: '1205',
-      country: 'Bangladesh',
-    },
-    contactInfo: {
-      phone: '+880 1811-234567',
-      email: 'contact@kaccibhai.com',
-      website: 'www.kaccibhai.com',
-    },
-    cuisineType: ['Bangladeshi', 'Biryani', 'Traditional'],
-    images: {
-      logo: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=150&h=150&fit=crop',
-      coverPhoto:
-        'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&h=400&fit=crop',
-      gallery: [
-        'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1565557623262-b5c8e26b5cb4?w=400&h=300&fit=crop',
-      ],
-    },
-    operatingHours: [
-      { day: 'Monday', openTime: '09:00', closeTime: '21:00', isOpen: true },
-      { day: 'Tuesday', openTime: '09:00', closeTime: '21:00', isOpen: true },
-      {
-        day: 'Wednesday',
-        openTime: '09:00',
-        closeTime: '21:00',
-        isOpen: true,
-      },
-      { day: 'Thursday', openTime: '09:00', closeTime: '21:00', isOpen: true },
-      { day: 'Friday', openTime: '09:00', closeTime: '22:00', isOpen: true },
-      { day: 'Saturday', openTime: '10:00', closeTime: '22:00', isOpen: true },
-      { day: 'Sunday', openTime: '10:00', closeTime: '20:00', isOpen: true },
-    ],
-    isActive: true,
-    approvalStatus: 'approved',
-    rating: { average: 4.5, count: 98 },
-    deliveryTime: '25-40 min',
-    deliveryFee: 50,
-    minimumOrder: 250,
-  },
-  {
-    name: 'Woondaal',
-    description:
-      'Modern twist on traditional Bangladeshi cuisine with fusion elements and contemporary presentation.',
-    address: {
-      street: '789 Gulshan Avenue',
-      city: 'Dhaka',
-      state: 'Dhaka Division',
-      zipCode: '1212',
-      country: 'Bangladesh',
-    },
-    contactInfo: {
-      phone: '+880 1611-345678',
-      email: 'hello@woondaal.com',
-      website: 'www.woondaal.com',
-    },
-    cuisineType: ['Bangladeshi', 'Fusion', 'Contemporary'],
-    images: {
-      logo: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=150&h=150&fit=crop',
-      coverPhoto:
-        'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=400&fit=crop',
-      gallery: [
-        'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1565299507177-b0ac6676234d?w=400&h=300&fit=crop',
-      ],
-    },
-    operatingHours: [
-      { day: 'Monday', openTime: '11:00', closeTime: '23:00', isOpen: true },
-      { day: 'Tuesday', openTime: '11:00', closeTime: '23:00', isOpen: true },
-      {
-        day: 'Wednesday',
-        openTime: '11:00',
-        closeTime: '23:00',
-        isOpen: true,
-      },
-      { day: 'Thursday', openTime: '11:00', closeTime: '23:00', isOpen: true },
-      { day: 'Friday', openTime: '11:00', closeTime: '00:00', isOpen: true },
-      { day: 'Saturday', openTime: '12:00', closeTime: '00:00', isOpen: true },
-      { day: 'Sunday', openTime: '12:00', closeTime: '22:00', isOpen: true },
-    ],
-    isActive: true,
-    approvalStatus: 'approved',
-    rating: { average: 4.8, count: 156 },
-    deliveryTime: '35-50 min',
-    deliveryFee: 80,
-    minimumOrder: 400,
-  },
-  {
-    name: 'Sylhet Tea House',
-    description:
-      'Authentic Sylheti cuisine and traditional tea house atmosphere with regional specialties.',
-    address: {
-      street: '321 Old Airport Road',
-      city: 'Sylhet',
-      state: 'Sylhet Division',
-      zipCode: '3100',
-      country: 'Bangladesh',
-    },
-    contactInfo: {
-      phone: '+880 1911-456789',
-      email: 'info@sylhetteahouse.com',
-      website: 'www.sylhetteahouse.com',
-    },
-    cuisineType: ['Bangladeshi', 'Sylheti', 'Tea House'],
-    images: {
-      logo: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=150&h=150&fit=crop',
-      coverPhoto:
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&h=400&fit=crop',
-      gallery: [
-        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&h=300&fit=crop',
-      ],
-    },
-    operatingHours: [
-      { day: 'Monday', openTime: '08:00', closeTime: '22:00', isOpen: true },
-      { day: 'Tuesday', openTime: '08:00', closeTime: '22:00', isOpen: true },
-      {
-        day: 'Wednesday',
-        openTime: '08:00',
-        closeTime: '22:00',
-        isOpen: true,
-      },
-      { day: 'Thursday', openTime: '08:00', closeTime: '22:00', isOpen: true },
-      { day: 'Friday', openTime: '08:00', closeTime: '23:00', isOpen: true },
-      { day: 'Saturday', openTime: '09:00', closeTime: '23:00', isOpen: true },
-      { day: 'Sunday', openTime: '09:00', closeTime: '21:00', isOpen: true },
-    ],
-    isActive: true,
-    approvalStatus: 'approved',
-    rating: { average: 4.6, count: 87 },
-    deliveryTime: '20-35 min',
-    deliveryFee: 40,
-    minimumOrder: 200,
-  },
-  {
-    name: 'Chillox',
-    description:
-      'Popular Bangladeshi fast food chain known for burgers, finger foods, and quick service.',
-    address: {
-      street: '555 Banani Main Road',
-      city: 'Dhaka',
-      state: 'Dhaka Division',
-      zipCode: '1213',
-      country: 'Bangladesh',
-    },
-    contactInfo: {
-      phone: '+880 1511-567890',
-      email: 'support@chillox.com',
-      website: 'www.chillox.com',
-    },
-    cuisineType: ['Fast Food', 'Burgers', 'Finger Food'],
-    images: {
-      logo: 'https://images.unsplash.com/photo-1565299507177-b0ac6676234d?w=150&h=150&fit=crop',
-      coverPhoto:
-        'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=400&fit=crop',
-      gallery: [
-        'https://images.unsplash.com/photo-1565557623262-b5c8e26b5cb4?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=300&fit=crop',
-      ],
-    },
-    operatingHours: [
-      { day: 'Monday', openTime: '10:00', closeTime: '23:00', isOpen: true },
-      { day: 'Tuesday', openTime: '10:00', closeTime: '23:00', isOpen: true },
-      {
-        day: 'Wednesday',
-        openTime: '10:00',
-        closeTime: '23:00',
-        isOpen: true,
-      },
-      { day: 'Thursday', openTime: '10:00', closeTime: '23:00', isOpen: true },
-      { day: 'Friday', openTime: '10:00', closeTime: '00:00', isOpen: true },
-      { day: 'Saturday', openTime: '10:00', closeTime: '00:00', isOpen: true },
-      { day: 'Sunday', openTime: '10:00', closeTime: '23:00', isOpen: true },
-    ],
-    isActive: true,
-    approvalStatus: 'approved',
-    rating: { average: 4.4, count: 210 },
-    deliveryTime: '15-25 min',
-    deliveryFee: 30,
-    minimumOrder: 150,
-  },
-  {
-    name: "Nando's Bangladesh",
-    description:
-      'International flame-grilled PERi-PERi chicken restaurant with Bangladeshi flavors and spices.',
-    address: {
-      street: '777 Panthapath',
-      city: 'Dhaka',
-      state: 'Dhaka Division',
-      zipCode: '1205',
-      country: 'Bangladesh',
-    },
-    contactInfo: {
-      phone: '+880 1711-678901',
-      email: 'info@nandosbd.com',
-      website: 'www.nandosbd.com',
-    },
-    cuisineType: ['International', 'Chicken', 'PERi-PERi'],
-    images: {
-      logo: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=150&h=150&fit=crop',
-      coverPhoto:
-        'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=400&fit=crop',
-      gallery: [
-        'https://images.unsplash.com/photo-1565299507177-b0ac6676234d?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1565557623262-b5c8e26b5cb4?w=400&h=300&fit=crop',
-      ],
-    },
-    operatingHours: [
-      { day: 'Monday', openTime: '11:00', closeTime: '22:00', isOpen: true },
-      { day: 'Tuesday', openTime: '11:00', closeTime: '22:00', isOpen: true },
-      {
-        day: 'Wednesday',
-        openTime: '11:00',
-        closeTime: '22:00',
-        isOpen: true,
-      },
-      { day: 'Thursday', openTime: '11:00', closeTime: '22:00', isOpen: true },
-      { day: 'Friday', openTime: '11:00', closeTime: '23:00', isOpen: true },
-      { day: 'Saturday', openTime: '12:00', closeTime: '23:00', isOpen: true },
-      { day: 'Sunday', openTime: '12:00', closeTime: '21:00', isOpen: true },
-    ],
-    isActive: true,
-    approvalStatus: 'approved',
-    rating: { average: 4.3, count: 175 },
-    deliveryTime: '25-35 min',
-    deliveryFee: 70,
-    minimumOrder: 350,
-  },
-];
+const VENDOR_USER = {
+  email: 'vendor@seed.com',
+  password: 'Vendor@123456',
+  firstName: 'Vendor',
+  lastName: 'Owner',
+  role: UserRole.VENDOR,
+  isEmailVerified: true,
+  isPhoneVerified: true,
+  isActive: true,
+} as const;
 
-const seedRestaurants = async (): Promise<void> => {
+const REGULAR_USER = {
+  email: 'customer@seed.com',
+  password: 'Customer@123456',
+  firstName: 'Regular',
+  lastName: 'User',
+  role: UserRole.CUSTOMER,
+  isEmailVerified: true,
+  isPhoneVerified: true,
+  isActive: true,
+} as const;
+
+const VENDOR_PROFILE = {
+  businessName: 'Seed Vendor',
+  businessLicense: 'SEED-LICENSE-001',
+  taxId: 'SEED-TAX-001',
+  isVerified: true,
+} as const;
+
+const RESTAURANT = {
+  name: 'Seed Kitchen',
+  description: 'A minimal test restaurant for deterministic local development.',
+  address: {
+    street: '123 Seed Street',
+    city: 'Dhaka',
+    state: 'Dhaka Division',
+    zipCode: '1207',
+    country: 'Bangladesh',
+  },
+  contactInfo: {
+    phone: '+8801700000100',
+    email: 'seed-kitchen@seed.com',
+  },
+  cuisineType: ['Bangladeshi'],
+  images: {
+    logo: 'https://example.com/seed-kitchen-logo.jpg',
+    coverPhoto: 'https://example.com/seed-kitchen-cover.jpg',
+    gallery: [],
+  },
+  approvalStatus: 'approved' as const,
+  isActive: true,
+} as const;
+
+const MENU_ITEM = {
+  name: 'Seed Chicken Biryani',
+  description: 'Single deterministic menu item for test orders.',
+  price: 320,
+  isAvailable: true,
+  preparationTime: 20,
+} as const;
+
+const seedDatabase = async (): Promise<void> => {
+  const mongoDbUri = process.env.MONGODB_URI;
+
+  if (!mongoDbUri) {
+    throw new Error('MONGODB_URI is not defined in environment variables.');
+  }
+
+  await mongoose.connect(mongoDbUri);
+
   try {
-    const MONGODB_URI = process.env.MONGODB_URI;
-    if (!MONGODB_URI) {
-      throw new Error('MONGODB_URI is not defined in environment variables');
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database handle is undefined after connecting.');
     }
 
-    await mongoose.connect(MONGODB_URI);
-    console.log('Connected to MongoDB');
+    await db.dropDatabase();
 
-    await Restaurant.deleteMany({});
-    console.log('Cleared existing restaurants');
+    const admin = await User.create(ADMIN_USER);
 
-    await Restaurant.insertMany(restaurantsData);
-    console.log(`Inserted ${restaurantsData.length} restaurants`);
+    const vendorUser = await User.create(VENDOR_USER);
+    const restaurant = await Restaurant.create(RESTAURANT);
 
+    await VendorProfile.create({
+      userId: vendorUser._id,
+      restaurantIds: [restaurant._id],
+      ...VENDOR_PROFILE,
+    });
+
+    await MenuItem.create({
+      restaurantId: restaurant._id,
+      ...MENU_ITEM,
+    });
+
+    const regularUser = await User.create(REGULAR_USER);
+    await CustomerProfile.create({ userId: regularUser._id });
+
+    const [
+      adminCount,
+      vendorCount,
+      vendorProfileCount,
+      restaurantCount,
+      menuItemCount,
+      regularUserCount,
+      totalUserCount,
+    ] = await Promise.all([
+      User.countDocuments({ role: UserRole.ADMIN }),
+      User.countDocuments({ role: UserRole.VENDOR }),
+      VendorProfile.countDocuments({}),
+      Restaurant.countDocuments({}),
+      MenuItem.countDocuments({}),
+      User.countDocuments({ role: UserRole.CUSTOMER }),
+      User.countDocuments({}),
+    ]);
+
+    if (adminCount !== 1)
+      throw new Error(`Expected 1 admin, got ${adminCount}.`);
+    if (vendorCount !== 1)
+      throw new Error(`Expected 1 vendor user, got ${vendorCount}.`);
+    if (vendorProfileCount !== 1)
+      throw new Error(`Expected 1 vendor profile, got ${vendorProfileCount}.`);
+    if (restaurantCount !== 1)
+      throw new Error(`Expected 1 restaurant, got ${restaurantCount}.`);
+    if (menuItemCount !== 1)
+      throw new Error(`Expected 1 menu item, got ${menuItemCount}.`);
+    if (regularUserCount !== 1)
+      throw new Error(`Expected 1 regular user, got ${regularUserCount}.`);
+    if (totalUserCount !== 3)
+      throw new Error(`Expected 3 total users, got ${totalUserCount}.`);
+
+    console.log('Minimal seed completed successfully.');
+    console.log(
+      'Seeded entities: 1 admin, 1 vendor profile, 1 restaurant, 1 menu item, 1 regular user.',
+    );
+  } finally {
     await mongoose.connection.close();
-    console.log('Database seeded successfully');
-  } catch (error: unknown) {
-    console.error('Error seeding database:', error);
-    process.exit(1);
   }
 };
 
-seedRestaurants();
+seedDatabase().catch((error: unknown) => {
+  console.error('Error seeding database:', error);
+  process.exit(1);
+});
