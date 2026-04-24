@@ -2,7 +2,7 @@
  * Order controller – create, list, detail, cancel, and reorder.
  */
 import { Request, Response, NextFunction } from "express";
-import mongoose, { Types } from "mongoose";
+import { Types } from "mongoose";
 import crypto from "crypto";
 import Order, { OrderStatus, PaymentStatus } from "../models/Order";
 import MenuItem from "../models/MenuItem";
@@ -21,6 +21,104 @@ import type { AuthRequest } from "../types";
 const generateOrderNumber = (): string => {
   const hex = crypto.randomBytes(4).toString("hex").toUpperCase();
   return `ORD-${hex}`;
+};
+
+const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
+  OrderStatus.PENDING,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PREPARING,
+  OrderStatus.READY,
+  OrderStatus.PICKED_UP,
+];
+
+type RequestedItemOption = {
+  optionId?: string;
+  name?: string;
+};
+
+type TrustedItemOption = {
+  name: string;
+  price: number;
+};
+
+const parseStatusFilter = (statusQuery?: string): OrderStatus[] | undefined => {
+  if (!statusQuery) return undefined;
+
+  if (statusQuery === "active") {
+    return ACTIVE_ORDER_STATUSES;
+  }
+
+  const parsed = statusQuery
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (parsed.length === 0) return undefined;
+
+  const invalid = parsed.filter(
+    (value) => !Object.values(OrderStatus).includes(value as OrderStatus),
+  );
+  if (invalid.length > 0) {
+    throw new ValidationError(`Invalid order status filter: ${invalid.join(", ")}`);
+  }
+
+  return parsed as OrderStatus[];
+};
+
+const resolveRequestedOptions = (
+  requested: RequestedItemOption[],
+  available: Array<{ _id?: Types.ObjectId; name: string; price: number }>,
+  optionType: "variant" | "addon",
+  itemName: string,
+): TrustedItemOption[] => {
+  return requested.map((option) => {
+    const byId =
+      option.optionId &&
+      available.find((candidate) => candidate._id?.toString() === option.optionId);
+
+    const byName =
+      option.name &&
+      available.find(
+        (candidate) =>
+          candidate.name.trim().toLowerCase() === option.name?.trim().toLowerCase(),
+      );
+
+    const matched = byId ?? byName;
+    if (!matched) {
+      const identifier = option.name || option.optionId || "unknown";
+      throw new ValidationError(
+        `Invalid ${optionType} \"${identifier}\" for menu item \"${itemName}\"`,
+      );
+    }
+
+    return { name: matched.name, price: matched.price };
+  });
+};
+
+const resolveLegacyOptionsByName = (
+  requested: Array<{ name: string; price: number }> | undefined,
+  available: Array<{ _id?: Types.ObjectId; name: string; price: number }>,
+): { trusted: TrustedItemOption[]; missing: string[] } => {
+  if (!requested || requested.length === 0) {
+    return { trusted: [], missing: [] };
+  }
+
+  const trusted: TrustedItemOption[] = [];
+  const missing: string[] = [];
+
+  for (const option of requested) {
+    const match = available.find(
+      (candidate) =>
+        candidate.name.trim().toLowerCase() === option.name.trim().toLowerCase(),
+    );
+    if (!match) {
+      missing.push(option.name);
+      continue;
+    }
+    trusted.push({ name: match.name, price: match.price });
+  }
+
+  return { trusted, missing };
 };
 
 /**
@@ -45,35 +143,54 @@ export const createOrder = async (
       specialInstructions,
     } = req.body;
 
-    if (!restaurantId || !items?.length || !deliveryAddress || !paymentMethod) {
-      throw new ValidationError("Missing required order fields");
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
-      throw new ValidationError("Invalid restaurant ID");
-    }
+    const restaurantObjectId = new Types.ObjectId(restaurantId);
 
     // Verify menu items and compute totals
     let subtotal = 0;
-    const orderItems = [];
+    const orderItems: Array<{
+      menuItemId: Types.ObjectId;
+      name: string;
+      price: number;
+      quantity: number;
+      variants: TrustedItemOption[];
+      addons: TrustedItemOption[];
+      specialInstructions?: string;
+      itemTotal: number;
+    }> = [];
 
     for (const item of items) {
-      const menuItem = await MenuItem.findById(item.menuItemId);
+      const menuItem = await MenuItem.findOne({
+        _id: item.menuItemId,
+        restaurantId: restaurantObjectId,
+      });
       if (!menuItem) {
-        throw new NotFoundError(`Menu item ${item.menuItemId} not found`);
+        throw new ValidationError(
+          `Menu item ${item.menuItemId} is not available for this restaurant`,
+        );
       }
       if (!menuItem.isAvailable) {
         throw new ValidationError(`${menuItem.name} is currently unavailable`);
       }
 
-      const quantity = Math.max(1, Math.floor(item.quantity));
+      const quantity = item.quantity;
 
-      let itemPrice = menuItem.price;
-      const variants = item.variants || [];
-      const addons = item.addons || [];
+      const variants = resolveRequestedOptions(
+        item.variants || [],
+        menuItem.variants,
+        "variant",
+        menuItem.name,
+      );
+      const addons = resolveRequestedOptions(
+        item.addons || [],
+        menuItem.addons,
+        "addon",
+        menuItem.name,
+      );
 
-      for (const v of variants) itemPrice += v.price ?? 0;
-      for (const a of addons) itemPrice += a.price ?? 0;
+      const itemPrice =
+        menuItem.price +
+        variants.reduce((sum, option) => sum + option.price, 0) +
+        addons.reduce((sum, option) => sum + option.price, 0);
 
       const itemTotal = itemPrice * quantity;
       subtotal += itemTotal;
@@ -92,6 +209,8 @@ export const createOrder = async (
 
     // Coupon validation
     let discount = 0;
+    let appliedCoupon: Awaited<ReturnType<typeof Coupon.findOne>> = null;
+
     if (couponCode) {
       const coupon = await Coupon.findOne({
         code: couponCode.toUpperCase(),
@@ -100,35 +219,30 @@ export const createOrder = async (
         validTo: { $gte: new Date() },
       });
 
-      if (coupon) {
-        if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
-          throw new ValidationError("Coupon usage limit reached");
-        }
-        if (subtotal < coupon.minOrderAmount) {
-          throw new ValidationError(
-            `Minimum order amount for this coupon is ${coupon.minOrderAmount}`,
-          );
-        }
-        if (
-          coupon.applicableRestaurants.length > 0 &&
-          !coupon.applicableRestaurants.some(
-            (id) => id.toString() === restaurantId,
-          )
-        ) {
-          throw new ValidationError("Coupon is not valid for this restaurant");
-        }
-
-        discount =
-          coupon.type === CouponType.PERCENTAGE
-            ? Math.min(
-                (subtotal * coupon.value) / 100,
-                coupon.maxDiscount ?? Infinity,
-              )
-            : Math.min(coupon.value, subtotal);
-
-        coupon.usedCount += 1;
-        await coupon.save();
+      if (!coupon) {
+        throw new ValidationError("Invalid or expired coupon code");
       }
+
+      if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+        throw new ValidationError("Coupon usage limit reached");
+      }
+      if (subtotal < coupon.minOrderAmount) {
+        throw new ValidationError(
+          `Minimum order amount for this coupon is ${coupon.minOrderAmount}`,
+        );
+      }
+      if (
+        coupon.applicableRestaurants.length > 0 &&
+        !coupon.applicableRestaurants.some((id) => id.toString() === restaurantId)
+      ) {
+        throw new ValidationError("Coupon is not valid for this restaurant");
+      }
+
+      discount =
+        coupon.type === CouponType.PERCENTAGE
+          ? Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
+          : Math.min(coupon.value, subtotal);
+      appliedCoupon = coupon;
     }
 
     const TAX_RATE = 0.05;
@@ -139,11 +253,11 @@ export const createOrder = async (
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
       customerId: authReq.user._id,
-      restaurantId: new Types.ObjectId(restaurantId),
+      restaurantId: restaurantObjectId,
       items: orderItems,
       deliveryAddress,
       paymentMethod,
-      paymentStatus: PaymentStatus.PAID,
+      paymentStatus: PaymentStatus.PENDING,
       subtotal,
       tax,
       deliveryFee: DELIVERY_FEE,
@@ -154,6 +268,11 @@ export const createOrder = async (
       estimatedDeliveryTime: "30-45 min",
       statusHistory: [{ status: OrderStatus.PENDING, timestamp: new Date() }],
     });
+
+    if (appliedCoupon) {
+      appliedCoupon.usedCount += 1;
+      await appliedCoupon.save();
+    }
 
     // Update customer stats
     const profile = await CustomerProfile.findOne({
@@ -200,13 +319,15 @@ export const getOrders = async (
       50,
       Math.max(1, parseInt(req.query.limit as string) || 10),
     );
-    const status = req.query.status as string | undefined;
+    const statusQuery = req.query.status as string | undefined;
+    const statuses = parseStatusFilter(statusQuery);
 
     const filter: Record<string, unknown> = {
       customerId: authReq.user._id,
     };
-    if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
-      filter.status = status;
+    if (statuses && statuses.length > 0) {
+      filter.status =
+        statuses.length === 1 ? statuses[0] : { $in: statuses };
     }
 
     const [orders, total] = await Promise.all([
@@ -327,23 +448,89 @@ export const reorder = async (
     if (!order) throw new NotFoundError("Order not found");
 
     // Check each item is still available
-    const cartItems = [];
+    const cartItems: Array<{
+      menuItemId: string;
+      name: string;
+      price: number;
+      image?: string;
+      quantity: number;
+      variants: TrustedItemOption[];
+      addons: TrustedItemOption[];
+      isAvailable: boolean;
+      unavailableReason?: string;
+    }> = [];
+
+    let hasUnavailableItems = false;
+
     for (const item of order.items) {
-      const menuItem = await MenuItem.findById(item.menuItemId);
+      const menuItem = await MenuItem.findOne({
+        _id: item.menuItemId,
+        restaurantId: order.restaurantId,
+      });
+
+      if (!menuItem) {
+        hasUnavailableItems = true;
+        cartItems.push({
+          menuItemId: item.menuItemId.toString(),
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          variants: item.variants || [],
+          addons: item.addons || [],
+          isAvailable: false,
+          unavailableReason: "This menu item is no longer available",
+        });
+        continue;
+      }
+
+      const resolvedVariants = resolveLegacyOptionsByName(
+        item.variants,
+        menuItem.variants,
+      );
+      const resolvedAddons = resolveLegacyOptionsByName(item.addons, menuItem.addons);
+
+      const missingOptions = [
+        ...resolvedVariants.missing,
+        ...resolvedAddons.missing,
+      ];
+      const isAvailable = menuItem.isAvailable && missingOptions.length === 0;
+
+      if (!isAvailable) {
+        hasUnavailableItems = true;
+      }
+
+      const trustedUnitPrice =
+        menuItem.price +
+        resolvedVariants.trusted.reduce((sum, option) => sum + option.price, 0) +
+        resolvedAddons.trusted.reduce((sum, option) => sum + option.price, 0);
+
+      const unavailableReason = !menuItem.isAvailable
+        ? `${menuItem.name} is currently unavailable`
+        : missingOptions.length > 0
+          ? `Some previously selected options are no longer available: ${missingOptions.join(", ")}`
+          : undefined;
+
       cartItems.push({
-        menuItemId: item.menuItemId,
-        name: item.name,
-        price: menuItem?.price ?? item.price,
+        menuItemId: item.menuItemId.toString(),
+        name: menuItem.name,
+        price: trustedUnitPrice,
+        image: menuItem.image,
         quantity: item.quantity,
-        variants: item.variants,
-        addons: item.addons,
-        isAvailable: menuItem?.isAvailable ?? false,
+        variants:
+          resolvedVariants.trusted.length > 0
+            ? resolvedVariants.trusted
+            : item.variants || [],
+        addons:
+          resolvedAddons.trusted.length > 0 ? resolvedAddons.trusted : item.addons || [],
+        isAvailable,
+        unavailableReason,
       });
     }
 
     successResponse(res, {
-      restaurantId: order.restaurantId,
+      restaurantId: order.restaurantId.toString(),
       items: cartItems,
+      hasUnavailableItems,
     });
   } catch (error) {
     next(error);

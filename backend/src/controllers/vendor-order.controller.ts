@@ -22,13 +22,17 @@ import type { UpdateOrderStatusInput } from "../validations/vendor.validation";
 const VENDOR_STATUS_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
   [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
-  [OrderStatus.PREPARING]: [OrderStatus.READY],
+  [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELLED],
+  [OrderStatus.READY]: [OrderStatus.PICKED_UP, OrderStatus.CANCELLED],
+  [OrderStatus.PICKED_UP]: [OrderStatus.DELIVERED],
 };
 
 const STATUS_LABELS: Record<string, string> = {
   [OrderStatus.CONFIRMED]: "Confirmed",
   [OrderStatus.PREPARING]: "Being Prepared",
   [OrderStatus.READY]: "Ready for Pickup",
+  [OrderStatus.PICKED_UP]: "Picked Up",
+  [OrderStatus.DELIVERED]: "Delivered",
   [OrderStatus.CANCELLED]: "Cancelled by Restaurant",
 };
 
@@ -199,6 +203,10 @@ export const updateVendorOrderStatus = async (
 
     if (newStatus === OrderStatus.CANCELLED) {
       order.cancelReason = note || "Cancelled by restaurant";
+    }
+
+    if (newStatus === OrderStatus.DELIVERED) {
+      order.actualDeliveryTime = new Date();
     }
 
     await order.save();

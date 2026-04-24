@@ -290,9 +290,13 @@ export type UpdateMenuItemInput = z.infer<typeof updateMenuItemSchema>;
 // ── Vendor Order Status Update ─────────────────────────────────
 
 export const updateOrderStatusSchema = z.object({
-  status: z.enum(["confirmed", "preparing", "ready", "cancelled"], {
-    message: "Status must be one of: confirmed, preparing, ready, cancelled",
-  }),
+  status: z.enum(
+    ["confirmed", "preparing", "ready", "picked_up", "delivered", "cancelled"],
+    {
+      message:
+        "Status must be one of: confirmed, preparing, ready, picked_up, delivered, cancelled",
+    },
+  ),
   note: z.string().max(300, "Note cannot exceed 300 characters").optional(),
 });
 
