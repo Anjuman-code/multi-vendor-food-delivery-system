@@ -103,23 +103,41 @@ const OrderDetailsPage: React.FC = () => {
     const res = await orderService.reorder(order._id);
     setReordering(false);
     if (res.success && res.data) {
-      const reorderItems = res.data.items as Array<{
-        menuItemId: string;
-        name: string;
-        price: number;
-        quantity: number;
-        image?: string;
-        variants?: { name: string; price: number }[];
-        addons?: { name: string; price: number }[];
-      }>;
+      const reorderItems = res.data.items;
       const restId =
         typeof order.restaurantId === "string"
           ? order.restaurantId
           : order.restaurantId._id;
       const restName =
         typeof order.restaurantId === "string" ? "" : order.restaurantId.name;
+      const unavailableItems = reorderItems.filter((item) => !item.isAvailable);
+
+      if (unavailableItems.length === reorderItems.length) {
+        toast({
+          title: "Reorder unavailable",
+          description:
+            unavailableItems[0]?.unavailableReason ||
+            "All items from this order are currently unavailable.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (unavailableItems.length > 0) {
+        toast({
+          title: "Some items were skipped",
+          description: `${unavailableItems.length} item(s) are unavailable and were not added to cart.`,
+          variant: "destructive",
+        });
+      }
+
       for (const item of reorderItems) {
+        if (!item.isAvailable) {
+          continue;
+        }
+
         addToCart(restId, restName, {
+          itemKey: `${item.menuItemId}::r`,
           menuItemId: item.menuItemId,
           name: item.name,
           price: item.price,
@@ -129,7 +147,11 @@ const OrderDetailsPage: React.FC = () => {
           addons: item.addons || [],
         });
       }
-      toast({ title: "Items added to cart" });
+
+      toast({
+        title: "Items added to cart",
+        description: "You can review and checkout from your cart.",
+      });
       navigate("/cart");
     } else {
       toast({
@@ -142,6 +164,11 @@ const OrderDetailsPage: React.FC = () => {
 
   const canCancel =
     order && (order.status === "pending" || order.status === "confirmed");
+
+  const restaurantId =
+    order && typeof order.restaurantId !== "string"
+      ? order.restaurantId._id
+      : order?.restaurantId;
 
   const currentStepIdx = order
     ? order.status === "cancelled"
@@ -417,7 +444,7 @@ const OrderDetailsPage: React.FC = () => {
         {/* Review CTA */}
         {order.status === "delivered" && (
           <div className="mt-6 text-center">
-            <Link to={`/restaurants/${order.restaurantId}`}>
+            <Link to={`/restaurants/${restaurantId || ""}`}>
               <Button className="bg-orange-500 hover:bg-orange-600">
                 Leave a Review
               </Button>

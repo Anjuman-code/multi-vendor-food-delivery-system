@@ -98,12 +98,17 @@ const orderService = {
   async reorder(orderId: string): Promise<
     ApiResponse<{
       restaurantId: string;
+      hasUnavailableItems?: boolean;
       items: {
         menuItemId: string;
         name: string;
         price: number;
+        image?: string;
         quantity: number;
+        variants?: { optionId?: string; name: string; price: number }[];
+        addons?: { optionId?: string; name: string; price: number }[];
         isAvailable: boolean;
+        unavailableReason?: string;
       }[];
     }>
   > {
@@ -111,12 +116,17 @@ const orderService = {
       const response = await httpClient.post<
         ApiResponse<{
           restaurantId: string;
+          hasUnavailableItems?: boolean;
           items: {
             menuItemId: string;
             name: string;
             price: number;
+            image?: string;
             quantity: number;
+            variants?: { optionId?: string; name: string; price: number }[];
+            addons?: { optionId?: string; name: string; price: number }[];
             isAvailable: boolean;
+            unavailableReason?: string;
           }[];
         }>
       >(`/api/orders/${orderId}/reorder`);
@@ -124,12 +134,17 @@ const orderService = {
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{
         restaurantId: string;
+        hasUnavailableItems?: boolean;
         items: {
           menuItemId: string;
           name: string;
           price: number;
+          image?: string;
           quantity: number;
+          variants?: { optionId?: string; name: string; price: number }[];
+          addons?: { optionId?: string; name: string; price: number }[];
           isAvailable: boolean;
+          unavailableReason?: string;
         }[];
       }>;
     }

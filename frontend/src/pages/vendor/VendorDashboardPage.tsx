@@ -245,7 +245,7 @@ const VendorDashboardPage: React.FC = () => {
                     {order.items?.length || 0}
                   </td>
                   <td className="py-3 font-medium text-gray-900">
-                    {formatCurrency(order.totalAmount)}
+                    {formatCurrency(order.total)}
                   </td>
                   <td className="py-3">
                     <span

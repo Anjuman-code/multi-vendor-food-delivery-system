@@ -34,10 +34,10 @@ const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const handleRemove = (menuItemId: string) => {
-    setRemovingId(menuItemId);
+  const handleRemove = (itemKey: string) => {
+    setRemovingId(itemKey);
     setTimeout(() => {
-      removeItem(menuItemId);
+      removeItem(itemKey);
       setRemovingId(null);
     }, 200);
   };
@@ -103,13 +103,15 @@ const CartPage: React.FC = () => {
           {/* Items List */}
           <div className="lg:col-span-2 space-y-3">
             <AnimatePresence>
-              {items.map((item) => (
+              {items.map((item) => {
+                const itemKey = item.itemKey || item.menuItemId;
+                return (
                 <motion.div
-                  key={item.menuItemId}
+                  key={itemKey}
                   layout
                   initial={{ opacity: 0, x: -10 }}
                   animate={{
-                    opacity: removingId === item.menuItemId ? 0.3 : 1,
+                    opacity: removingId === itemKey ? 0.3 : 1,
                     x: 0,
                   }}
                   exit={{ opacity: 0, x: -20, height: 0 }}
@@ -154,9 +156,7 @@ const CartPage: React.FC = () => {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.menuItemId, item.quantity - 1)
-                          }
+                          onClick={() => updateQuantity(itemKey, item.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -167,9 +167,7 @@ const CartPage: React.FC = () => {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.menuItemId, item.quantity + 1)
-                          }
+                          onClick={() => updateQuantity(itemKey, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -177,7 +175,7 @@ const CartPage: React.FC = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-red-400 hover:text-red-600"
-                          onClick={() => handleRemove(item.menuItemId)}
+                          onClick={() => handleRemove(itemKey)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -185,7 +183,8 @@ const CartPage: React.FC = () => {
                     </div>
                   </Card>
                 </motion.div>
-              ))}
+                );
+              })}
             </AnimatePresence>
           </div>
 

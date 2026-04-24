@@ -57,10 +57,7 @@ const OrdersPage: React.FC = () => {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
-    const statusParam =
-      currentFilter === "active"
-        ? "pending,confirmed,preparing,ready,picked_up"
-        : currentFilter || undefined;
+    const statusParam = currentFilter || undefined;
 
     const res = await orderService.getOrders(currentPage, 10, statusParam);
     if (res.success && res.data) {

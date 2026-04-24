@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/utils/cn";
 import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/contexts/CartContext";
 import BkashIcon from "@/assets/BKash-Icon2-Logo.wine.svg";
 import NagadIcon from "@/assets/Nagad-Vertical-Logo.wine.svg";
 import CashIcon from "@/assets/Cash_App-Logo.wine.svg";
@@ -655,7 +656,10 @@ const PhotoGallerySection: React.FC<{
   );
 };
 
-const MenuSection: React.FC<{ menu: MenuItem[] }> = ({ menu }) => {
+const MenuSection: React.FC<{
+  menu: MenuItem[];
+  onAddToCart: (item: MenuItem) => void;
+}> = ({ menu, onAddToCart }) => {
   const [activeCategory, setActiveCategory] = useState("Lunch");
 
   const categories = useMemo(() => {
@@ -691,7 +695,7 @@ const MenuSection: React.FC<{ menu: MenuItem[] }> = ({ menu }) => {
 
       {/* Menu Items */}
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {filteredMenu.map((item, index) => (
             <motion.div
               key={item.id}
@@ -708,6 +712,14 @@ const MenuSection: React.FC<{ menu: MenuItem[] }> = ({ menu }) => {
               <span className="text-orange-500 font-bold ml-4">
                 ৳{item.price * 10}
               </span>
+              <Button
+                type="button"
+                size="sm"
+                className="ml-4 bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={() => onAddToCart(item)}
+              >
+                Add
+              </Button>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -985,6 +997,7 @@ const ImageGalleryModal: React.FC<{
 const RestaurantDetailsPage: React.FC = () => {
   const { id: _id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { addItem, clearCart } = useCart();
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
@@ -1013,6 +1026,51 @@ const RestaurantDetailsPage: React.FC = () => {
     setIsGalleryOpen(false);
   }, []);
 
+  const handleAddMenuItemToCart = useCallback(
+    (item: MenuItem) => {
+      const cartItem = {
+        menuItemId: String(item.id),
+        name: item.name,
+        price: item.price * 10,
+        quantity: 1,
+        variants: [],
+        addons: [],
+      };
+
+      const added = addItem(String(restaurant.id), restaurant.name, cartItem);
+      if (added) {
+        toast({
+          title: "Added to cart",
+          description: `${item.name} has been added to your cart.`,
+        });
+        return;
+      }
+
+      const shouldReplace = window.confirm(
+        "Your cart has items from another restaurant. Clear cart and add this item?",
+      );
+
+      if (!shouldReplace) {
+        return;
+      }
+
+      clearCart();
+      const addedAfterClear = addItem(
+        String(restaurant.id),
+        restaurant.name,
+        cartItem,
+      );
+
+      if (addedAfterClear) {
+        toast({
+          title: "Cart updated",
+          description: `${item.name} has been added to your cart.`,
+        });
+      }
+    },
+    [addItem, clearCart, restaurant.id, restaurant.name, toast],
+  );
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero with Reservation */}
@@ -1040,7 +1098,10 @@ const RestaurantDetailsPage: React.FC = () => {
             />
 
             {/* Menu */}
-            <MenuSection menu={restaurant.menu} />
+            <MenuSection
+              menu={restaurant.menu}
+              onAddToCart={handleAddMenuItemToCart}
+            />
 
             {/* Reviews */}
             <ReviewsSection

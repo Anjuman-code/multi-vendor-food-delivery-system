@@ -16,7 +16,7 @@ import {
   Clock,
   ShoppingBag,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -826,6 +826,7 @@ const CartItemComponent: React.FC<CartItemProps> = ({
 
 const CategoriesPage: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<string>("burger");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
@@ -948,9 +949,11 @@ const CategoriesPage: React.FC = () => {
 
   const handlePlaceOrder = () => {
     toast({
-      title: "Order placed!",
-      description: "Your order has been placed successfully.",
+      title: "Continue in Restaurant Checkout",
+      description:
+        "For real-time pricing and availability, add items from a restaurant page and checkout there.",
     });
+    navigate("/restaurants");
   };
 
   return (

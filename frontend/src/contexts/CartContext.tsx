@@ -14,16 +14,19 @@ import React, {
 // ── Types ──────────────────────────────────────────────────────
 
 export interface CartItemVariant {
+  optionId?: string;
   name: string;
   price: number;
 }
 
 export interface CartItemAddon {
+  optionId?: string;
   name: string;
   price: number;
 }
 
 export interface CartItem {
+  itemKey?: string;
   menuItemId: string;
   name: string;
   price: number;
@@ -85,6 +88,20 @@ const saveCart = (state: CartState) => {
   localStorage.setItem(CART_KEY, JSON.stringify(state));
 };
 
+const buildCartItemKey = (item: CartItem): string => {
+  const variantKey = (item.variants || [])
+    .map((option) => option.optionId || option.name)
+    .sort()
+    .join("|");
+  const addonKey = (item.addons || [])
+    .map((option) => option.optionId || option.name)
+    .sort()
+    .join("|");
+  const notesKey = item.specialInstructions?.trim() || "";
+
+  return `${item.menuItemId}::v=${variantKey}::a=${addonKey}::n=${notesKey}`;
+};
+
 // ── Context ────────────────────────────────────────────────────
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -107,8 +124,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       setCart((prev) => {
+        const incomingKey = item.itemKey || buildCartItemKey(item);
         const existing = prev.items.findIndex(
-          (i) => i.menuItemId === item.menuItemId,
+          (i) => (i.itemKey || buildCartItemKey(i)) === incomingKey,
         );
         let newItems: CartItem[];
 
@@ -119,7 +137,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
               : i,
           );
         } else {
-          newItems = [...prev.items, item];
+          newItems = [...prev.items, { ...item, itemKey: incomingKey }];
         }
 
         return {
@@ -133,10 +151,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     [cart.restaurantId],
   );
 
-  const updateQuantity = useCallback((menuItemId: string, quantity: number) => {
+  const updateQuantity = useCallback((itemKey: string, quantity: number) => {
     setCart((prev) => {
       if (quantity <= 0) {
-        const newItems = prev.items.filter((i) => i.menuItemId !== menuItemId);
+        const newItems = prev.items.filter(
+          (i) =>
+            (i.itemKey || buildCartItemKey(i)) !== itemKey && i.menuItemId !== itemKey,
+        );
         if (newItems.length === 0) {
           return { restaurantId: null, restaurantName: null, items: [] };
         }
@@ -145,15 +166,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       return {
         ...prev,
         items: prev.items.map((i) =>
-          i.menuItemId === menuItemId ? { ...i, quantity } : i,
+          (i.itemKey || buildCartItemKey(i)) === itemKey || i.menuItemId === itemKey
+            ? { ...i, quantity }
+            : i,
         ),
       };
     });
   }, []);
 
-  const removeItem = useCallback((menuItemId: string) => {
+  const removeItem = useCallback((itemKey: string) => {
     setCart((prev) => {
-      const newItems = prev.items.filter((i) => i.menuItemId !== menuItemId);
+      const newItems = prev.items.filter(
+        (i) =>
+          (i.itemKey || buildCartItemKey(i)) !== itemKey && i.menuItemId !== itemKey,
+      );
       if (newItems.length === 0) {
         return { restaurantId: null, restaurantName: null, items: [] };
       }

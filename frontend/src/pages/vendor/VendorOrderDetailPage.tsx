@@ -19,16 +19,17 @@ const STATUS_FLOW = [
   "pending",
   "confirmed",
   "preparing",
-  "ready_for_pickup",
-  "out_for_delivery",
+  "ready",
+  "picked_up",
   "delivered",
 ];
 
 const NEXT_STATUS: Record<string, string> = {
   pending: "confirmed",
   confirmed: "preparing",
-  preparing: "ready_for_pickup",
-  ready_for_pickup: "out_for_delivery",
+  preparing: "ready",
+  ready: "picked_up",
+  picked_up: "delivered",
 };
 
 const VendorOrderDetailPage: React.FC = () => {
@@ -105,6 +106,16 @@ const VendorOrderDetailPage: React.FC = () => {
       <div className="text-center py-12 text-gray-500">Order not found.</div>
     );
   }
+
+  const customerName =
+    typeof order.customerId === "object"
+      ? `${order.customerId.firstName} ${order.customerId.lastName}`.trim()
+      : order.customer?.name || "—";
+
+  const customerPhone =
+    typeof order.customerId === "object"
+      ? order.customerId.phoneNumber
+      : order.customer?.phone;
 
   const currentIdx = STATUS_FLOW.indexOf(order.status);
 
@@ -242,7 +253,7 @@ const VendorOrderDetailPage: React.FC = () => {
           <div className="border-t border-gray-200 mt-4 pt-4 space-y-2 text-sm">
             <div className="flex justify-between text-gray-600">
               <span>Subtotal</span>
-              <span>{formatCurrency(order.subtotal || order.totalAmount)}</span>
+              <span>{formatCurrency(order.subtotal || order.total)}</span>
             </div>
             {order.deliveryFee != null && (
               <div className="flex justify-between text-gray-600">
@@ -258,7 +269,7 @@ const VendorOrderDetailPage: React.FC = () => {
             )}
             <div className="flex justify-between font-semibold text-gray-900 text-base pt-2 border-t border-gray-100">
               <span>Total</span>
-              <span>{formatCurrency(order.totalAmount)}</span>
+              <span>{formatCurrency(order.total)}</span>
             </div>
           </div>
         </motion.div>
@@ -278,13 +289,13 @@ const VendorOrderDetailPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-gray-400" />
                 <span className="text-gray-700">
-                  {order.customer?.name || "—"}
+                  {customerName || "—"}
                 </span>
               </div>
-              {order.customer?.phone && (
+              {customerPhone && (
                 <div className="flex items-center gap-3">
                   <Phone className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-700">{order.customer.phone}</span>
+                  <span className="text-gray-700">{customerPhone}</span>
                 </div>
               )}
             </div>

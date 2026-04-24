@@ -194,10 +194,8 @@ export type VendorOrderStatus =
   | "pending"
   | "confirmed"
   | "preparing"
-  | "ready_for_pickup"
   | "ready"
   | "picked_up"
-  | "out_for_delivery"
   | "delivered"
   | "cancelled";
 
@@ -226,7 +224,6 @@ export interface VendorOrder {
   deliveryFee: number;
   discount: number;
   total: number;
-  totalAmount: number;
   couponCode?: string;
   specialInstructions?: string;
   cancelReason?: string;

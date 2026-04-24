@@ -26,8 +26,8 @@ const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
   { value: "confirmed", label: "Confirmed" },
   { value: "preparing", label: "Preparing" },
-  { value: "ready_for_pickup", label: "Ready for Pickup" },
-  { value: "out_for_delivery", label: "Out for Delivery" },
+  { value: "ready", label: "Ready for Pickup" },
+  { value: "picked_up", label: "Picked Up" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ];
@@ -36,8 +36,8 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700",
   confirmed: "bg-blue-100 text-blue-700",
   preparing: "bg-indigo-100 text-indigo-700",
-  ready_for_pickup: "bg-purple-100 text-purple-700",
-  out_for_delivery: "bg-cyan-100 text-cyan-700",
+  ready: "bg-purple-100 text-purple-700",
+  picked_up: "bg-cyan-100 text-cyan-700",
   delivered: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
 };
@@ -45,8 +45,9 @@ const STATUS_COLORS: Record<string, string> = {
 const NEXT_STATUS: Record<string, string> = {
   pending: "confirmed",
   confirmed: "preparing",
-  preparing: "ready_for_pickup",
-  ready_for_pickup: "out_for_delivery",
+  preparing: "ready",
+  ready: "picked_up",
+  picked_up: "delivered",
 };
 
 const VendorOrdersPage: React.FC = () => {
@@ -219,6 +220,13 @@ const VendorOrdersPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {orders.map((order) => (
+                  (() => {
+                    const customerName =
+                      typeof order.customerId === "object"
+                        ? `${order.customerId.firstName} ${order.customerId.lastName}`.trim()
+                        : order.customer?.name || "—";
+
+                    return (
                   <tr key={order._id} className="hover:bg-gray-50">
                     <td className="px-5 py-3">
                       <Link
@@ -229,13 +237,13 @@ const VendorOrdersPage: React.FC = () => {
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-gray-600">
-                      {order.customer?.name || "—"}
+                      {customerName || "—"}
                     </td>
                     <td className="px-5 py-3 text-gray-600">
                       {order.items?.length || 0}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-900">
-                      {formatCurrency(order.totalAmount)}
+                      {formatCurrency(order.total)}
                     </td>
                     <td className="px-5 py-3">
                       <span
@@ -281,6 +289,8 @@ const VendorOrdersPage: React.FC = () => {
                       </div>
                     </td>
                   </tr>
+                    );
+                  })()
                 ))}
               </tbody>
             </table>

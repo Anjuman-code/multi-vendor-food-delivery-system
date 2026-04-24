@@ -77,8 +77,8 @@ export interface CreateOrderPayload {
   items: {
     menuItemId: string;
     quantity: number;
-    variants?: { name: string; price: number }[];
-    addons?: { name: string; price: number }[];
+    variants?: { optionId?: string; name?: string }[];
+    addons?: { optionId?: string; name?: string }[];
     specialInstructions?: string;
   }[];
   deliveryAddress: DeliveryAddress;
