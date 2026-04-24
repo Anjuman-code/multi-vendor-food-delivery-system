@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Award } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import apiService from "@/services/apiService";
 import {
   RestaurantCard,
   RestaurantCardSkeleton,
@@ -30,6 +31,16 @@ import type {
   SortOption,
   Booking,
 } from "@/types/restaurant";
+
+interface ApiRestaurant {
+  _id: string;
+  name: string;
+  cuisineType?: string[];
+  rating?: { average?: number; count?: number };
+  address?: { street?: string; city?: string };
+  images?: { coverPhoto?: string; gallery?: string[] };
+  deliveryFee?: number;
+}
 
 // ============================================================================
 // Mock Data - Sylhet Local Restaurants
@@ -325,8 +336,8 @@ const RestaurantsPage: React.FC = () => {
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Restaurant data state
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(mockRestaurants);
-  const [isLoading, setIsLoading] = useState(false);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Filter states
@@ -349,6 +360,75 @@ const RestaurantsPage: React.FC = () => {
   const [galleryRestaurant, setGalleryRestaurant] = useState<Restaurant | null>(
     null,
   );
+
+  useEffect(() => {
+    const mapCuisine = (cuisine?: string): Restaurant["cuisine"] => {
+      const normalized = cuisine?.toLowerCase() || "continental";
+      if (
+        normalized.includes("sylheti") ||
+        normalized.includes("bengali") ||
+        normalized.includes("bangladeshi")
+      ) {
+        return "bengali";
+      }
+      if (normalized.includes("indian")) return "indian";
+      if (normalized.includes("chinese")) return "chinese";
+      if (normalized.includes("italian") || normalized.includes("pizza")) {
+        return "italian";
+      }
+      if (normalized.includes("american") || normalized.includes("burger")) {
+        return "american";
+      }
+      if (normalized.includes("thai")) return "thai";
+      if (normalized.includes("japanese")) return "japanese";
+      if (normalized.includes("mexican")) return "mexican";
+      if (normalized.includes("middle")) return "middle-eastern";
+      return "continental";
+    };
+
+    const mapRestaurant = (item: ApiRestaurant): Restaurant => {
+      const avg = item.rating?.average ?? 0;
+      return {
+        id: item._id,
+        name: item.name,
+        type: "restaurant",
+        cuisine: mapCuisine(item.cuisineType?.[0]),
+        rating: avg,
+        reviewCount: item.rating?.count ?? 0,
+        address: `${item.address?.street || ""}${item.address?.street && item.address?.city ? ", " : ""}${item.address?.city || ""}`.trim(),
+        image:
+          item.images?.coverPhoto ||
+          "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+        images: item.images?.gallery || [],
+        isFavorite: false,
+        isRecommended: avg >= 4.5,
+        recommendedReason: avg >= 4.5 ? `Highly rated ${avg.toFixed(1)}/5` : undefined,
+        amenities: ["card-payment", "to-go"],
+        priceRange: item.deliveryFee && item.deliveryFee > 60 ? "$$$" : "$$",
+      };
+    };
+
+    const loadRestaurants = async () => {
+      setIsLoading(true);
+      try {
+        const res = await apiService.getAllRestaurants();
+        const payload = res.data as { data?: ApiRestaurant[]; success?: boolean };
+        const apiRestaurants = Array.isArray(payload.data) ? payload.data : [];
+        setRestaurants(apiRestaurants.map(mapRestaurant));
+      } catch {
+        setRestaurants(mockRestaurants);
+        toast({
+          title: "Error",
+          description: "Failed to load restaurants.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadRestaurants();
+  }, [toast]);
 
   // ============================================================================
   // Filter handlers
@@ -501,7 +581,7 @@ const RestaurantsPage: React.FC = () => {
   // ============================================================================
 
   const handleFavoriteToggle = useCallback(
-    (id: number) => {
+    (id: string | number) => {
       setRestaurants((prev) =>
         prev.map((r) =>
           r.id === id ? { ...r, isFavorite: !r.isFavorite } : r,

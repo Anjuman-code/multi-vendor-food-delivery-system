@@ -1,7 +1,7 @@
 // Restaurant and Booking Types
 
 export interface Restaurant {
-  id: number;
+  id: string | number;
   name: string;
   type: RestaurantType;
   cuisine: CuisineType;
@@ -92,7 +92,7 @@ export type SortOption =
 
 // Booking Types
 export interface BookingFormData {
-  restaurantId: number;
+  restaurantId: string | number;
   guests: number;
   date: Date;
   time: string;

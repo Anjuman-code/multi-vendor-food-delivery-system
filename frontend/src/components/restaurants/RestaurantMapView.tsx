@@ -187,7 +187,10 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
 
   // Generate pseudo-random but consistent positions for pins based on restaurant id
   const getPinPosition = useCallback((restaurant: Restaurant) => {
-    const seed = restaurant.id * 137.5;
+    const seedBase = String(restaurant.id)
+      .split("")
+      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const seed = seedBase * 137.5;
     const x = 10 + (Math.sin(seed) * 0.5 + 0.5) * 80;
     const y = 15 + (Math.cos(seed * 1.3) * 0.5 + 0.5) * 65;
     return { left: `${x}%`, top: `${y}%` };

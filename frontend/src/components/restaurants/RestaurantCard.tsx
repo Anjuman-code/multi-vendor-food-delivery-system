@@ -20,7 +20,7 @@ import type { Restaurant } from "@/types/restaurant";
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
-  onFavoriteToggle: (id: number) => void;
+  onFavoriteToggle: (id: string | number) => void;
   onBookClick: (restaurant: Restaurant) => void;
   onCardClick: (restaurant: Restaurant) => void;
   onImageClick: (restaurant: Restaurant) => void;
