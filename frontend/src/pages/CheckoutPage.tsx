@@ -396,9 +396,9 @@ const CheckoutPage: React.FC = () => {
                     </p>
                     <p className="text-sm text-gray-800">
                       {selectedAddr.street}
-                      {selectedAddr.apartment && `, ${selectedAddr.apartment}`},{" "}
-                      {selectedAddr.city}, {selectedAddr.state}{" "}
-                      {selectedAddr.zipCode}
+                      {selectedAddr.apartment &&
+                        `, ${selectedAddr.apartment}`}, {selectedAddr.city},{" "}
+                      {selectedAddr.state} {selectedAddr.zipCode}
                     </p>
                   </Card>
                 )}

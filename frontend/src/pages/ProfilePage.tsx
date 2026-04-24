@@ -716,7 +716,9 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
-  const [newPaymentType, setNewPaymentType] = useState<"card" | "upi" | "wallet">("card");
+  const [newPaymentType, setNewPaymentType] = useState<
+    "card" | "upi" | "wallet"
+  >("card");
   const [newPaymentProvider, setNewPaymentProvider] = useState("");
   const [newPaymentAccountRef, setNewPaymentAccountRef] = useState("");
   const [newPaymentExpiryMonth, setNewPaymentExpiryMonth] = useState("");
@@ -819,7 +821,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     if (!provider) {
       toast({
         title: "Provider required",
-        description: "Enter a payment provider (for example Visa, bKash, Nagad).",
+        description:
+          "Enter a payment provider (for example Visa, bKash, Nagad).",
         variant: "destructive",
       });
       return;
@@ -828,7 +831,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     if (accountRefDigits.length < 4) {
       toast({
         title: "Invalid account reference",
-        description: "Enter at least 4 digits so we can store the last 4 securely.",
+        description:
+          "Enter at least 4 digits so we can store the last 4 securely.",
         variant: "destructive",
       });
       return;
@@ -920,7 +924,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       } else {
         toast({
           title: "Update failed",
-          description: res.message || "Could not update default payment method.",
+          description:
+            res.message || "Could not update default payment method.",
           variant: "destructive",
         });
       }
@@ -1301,11 +1306,17 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         </div>
 
         {isLoadingPayments ? (
-          <div className="text-sm text-gray-500">Loading payment methods...</div>
+          <div className="text-sm text-gray-500">
+            Loading payment methods...
+          </div>
         ) : paymentMethods.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-600 mb-2">No saved payment methods yet.</p>
-            <p className="text-xs text-gray-500">Add a card, UPI, or wallet to checkout faster.</p>
+            <p className="text-sm text-gray-600 mb-2">
+              No saved payment methods yet.
+            </p>
+            <p className="text-xs text-gray-500">
+              Add a card, UPI, or wallet to checkout faster.
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1422,7 +1433,9 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                 value={newPaymentAccountRef}
                 onChange={(e) => setNewPaymentAccountRef(e.target.value)}
                 placeholder={
-                  newPaymentType === "card" ? "4111 1111 1111 1111" : "Enter reference with digits"
+                  newPaymentType === "card"
+                    ? "4111 1111 1111 1111"
+                    : "Enter reference with digits"
                 }
                 className="rounded-xl"
               />
@@ -1462,8 +1475,12 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
 
             <div className="flex items-center justify-between rounded-xl border border-gray-200 p-3">
               <div>
-                <p className="text-sm font-medium text-gray-900">Set as default</p>
-                <p className="text-xs text-gray-500">Use this payment method first at checkout.</p>
+                <p className="text-sm font-medium text-gray-900">
+                  Set as default
+                </p>
+                <p className="text-xs text-gray-500">
+                  Use this payment method first at checkout.
+                </p>
               </div>
               <Switch
                 checked={newPaymentDefault}
