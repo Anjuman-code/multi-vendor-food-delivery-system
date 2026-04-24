@@ -1,77 +1,80 @@
-import React, { lazy, Suspense } from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { PageLoader } from "./components/PageLoader";
-import { AuthProvider } from "./contexts/AuthContext";
-import { CartProvider } from "./contexts/CartContext";
+import React, { lazy, Suspense } from 'react';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { PageLoader } from './components/PageLoader';
+import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 import {
   AccountLayout,
   AuthLayout,
   MainLayout,
   RootLayout,
   VendorLayout,
-} from "./layouts";
+} from './layouts';
 
 // Public pages
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const NewHomePage = lazy(() => import("./pages/NewHomePage"));
-const RegisterPage = lazy(() => import("./pages/RegisterPage"));
-const VendorRegisterPage = lazy(() => import("./pages/VendorRegisterPage"));
-const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const GoogleAuthCallbackPage = lazy(
+  () => import('./pages/GoogleAuthCallbackPage'),
+);
+const NewHomePage = lazy(() => import('./pages/NewHomePage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const VendorRegisterPage = lazy(() => import('./pages/VendorRegisterPage'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 
 // Info pages
-const AboutPage = lazy(() => import("./pages/AboutPage"));
-const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
-const ContactPage = lazy(() => import("./pages/ContactPage"));
-const FAQPage = lazy(() => import("./pages/FAQPage"));
-const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
-const TermsPage = lazy(() => import("./pages/TermsPage"));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
 
 // User pages
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const RestaurantDetailsPage = lazy(
-  () => import("./pages/RestaurantDetailsPage"),
+  () => import('./pages/RestaurantDetailsPage'),
 );
-const RestaurantsPage = lazy(() => import("./pages/RestaurantsPage"));
-const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
-const CartPage = lazy(() => import("./pages/CartPage"));
-const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
-const OrdersPage = lazy(() => import("./pages/OrdersPage"));
-const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage"));
-const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const RestaurantsPage = lazy(() => import('./pages/RestaurantsPage'));
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const OrderDetailsPage = lazy(() => import('./pages/OrderDetailsPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 // Vendor pages
 const VendorDashboardPage = lazy(
-  () => import("./pages/vendor/VendorDashboardPage"),
+  () => import('./pages/vendor/VendorDashboardPage'),
 );
 const VendorRestaurantsPage = lazy(
-  () => import("./pages/vendor/VendorRestaurantsPage"),
+  () => import('./pages/vendor/VendorRestaurantsPage'),
 );
 const RestaurantFormPage = lazy(
-  () => import("./pages/vendor/RestaurantFormPage"),
+  () => import('./pages/vendor/RestaurantFormPage'),
 );
-const VendorMenuPage = lazy(() => import("./pages/vendor/VendorMenuPage"));
-const VendorOrdersPage = lazy(() => import("./pages/vendor/VendorOrdersPage"));
+const VendorMenuPage = lazy(() => import('./pages/vendor/VendorMenuPage'));
+const VendorOrdersPage = lazy(() => import('./pages/vendor/VendorOrdersPage'));
 const VendorOrderDetailPage = lazy(
-  () => import("./pages/vendor/VendorOrderDetailPage"),
+  () => import('./pages/vendor/VendorOrderDetailPage'),
 );
 const VendorReviewsPage = lazy(
-  () => import("./pages/vendor/VendorReviewsPage"),
+  () => import('./pages/vendor/VendorReviewsPage'),
 );
 const VendorPromotionsPage = lazy(
-  () => import("./pages/vendor/VendorPromotionsPage"),
+  () => import('./pages/vendor/VendorPromotionsPage'),
 );
 const VendorAnalyticsPage = lazy(
-  () => import("./pages/vendor/VendorAnalyticsPage"),
+  () => import('./pages/vendor/VendorAnalyticsPage'),
 );
 const VendorSettingsPage = lazy(
-  () => import("./pages/vendor/VendorSettingsPage"),
+  () => import('./pages/vendor/VendorSettingsPage'),
 );
 
 // Fallback for not found
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function App(): React.ReactElement {
   return (
@@ -116,6 +119,10 @@ function App(): React.ReactElement {
 
                   <Route element={<AuthLayout />}>
                     <Route path="/login" element={<LoginPage />} />
+                    <Route
+                      path="/auth/google/callback"
+                      element={<GoogleAuthCallbackPage />}
+                    />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route
                       path="/vendor/register"

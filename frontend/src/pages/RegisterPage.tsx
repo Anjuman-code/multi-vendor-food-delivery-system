@@ -1,11 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -13,12 +7,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import SocialButton from "../components/SocialButton";
-import { registerSchema, type RegisterFormData } from "../lib/validation";
-import authService from "../services/authService";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Eye, EyeOff } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
+import SocialButton from '../components/SocialButton';
+import { registerSchema, type RegisterFormData } from '../lib/validation';
+import authService from '../services/authService';
 
 /**
  * RegisterPage - User registration page.
@@ -39,19 +39,19 @@ const RegisterPage: React.FC = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phoneNumber: "",
-      password: "",
-      confirmPassword: "",
+      firstName: '',
+      lastName: '',
+      email: '',
+      phoneNumber: '',
+      password: '',
+      confirmPassword: '',
       agreedToTerms: false,
     },
   });
@@ -70,33 +70,38 @@ const RegisterPage: React.FC = () => {
 
       if (response.success) {
         toast({
-          title: "Success",
+          title: 'Success',
           description:
-            "Account created successfully! Please check your email to verify.",
+            'Account created successfully! Please check your email to verify.',
         });
         // Navigate to verify-email page, passing email via router state
-        navigate("/verify-email", { state: { email: data.email } });
+        navigate('/verify-email', { state: { email: data.email } });
       } else {
         toast({
-          title: "Error",
-          description: response.message || "Registration failed",
-          variant: "destructive",
+          title: 'Error',
+          description: response.message || 'Registration failed',
+          variant: 'destructive',
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: "google" | "facebook") => {
+  const handleSocialLogin = (provider: 'google' | 'facebook') => {
+    if (provider === 'google') {
+      authService.startGoogleAuth('/');
+      return;
+    }
+
     toast({
-      title: "Info",
+      title: 'Info',
       description: `Social login with ${provider} coming soon`,
     });
   };
@@ -146,7 +151,7 @@ const RegisterPage: React.FC = () => {
                       placeholder="First name"
                       {...field}
                       className={
-                        form.formState.errors.firstName ? "border-red-500" : ""
+                        form.formState.errors.firstName ? 'border-red-500' : ''
                       }
                     />
                   </FormControl>
@@ -167,7 +172,7 @@ const RegisterPage: React.FC = () => {
                       placeholder="Last name"
                       {...field}
                       className={
-                        form.formState.errors.lastName ? "border-red-500" : ""
+                        form.formState.errors.lastName ? 'border-red-500' : ''
                       }
                     />
                   </FormControl>
@@ -189,7 +194,7 @@ const RegisterPage: React.FC = () => {
                     placeholder="Enter your email"
                     {...field}
                     className={
-                      form.formState.errors.email ? "border-red-500" : ""
+                      form.formState.errors.email ? 'border-red-500' : ''
                     }
                   />
                 </FormControl>
@@ -210,7 +215,7 @@ const RegisterPage: React.FC = () => {
                     placeholder="e.g. +8801XXXXXXXXX"
                     {...field}
                     className={
-                      form.formState.errors.phoneNumber ? "border-red-500" : ""
+                      form.formState.errors.phoneNumber ? 'border-red-500' : ''
                     }
                   />
                 </FormControl>
@@ -229,9 +234,9 @@ const RegisterPage: React.FC = () => {
                   <FormItem>
                     <FormControl>
                       <Input
-                        type={showPassword ? "text" : "password"}
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="Create a password"
-                        className={`${form.formState.errors.password ? "border-red-500" : ""} pr-10`}
+                        className={`${form.formState.errors.password ? 'border-red-500' : ''} pr-10`}
                         {...field}
                       />
                     </FormControl>
@@ -263,9 +268,9 @@ const RegisterPage: React.FC = () => {
                   <FormItem>
                     <FormControl>
                       <Input
-                        type={showConfirmPassword ? "text" : "password"}
+                        type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="Confirm your password"
-                        className={`${form.formState.errors.confirmPassword ? "border-red-500" : ""} pr-10`}
+                        className={`${form.formState.errors.confirmPassword ? 'border-red-500' : ''} pr-10`}
                         {...field}
                       />
                     </FormControl>
@@ -301,7 +306,7 @@ const RegisterPage: React.FC = () => {
                 </FormControl>
                 <div className="space-y-1 leading-none">
                   <FormLabel className="text-sm">
-                    I agree to the{" "}
+                    I agree to the{' '}
                     <Link
                       to="/terms"
                       className="text-orange-500 hover:text-orange-600 transition-colors"
@@ -345,7 +350,7 @@ const RegisterPage: React.FC = () => {
                 Creating account...
               </span>
             ) : (
-              "Create Account"
+              'Create Account'
             )}
           </Button>
         </form>
@@ -362,19 +367,19 @@ const RegisterPage: React.FC = () => {
       <div className="grid grid-cols-2 gap-3 mb-6">
         <SocialButton
           provider="google"
-          onClick={() => handleSocialLogin("google")}
+          onClick={() => handleSocialLogin('google')}
           isLoading={isLoading}
         />
         <SocialButton
           provider="facebook"
-          onClick={() => handleSocialLogin("facebook")}
+          onClick={() => handleSocialLogin('facebook')}
           isLoading={isLoading}
         />
       </div>
 
       {/* Login Link */}
       <p className="text-center text-sm text-gray-600">
-        Already have an account?{" "}
+        Already have an account?{' '}
         <Link
           to="/login"
           className="font-medium text-orange-500 hover:text-orange-600 transition-colors"

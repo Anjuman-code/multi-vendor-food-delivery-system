@@ -1,12 +1,13 @@
 import React, {
   createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
   ReactNode,
-} from "react";
-import type { AuthUser } from "../services/authService";
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import type { AuthUser } from '../services/authService';
+import authService from '../services/authService';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -22,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
@@ -36,44 +37,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize auth state from localStorage
-    const initAuth = () => {
-      const storedUser = localStorage.getItem("user");
-      const accessToken = localStorage.getItem("accessToken");
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem('user');
 
-      if (storedUser && accessToken) {
+      if (storedUser) {
         try {
           setUser(JSON.parse(storedUser));
         } catch {
-          // If parsing fails, clear invalid data
-          localStorage.removeItem("user");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          localStorage.removeItem('user');
         }
       }
+
+      const session = await authService.getSession();
+      if (session.success && session.data?.user) {
+        setUser(session.data.user);
+        localStorage.setItem('user', JSON.stringify(session.data.user));
+      } else {
+        setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
+
       setIsLoading(false);
     };
 
-    initAuth();
+    void initAuth();
   }, []);
 
   const login = useCallback((userData: AuthUser) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem('user', JSON.stringify(userData));
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   }, []);
 
   const updateUser = useCallback((updates: Partial<AuthUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
-      localStorage.setItem("user", JSON.stringify(updated));
+      localStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
   }, []);

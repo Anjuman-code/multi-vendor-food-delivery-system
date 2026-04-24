@@ -2,7 +2,7 @@
  * Authentication service – wraps all /api/auth endpoints.
  * Uses the shared httpClient (which handles tokens + refresh).
  */
-import httpClient from "../lib/httpClient";
+import httpClient from '../lib/httpClient';
 
 // ── Types matching backend responses ───────────────────────────
 
@@ -21,8 +21,13 @@ export interface RegisterResponseData {
 
 /** Shape returned by POST /api/auth/login */
 export interface LoginResponseData {
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
+  user: AuthUser;
+}
+
+/** Shape returned by GET /api/auth/session */
+export interface SessionResponseData {
   user: AuthUser;
 }
 
@@ -67,17 +72,17 @@ export interface LoginPayload {
 
 /** Extract a user-friendly error message from an Axios error. */
 const extractError = (error: unknown): ApiResponse => {
-  if (typeof error === "object" && error !== null && "response" in error) {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
     const axiosErr = error as { response?: { data?: ApiResponse } };
     if (axiosErr.response?.data) return axiosErr.response.data;
   }
-  if (typeof error === "object" && error !== null && "request" in error) {
+  if (typeof error === 'object' && error !== null && 'request' in error) {
     return {
       success: false,
-      message: "Network error. Please check your connection.",
+      message: 'Network error. Please check your connection.',
     };
   }
-  return { success: false, message: "An unexpected error occurred." };
+  return { success: false, message: 'An unexpected error occurred.' };
 };
 
 // ── Service ────────────────────────────────────────────────────
@@ -93,7 +98,7 @@ const authService = {
   ): Promise<ApiResponse<RegisterResponseData>> {
     try {
       const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
-        "/api/auth/register",
+        '/api/auth/register',
         payload,
       );
       return response.data;
@@ -112,7 +117,7 @@ const authService = {
   ): Promise<ApiResponse<RegisterResponseData>> {
     try {
       const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
-        "/api/auth/register/vendor",
+        '/api/auth/register/vendor',
         payload,
       );
       return response.data;
@@ -128,16 +133,9 @@ const authService = {
   async login(payload: LoginPayload): Promise<ApiResponse<LoginResponseData>> {
     try {
       const response = await httpClient.post<ApiResponse<LoginResponseData>>(
-        "/api/auth/login",
+        '/api/auth/login',
         payload,
       );
-
-      if (response.data.success && response.data.data) {
-        const { accessToken, refreshToken, user } = response.data.data;
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem("refreshToken", refreshToken);
-        localStorage.setItem("user", JSON.stringify(user));
-      }
 
       return response.data;
     } catch (error: unknown) {
@@ -151,15 +149,14 @@ const authService = {
    */
   async logout(): Promise<ApiResponse> {
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      await httpClient.post("/api/auth/logout", { refreshToken });
+      await httpClient.post('/api/auth/logout');
     } catch {
       // Best-effort – always clear local storage even if the request fails.
     }
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    return { success: true, message: "Logged out successfully" };
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    return { success: true, message: 'Logged out successfully' };
   },
 
   /**
@@ -169,7 +166,7 @@ const authService = {
   async forgotPassword(email: string): Promise<ApiResponse> {
     try {
       const response = await httpClient.post<ApiResponse>(
-        "/api/auth/forgot-password",
+        '/api/auth/forgot-password',
         { email },
       );
       return response.data;
@@ -188,7 +185,7 @@ const authService = {
   ): Promise<ApiResponse> {
     try {
       const response = await httpClient.post<ApiResponse>(
-        "/api/auth/reset-password",
+        '/api/auth/reset-password',
         { token, newPassword },
       );
       return response.data;
@@ -219,7 +216,7 @@ const authService = {
   async verifyOTP(email: string, otp: string): Promise<ApiResponse> {
     try {
       const response = await httpClient.post<ApiResponse>(
-        "/api/auth/verify-otp",
+        '/api/auth/verify-otp',
         { email, otp },
       );
       return response.data;
@@ -235,7 +232,7 @@ const authService = {
   async resendVerification(email: string): Promise<ApiResponse> {
     try {
       const response = await httpClient.post<ApiResponse>(
-        "/api/auth/resend-verification",
+        '/api/auth/resend-verification',
         { email },
       );
       return response.data;
@@ -254,7 +251,7 @@ const authService = {
   ): Promise<ApiResponse> {
     try {
       const response = await httpClient.put<ApiResponse>(
-        "/api/auth/change-password",
+        '/api/auth/change-password',
         { currentPassword, newPassword },
       );
       return response.data;
@@ -263,16 +260,49 @@ const authService = {
     }
   },
 
-  // ── Helpers ────────────────────────────────────────────────────
-
-  /** Check whether the user has an access token stored. */
-  isAuthenticated(): boolean {
-    return !!localStorage.getItem("accessToken");
+  /** GET /api/auth/session – bootstrap auth state from server session cookies. */
+  async getSession(): Promise<ApiResponse<SessionResponseData>> {
+    try {
+      const response =
+        await httpClient.get<ApiResponse<SessionResponseData>>(
+          '/api/auth/session',
+        );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<SessionResponseData>;
+    }
   },
 
-  /** Return the stored access token (or null). */
+  /** Redirect browser to backend OAuth start endpoint. */
+  startGoogleAuth(nextPath?: string): void {
+    const apiBase =
+      import.meta.env?.VITE_API_BASE_URL || 'http://localhost:2002';
+    const params = new URLSearchParams();
+
+    if (typeof nextPath === 'string' && nextPath.startsWith('/')) {
+      params.set('next', nextPath);
+    }
+
+    const query = params.toString();
+    const target = `${apiBase}/api/auth/google${query ? `?${query}` : ''}`;
+    window.location.assign(target);
+  },
+
+  /** Complete Google OAuth by loading authenticated user from server session. */
+  async completeGoogleAuth(): Promise<ApiResponse<SessionResponseData>> {
+    return this.getSession();
+  },
+
+  // ── Helpers ────────────────────────────────────────────────────
+
+  /** Check whether the app has a cached user snapshot. */
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('user');
+  },
+
+  /** Return legacy token from local storage (for backward compatibility only). */
   getToken(): string | null {
-    return localStorage.getItem("accessToken");
+    return localStorage.getItem('accessToken');
   },
 };
 

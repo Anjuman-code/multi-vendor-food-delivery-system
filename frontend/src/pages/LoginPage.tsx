@@ -1,11 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -13,12 +6,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import SocialButton from "../components/SocialButton";
-import { loginSchema, type LoginFormData } from "../lib/validation";
-import authService from "../services/authService";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Eye, EyeOff } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import SocialButton from '../components/SocialButton';
+import { loginSchema, type LoginFormData } from '../lib/validation';
+import authService from '../services/authService';
 
 /**
  * LoginPage - User login page.
@@ -31,21 +31,22 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { login, isAuthenticated, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(user?.role === "vendor" ? "/vendor" : "/", { replace: true });
+      navigate(user?.role === 'vendor' ? '/vendor' : '/', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      emailOrPhone: "",
-      password: "",
+      emailOrPhone: '',
+      password: '',
     },
   });
 
@@ -63,31 +64,38 @@ const LoginPage: React.FC = () => {
         login(response.data.user);
 
         toast({
-          title: "Success",
-          description: "Welcome back! Redirecting...",
+          title: 'Success',
+          description: 'Welcome back! Redirecting...',
         });
-        navigate(response.data.user.role === "vendor" ? "/vendor" : "/");
+        navigate(response.data.user.role === 'vendor' ? '/vendor' : '/');
       } else {
         toast({
-          title: "Error",
-          description: response.message || "Invalid credentials",
-          variant: "destructive",
+          title: 'Error',
+          description: response.message || 'Invalid credentials',
+          variant: 'destructive',
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: "google" | "facebook") => {
+  const handleSocialLogin = (provider: 'google' | 'facebook') => {
+    if (provider === 'google') {
+      const state = location.state as { from?: string } | null;
+      const nextPath = typeof state?.from === 'string' ? state.from : '/';
+      authService.startGoogleAuth(nextPath);
+      return;
+    }
+
     toast({
-      title: "Info",
+      title: 'Info',
       description: `Social login with ${provider} coming soon`,
     });
   };
@@ -136,8 +144,8 @@ const LoginPage: React.FC = () => {
                     {...field}
                     className={
                       form.formState.errors.emailOrPhone
-                        ? "border-red-500 focus:ring-red-500"
-                        : ""
+                        ? 'border-red-500 focus:ring-red-500'
+                        : ''
                     }
                   />
                 </FormControl>
@@ -170,9 +178,9 @@ const LoginPage: React.FC = () => {
                     <FormControl>
                       <Input
                         id="password"
-                        type={showPassword ? "text" : "password"}
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
-                        className={`${form.formState.errors.password ? "border-red-500 focus:ring-red-500" : ""} pr-10`}
+                        className={`${form.formState.errors.password ? 'border-red-500 focus:ring-red-500' : ''} pr-10`}
                         {...field}
                       />
                     </FormControl>
@@ -184,7 +192,7 @@ const LoginPage: React.FC = () => {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 transition-colors"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -225,7 +233,7 @@ const LoginPage: React.FC = () => {
                 Logging in...
               </span>
             ) : (
-              "Log in"
+              'Log in'
             )}
           </Button>
         </form>
@@ -242,19 +250,19 @@ const LoginPage: React.FC = () => {
       <div className="grid grid-cols-2 gap-3 mb-6">
         <SocialButton
           provider="google"
-          onClick={() => handleSocialLogin("google")}
+          onClick={() => handleSocialLogin('google')}
           isLoading={isLoading}
         />
         <SocialButton
           provider="facebook"
-          onClick={() => handleSocialLogin("facebook")}
+          onClick={() => handleSocialLogin('facebook')}
           isLoading={isLoading}
         />
       </div>
 
       {/* Sign Up Link */}
       <p className="text-center text-sm text-gray-600">
-        Don't have an account?{" "}
+        Don't have an account?{' '}
         <Link
           to="/register"
           className="font-medium text-orange-500 hover:text-orange-600 transition-colors"
