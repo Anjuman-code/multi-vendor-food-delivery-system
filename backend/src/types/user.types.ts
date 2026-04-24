@@ -1,13 +1,13 @@
 /**
  * User-related TypeScript type definitions for the multivendor food delivery system.
  */
-import { Document, Model, Types } from "mongoose";
+import { Document, Model, Types } from 'mongoose';
 import {
-  UserRole,
   AddressType,
-  PaymentMethodType,
   CustomerTier,
-} from "../config/constants";
+  PaymentMethodType,
+  UserRole,
+} from '../config/constants';
 
 // ────────────────────────────────────────────────────────────────
 // Address
@@ -37,14 +37,15 @@ export interface IAddress {
 
 export interface IUser {
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
   role: UserRole;
   isEmailVerified: boolean;
   isActive: boolean;
 
   firstName: string;
   lastName: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   isPhoneVerified: boolean;
   profileImage?: string;
   coverImage?: string;
@@ -84,7 +85,7 @@ export interface IUserMethods {
 
 /** Hydrated User document type (includes Mongoose Document + instance methods) */
 export interface IUserDocument
-  extends Omit<Document, "_id">, IUser, IUserMethods {
+  extends Omit<Document, '_id'>, IUser, IUserMethods {
   _id: Types.ObjectId;
 }
 
@@ -134,7 +135,7 @@ export interface ICustomerProfile {
 }
 
 export interface ICustomerProfileDocument
-  extends Omit<Document, "_id">, ICustomerProfile {
+  extends Omit<Document, '_id'>, ICustomerProfile {
   _id: Types.ObjectId;
 }
 
@@ -157,7 +158,7 @@ export interface IVendorProfile {
 }
 
 export interface IVendorProfileDocument
-  extends Omit<Document, "_id">, IVendorProfile {
+  extends Omit<Document, '_id'>, IVendorProfile {
   _id: Types.ObjectId;
 }
 
@@ -179,7 +180,7 @@ export interface IDriverProfile {
 }
 
 export interface IDriverProfileDocument
-  extends Omit<Document, "_id">, IDriverProfile {
+  extends Omit<Document, '_id'>, IDriverProfile {
   _id: Types.ObjectId;
 }
 

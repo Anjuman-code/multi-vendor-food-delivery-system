@@ -1,7 +1,7 @@
 declare namespace NodeJS {
   interface ProcessEnv {
     PORT?: string;
-    NODE_ENV?: "development" | "production" | "test";
+    NODE_ENV?: 'development' | 'production' | 'test';
     MONGODB_URI?: string;
 
     JWT_ACCESS_SECRET?: string;
@@ -19,6 +19,12 @@ declare namespace NodeJS {
     EMAIL_PASSWORD?: string;
 
     FRONTEND_URL?: string;
+    CORS_ALLOWED_ORIGINS?: string;
+    COOKIE_SAME_SITE?: 'lax' | 'strict' | 'none';
+
+    GOOGLE_CLIENT_ID?: string;
+    GOOGLE_CLIENT_SECRET?: string;
+    GOOGLE_REDIRECT_URI?: string;
 
     CLOUDINARY_CLOUD_NAME?: string;
     CLOUDINARY_API_KEY?: string;

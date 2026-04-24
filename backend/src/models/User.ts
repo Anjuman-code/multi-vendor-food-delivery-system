@@ -4,22 +4,22 @@
  * Supports: customer, vendor, driver, admin, support.
  * Includes instance methods, static methods, pre-save hooks, and indexes.
  */
-import mongoose, { Schema } from "mongoose";
-import bcrypt from "bcryptjs";
-import { UserRole, AddressType, AUTH } from "../config/constants";
+import bcrypt from 'bcryptjs';
+import mongoose, { Schema } from 'mongoose';
+import { AddressType, AUTH, UserRole } from '../config/constants';
 import {
-  IUserDocument,
-  IUserModel,
   IAddress,
   ICoordinates,
-} from "../types/user.types";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt.util";
+  IUserDocument,
+  IUserModel,
+} from '../types/user.types';
+import { generateAccessToken, generateRefreshToken } from '../utils/jwt.util';
 import {
-  generateVerificationToken,
-  generateResetToken,
   generateOTP,
+  generateResetToken,
+  generateVerificationToken,
   hashToken,
-} from "../utils/token.util";
+} from '../utils/token.util';
 
 // ── Sub-schemas ────────────────────────────────────────────────
 
@@ -51,21 +51,27 @@ const addressSchema = new Schema<IAddress>({
 
 const userSchema = new Schema<IUserDocument, IUserModel>(
   {
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: [true, 'Email is required'],
       unique: true,
       trim: true,
       lowercase: true,
       match: [
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        "Please enter a valid email",
+        'Please enter a valid email',
       ],
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
-      minlength: [8, "Password must be at least 8 characters long"],
+      required: false,
+      minlength: [8, 'Password must be at least 8 characters long'],
       select: false,
     },
     role: {
@@ -80,24 +86,25 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     // Profile
     firstName: {
       type: String,
-      required: [true, "First name is required"],
+      required: [true, 'First name is required'],
       trim: true,
-      minlength: [2, "First name must be at least 2 characters"],
-      maxlength: [50, "First name cannot exceed 50 characters"],
+      minlength: [2, 'First name must be at least 2 characters'],
+      maxlength: [50, 'First name cannot exceed 50 characters'],
     },
     lastName: {
       type: String,
-      required: [true, "Last name is required"],
+      required: [true, 'Last name is required'],
       trim: true,
-      minlength: [2, "Last name must be at least 2 characters"],
-      maxlength: [50, "Last name cannot exceed 50 characters"],
+      minlength: [2, 'Last name must be at least 2 characters'],
+      maxlength: [50, 'Last name cannot exceed 50 characters'],
     },
     phoneNumber: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: false,
       unique: true,
+      sparse: true,
       trim: true,
-      match: [/^\+?[\d\s\-()]+$/, "Please enter a valid phone number"],
+      match: [/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number'],
     },
     isPhoneVerified: { type: Boolean, default: false },
     profileImage: { type: String },
@@ -138,20 +145,20 @@ userSchema.index({ passwordResetToken: 1 }, { sparse: true });
 
 // ── Pre-save hooks ─────────────────────────────────────────────
 
-userSchema.pre("save", async function () {
+userSchema.pre('save', async function () {
   // Hash password if modified
-  if (this.isModified("password")) {
+  if (this.isModified('password') && this.password) {
     const salt = await bcrypt.genSalt(AUTH.BCRYPT_ROUNDS);
     this.password = await bcrypt.hash(this.password, salt);
   }
 
   // Normalize email
-  if (this.isModified("email")) {
+  if (this.isModified('email')) {
     this.email = this.email.toLowerCase().trim();
   }
 
   // Normalize phone
-  if (this.isModified("phoneNumber")) {
+  if (this.isModified('phoneNumber') && this.phoneNumber) {
     this.phoneNumber = this.phoneNumber.trim();
   }
 });
@@ -161,6 +168,10 @@ userSchema.pre("save", async function () {
 userSchema.methods.comparePassword = async function (
   candidatePassword: string,
 ): Promise<boolean> {
+  if (!this.password) {
+    return false;
+  }
+
   return bcrypt.compare(candidatePassword, this.password);
 };
 
@@ -246,6 +257,6 @@ userSchema.statics.findActiveUsers = function (
 
 // ── Export ──────────────────────────────────────────────────────
 
-const User = mongoose.model<IUserDocument, IUserModel>("User", userSchema);
+const User = mongoose.model<IUserDocument, IUserModel>('User', userSchema);
 
 export default User;
