@@ -395,14 +395,16 @@ const RestaurantsPage: React.FC = () => {
         cuisine: mapCuisine(item.cuisineType?.[0]),
         rating: avg,
         reviewCount: item.rating?.count ?? 0,
-        address: `${item.address?.street || ""}${item.address?.street && item.address?.city ? ", " : ""}${item.address?.city || ""}`.trim(),
+        address:
+          `${item.address?.street || ""}${item.address?.street && item.address?.city ? ", " : ""}${item.address?.city || ""}`.trim(),
         image:
           item.images?.coverPhoto ||
           "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
         images: item.images?.gallery || [],
         isFavorite: false,
         isRecommended: avg >= 4.5,
-        recommendedReason: avg >= 4.5 ? `Highly rated ${avg.toFixed(1)}/5` : undefined,
+        recommendedReason:
+          avg >= 4.5 ? `Highly rated ${avg.toFixed(1)}/5` : undefined,
         amenities: ["card-payment", "to-go"],
         priceRange: item.deliveryFee && item.deliveryFee > 60 ? "$$$" : "$$",
       };
@@ -412,7 +414,10 @@ const RestaurantsPage: React.FC = () => {
       setIsLoading(true);
       try {
         const res = await apiService.getAllRestaurants();
-        const payload = res.data as { data?: ApiRestaurant[]; success?: boolean };
+        const payload = res.data as {
+          data?: ApiRestaurant[];
+          success?: boolean;
+        };
         const apiRestaurants = Array.isArray(payload.data) ? payload.data : [];
         setRestaurants(apiRestaurants.map(mapRestaurant));
       } catch {

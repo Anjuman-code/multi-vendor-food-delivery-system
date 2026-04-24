@@ -197,8 +197,12 @@ const RestaurantDetailsPage: React.FC = () => {
       <div className="min-h-screen pt-24 px-4">
         <div className="max-w-2xl mx-auto">
           <Card className="p-8 text-center">
-            <p className="text-lg font-semibold text-gray-900 mb-2">Unable to load restaurant</p>
-            <p className="text-sm text-gray-600">{errorMessage || "Restaurant not found."}</p>
+            <p className="text-lg font-semibold text-gray-900 mb-2">
+              Unable to load restaurant
+            </p>
+            <p className="text-sm text-gray-600">
+              {errorMessage || "Restaurant not found."}
+            </p>
           </Card>
         </div>
       </div>
@@ -211,17 +215,23 @@ const RestaurantDetailsPage: React.FC = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="relative rounded-2xl overflow-hidden h-64 sm:h-80 mb-6">
             <img
-              src={restaurant.images?.coverPhoto || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80"}
+              src={
+                restaurant.images?.coverPhoto ||
+                "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80"
+              }
               alt={restaurant.name}
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 text-white">
-              <h1 className="text-2xl sm:text-3xl font-bold">{restaurant.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">
+                {restaurant.name}
+              </h1>
               <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
                 <span className="inline-flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                  {(restaurant.rating?.average || 0).toFixed(1)} ({restaurant.rating?.count || 0})
+                  {(restaurant.rating?.average || 0).toFixed(1)} (
+                  {restaurant.rating?.count || 0})
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock className="w-4 h-4" />
@@ -234,14 +244,19 @@ const RestaurantDetailsPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card className="p-5">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">About</h2>
-                <p className="text-sm text-gray-700 leading-relaxed">{restaurant.description}</p>
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  About
+                </h2>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {restaurant.description}
+                </p>
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
                   <p className="inline-flex items-start gap-2">
                     <MapPin className="w-4 h-4 mt-0.5 text-orange-500" />
                     <span>
-                      {restaurant.address.street}, {restaurant.address.city}, {restaurant.address.state}
+                      {restaurant.address.street}, {restaurant.address.city},{" "}
+                      {restaurant.address.state}
                     </span>
                   </p>
                   <p className="inline-flex items-start gap-2">
@@ -258,37 +273,49 @@ const RestaurantDetailsPage: React.FC = () => {
                 </h2>
 
                 {Object.keys(groupedMenu).length === 0 ? (
-                  <p className="text-sm text-gray-600">No menu items available yet for this restaurant.</p>
+                  <p className="text-sm text-gray-600">
+                    No menu items available yet for this restaurant.
+                  </p>
                 ) : (
                   <div className="space-y-6">
-                    {Object.entries(groupedMenu).map(([categoryName, items]) => (
-                      <div key={categoryName}>
-                        <h3 className="text-base font-semibold text-gray-900 mb-3">{categoryName}</h3>
-                        <div className="space-y-3">
-                          {items.map((item) => (
-                            <div
-                              key={item._id}
-                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border border-gray-100 rounded-xl p-3"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-medium text-gray-900">{item.name}</p>
-                                <p className="text-sm text-gray-600 truncate">{item.description}</p>
+                    {Object.entries(groupedMenu).map(
+                      ([categoryName, items]) => (
+                        <div key={categoryName}>
+                          <h3 className="text-base font-semibold text-gray-900 mb-3">
+                            {categoryName}
+                          </h3>
+                          <div className="space-y-3">
+                            {items.map((item) => (
+                              <div
+                                key={item._id}
+                                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border border-gray-100 rounded-xl p-3"
+                              >
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900">
+                                    {item.name}
+                                  </p>
+                                  <p className="text-sm text-gray-600 truncate">
+                                    {item.description}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-orange-600 font-semibold">
+                                    ৳{item.price}
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAddToCart(item)}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                                  >
+                                    Add to cart
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-orange-600 font-semibold">৳{item.price}</span>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleAddToCart(item)}
-                                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                                >
-                                  Add to cart
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ),
+                    )}
                   </div>
                 )}
               </Card>
@@ -296,19 +323,27 @@ const RestaurantDetailsPage: React.FC = () => {
 
             <div>
               <Card className="p-5 sticky top-24">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Delivery Info</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                  Delivery Info
+                </h2>
                 <div className="space-y-2 text-sm text-gray-700">
                   <p className="flex items-center justify-between">
                     <span>Delivery fee</span>
-                    <span className="font-medium">৳{restaurant.deliveryFee || 0}</span>
+                    <span className="font-medium">
+                      ৳{restaurant.deliveryFee || 0}
+                    </span>
                   </p>
                   <p className="flex items-center justify-between">
                     <span>Minimum order</span>
-                    <span className="font-medium">৳{restaurant.minimumOrder || 0}</span>
+                    <span className="font-medium">
+                      ৳{restaurant.minimumOrder || 0}
+                    </span>
                   </p>
                   <p className="flex items-center justify-between">
                     <span>Estimated time</span>
-                    <span className="font-medium">{restaurant.deliveryTime || "30-45 min"}</span>
+                    <span className="font-medium">
+                      {restaurant.deliveryTime || "30-45 min"}
+                    </span>
                   </p>
                 </div>
               </Card>
