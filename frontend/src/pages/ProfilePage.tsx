@@ -91,7 +91,12 @@ import {
 } from "@/lib/validation";
 
 // ── Types ──────────────────────────────────────────────────────
-type ProfileTab = "profile" | "addresses" | "preferences" | "security";
+type ProfileTab =
+  | "profile"
+  | "addresses"
+  | "payment"
+  | "preferences"
+  | "security";
 
 // ── Helpers ────────────────────────────────────────────────────
 const formatRelativeTime = (dateStr: string): string => {
@@ -122,6 +127,102 @@ const formatMemberSince = (dateStr: string): string => {
     month: "short",
     year: "numeric",
   });
+};
+
+const COUNTRY_OPTIONS = [
+  "Bangladesh",
+  "India",
+  "United States",
+  "United Kingdom",
+  "United Arab Emirates",
+  "Other",
+];
+
+const STATE_OPTIONS = [
+  "Sylhet",
+  "Dhaka",
+  "Chattogram",
+  "Rajshahi",
+  "Khulna",
+  "Barishal",
+  "Rangpur",
+  "Mymensingh",
+  "Other",
+];
+
+const CITY_OPTIONS = [
+  "Sylhet",
+  "Moulvibazar",
+  "Habiganj",
+  "Sunamganj",
+  "Dhaka",
+  "Chattogram",
+  "Khulna",
+  "Rajshahi",
+  "Other",
+];
+
+const reverseGeocodeCoordinates = async (
+  latitude: number,
+  longitude: number,
+): Promise<Partial<AddAddressFormData>> => {
+  const url = new URL("https://nominatim.openstreetmap.org/reverse");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("lat", String(latitude));
+  url.searchParams.set("lon", String(longitude));
+  url.searchParams.set("addressdetails", "1");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "en",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Reverse geocoding failed");
+  }
+
+  const data = (await response.json()) as {
+    address?: {
+      house_number?: string;
+      road?: string;
+      pedestrian?: string;
+      neighbourhood?: string;
+      suburb?: string;
+      city?: string;
+      town?: string;
+      village?: string;
+      municipality?: string;
+      county?: string;
+      state?: string;
+      country?: string;
+      postcode?: string;
+    };
+  };
+
+  const address = data.address ?? {};
+  const street = [
+    address.house_number,
+    address.road || address.pedestrian || address.neighbourhood || address.suburb,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return {
+    street: street || undefined,
+    city:
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.county ||
+      undefined,
+    state: address.state || undefined,
+    country: address.country || undefined,
+    zipCode: address.postcode || undefined,
+  };
 };
 
 // ── Stat Pill ──────────────────────────────────────────────────
@@ -323,6 +424,11 @@ const ProfilePage: React.FC = () => {
       id: "addresses",
       label: "Addresses",
       icon: <MapPin className="w-4 h-4" />,
+    },
+    {
+      id: "payment",
+      label: "Payment",
+      icon: <CreditCard className="w-4 h-4" />,
     },
     {
       id: "preferences",
@@ -665,6 +771,7 @@ const ProfilePage: React.FC = () => {
                   onRefresh={fetchProfile}
                 />
               )}
+              {activeTab === "payment" && <PaymentSection />}
               {activeTab === "preferences" && (
                 <PreferencesSection
                   customerProfile={customerProfile}
@@ -711,19 +818,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [showPhoneVerify, setShowPhoneVerify] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
-  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
-  const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
-  const [newPaymentType, setNewPaymentType] = useState<
-    "card" | "upi" | "wallet"
-  >("card");
-  const [newPaymentProvider, setNewPaymentProvider] = useState("");
-  const [newPaymentAccountRef, setNewPaymentAccountRef] = useState("");
-  const [newPaymentExpiryMonth, setNewPaymentExpiryMonth] = useState("");
-  const [newPaymentExpiryYear, setNewPaymentExpiryYear] = useState("");
-  const [newPaymentDefault, setNewPaymentDefault] = useState(false);
 
   const form = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
@@ -749,25 +843,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       });
     }
   }, [profile, form]);
-
-  const fetchPaymentMethods = useCallback(async () => {
-    setIsLoadingPayments(true);
-    const res = await userService.getPaymentMethods();
-    if (res.success && res.data) {
-      setPaymentMethods(res.data.paymentMethods);
-    } else {
-      toast({
-        title: "Error",
-        description: res.message || "Failed to load payment methods",
-        variant: "destructive",
-      });
-    }
-    setIsLoadingPayments(false);
-  }, [toast]);
-
-  useEffect(() => {
-    fetchPaymentMethods();
-  }, [fetchPaymentMethods]);
 
   const onSubmit = async (data: UpdateProfileFormData) => {
     setIsSaving(true);
@@ -804,159 +879,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     });
     setIsResendingVerification(false);
   };
-
-  const resetPaymentForm = useCallback(() => {
-    setNewPaymentType("card");
-    setNewPaymentProvider("");
-    setNewPaymentAccountRef("");
-    setNewPaymentExpiryMonth("");
-    setNewPaymentExpiryYear("");
-    setNewPaymentDefault(false);
-  }, []);
-
-  const handleAddPaymentMethod = useCallback(async () => {
-    const provider = newPaymentProvider.trim();
-    const accountRefDigits = newPaymentAccountRef.replace(/\D/g, "");
-
-    if (!provider) {
-      toast({
-        title: "Provider required",
-        description:
-          "Enter a payment provider (for example Visa, bKash, Nagad).",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (accountRefDigits.length < 4) {
-      toast({
-        title: "Invalid account reference",
-        description:
-          "Enter at least 4 digits so we can store the last 4 securely.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const payload: {
-      type: "card" | "upi" | "wallet";
-      provider: string;
-      token: string;
-      last4: string;
-      isDefault?: boolean;
-      expiryMonth?: number;
-      expiryYear?: number;
-    } = {
-      type: newPaymentType,
-      provider,
-      token: `pm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
-      last4: accountRefDigits.slice(-4),
-      isDefault: newPaymentDefault,
-    };
-
-    if (newPaymentType === "card") {
-      const monthNum = Number(newPaymentExpiryMonth);
-      const yearNum = Number(newPaymentExpiryYear);
-      if (
-        !Number.isInteger(monthNum) ||
-        monthNum < 1 ||
-        monthNum > 12 ||
-        !Number.isInteger(yearNum) ||
-        yearNum < 2024 ||
-        yearNum > 2050
-      ) {
-        toast({
-          title: "Invalid expiry",
-          description: "Enter a valid card expiry month and year.",
-          variant: "destructive",
-        });
-        return;
-      }
-      payload.expiryMonth = monthNum;
-      payload.expiryYear = yearNum;
-    }
-
-    setIsAddingPayment(true);
-    const res = await userService.addPaymentMethod(payload);
-    if (res.success && res.data?.paymentMethod) {
-      setPaymentMethods((prev) => {
-        const next = res.data!.paymentMethod.isDefault
-          ? prev.map((pm) => ({ ...pm, isDefault: false }))
-          : prev;
-        return [...next, res.data!.paymentMethod];
-      });
-      setIsAddPaymentOpen(false);
-      resetPaymentForm();
-      toast({ title: "Payment method added" });
-    } else {
-      toast({
-        title: "Add payment failed",
-        description: res.message || "Could not add payment method.",
-        variant: "destructive",
-      });
-    }
-    setIsAddingPayment(false);
-  }, [
-    newPaymentProvider,
-    newPaymentAccountRef,
-    newPaymentType,
-    newPaymentDefault,
-    newPaymentExpiryMonth,
-    newPaymentExpiryYear,
-    resetPaymentForm,
-    toast,
-  ]);
-
-  const handleSetDefaultPayment = useCallback(
-    async (methodId: string) => {
-      setIsUpdatingPayment(true);
-      const res = await userService.updatePaymentMethod(methodId, {
-        isDefault: true,
-      });
-      if (res.success && res.data?.paymentMethod) {
-        setPaymentMethods((prev) =>
-          prev.map((pm) => ({
-            ...pm,
-            isDefault: pm._id === res.data!.paymentMethod._id,
-          })),
-        );
-        toast({ title: "Default payment updated" });
-      } else {
-        toast({
-          title: "Update failed",
-          description:
-            res.message || "Could not update default payment method.",
-          variant: "destructive",
-        });
-      }
-      setIsUpdatingPayment(false);
-    },
-    [toast],
-  );
-
-  const handleDeletePaymentMethod = useCallback(
-    async (methodId: string) => {
-      const shouldDelete = window.confirm(
-        "Remove this payment method from your account?",
-      );
-      if (!shouldDelete) return;
-
-      setIsUpdatingPayment(true);
-      const res = await userService.deletePaymentMethod(methodId);
-      if (res.success) {
-        setPaymentMethods((prev) => prev.filter((pm) => pm._id !== methodId));
-        toast({ title: "Payment method removed" });
-      } else {
-        toast({
-          title: "Remove failed",
-          description: res.message || "Could not remove payment method.",
-          variant: "destructive",
-        });
-      }
-      setIsUpdatingPayment(false);
-    },
-    [toast],
-  );
 
   if (isLoading) return <ProfileSkeleton />;
 
@@ -1289,6 +1211,209 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         isLoading={isLoading}
       />
 
+      {/* Phone Verification Dialog */}
+      <PhoneVerificationDialog
+        open={showPhoneVerify}
+        onOpenChange={setShowPhoneVerify}
+        phoneNumber={profile?.phoneNumber}
+      />
+    </div>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════
+// Payment Section
+// ════════════════════════════════════════════════════════════════
+const PaymentSection: React.FC = () => {
+  const { toast } = useToast();
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(true);
+  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [newPaymentType, setNewPaymentType] = useState<
+    "card" | "upi" | "wallet"
+  >("card");
+  const [newPaymentProvider, setNewPaymentProvider] = useState("");
+  const [newPaymentAccountRef, setNewPaymentAccountRef] = useState("");
+  const [newPaymentExpiryMonth, setNewPaymentExpiryMonth] = useState("");
+  const [newPaymentExpiryYear, setNewPaymentExpiryYear] = useState("");
+  const [newPaymentDefault, setNewPaymentDefault] = useState(false);
+
+  const resetPaymentForm = useCallback(() => {
+    setNewPaymentType("card");
+    setNewPaymentProvider("");
+    setNewPaymentAccountRef("");
+    setNewPaymentExpiryMonth("");
+    setNewPaymentExpiryYear("");
+    setNewPaymentDefault(false);
+  }, []);
+
+  const fetchPaymentMethods = useCallback(async () => {
+    setIsLoadingPayments(true);
+    const res = await userService.getPaymentMethods();
+    if (res.success && res.data) {
+      setPaymentMethods(res.data.paymentMethods);
+    } else {
+      toast({
+        title: "Error",
+        description: res.message || "Failed to load payment methods",
+        variant: "destructive",
+      });
+    }
+    setIsLoadingPayments(false);
+  }, [toast]);
+
+  useEffect(() => {
+    void fetchPaymentMethods();
+  }, [fetchPaymentMethods]);
+
+  const handleAddPaymentMethod = useCallback(async () => {
+    const provider = newPaymentProvider.trim();
+    const accountRefDigits = newPaymentAccountRef.replace(/\D/g, "");
+
+    if (!provider) {
+      toast({
+        title: "Provider required",
+        description:
+          "Enter a payment provider (for example Visa, bKash, Nagad).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (accountRefDigits.length < 4) {
+      toast({
+        title: "Invalid account reference",
+        description:
+          "Enter at least 4 digits so we can store the last 4 securely.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload: {
+      type: "card" | "upi" | "wallet";
+      provider: string;
+      token: string;
+      last4: string;
+      isDefault?: boolean;
+      expiryMonth?: number;
+      expiryYear?: number;
+    } = {
+      type: newPaymentType,
+      provider,
+      token: `pm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      last4: accountRefDigits.slice(-4),
+      isDefault: newPaymentDefault,
+    };
+
+    if (newPaymentType === "card") {
+      const monthNum = Number(newPaymentExpiryMonth);
+      const yearNum = Number(newPaymentExpiryYear);
+      if (
+        !Number.isInteger(monthNum) ||
+        monthNum < 1 ||
+        monthNum > 12 ||
+        !Number.isInteger(yearNum) ||
+        yearNum < 2024 ||
+        yearNum > 2050
+      ) {
+        toast({
+          title: "Invalid expiry",
+          description: "Enter a valid card expiry month and year.",
+          variant: "destructive",
+        });
+        return;
+      }
+      payload.expiryMonth = monthNum;
+      payload.expiryYear = yearNum;
+    }
+
+    setIsAddingPayment(true);
+    const res = await userService.addPaymentMethod(payload);
+    if (res.success && res.data?.paymentMethod) {
+      setPaymentMethods((prev) => {
+        const next = res.data!.paymentMethod.isDefault
+          ? prev.map((pm) => ({ ...pm, isDefault: false }))
+          : prev;
+        return [...next, res.data!.paymentMethod];
+      });
+      setIsAddPaymentOpen(false);
+      resetPaymentForm();
+      toast({ title: "Payment method added" });
+    } else {
+      toast({
+        title: "Add payment failed",
+        description: res.message || "Could not add payment method.",
+        variant: "destructive",
+      });
+    }
+    setIsAddingPayment(false);
+  }, [
+    newPaymentProvider,
+    newPaymentAccountRef,
+    newPaymentType,
+    newPaymentDefault,
+    newPaymentExpiryMonth,
+    newPaymentExpiryYear,
+    resetPaymentForm,
+    toast,
+  ]);
+
+  const handleSetDefaultPayment = useCallback(
+    async (methodId: string) => {
+      setIsUpdatingPayment(true);
+      const res = await userService.updatePaymentMethod(methodId, {
+        isDefault: true,
+      });
+      if (res.success && res.data?.paymentMethod) {
+        setPaymentMethods((prev) =>
+          prev.map((pm) => ({
+            ...pm,
+            isDefault: pm._id === res.data!.paymentMethod._id,
+          })),
+        );
+        toast({ title: "Default payment updated" });
+      } else {
+        toast({
+          title: "Update failed",
+          description:
+            res.message || "Could not update default payment method.",
+          variant: "destructive",
+        });
+      }
+      setIsUpdatingPayment(false);
+    },
+    [toast],
+  );
+
+  const handleDeletePaymentMethod = useCallback(
+    async (methodId: string) => {
+      const shouldDelete = window.confirm(
+        "Remove this payment method from your account?",
+      );
+      if (!shouldDelete) return;
+
+      setIsUpdatingPayment(true);
+      const res = await userService.deletePaymentMethod(methodId);
+      if (res.success) {
+        setPaymentMethods((prev) => prev.filter((pm) => pm._id !== methodId));
+        toast({ title: "Payment method removed" });
+      } else {
+        toast({
+          title: "Remove failed",
+          description: res.message || "Could not remove payment method.",
+          variant: "destructive",
+        });
+      }
+      setIsUpdatingPayment(false);
+    },
+    [toast],
+  );
+
+  return (
+    <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -1517,13 +1642,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Phone Verification Dialog */}
-      <PhoneVerificationDialog
-        open={showPhoneVerify}
-        onOpenChange={setShowPhoneVerify}
-        phoneNumber={profile?.phoneNumber}
-      />
     </div>
   );
 };
@@ -1951,6 +2069,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
   const form = useForm<AddAddressFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(addAddressSchema) as any,
+    mode: "onChange",
     defaultValues: {
       type: address?.type ?? "home",
       street: address?.street ?? "",
@@ -2031,6 +2150,90 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
     setIsSaving(false);
   };
 
+  const handleUseCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Not supported",
+        description: "Geolocation is not supported by your browser.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const latitude = Math.round(pos.coords.latitude * 1e6) / 1e6;
+        const longitude = Math.round(pos.coords.longitude * 1e6) / 1e6;
+
+        form.setValue("latitude", latitude, { shouldValidate: true });
+        form.setValue("longitude", longitude, { shouldValidate: true });
+
+        try {
+          const resolvedAddress = await reverseGeocodeCoordinates(
+            latitude,
+            longitude,
+          );
+
+          if (resolvedAddress.street) {
+            form.setValue("street", resolvedAddress.street, {
+              shouldValidate: true,
+            });
+          }
+          if (resolvedAddress.city) {
+            form.setValue("city", resolvedAddress.city, {
+              shouldValidate: true,
+            });
+          }
+          if (resolvedAddress.state) {
+            form.setValue("state", resolvedAddress.state, {
+              shouldValidate: true,
+            });
+          }
+          if (resolvedAddress.country) {
+            form.setValue("country", resolvedAddress.country, {
+              shouldValidate: true,
+            });
+          }
+          if (resolvedAddress.zipCode) {
+            form.setValue("zipCode", resolvedAddress.zipCode, {
+              shouldValidate: true,
+            });
+          }
+
+          toast({
+            title: "Location detected",
+            description: "Your address fields were updated automatically.",
+          });
+        } catch {
+          toast({
+            title: "Location detected",
+            description:
+              "Coordinates were saved, but address lookup could not complete.",
+          });
+        } finally {
+          setIsDetectingLocation(false);
+        }
+      },
+      (err) => {
+        setIsDetectingLocation(false);
+        toast({
+          title: "Location error",
+          description:
+            err.code === 1
+              ? "Location permission denied. Please allow location access in your browser settings."
+              : "Could not detect your location. Please try again.",
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 0,
+      },
+    );
+  }, [form, toast]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -2044,6 +2247,46 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Use your current location
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    We will fill your address fields from the GPS coordinates.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isDetectingLocation}
+                  className="rounded-xl gap-2 flex-shrink-0"
+                  onClick={handleUseCurrentLocation}
+                >
+                  {isDetectingLocation ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MapPin className="w-4 h-4" />
+                  )}
+                  {isDetectingLocation ? "Detecting…" : "Use my location"}
+                </Button>
+              </div>
+              {form.watch("latitude") !== 0 &&
+              form.watch("longitude") !== 0 ? (
+                <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Location set ({form.watch("latitude")?.toFixed(6)}, {" "}
+                  {form.watch("longitude")?.toFixed(6)})
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  We need your location for delivery
+                </span>
+              )}
+            </div>
+
             <FormField
               control={form.control}
               name="type"
@@ -2051,8 +2294,8 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                 <FormItem>
                   <FormLabel>Address Type</FormLabel>
                   <Select
+                    value={field.value}
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger className="rounded-xl">
@@ -2111,7 +2354,18 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input {...field} className="rounded-xl" />
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Select city" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CITY_OPTIONS.map((city) => (
+                            <SelectItem key={city} value={city}>
+                              {city}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2124,7 +2378,18 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   <FormItem>
                     <FormLabel>State</FormLabel>
                     <FormControl>
-                      <Input {...field} className="rounded-xl" />
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATE_OPTIONS.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2152,95 +2417,30 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   <FormItem>
                     <FormLabel>Country</FormLabel>
                     <FormControl>
-                      <Input {...field} className="rounded-xl" />
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRY_OPTIONS.map((country) => (
+                            <SelectItem key={country} value={country}>
+                              {country}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            {/* Location detection */}
-            <div className="space-y-2">
-              <FormLabel>Location</FormLabel>
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isDetectingLocation}
-                  className="rounded-xl gap-2 flex-shrink-0"
-                  onClick={() => {
-                    if (!navigator.geolocation) {
-                      toast({
-                        title: "Not supported",
-                        description:
-                          "Geolocation is not supported by your browser.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    setIsDetectingLocation(true);
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        form.setValue(
-                          "latitude",
-                          Math.round(pos.coords.latitude * 1e6) / 1e6,
-                          { shouldValidate: true },
-                        );
-                        form.setValue(
-                          "longitude",
-                          Math.round(pos.coords.longitude * 1e6) / 1e6,
-                          { shouldValidate: true },
-                        );
-                        setIsDetectingLocation(false);
-                        toast({ title: "Location detected!" });
-                      },
-                      (err) => {
-                        setIsDetectingLocation(false);
-                        toast({
-                          title: "Location error",
-                          description:
-                            err.code === 1
-                              ? "Location permission denied. Please allow location access in your browser settings."
-                              : "Could not detect your location. Please try again.",
-                          variant: "destructive",
-                        });
-                      },
-                      {
-                        enableHighAccuracy: true,
-                        timeout: 30000,
-                        maximumAge: 0,
-                      },
-                    );
-                  }}
-                >
-                  {isDetectingLocation ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <MapPin className="w-4 h-4" />
-                  )}
-                  {isDetectingLocation ? "Detecting…" : "Use my location"}
-                </Button>
-                {form.watch("latitude") !== 0 &&
-                form.watch("longitude") !== 0 ? (
-                  <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Location set ({form.watch("latitude")?.toFixed(6)},{" "}
-                    {form.watch("longitude")?.toFixed(6)})
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    We need your location for delivery
-                  </span>
-                )}
-              </div>
-              {(form.formState.errors.latitude ||
-                form.formState.errors.longitude) && (
-                <p className="text-sm font-medium text-destructive">
-                  Please detect your location before submitting
-                </p>
-              )}
-            </div>
+            {(form.formState.errors.latitude ||
+              form.formState.errors.longitude) && (
+              <p className="text-sm font-medium text-destructive">
+                Please detect your location before submitting
+              </p>
+            )}
             <DialogFooter className="pt-2">
               <Button
                 type="button"
@@ -2252,7 +2452,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSaving}
+                disabled={isSaving || !form.formState.isValid}
                 className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
               >
                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
