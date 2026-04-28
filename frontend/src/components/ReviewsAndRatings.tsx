@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
   Star,
@@ -11,86 +12,43 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import apiService from "@/services/apiService";
+import reviewService from "@/services/reviewService";
+
+interface ApiRestaurant {
+  _id: string;
+  name: string;
+  address?: {
+    city?: string;
+    state?: string;
+  };
+}
+
+interface ApiReviewCustomer {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  profileImage?: string;
+}
+
+interface ApiReview {
+  _id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  customerId: string | ApiReviewCustomer;
+}
+
 interface Review {
-  id: number;
+  id: string;
   name: string;
   rating: number;
   comment: string;
   date: string;
   avatar: string;
   location: string;
-  orderCount: number;
+  createdAt: string;
 }
-
-// Mock data for reviews
-const mockReviews: Review[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    rating: 5,
-    comment:
-      "The food arrived hot and fresh, exactly as described. The delivery driver was incredibly friendly and punctual. Will definitely order again!",
-    date: "Oct 15, 2025",
-    avatar: "https://randomuser.me/api/portraits/women/32.jpg",
-    location: "New York, NY",
-    orderCount: 47,
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    rating: 4,
-    comment:
-      "Great selection of restaurants and easy ordering process. My Thai curry was delicious and authentic. The app experience is seamless!",
-    date: "Nov 8, 2025",
-    avatar: "https://randomuser.me/api/portraits/men/44.jpg",
-    location: "San Francisco, CA",
-    orderCount: 23,
-  },
-  {
-    id: 3,
-    name: "Emma Rodriguez",
-    rating: 5,
-    comment:
-      "Absolutely love this service! The variety of cuisines available is impressive. Customer service helped resolve an issue with my order quickly.",
-    date: "Dec 20, 2025",
-    avatar: "https://randomuser.me/api/portraits/women/68.jpg",
-    location: "Austin, TX",
-    orderCount: 89,
-  },
-  {
-    id: 4,
-    name: "David Kim",
-    rating: 5,
-    comment:
-      "As someone who works long hours, this food delivery service has been a lifesaver. The quality is consistently excellent and very user-friendly.",
-    date: "Jan 5, 2026",
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-    location: "Seattle, WA",
-    orderCount: 156,
-  },
-  {
-    id: 5,
-    name: "Priya Sharma",
-    rating: 5,
-    comment:
-      "The best food delivery app I've ever used! Real-time tracking is accurate, and the food quality from partner restaurants is outstanding.",
-    date: "Jan 18, 2026",
-    avatar: "https://randomuser.me/api/portraits/women/45.jpg",
-    location: "Chicago, IL",
-    orderCount: 34,
-  },
-  {
-    id: 6,
-    name: "James Wilson",
-    rating: 4,
-    comment:
-      "Impressive restaurant selection and the rewards program is fantastic. Already saved so much on my regular orders. Highly recommend!",
-    date: "Jan 25, 2026",
-    avatar: "https://randomuser.me/api/portraits/men/67.jpg",
-    location: "Miami, FL",
-    orderCount: 62,
-  },
-];
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -226,7 +184,7 @@ const ReviewCard: React.FC<{ review: Review; index: number }> = ({
             <h4 className="font-bold text-gray-800">{review.name}</h4>
             <p className="text-sm text-gray-500">{review.location}</p>
             <p className="text-xs text-orange-500 font-medium mt-1">
-              {review.orderCount} orders completed
+              Verified customer review
             </p>
           </div>
         </div>
@@ -245,11 +203,122 @@ const ReviewCard: React.FC<{ review: Review; index: number }> = ({
 const ReviewsAndRatings: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const reviewsPerPage = 3;
-  const totalPages = Math.ceil(mockReviews.length / reviewsPerPage);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [restaurantCount, setRestaurantCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const totalPages = Math.max(1, Math.ceil(reviews.length / reviewsPerPage));
+
+  const formatDate = (dateValue: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(dateValue));
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadReviews = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const featuredResponse = await apiService.getFeaturedRestaurants();
+        const featuredPayload = featuredResponse.data as {
+          data?: ApiRestaurant[];
+        };
+        let restaurants = Array.isArray(featuredPayload.data)
+          ? featuredPayload.data
+          : [];
+
+        if (restaurants.length === 0) {
+          const allResponse = await apiService.getAllRestaurants();
+          const allPayload = allResponse.data as { data?: ApiRestaurant[] };
+          restaurants = Array.isArray(allPayload.data) ? allPayload.data : [];
+        }
+
+        const selectedRestaurants = restaurants.slice(0, 3);
+        const reviewGroups = await Promise.all(
+          selectedRestaurants.map(async (restaurant) => {
+            const response = await reviewService.getRestaurantReviews(
+              restaurant._id,
+              1,
+              3,
+            );
+
+            if (!response.success || !response.data?.reviews) {
+              return [] as Review[];
+            }
+
+            return response.data.reviews.map((review: ApiReview) => {
+              const customer =
+                typeof review.customerId === "string"
+                  ? null
+                  : review.customerId;
+              const customerName = customer
+                ? `${customer.firstName} ${customer.lastName}`.trim()
+                : "Verified customer";
+              const location =
+                [restaurant.address?.city, restaurant.address?.state]
+                  .filter(Boolean)
+                  .join(", ") || restaurant.name;
+              const avatarName = encodeURIComponent(customerName);
+
+              return {
+                id: review._id,
+                name: customerName,
+                rating: review.rating,
+                comment: review.comment,
+                date: formatDate(review.createdAt),
+                avatar:
+                  customer?.profileImage ||
+                  `https://ui-avatars.com/api/?name=${avatarName}&background=f97316&color=ffffff`,
+                location,
+                createdAt: review.createdAt,
+              };
+            });
+          }),
+        );
+
+        const combinedReviews = reviewGroups
+          .flat()
+          .sort(
+            (left, right) =>
+              new Date(right.createdAt).getTime() -
+              new Date(left.createdAt).getTime(),
+          )
+          .slice(0, 6);
+
+        if (isActive) {
+          setReviews(combinedReviews);
+          setRestaurantCount(selectedRestaurants.length);
+          setCurrentPage(0);
+        }
+      } catch {
+        if (isActive) {
+          setError("Failed to load customer reviews.");
+          setReviews([]);
+          setRestaurantCount(0);
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadReviews();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const getCurrentReviews = () => {
     const start = currentPage * reviewsPerPage;
-    return mockReviews.slice(start, start + reviewsPerPage);
+    return reviews.slice(start, start + reviewsPerPage);
   };
 
   const nextPage = () => {
@@ -260,13 +329,21 @@ const ReviewsAndRatings: React.FC = () => {
     setCurrentPage((prev) => (prev - 1 + totalPages) % totalPages);
   };
 
-  // Auto-rotate reviews
   useEffect(() => {
-    const interval = setInterval(() => {
-      nextPage();
+    if (reviews.length <= reviewsPerPage) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setCurrentPage((prev) => (prev + 1) % totalPages);
     }, 6000);
-    return () => clearInterval(interval);
-  }, [currentPage]);
+
+    return () => window.clearInterval(interval);
+  }, [reviews.length, totalPages]);
+
+  const averageRating = reviews.length
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+    : 0;
 
   return (
     <section className="relative py-24 overflow-hidden">
@@ -301,77 +378,121 @@ const ReviewsAndRatings: React.FC = () => {
           </p>
         </motion.div>
 
-        {/* Reviews Grid */}
-        <div className="relative mb-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <AnimatePresence mode="popLayout">
-              {getCurrentReviews().map((review, index) => (
-                <ReviewCard
-                  key={`${currentPage}-${review.id}`}
-                  review={review}
-                  index={index}
-                />
-              ))}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[420px] mb-12">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-full rounded-3xl border border-gray-100 bg-white p-6 shadow-lg animate-pulse"
+              >
+                <div className="h-10 w-10 rounded-2xl bg-gray-200 mb-4" />
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: 5 }).map((__, starIndex) => (
+                    <div
+                      key={starIndex}
+                      className="h-5 w-5 rounded-full bg-gray-200"
+                    />
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  <div className="h-4 rounded bg-gray-200" />
+                  <div className="h-4 rounded bg-gray-200" />
+                  <div className="h-4 w-4/5 rounded bg-gray-200" />
+                </div>
+                <div className="mt-6 flex items-center gap-4 pt-4 border-t border-gray-100">
+                  <div className="h-14 w-14 rounded-full bg-gray-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-1/2 rounded bg-gray-200" />
+                    <div className="h-3 w-2/3 rounded bg-gray-200" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="mb-12 rounded-3xl border border-dashed border-red-200 bg-white px-6 py-10 text-center text-red-600">
+            {error}
+          </div>
+        ) : reviews.length > 0 ? (
+          <div className="relative mb-12 min-h-[420px]">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={currentPage}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[420px]"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.35 }}
+              >
+                {getCurrentReviews().map((review, index) => (
+                  <ReviewCard review={review} index={index} key={review.id} />
+                ))}
+              </motion.div>
             </AnimatePresence>
-          </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-center gap-4 mt-10">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={prevPage}
-              className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all duration-300"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-center gap-4 mt-10">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={prevPage}
+                className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all duration-300"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
 
-            {/* Page indicators */}
-            <div className="flex gap-2">
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i)}
-                  className={`transition-all duration-300 rounded-full ${
-                    i === currentPage
-                      ? "w-8 h-3 bg-gradient-to-r from-orange-500 to-red-500"
-                      : "w-3 h-3 bg-gray-300 hover:bg-gray-400"
-                  }`}
-                />
-              ))}
+              {/* Page indicators */}
+              <div className="flex gap-2">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i)}
+                    className={`transition-all duration-300 rounded-full ${
+                      i === currentPage
+                        ? "w-8 h-3 bg-gradient-to-r from-orange-500 to-red-500"
+                        : "w-3 h-3 bg-gray-300 hover:bg-gray-400"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={nextPage}
+                className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all duration-300"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
             </div>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={nextPage}
-              className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all duration-300"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="mb-12 rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center text-gray-500">
+            Customer reviews will appear here once restaurants start collecting
+            feedback.
+          </div>
+        )}
 
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
           <StatCard
             icon={<ThumbsUp className="w-7 h-7" />}
-            value={4.8}
+            value={Number(averageRating.toFixed(1))}
             suffix="/5"
             label="Average Rating"
             delay={0}
           />
           <StatCard
             icon={<Users className="w-7 h-7" />}
-            value={10000}
-            suffix="+"
-            label="Happy Customers"
+            value={reviews.length}
+            suffix=""
+            label="Verified Reviews"
             delay={0.1}
           />
           <StatCard
             icon={<Store className="w-7 h-7" />}
-            value={500}
-            suffix="+"
+            value={restaurantCount}
+            suffix=""
             label="Partner Restaurants"
             delay={0.2}
           />
@@ -388,9 +509,11 @@ const ReviewsAndRatings: React.FC = () => {
           <p className="text-gray-600 mb-6">
             Ready to join our community of food lovers?
           </p>
-          <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-6 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            Start Ordering Now
-          </Button>
+          <Link to="/restaurants">
+            <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-6 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              Start Ordering Now
+            </Button>
+          </Link>
         </motion.div>
       </div>
     </section>
