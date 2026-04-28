@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import {
   Mail,
   CheckCircle,
@@ -10,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import authService from "../services/authService";
 
@@ -107,6 +113,8 @@ const OTPInput: React.FC<OTPInputProps> = ({
 const VerifyEmail: React.FC = () => {
   const { toast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [searchParams] = useSearchParams();
 
   const email = (location.state as { email?: string } | null)?.email;
@@ -120,21 +128,44 @@ const VerifyEmail: React.FC = () => {
 
   // ── Auto-verify from link token ────────────────────────────
 
-  const verifyToken = useCallback(async (token: string) => {
-    setStatus("verifying-token");
-    setErrorMessage("");
+  const completeVerification = useCallback(
+    (response: Awaited<ReturnType<typeof authService.verifyEmail>>) => {
+      if (response.success && response.data?.user) {
+        login(response.data.user);
+        navigate("/", { replace: true });
+        return;
+      }
 
-    const response = await authService.verifyEmail(token);
+      if (response.success) {
+        setStatus("success");
+        return;
+      }
 
-    if (response.success) {
-      setStatus("success");
-    } else {
       setStatus("error");
-      setErrorMessage(
-        response.message || "Invalid or expired verification link.",
-      );
-    }
-  }, []);
+      setErrorMessage(response.message || "Verification failed.");
+    },
+    [login, navigate],
+  );
+
+  const verifyToken = useCallback(
+    async (token: string) => {
+      setStatus("verifying-token");
+      setErrorMessage("");
+
+      const response = await authService.verifyEmail(token);
+
+      if (!response.success) {
+        setStatus("error");
+        setErrorMessage(
+          response.message || "Invalid or expired verification link.",
+        );
+        return;
+      }
+
+      completeVerification(response);
+    },
+    [completeVerification],
+  );
 
   useEffect(() => {
     if (tokenFromURL) {
@@ -175,13 +206,14 @@ const VerifyEmail: React.FC = () => {
 
     const response = await authService.verifyOTP(email, otp);
 
-    if (response.success) {
-      setStatus("success");
-    } else {
+    if (!response.success) {
       setStatus("error");
       setErrorMessage(response.message || "Invalid or expired OTP.");
       setOtp("");
+      return;
     }
+
+    completeVerification(response);
   };
 
   const handleResendEmail = async () => {
@@ -283,12 +315,13 @@ const VerifyEmail: React.FC = () => {
                 Your email has been successfully verified. You can now log in to
                 your account.
               </p>
-              <Link to="/login">
-                <Button className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11">
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  Go to Login
-                </Button>
-              </Link>
+              <Button
+                className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11"
+                onClick={() => navigate("/", { replace: true })}
+              >
+                <ShieldCheck className="w-4 h-4 mr-2" />
+                Go to Home
+              </Button>
             </motion.div>
           )}
 
@@ -347,12 +380,13 @@ const VerifyEmail: React.FC = () => {
               Your email has been successfully verified. You can now log in to
               your account.
             </p>
-            <Link to="/login">
-              <Button className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11">
-                <ShieldCheck className="w-4 h-4 mr-2" />
-                Go to Login
-              </Button>
-            </Link>
+            <Button
+              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11"
+              onClick={() => navigate("/", { replace: true })}
+            >
+              <ShieldCheck className="w-4 h-4 mr-2" />
+              Go to Home
+            </Button>
           </motion.div>
         ) : (
           <motion.div
