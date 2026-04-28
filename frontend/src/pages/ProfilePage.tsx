@@ -204,7 +204,10 @@ const reverseGeocodeCoordinates = async (
   const address = data.address ?? {};
   const street = [
     address.house_number,
-    address.road || address.pedestrian || address.neighbourhood || address.suburb,
+    address.road ||
+      address.pedestrian ||
+      address.neighbourhood ||
+      address.suburb,
   ]
     .filter(Boolean)
     .join(" ")
@@ -2273,11 +2276,10 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   {isDetectingLocation ? "Detecting…" : "Use my location"}
                 </Button>
               </div>
-              {form.watch("latitude") !== 0 &&
-              form.watch("longitude") !== 0 ? (
+              {form.watch("latitude") !== 0 && form.watch("longitude") !== 0 ? (
                 <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Location set ({form.watch("latitude")?.toFixed(6)}, {" "}
+                  Location set ({form.watch("latitude")?.toFixed(6)},{" "}
                   {form.watch("longitude")?.toFixed(6)})
                 </span>
               ) : (
@@ -2293,10 +2295,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Address Type</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger className="rounded-xl">
                         <SelectValue placeholder="Select type" />
@@ -2354,7 +2353,10 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger className="rounded-xl">
                           <SelectValue placeholder="Select city" />
                         </SelectTrigger>
@@ -2378,7 +2380,10 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   <FormItem>
                     <FormLabel>State</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger className="rounded-xl">
                           <SelectValue placeholder="Select state" />
                         </SelectTrigger>
@@ -2417,7 +2422,10 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   <FormItem>
                     <FormLabel>Country</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger className="rounded-xl">
                           <SelectValue placeholder="Select country" />
                         </SelectTrigger>
