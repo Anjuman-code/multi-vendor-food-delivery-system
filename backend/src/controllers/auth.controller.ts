@@ -2,33 +2,33 @@
  * Authentication controller – handles registration, login, token refresh,
  * logout, email verification, password reset, and password change.
  */
-import { randomBytes } from 'crypto';
-import { NextFunction, Request, Response } from 'express';
-import CustomerProfile from '../models/CustomerProfile';
-import User from '../models/User';
-import VendorProfile from '../models/VendorProfile';
+import { randomBytes } from "crypto";
+import { NextFunction, Request, Response } from "express";
+import CustomerProfile from "../models/CustomerProfile";
+import User from "../models/User";
+import VendorProfile from "../models/VendorProfile";
 import {
   buildGoogleAuthUrl,
   GOOGLE_OAUTH_NEXT_COOKIE,
   GOOGLE_OAUTH_STATE_COOKIE,
   normaliseNextPath,
   verifyGoogleAuthorizationCode,
-} from '../services/google-oauth.service';
-import { clearAuthCookies, setAuthCookies } from '../utils/auth-cookie.util';
+} from "../services/google-oauth.service";
+import { clearAuthCookies, setAuthCookies } from "../utils/auth-cookie.util";
 import {
   sendPasswordResetEmail,
   sendVerificationEmail,
-} from '../utils/email.util';
+} from "../utils/email.util";
 import {
   AuthenticationError,
   ConflictError,
   NotFoundError,
   ValidationError,
-} from '../utils/errors';
-import { verifyRefreshToken } from '../utils/jwt.util';
-import { validatePasswordStrength } from '../utils/password.util';
-import { successResponse } from '../utils/response.util';
-import { hashToken } from '../utils/token.util';
+} from "../utils/errors";
+import { verifyRefreshToken } from "../utils/jwt.util";
+import { validatePasswordStrength } from "../utils/password.util";
+import { successResponse } from "../utils/response.util";
+import { hashToken } from "../utils/token.util";
 import type {
   ChangePasswordInput,
   ForgotPasswordInput,
@@ -37,8 +37,8 @@ import type {
   RegisterInput,
   ResendVerificationInput,
   ResetPasswordInput,
-} from '../validations/auth.validation';
-import type { VendorRegisterInput } from '../validations/vendor.validation';
+} from "../validations/auth.validation";
+import type { VendorRegisterInput } from "../validations/vendor.validation";
 
 // ────────────────────────────────────────────────────────────────
 // Helpers
@@ -65,11 +65,11 @@ const toRecord = (doc: unknown): Record<string, unknown> => {
 };
 
 const getStringValue = (value: unknown): string | undefined => {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value;
   }
 
-  if (Array.isArray(value) && typeof value[0] === 'string') {
+  if (Array.isArray(value) && typeof value[0] === "string") {
     return value[0];
   }
 
@@ -87,9 +87,9 @@ const toAuthUser = (safeUser: Record<string, unknown>) => ({
 
 const getOAuthCookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
   maxAge: 10 * 60 * 1000,
 });
 
@@ -100,15 +100,15 @@ const clearOAuthTempCookies = (res: Response): void => {
 };
 
 const getFrontendBaseUrl = (): string => {
-  return process.env.FRONTEND_URL || 'http://localhost:5173';
+  return process.env.FRONTEND_URL || "http://localhost:5173";
 };
 
 const buildFrontendGoogleCallbackUrl = (
-  status: 'success' | 'error',
+  status: "success" | "error",
   params: Record<string, string | undefined> = {},
 ): string => {
-  const callbackUrl = new URL('/auth/google/callback', getFrontendBaseUrl());
-  callbackUrl.searchParams.set('status', status);
+  const callbackUrl = new URL("/auth/google/callback", getFrontendBaseUrl());
+  callbackUrl.searchParams.set("status", status);
 
   Object.entries(params).forEach(([key, value]) => {
     if (value) {
@@ -139,18 +139,18 @@ export const register = async (
     // Check duplicates
     const existingEmail = await User.findByEmail(email);
     if (existingEmail) {
-      throw new ConflictError('A user with this email already exists');
+      throw new ConflictError("A user with this email already exists");
     }
 
     const existingPhone = await User.findByPhone(phoneNumber);
     if (existingPhone) {
-      throw new ConflictError('A user with this phone number already exists');
+      throw new ConflictError("A user with this phone number already exists");
     }
 
     // Validate password strength
     const pwdCheck = validatePasswordStrength(password);
     if (!pwdCheck.valid) {
-      throw new ValidationError(pwdCheck.errors.join('. '));
+      throw new ValidationError(pwdCheck.errors.join(". "));
     }
 
     // Create user
@@ -160,7 +160,7 @@ export const register = async (
       firstName,
       lastName,
       phoneNumber,
-      role: 'customer',
+      role: "customer",
     });
 
     // Generate email verification token
@@ -175,22 +175,22 @@ export const register = async (
     try {
       await sendVerificationEmail(email, otp, verificationToken);
     } catch (emailError) {
-      console.error('[EMAIL] Failed to send verification email:', emailError);
+      console.error("[EMAIL] Failed to send verification email:", emailError);
     }
 
     // Log verification token (dev fallback)
-    console.log('\n========================================');
-    console.log('[EMAIL VERIFICATION]');
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION]");
     console.log(`  User:  ${email}`);
     console.log(`  OTP:   ${otp}`);
     console.log(`  Token: ${verificationToken}`);
     console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
-    console.log('========================================\n');
+    console.log("========================================\n");
 
     successResponse(
       res,
       { userId: user._id },
-      'Registration successful. Please verify your email.',
+      "Registration successful. Please verify your email.",
       201,
     );
   } catch (error) {
@@ -222,18 +222,18 @@ export const registerVendor = async (
     // Check duplicates
     const existingEmail = await User.findByEmail(email);
     if (existingEmail) {
-      throw new ConflictError('A user with this email already exists');
+      throw new ConflictError("A user with this email already exists");
     }
 
     const existingPhone = await User.findByPhone(phoneNumber);
     if (existingPhone) {
-      throw new ConflictError('A user with this phone number already exists');
+      throw new ConflictError("A user with this phone number already exists");
     }
 
     // Validate password strength
     const pwdCheck = validatePasswordStrength(password);
     if (!pwdCheck.valid) {
-      throw new ValidationError(pwdCheck.errors.join('. '));
+      throw new ValidationError(pwdCheck.errors.join(". "));
     }
 
     // Create user with vendor role
@@ -243,7 +243,7 @@ export const registerVendor = async (
       firstName,
       lastName,
       phoneNumber,
-      role: 'vendor',
+      role: "vendor",
     });
 
     // Generate email verification token
@@ -263,22 +263,22 @@ export const registerVendor = async (
     try {
       await sendVerificationEmail(email, otp, verificationToken);
     } catch (emailError) {
-      console.error('[EMAIL] Failed to send verification email:', emailError);
+      console.error("[EMAIL] Failed to send verification email:", emailError);
     }
 
     // Log verification token (dev fallback)
-    console.log('\n========================================');
-    console.log('[EMAIL VERIFICATION - VENDOR]');
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION - VENDOR]");
     console.log(`  User:  ${email}`);
     console.log(`  OTP:   ${otp}`);
     console.log(`  Token: ${verificationToken}`);
     console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
-    console.log('========================================\n');
+    console.log("========================================\n");
 
     successResponse(
       res,
       { userId: user._id },
-      'Vendor registration successful. Please verify your email.',
+      "Vendor registration successful. Please verify your email.",
       201,
     );
   } catch (error) {
@@ -299,44 +299,54 @@ export const login = async (
     const { emailOrPhone, password } = req.body as LoginInput;
 
     // Look up by email or phone
-    const isEmail = emailOrPhone.includes('@');
+    const isEmail = emailOrPhone.includes("@");
     const user = isEmail
       ? await User.findByEmail(emailOrPhone)
       : await User.findByPhone(emailOrPhone);
 
     if (!user) {
-      console.warn('[AUTH] Login failed: user not found', {
+      console.warn("[AUTH] Login failed: user not found", {
         identifier: emailOrPhone,
         ip: req.ip,
       });
-      throw new AuthenticationError('Invalid credentials');
+      throw new AuthenticationError("Invalid credentials");
     }
 
     // Fetch password (select: false by default)
     const userWithPassword = await User.findById(user._id).select(
-      '+password +refreshToken',
+      "+password +refreshToken",
     );
     if (!userWithPassword) {
-      throw new AuthenticationError('Invalid credentials');
+      throw new AuthenticationError("Invalid credentials");
     }
 
     // Account active?
     if (!userWithPassword.isActive) {
-      console.warn('[AUTH] Login denied: account deactivated', {
+      console.warn("[AUTH] Login denied: account deactivated", {
         userId: String(userWithPassword._id),
         ip: req.ip,
       });
-      throw new AuthenticationError('Account is deactivated');
+      throw new AuthenticationError("Account is deactivated");
     }
 
     // Account locked?
     if (userWithPassword.isAccountLocked()) {
-      console.warn('[AUTH] Login denied: account locked', {
+      console.warn("[AUTH] Login denied: account locked", {
         userId: String(userWithPassword._id),
         ip: req.ip,
       });
       throw new AuthenticationError(
-        'Account is temporarily locked due to too many failed login attempts. Please try again later.',
+        "Account is temporarily locked due to too many failed login attempts. Please try again later.",
+      );
+    }
+
+    if (!userWithPassword.isEmailVerified) {
+      console.warn("[AUTH] Login denied: email not verified", {
+        userId: String(userWithPassword._id),
+        ip: req.ip,
+      });
+      throw new AuthenticationError(
+        "Please verify your email before logging in.",
       );
     }
 
@@ -344,11 +354,11 @@ export const login = async (
     const isMatch = await userWithPassword.comparePassword(password);
     if (!isMatch) {
       await userWithPassword.incrementFailedLoginAttempts();
-      console.warn('[AUTH] Login failed: invalid password', {
+      console.warn("[AUTH] Login failed: invalid password", {
         userId: String(userWithPassword._id),
         ip: req.ip,
       });
-      throw new AuthenticationError('Invalid credentials');
+      throw new AuthenticationError("Invalid credentials");
     }
 
     // Reset failed attempts
@@ -365,9 +375,9 @@ export const login = async (
 
     const safeUser = sanitiseUser(toRecord(userWithPassword.toObject()));
 
-    console.info('[AUTH] Login successful', {
+    console.info("[AUTH] Login successful", {
       userId: String(userWithPassword._id),
-      method: 'password',
+      method: "password",
       ip: req.ip,
     });
 
@@ -378,7 +388,7 @@ export const login = async (
         refreshToken,
         user: toAuthUser(safeUser),
       },
-      'Login successful',
+      "Login successful",
     );
   } catch (error) {
     next(error);
@@ -400,16 +410,16 @@ export const refreshToken = async (
       (req.cookies?.refreshToken as string | undefined);
 
     if (!token) {
-      throw new AuthenticationError('Refresh token is required');
+      throw new AuthenticationError("Refresh token is required");
     }
 
     // Verify signature
     const decoded = verifyRefreshToken(token);
 
     // Confirm token is stored for this user
-    const user = await User.findById(decoded.userId).select('+refreshToken');
+    const user = await User.findById(decoded.userId).select("+refreshToken");
     if (!user || !user.refreshToken.includes(token)) {
-      throw new AuthenticationError('Invalid refresh token');
+      throw new AuthenticationError("Invalid refresh token");
     }
 
     // Rotate tokens (atomic update to avoid VersionError on concurrent requests)
@@ -432,7 +442,7 @@ export const refreshToken = async (
       refreshToken: newTokens.refreshToken,
     });
 
-    console.info('[AUTH] Token refreshed', {
+    console.info("[AUTH] Token refreshed", {
       userId: String(user._id),
       ip: req.ip,
     });
@@ -443,7 +453,7 @@ export const refreshToken = async (
         accessToken: newTokens.accessToken,
         refreshToken: newTokens.refreshToken,
       },
-      'Token refreshed successfully',
+      "Token refreshed successfully",
     );
   } catch (error) {
     next(error);
@@ -465,7 +475,7 @@ export const logout = async (
       (req.cookies?.refreshToken as string | undefined);
 
     if (token && req.user) {
-      const user = await User.findById(req.user._id).select('+refreshToken');
+      const user = await User.findById(req.user._id).select("+refreshToken");
       if (user) {
         user.refreshToken = user.refreshToken.filter((t) => t !== token);
         await user.save({ validateBeforeSave: false });
@@ -473,7 +483,7 @@ export const logout = async (
     }
 
     clearAuthCookies(res);
-    successResponse(res, null, 'Logged out successfully');
+    successResponse(res, null, "Logged out successfully");
   } catch (error) {
     next(error);
   }
@@ -490,11 +500,11 @@ export const getSession = async (
 ): Promise<void> => {
   try {
     if (!req.user) {
-      throw new AuthenticationError('Not authenticated');
+      throw new AuthenticationError("Not authenticated");
     }
 
     const safeUser = sanitiseUser(toRecord(req.user.toObject()));
-    successResponse(res, { user: toAuthUser(safeUser) }, 'Session active');
+    successResponse(res, { user: toAuthUser(safeUser) }, "Session active");
   } catch (error) {
     next(error);
   }
@@ -512,7 +522,7 @@ export const startGoogleAuth = async (
   try {
     const nextParam = getStringValue(req.query.next);
     const nextPath = normaliseNextPath(nextParam);
-    const state = randomBytes(24).toString('hex');
+    const state = randomBytes(24).toString("hex");
 
     const options = getOAuthCookieOptions();
     res.cookie(GOOGLE_OAUTH_STATE_COOKIE, state, options);
@@ -520,7 +530,7 @@ export const startGoogleAuth = async (
 
     const googleAuthUrl = buildGoogleAuthUrl(state);
 
-    console.info('[AUTH] Google OAuth initiated', {
+    console.info("[AUTH] Google OAuth initiated", {
       ip: req.ip,
       nextPath,
     });
@@ -549,28 +559,28 @@ export const handleGoogleCallback = async (
       | undefined;
 
     if (!code || !state || !storedState || state !== storedState) {
-      console.warn('[AUTH] Google OAuth state validation failed', {
+      console.warn("[AUTH] Google OAuth state validation failed", {
         ip: req.ip,
       });
-      throw new AuthenticationError('Invalid OAuth state');
+      throw new AuthenticationError("Invalid OAuth state");
     }
 
     const googlePayload = await verifyGoogleAuthorizationCode(code);
     if (!googlePayload.sub || !googlePayload.email) {
       throw new AuthenticationError(
-        'Google account is missing required fields',
+        "Google account is missing required fields",
       );
     }
 
     const googleId = googlePayload.sub;
     const email = googlePayload.email.toLowerCase().trim();
     const firstName =
-      googlePayload.given_name || googlePayload.name || 'Google';
-    const lastName = googlePayload.family_name || 'User';
+      googlePayload.given_name || googlePayload.name || "Google";
+    const lastName = googlePayload.family_name || "User";
     const avatar = googlePayload.picture;
 
     let user = await User.findOne({ $or: [{ googleId }, { email }] }).select(
-      '+refreshToken',
+      "+refreshToken",
     );
 
     if (!user) {
@@ -580,7 +590,7 @@ export const handleGoogleCallback = async (
         firstName,
         lastName,
         profileImage: avatar,
-        role: 'customer',
+        role: "customer",
         isEmailVerified: true,
       });
 
@@ -588,7 +598,7 @@ export const handleGoogleCallback = async (
       await CustomerProfile.create({ userId: user._id });
     } else {
       if (user.googleId && user.googleId !== googleId) {
-        throw new ConflictError('Google identity does not match this account');
+        throw new ConflictError("Google identity does not match this account");
       }
 
       if (!user.googleId) {
@@ -603,7 +613,7 @@ export const handleGoogleCallback = async (
     }
 
     if (!user.isActive) {
-      throw new AuthenticationError('Account is deactivated');
+      throw new AuthenticationError("Account is deactivated");
     }
 
     const tokens = user.generateAuthToken();
@@ -614,28 +624,28 @@ export const handleGoogleCallback = async (
     setAuthCookies(res, tokens);
     clearOAuthTempCookies(res);
 
-    console.info('[AUTH] Google OAuth login successful', {
+    console.info("[AUTH] Google OAuth login successful", {
       userId: String(user._id),
-      method: 'google',
+      method: "google",
       ip: req.ip,
     });
 
     res.redirect(
-      buildFrontendGoogleCallbackUrl('success', {
+      buildFrontendGoogleCallbackUrl("success", {
         next: nextPath,
       }),
     );
   } catch (error) {
-    console.warn('[AUTH] Google OAuth callback failed', {
+    console.warn("[AUTH] Google OAuth callback failed", {
       ip: req.ip,
-      reason: error instanceof Error ? error.message : 'Unknown error',
+      reason: error instanceof Error ? error.message : "Unknown error",
     });
 
     clearAuthCookies(res);
     clearOAuthTempCookies(res);
     res.redirect(
-      buildFrontendGoogleCallbackUrl('error', {
-        reason: 'oauth_failed',
+      buildFrontendGoogleCallbackUrl("error", {
+        reason: "oauth_failed",
       }),
     );
   }
@@ -658,11 +668,11 @@ export const verifyEmail = async (
     const user = await User.findOne({
       emailVerificationToken: hashedToken,
       emailVerificationExpires: { $gt: new Date() },
-    });
+    }).select("+refreshToken");
 
     if (!user) {
       throw new AuthenticationError(
-        'Invalid or expired email verification token',
+        "Invalid or expired email verification token",
       );
     }
 
@@ -671,9 +681,23 @@ export const verifyEmail = async (
     user.emailVerificationExpires = undefined;
     user.emailVerificationOTP = undefined;
     user.emailVerificationOTPExpires = undefined;
+    const { accessToken, refreshToken } = user.generateAuthToken();
+    user.refreshToken.push(refreshToken);
+    user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
+    setAuthCookies(res, { accessToken, refreshToken });
 
-    successResponse(res, null, 'Email verified successfully');
+    const safeUser = sanitiseUser(toRecord(user.toObject()));
+
+    successResponse(
+      res,
+      {
+        accessToken,
+        refreshToken,
+        user: toAuthUser(safeUser),
+      },
+      "Email verified successfully",
+    );
   } catch (error) {
     next(error);
   }
@@ -693,11 +717,11 @@ export const resendVerification = async (
 
     const user = await User.findByEmail(email);
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError("User not found");
     }
 
     if (user.isEmailVerified) {
-      throw new ValidationError('Email is already verified');
+      throw new ValidationError("Email is already verified");
     }
 
     const verificationToken = user.generateEmailVerificationToken();
@@ -709,20 +733,20 @@ export const resendVerification = async (
       await sendVerificationEmail(email, otp, rawToken);
     } catch (emailError) {
       console.error(
-        '[EMAIL] Failed to send verification email (resend):',
+        "[EMAIL] Failed to send verification email (resend):",
         emailError,
       );
     }
 
-    console.log('\n========================================');
-    console.log('[EMAIL VERIFICATION - RESEND]');
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION - RESEND]");
     console.log(`  User:  ${email}`);
     console.log(`  OTP:   ${otp}`);
     console.log(`  Token: ${rawToken}`);
     console.log(`  Link:  /api/auth/verify-email/${rawToken}`);
-    console.log('========================================\n');
+    console.log("========================================\n");
 
-    successResponse(res, null, 'Verification email sent');
+    successResponse(res, null, "Verification email sent");
   } catch (error) {
     next(error);
   }
@@ -747,7 +771,7 @@ export const forgotPassword = async (
       successResponse(
         res,
         null,
-        'If the email exists, a password reset link has been sent',
+        "If the email exists, a password reset link has been sent",
       );
       return;
     }
@@ -759,19 +783,19 @@ export const forgotPassword = async (
     try {
       await sendPasswordResetEmail(email, resetToken);
     } catch (emailError) {
-      console.error('[EMAIL] Failed to send password reset email:', emailError);
+      console.error("[EMAIL] Failed to send password reset email:", emailError);
     }
 
-    console.log('\n========================================');
-    console.log('[PASSWORD RESET]');
+    console.log("\n========================================");
+    console.log("[PASSWORD RESET]");
     console.log(`  User:  ${email}`);
     console.log(`  Token: ${resetToken}`);
-    console.log('========================================\n');
+    console.log("========================================\n");
 
     successResponse(
       res,
       null,
-      'If the email exists, a password reset link has been sent',
+      "If the email exists, a password reset link has been sent",
     );
   } catch (error) {
     next(error);
@@ -793,7 +817,7 @@ export const resetPassword = async (
     // Validate password strength
     const pwdCheck = validatePasswordStrength(newPassword);
     if (!pwdCheck.valid) {
-      throw new ValidationError(pwdCheck.errors.join('. '));
+      throw new ValidationError(pwdCheck.errors.join(". "));
     }
 
     const hashedToken = hashToken(token);
@@ -801,10 +825,10 @@ export const resetPassword = async (
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: new Date() },
-    }).select('+refreshToken');
+    }).select("+refreshToken");
 
     if (!user) {
-      throw new AuthenticationError('Invalid or expired password reset token');
+      throw new AuthenticationError("Invalid or expired password reset token");
     }
 
     user.password = newPassword;
@@ -814,7 +838,7 @@ export const resetPassword = async (
     user.refreshToken = [];
     await user.save();
 
-    successResponse(res, null, 'Password reset successful');
+    successResponse(res, null, "Password reset successful");
   } catch (error) {
     next(error);
   }
@@ -833,25 +857,25 @@ export const changePassword = async (
     const { currentPassword, newPassword } = req.body as ChangePasswordInput;
 
     if (!req.user) {
-      throw new AuthenticationError('Not authenticated');
+      throw new AuthenticationError("Not authenticated");
     }
 
     const user = await User.findById(req.user._id).select(
-      '+password +refreshToken',
+      "+password +refreshToken",
     );
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError("User not found");
     }
 
     // Validate password strength
     const pwdCheck = validatePasswordStrength(newPassword);
     if (!pwdCheck.valid) {
-      throw new ValidationError(pwdCheck.errors.join('. '));
+      throw new ValidationError(pwdCheck.errors.join(". "));
     }
 
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
-      throw new AuthenticationError('Current password is incorrect');
+      throw new AuthenticationError("Current password is incorrect");
     }
 
     user.password = newPassword;
@@ -859,7 +883,7 @@ export const changePassword = async (
     user.refreshToken = [];
     await user.save();
 
-    successResponse(res, null, 'Password changed successfully');
+    successResponse(res, null, "Password changed successfully");
   } catch (error) {
     next(error);
   }
@@ -877,13 +901,13 @@ export const verifyOTP = async (
   try {
     const { email, otp } = req.body as OTPVerificationInput;
 
-    const user = await User.findByEmail(email);
+    const user = await User.findOne({ email }).select("+refreshToken");
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError("User not found");
     }
 
     if (user.isEmailVerified) {
-      throw new ValidationError('Email is already verified');
+      throw new ValidationError("Email is already verified");
     }
 
     // Check OTP expiry
@@ -893,14 +917,14 @@ export const verifyOTP = async (
       user.emailVerificationOTPExpires < new Date()
     ) {
       throw new AuthenticationError(
-        'OTP has expired. Please request a new verification email.',
+        "OTP has expired. Please request a new verification email.",
       );
     }
 
     // Compare hashed OTP
     const hashedOTP = hashToken(otp);
     if (user.emailVerificationOTP !== hashedOTP) {
-      throw new AuthenticationError('Invalid OTP. Please try again.');
+      throw new AuthenticationError("Invalid OTP. Please try again.");
     }
 
     // Mark email as verified and clear all verification fields
@@ -909,9 +933,23 @@ export const verifyOTP = async (
     user.emailVerificationExpires = undefined;
     user.emailVerificationOTP = undefined;
     user.emailVerificationOTPExpires = undefined;
+    const { accessToken, refreshToken } = user.generateAuthToken();
+    user.refreshToken.push(refreshToken);
+    user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
+    setAuthCookies(res, { accessToken, refreshToken });
 
-    successResponse(res, null, 'Email verified successfully');
+    const safeUser = sanitiseUser(toRecord(user.toObject()));
+
+    successResponse(
+      res,
+      {
+        accessToken,
+        refreshToken,
+        user: toAuthUser(safeUser),
+      },
+      "Email verified successfully",
+    );
   } catch (error) {
     next(error);
   }
