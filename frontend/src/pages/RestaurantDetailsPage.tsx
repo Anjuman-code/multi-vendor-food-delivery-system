@@ -46,7 +46,7 @@ const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 const RestaurantDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const { addItem, clearCart } = useCart();
+  const { addItem, clearCart, items, updateQuantity } = useCart();
 
   const [restaurant, setRestaurant] = useState<ApiRestaurant | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -142,6 +142,16 @@ const RestaurantDetailsPage: React.FC = () => {
     return groups;
   }, [menuCategories, menuItems]);
 
+  const getItemQuantity = useCallback(
+    (menuItemId: string): number => {
+      const found = items.find(
+        (i) => i.menuItemId === menuItemId,
+      );
+      return found?.quantity || 0;
+    },
+    [items],
+  );
+
   const handleAddToCart = useCallback(
     (item: MenuItem) => {
       if (!restaurant) return;
@@ -178,6 +188,26 @@ const RestaurantDetailsPage: React.FC = () => {
       });
     },
     [addItem, clearCart, restaurant, toast],
+  );
+
+  const handleIncreaseQuantity = useCallback(
+    (item: MenuItem) => {
+      const current = getItemQuantity(item._id);
+      updateQuantity(item._id, current + 1);
+    },
+    [getItemQuantity, updateQuantity],
+  );
+
+  const handleDecreaseQuantity = useCallback(
+    (item: MenuItem) => {
+      const current = getItemQuantity(item._id);
+      if (current <= 1) {
+        updateQuantity(item._id, 0);
+        return;
+      }
+      updateQuantity(item._id, current - 1);
+    },
+    [getItemQuantity, updateQuantity],
   );
 
   if (isLoading) {
@@ -302,13 +332,36 @@ const RestaurantDetailsPage: React.FC = () => {
                                   <span className="text-orange-600 font-semibold">
                                     ৳{item.price}
                                   </span>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleAddToCart(item)}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                                  >
-                                    Add to cart
-                                  </Button>
+                                  {getItemQuantity(item._id) > 0 ? (
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDecreaseQuantity(item)}
+                                        className="w-8 h-8 p-0 border-orange-300 text-orange-600 hover:bg-orange-50"
+                                      >
+                                        −
+                                      </Button>
+                                      <span className="w-8 text-center font-medium text-sm">
+                                        {getItemQuantity(item._id)}
+                                      </span>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleIncreaseQuantity(item)}
+                                        className="w-8 h-8 p-0 bg-orange-500 hover:bg-orange-600 text-white"
+                                      >
+                                        +
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleAddToCart(item)}
+                                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                                    >
+                                      Add to cart
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             ))}
