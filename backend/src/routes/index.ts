@@ -10,6 +10,7 @@ import menuRoutes from "./menu.routes";
 import reviewRoutes from "./review.routes";
 import notificationRoutes from "./notification.routes";
 import vendorRoutes from "./vendor.routes";
+import exploreRoutes from "./explore.routes";
 import { getRestaurantReviews } from "../controllers/review.controller";
 
 const router: Router = Router();
@@ -22,6 +23,7 @@ router.use("/restaurants", menuRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/vendor", vendorRoutes);
+router.use("/explore", exploreRoutes);
 
 // Restaurant-scoped review listing (public)
 router.get("/restaurants/:restaurantId/reviews", getRestaurantReviews);
