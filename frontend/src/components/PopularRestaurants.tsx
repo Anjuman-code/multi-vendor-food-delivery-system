@@ -1,54 +1,80 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Star, Clock, MapPin, ChefHat, ArrowRight } from "lucide-react";
+import homeService from "@/services/homeService";
+import type { PopularRestaurant } from "@/types/home";
 
-// Mock data (Same as before, just slight structure tweaks if needed)
-const mockPopularRestaurants = [
-  {
-    id: 1,
-    name: "Ocean's Catch",
-    cuisine: "Seafood",
-    rating: 4.9,
-    deliveryTime: "25-35 min",
-    distance: "1.5 km",
-    image:
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-    description:
-      "Fresh seafood caught daily. Experience the finest ingredients and traditional coastal techniques.",
-    specialties: ["Grilled Salmon", "Lobster Thermidor", "Fish & Chips"],
-    tags: ["Fresh", "Sustainable"],
-  },
-  {
-    id: 2,
-    name: "The Gourmet Corner",
-    cuisine: "Fine Dining",
-    rating: 4.8,
-    deliveryTime: "30-40 min",
-    distance: "2.1 km",
-    image:
-      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
-    description:
-      "Award-winning chef with Michelin-starred experience. Each dish is a crafted work of art.",
-    specialties: ["Beef Wellington", "Truffle Risotto", "Soufflé"],
-    tags: ["Michelin", "Romantic"],
-  },
-  {
-    id: 3,
-    name: "Spice Route",
-    cuisine: "Indian",
-    rating: 4.7,
-    deliveryTime: "20-30 min",
-    distance: "0.9 km",
-    image:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
-    description:
-      "Authentic flavors prepared with traditional spices. Family recipes passed down for generations.",
-    specialties: ["Butter Chicken", "Lamb Rogan Josh", "Garlic Naan"],
-    tags: ["Spicy", "Family Style"],
-  },
-];
+const fallbackRestaurantImage =
+  "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80";
+
+type PopularRestaurantCard = {
+  id: string;
+  name: string;
+  cuisine: string;
+  rating: number;
+  deliveryTime: string;
+  location: string;
+  image: string;
+  description: string;
+  specialties: string[];
+  tags: string[];
+};
 
 const PopularRestaurants: React.FC = () => {
+  const [restaurants, setRestaurants] = useState<PopularRestaurant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadRestaurants = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    const response = await homeService.getPopularRestaurants(6);
+    if (response.success && response.data) {
+      setRestaurants(response.data.restaurants || []);
+    } else {
+      setRestaurants([]);
+      setErrorMessage(response.message || "Failed to load restaurants.");
+    }
+
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadRestaurants();
+  }, [loadRestaurants]);
+
+  const mappedRestaurants = useMemo<PopularRestaurantCard[]>(() => {
+    return restaurants.map((restaurant) => {
+      const cuisine = restaurant.cuisineType?.[0] || "Local favorite";
+      const rating = restaurant.rating?.average ?? 0;
+      const location =
+        [restaurant.address?.city, restaurant.address?.state]
+          .filter(Boolean)
+          .join(", ") || "Nearby area";
+      const tags = [
+        ...(restaurant.cuisineType || []).slice(0, 2),
+        ...(rating >= 4.7 ? ["Top rated"] : []),
+      ].filter(Boolean);
+      const specialties = restaurant.menuHighlights || [];
+
+      return {
+        id: restaurant._id,
+        name: restaurant.name,
+        cuisine,
+        rating,
+        deliveryTime: restaurant.deliveryTime || "30-45 min",
+        location,
+        image: restaurant.images?.coverPhoto || fallbackRestaurantImage,
+        description:
+          restaurant.description ||
+          "Signature dishes crafted fresh by our top chefs.",
+        specialties,
+        tags: tags.length > 0 ? tags : ["Popular"],
+      };
+    });
+  }, [restaurants]);
+
   return (
     <section className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
@@ -69,9 +95,33 @@ const PopularRestaurants: React.FC = () => {
 
         {/* Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {mockPopularRestaurants.map((restaurant) => (
-            <RestaurantCard key={restaurant.id} data={restaurant} />
-          ))}
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={`popular-restaurant-skeleton-${index}`}
+                className="h-[500px] rounded-[2rem] bg-white/70 animate-pulse"
+              />
+            ))
+          ) : errorMessage ? (
+            <div className="col-span-full rounded-2xl border border-dashed border-gray-200 p-10 text-center">
+              <p className="text-gray-500 mb-4">{errorMessage}</p>
+              <button
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors"
+                onClick={loadRestaurants}
+                type="button"
+              >
+                Try again
+              </button>
+            </div>
+          ) : mappedRestaurants.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-dashed border-gray-200 p-10 text-center text-gray-500">
+              No popular restaurants yet. Please check back soon.
+            </div>
+          ) : (
+            mappedRestaurants.map((restaurant) => (
+              <RestaurantCard key={restaurant.id} data={restaurant} />
+            ))
+          )}
         </div>
 
         {/* Mobile View All Button */}
@@ -84,11 +134,7 @@ const PopularRestaurants: React.FC = () => {
 };
 
 // Extracted Card Component for cleanliness
-const RestaurantCard = ({
-  data,
-}: {
-  data: (typeof mockPopularRestaurants)[0];
-}) => {
+const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
   return (
     <motion.div
       className="group relative h-[500px] w-full rounded-[2rem] overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-shadow duration-500"
@@ -158,7 +204,7 @@ const RestaurantCard = ({
             </div>
             <div className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
-              {data.distance}
+              {data.location}
             </div>
           </div>
         </div>
@@ -177,21 +223,23 @@ const RestaurantCard = ({
               {data.description}
             </p>
 
-            <div className="mb-6">
-              <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2 block flex items-center gap-2">
-                <ChefHat className="w-3 h-3" /> Chef Favorites
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {data.specialties.map((item, i) => (
-                  <span
-                    key={i}
-                    className="text-xs text-white bg-white/10 px-2 py-1 rounded-md"
-                  >
-                    {item}
-                  </span>
-                ))}
+            {data.specialties.length > 0 && (
+              <div className="mb-6">
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2 block flex items-center gap-2">
+                  <ChefHat className="w-3 h-3" /> Chef Favorites
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {data.specialties.map((item) => (
+                    <span
+                      key={item}
+                      className="text-xs text-white bg-white/10 px-2 py-1 rounded-md"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <button className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn">
               View Menu{" "}
