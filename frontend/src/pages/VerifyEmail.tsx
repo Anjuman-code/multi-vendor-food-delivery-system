@@ -131,6 +131,12 @@ const VerifyEmail: React.FC = () => {
   const completeVerification = useCallback(
     (response: Awaited<ReturnType<typeof authService.verifyEmail>>) => {
       if (response.success && response.data?.user) {
+        if (response.data.accessToken) {
+          localStorage.setItem('accessToken', response.data.accessToken);
+        }
+        if (response.data.refreshToken) {
+          localStorage.setItem('refreshToken', response.data.refreshToken);
+        }
         login(response.data.user);
         navigate("/", { replace: true });
         return;
