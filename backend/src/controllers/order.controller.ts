@@ -1,21 +1,23 @@
 /**
  * Order controller – create, list, detail, cancel, and reorder.
  */
-import { Request, Response, NextFunction } from "express";
-import { Types } from "mongoose";
 import crypto from "crypto";
-import Order, { OrderStatus, PaymentStatus } from "../models/Order";
-import MenuItem from "../models/MenuItem";
-import CustomerProfile from "../models/CustomerProfile";
-import Notification, { NotificationType } from "../models/Notification";
+import { NextFunction, Request, Response } from "express";
+import { Types } from "mongoose";
 import Coupon, { CouponType } from "../models/Coupon";
-import { successResponse } from "../utils/response.util";
-import {
-  AuthenticationError,
-  NotFoundError,
-  ValidationError,
-} from "../utils/errors";
+import CustomerProfile from "../models/CustomerProfile";
+import MenuItem from "../models/MenuItem";
+import Notification, { NotificationType } from "../models/Notification";
+import Order, { OrderStatus, PaymentStatus } from "../models/Order";
+import VendorProfile from "../models/VendorProfile";
+import { getIO } from "../socket";
 import type { AuthRequest } from "../types";
+import {
+    AuthenticationError,
+    NotFoundError,
+    ValidationError,
+} from "../utils/errors";
+import { successResponse } from "../utils/response.util";
 
 /** Generate a unique order number: ORD-XXXXXXXX */
 const generateOrderNumber = (): string => {
@@ -294,6 +296,31 @@ export const createOrder = async (
       message: `Your order ${order.orderNumber} has been placed successfully.`,
       data: { orderId: order._id },
     });
+
+    // Emit real-time newOrder event to the vendor who owns the restaurant
+    try {
+      const vendorProfile = await VendorProfile.findOne({
+        restaurantIds: restaurantObjectId,
+      });
+      if (vendorProfile) {
+        getIO()
+          .to(`vendor:${vendorProfile.userId.toString()}`)
+          .emit("newOrder", {
+            _id: order._id.toString(),
+            orderNumber: order.orderNumber,
+            customerName: `${authReq.user.firstName} ${authReq.user.lastName}`,
+            total: order.total,
+            items: order.items.map((i) => ({
+              name: i.name,
+              quantity: i.quantity,
+            })),
+            status: order.status,
+            createdAt: order.createdAt,
+          });
+      }
+    } catch {
+      // Non-blocking – socket emission failure must not affect the HTTP response
+    }
 
     successResponse(res, { order }, "Order placed successfully", 201);
   } catch (error) {

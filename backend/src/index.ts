@@ -4,8 +4,10 @@ import 'dotenv/config';
 import express, { Express, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import http from 'http';
 import path from 'path';
 import { mongoSanitiseMiddleware } from './middleware/sanitize.middleware';
+import { initSocket } from './socket';
 
 import { RATE_LIMITS } from './config/constants';
 import { connectDatabase } from './config/database';
@@ -121,8 +123,9 @@ app.use(errorHandler);
 
 // ── Start server ─────────────────────────────────────────────────
 const PORT = process.env.PORT || 2002;
-
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 

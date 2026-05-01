@@ -1,18 +1,19 @@
 /**
  * Vendor order controller – view and manage orders for vendor's restaurants.
  */
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import VendorProfile from "../models/VendorProfile";
-import Order, { OrderStatus } from "../models/Order";
 import Notification, { NotificationType } from "../models/Notification";
-import { successResponse } from "../utils/response.util";
-import {
-  AuthenticationError,
-  NotFoundError,
-  ValidationError,
-} from "../utils/errors";
+import Order, { OrderStatus } from "../models/Order";
+import VendorProfile from "../models/VendorProfile";
+import { getIO } from "../socket";
 import type { AuthRequest } from "../types";
+import {
+    AuthenticationError,
+    NotFoundError,
+    ValidationError,
+} from "../utils/errors";
+import { successResponse } from "../utils/response.util";
 import type { UpdateOrderStatusInput } from "../validations/vendor.validation";
 
 // ────────────────────────────────────────────────────────────────
@@ -193,6 +194,8 @@ export const updateVendorOrderStatus = async (
       );
     }
 
+    const previousStatus = order.status; // capture before mutation
+
     // Apply status change
     order.status = newStatus as OrderStatus;
     order.statusHistory.push({
@@ -211,7 +214,7 @@ export const updateVendorOrderStatus = async (
 
     await order.save();
 
-    // Notify the customer
+    // Notify the customer via DB notification
     const statusLabel = STATUS_LABELS[newStatus] || newStatus;
     await Notification.create({
       userId: order.customerId,
@@ -220,6 +223,21 @@ export const updateVendorOrderStatus = async (
       message: `Your order ${order.orderNumber} is now ${statusLabel.toLowerCase()}.`,
       data: { orderId: order._id, status: newStatus },
     });
+
+    // Emit real-time orderStatusUpdate event to the customer
+    try {
+      getIO()
+        .to(`user:${order.customerId.toString()}`)
+        .emit("orderStatusUpdate", {
+          _id: order._id.toString(),
+          orderNumber: order.orderNumber,
+          newStatus,
+          previousStatus,
+          updatedAt: order.updatedAt,
+        });
+    } catch {
+      // Non-blocking – socket emission failure must not affect the HTTP response
+    }
 
     successResponse(res, { order }, `Order status updated to ${newStatus}`);
   } catch (error) {
