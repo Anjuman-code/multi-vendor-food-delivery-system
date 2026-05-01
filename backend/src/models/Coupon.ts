@@ -1,7 +1,7 @@
 /**
  * Coupon Mongoose model – promo codes / discount coupons.
  */
-import mongoose, { Schema, Model, Types } from "mongoose";
+import mongoose, { Model, Schema, Types } from "mongoose";
 
 export enum CouponType {
   PERCENTAGE = "percentage",
@@ -61,7 +61,6 @@ const couponSchema = new Schema<ICoupon>(
   { timestamps: true },
 );
 
-couponSchema.index({ code: 1 }, { unique: true });
 couponSchema.index({ isActive: 1, validTo: 1 });
 
 const Coupon: Model<ICoupon> = mongoose.model<ICoupon>("Coupon", couponSchema);

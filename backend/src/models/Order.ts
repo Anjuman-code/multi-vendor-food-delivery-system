@@ -1,7 +1,7 @@
 /**
  * Order Mongoose model – customer orders from restaurants.
  */
-import mongoose, { Schema, Model, Types } from "mongoose";
+import mongoose, { Model, Schema, Types } from "mongoose";
 
 // ── Enums ──────────────────────────────────────────────────────
 
@@ -205,7 +205,6 @@ const orderSchema = new Schema<IOrder>(
 
 orderSchema.index({ customerId: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, status: 1 });
-orderSchema.index({ orderNumber: 1 });
 
 const Order: Model<IOrder> = mongoose.model<IOrder>("Order", orderSchema);
 
