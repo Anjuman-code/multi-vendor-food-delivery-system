@@ -1,24 +1,24 @@
-import React from "react";
-import { motion } from "framer-motion";
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Clock,
-  Send,
-  MessageCircle,
-  Sparkles,
-  Facebook,
-  Twitter,
-  Instagram,
-} from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
+import {
+    Clock,
+    Facebook,
+    Instagram,
+    Mail,
+    MapPin,
+    MessageCircle,
+    Phone,
+    Send,
+    Sparkles,
+    Twitter,
+} from "lucide-react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -77,7 +77,7 @@ const ContactPage: React.FC = () => {
     {
       icon: Mail,
       title: "Email Us",
-      details: ["support@anfi.com", "business@anfi.com"],
+      details: ["support@foodrush.com", "business@foodrush.com"],
       color: "bg-blue-100 text-blue-500",
     },
     {

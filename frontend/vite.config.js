@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { VitePWA } from "vite-plugin-pwa";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
+import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "logo.svg", "robots.txt"],
       manifest: {
-        name: "Anfi Food Delivery",
-        short_name: "Anfi",
+        name: "Food Rush Food Delivery",
+        short_name: "Food Rush",
         description: "Sylhet's favorite food delivery platform",
         theme_color: "#f97316",
         background_color: "#ffffff",

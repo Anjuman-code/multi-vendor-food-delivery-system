@@ -1,16 +1,16 @@
-import React from "react";
 import { motion } from "framer-motion";
 import {
-  FileText,
-  Scale,
-  AlertCircle,
-  CheckCircle,
-  Sparkles,
-  ShoppingBag,
-  CreditCard,
-  Truck,
-  RefreshCw,
+    AlertCircle,
+    CheckCircle,
+    CreditCard,
+    FileText,
+    RefreshCw,
+    Scale,
+    ShoppingBag,
+    Sparkles,
+    Truck,
 } from "lucide-react";
+import React from "react";
 import { Link } from "react-router-dom";
 
 interface ContentItem {
@@ -53,10 +53,10 @@ const TermsPage: React.FC = () => {
       icon: CheckCircle,
       content: [
         {
-          text: "By accessing or using the Anfi food delivery platform (website and mobile application), you agree to be bound by these Terms and Conditions. If you do not agree to all the terms, please do not use our services.",
+          text: "By accessing or using the Food Rush food delivery platform (website and mobile application), you agree to be bound by these Terms and Conditions. If you do not agree to all the terms, please do not use our services.",
         },
         {
-          text: "These terms constitute a legally binding agreement between you and Anfi Food Delivery, a company registered and operating in Sylhet, Bangladesh under applicable local business laws.",
+          text: "These terms constitute a legally binding agreement between you and Food Rush Food Delivery, a company registered and operating in Sylhet, Bangladesh under applicable local business laws.",
         },
         {
           text: "We reserve the right to modify these terms at any time. Continued use of our services after any changes constitutes acceptance of the new terms.",
@@ -86,7 +86,7 @@ const TermsPage: React.FC = () => {
       content: [
         {
           subtitle: "Placing Orders",
-          text: "When you place an order through Anfi, you are making an offer to purchase food from our partner restaurants. The order is confirmed once accepted by the restaurant and payment is processed.",
+          text: "When you place an order through Food Rush, you are making an offer to purchase food from our partner restaurants. The order is confirmed once accepted by the restaurant and payment is processed.",
         },
         {
           subtitle: "Menu & Pricing",
@@ -163,7 +163,7 @@ const TermsPage: React.FC = () => {
         },
         {
           subtitle: "Refund Processing",
-          text: "Approved refunds are processed within 5-7 business days. Refunds will be credited to your original payment method or as Anfi wallet credits.",
+          text: "Approved refunds are processed within 5-7 business days. Refunds will be credited to your original payment method or as Food Rush wallet credits.",
         },
         {
           subtitle: "Non-Refundable Situations",
@@ -193,7 +193,7 @@ const TermsPage: React.FC = () => {
       icon: FileText,
       content: [
         {
-          text: "All content on the Anfi platform, including logos, designs, text, graphics, and software, is the property of Anfi or its licensors and is protected by intellectual property laws.",
+          text: "All content on the Food Rush platform, including logos, designs, text, graphics, and software, is the property of Food Rush or its licensors and is protected by intellectual property laws.",
         },
         {
           text: "You may not copy, reproduce, distribute, or create derivative works from our content without express written permission.",
@@ -209,10 +209,10 @@ const TermsPage: React.FC = () => {
       icon: Scale,
       content: [
         {
-          text: "Anfi acts as an intermediary between customers and restaurants. We are not responsible for the quality, safety, or legality of food prepared by restaurants.",
+          text: "Food Rush acts as an intermediary between customers and restaurants. We are not responsible for the quality, safety, or legality of food prepared by restaurants.",
         },
         {
-          text: "To the maximum extent permitted by law, Anfi shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of our services.",
+          text: "To the maximum extent permitted by law, Food Rush shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of our services.",
         },
         {
           text: "Our total liability shall not exceed the amount paid by you for the specific order giving rise to the claim.",
@@ -247,7 +247,7 @@ const TermsPage: React.FC = () => {
           text: "For questions about these Terms and Conditions, please contact us at:",
         },
         {
-          text: "Email: legal@anfi.com | Phone: +880 1637 429498 | Address: 30/7 Lovely Road, Sylhet, Bangladesh",
+          text: "Email: legal@foodrush.com | Phone: +880 1637 429498 | Address: 30/7 Lovely Road, Sylhet, Bangladesh",
         },
       ],
     },
@@ -293,7 +293,7 @@ const TermsPage: React.FC = () => {
               variants={itemVariants}
               className="text-lg text-gray-600 max-w-2xl mx-auto mb-8"
             >
-              Please read these terms carefully before using the Anfi food
+              Please read these terms carefully before using the Food Rush food
               delivery platform. By using our services, you agree to be bound by
               these terms.
             </motion.p>

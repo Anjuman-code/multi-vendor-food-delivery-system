@@ -1,20 +1,20 @@
-import React, { memo } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  Facebook,
-  Twitter,
-  Instagram,
-  Youtube,
-  Mail,
-  Phone,
-  MapPin,
-  ArrowRight,
-  Heart,
-  Code,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
+import {
+    ArrowRight,
+    Code,
+    Facebook,
+    Heart,
+    Instagram,
+    Mail,
+    MapPin,
+    Phone,
+    Twitter,
+    Youtube,
+} from "lucide-react";
+import React, { memo } from "react";
+import { Link } from "react-router-dom";
 
 const Footer: React.FC = memo(() => {
   const currentYear = new Date().getFullYear();
@@ -109,7 +109,7 @@ const Footer: React.FC = memo(() => {
                   aria-hidden="true"
                 />
               </div>
-              <span className="text-2xl font-bold">Anfi</span>
+              <span className="text-2xl font-bold">Food Rush</span>
             </Link>
             <p className="text-gray-400 mb-6 max-w-sm leading-relaxed">
               Sylhet's favorite food delivery platform. Connecting you with the
@@ -120,13 +120,13 @@ const Footer: React.FC = memo(() => {
             {/* Contact Info */}
             <div className="space-y-3 mb-6">
               <a
-                href="mailto:contact@anfi.com"
+                href="mailto:contact@foodrush.com"
                 className="flex items-center gap-3 text-gray-400 hover:text-orange-400 transition-colors group"
               >
                 <div className="p-2 bg-gray-800 rounded-lg group-hover:bg-orange-500/20 transition-colors">
                   <Mail className="w-4 h-4" />
                 </div>
-                contact@anfi.com
+                contact@foodrush.com
               </a>
               <a
                 href="tel:+8801637429498"
@@ -223,7 +223,7 @@ const Footer: React.FC = memo(() => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-gray-400 text-sm text-center md:text-left">
-              © {currentYear} Anfi Food Delivery. All rights reserved.
+              © {currentYear} Food Rush Food Delivery. All rights reserved.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
               <p className="text-gray-500 text-sm flex items-center gap-1">

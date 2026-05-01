@@ -23,7 +23,7 @@ const getTransporter = (): nodemailer.Transporter => {
 // ── Helpers ────────────────────────────────────────────────────
 
 const getFrom = () =>
-  `"FoodDash" <${process.env.EMAIL_ADDRESS || "noreply@fooddash.com"}>`;
+  `"Food Rush" <${process.env.EMAIL_ADDRESS || "noreply@foodrush.com"}>`;
 
 /**
  * Send an email verification message containing both an OTP and a
@@ -40,7 +40,7 @@ export const sendVerificationEmail = async (
   const mailOptions = {
     from: getFrom(),
     to,
-    subject: "Verify your email – FoodDash",
+    subject: "Verify your email – Food Rush",
     html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -54,7 +54,7 @@ export const sendVerificationEmail = async (
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#f97316,#dc2626);padding:32px 24px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">FoodDash</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">Food Rush</h1>
               <p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">Delicious food, delivered fast</p>
             </td>
           </tr>
@@ -89,7 +89,7 @@ export const sendVerificationEmail = async (
           <!-- Footer -->
           <tr>
             <td style="background:#f3f4f6;padding:20px 24px;text-align:center;">
-              <p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} FoodDash. All rights reserved.</p>
+              <p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} Food Rush. All rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -115,7 +115,7 @@ export const sendPasswordResetEmail = async (
   const mailOptions = {
     from: getFrom(),
     to,
-    subject: "Reset your password – FoodDash",
+    subject: "Reset your password – Food Rush",
     html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -124,7 +124,7 @@ export const sendPasswordResetEmail = async (
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
           <tr>
             <td style="background:linear-gradient(135deg,#f97316,#dc2626);padding:32px 24px;text-align:center;">
-              <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;">FoodDash</h1>
+              <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;">Food Rush</h1>
             </td>
           </tr>
           <tr>
@@ -139,7 +139,7 @@ export const sendPasswordResetEmail = async (
           </tr>
           <tr>
             <td style="background:#f3f4f6;padding:20px 24px;text-align:center;">
-              <p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} FoodDash. All rights reserved.</p>
+              <p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} Food Rush. All rights reserved.</p>
             </td>
           </tr>
         </table>

@@ -3,12 +3,12 @@
  * Enforces single-restaurant cart (standard for food delivery).
  */
 import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
 } from "react";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ interface CartContextType {
 
 // ── Constants ──────────────────────────────────────────────────
 
-const CART_KEY = "anfi_cart";
+const CART_KEY = "Food Rush_cart";
 const TAX_RATE = 0.05;
 const DEFAULT_DELIVERY_FEE = 50;
 

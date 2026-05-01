@@ -1,21 +1,21 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  HelpCircle,
-  ChevronDown,
-  Search,
-  ShoppingBag,
-  Truck,
-  CreditCard,
-  RefreshCw,
-  Shield,
-  Phone,
-  Sparkles,
-  MessageCircle,
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ChevronDown,
+    CreditCard,
+    HelpCircle,
+    MessageCircle,
+    Phone,
+    RefreshCw,
+    Search,
+    Shield,
+    ShoppingBag,
+    Sparkles,
+    Truck,
+} from "lucide-react";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
 interface FAQItem {
   question: string;
@@ -63,7 +63,7 @@ const FAQPage: React.FC = () => {
       color: "orange",
       faqs: [
         {
-          question: "How do I place an order on Anfi?",
+          question: "How do I place an order on Food Rush?",
           answer:
             "To place an order, simply browse restaurants in your area, select your desired items, add them to your cart, and proceed to checkout. You can pay using bKash, Nagad, Rocket, card, or cash on delivery. Once confirmed, you'll receive real-time updates about your order status.",
         },
@@ -75,7 +75,7 @@ const FAQPage: React.FC = () => {
         {
           question: "Can I schedule an order for later?",
           answer:
-            "Yes! Anfi supports scheduled orders. During checkout, you can select 'Schedule for Later' and choose your preferred delivery date and time. You can schedule orders up to 7 days in advance.",
+            "Yes! Food Rush supports scheduled orders. During checkout, you can select 'Schedule for Later' and choose your preferred delivery date and time. You can schedule orders up to 7 days in advance.",
         },
         {
           question: "Is there a minimum order value?",
@@ -118,7 +118,7 @@ const FAQPage: React.FC = () => {
         {
           question: "What are the delivery charges?",
           answer:
-            "Delivery fees vary based on distance and are clearly shown before checkout. Fees typically range from ৳20-60 within Sylhet City. Many restaurants offer free delivery for orders above a certain amount, and Anfi Premium members enjoy reduced or free delivery.",
+            "Delivery fees vary based on distance and are clearly shown before checkout. Fees typically range from ৳20-60 within Sylhet City. Many restaurants offer free delivery for orders above a certain amount, and Food Rush Premium members enjoy reduced or free delivery.",
         },
       ],
     },
@@ -141,12 +141,12 @@ const FAQPage: React.FC = () => {
         {
           question: "Can I split payment between methods?",
           answer:
-            "Currently, each order must be paid using a single payment method. However, you can use Anfi wallet credits along with another payment method.",
+            "Currently, each order must be paid using a single payment method. However, you can use Food Rush wallet credits along with another payment method.",
         },
         {
-          question: "What is Anfi Wallet?",
+          question: "What is Food Rush Wallet?",
           answer:
-            "Anfi Wallet is our in-app wallet where you can add funds, receive refunds, and store promotional credits. Wallet balance can be used for faster checkout and is automatically applied to your orders.",
+            "Food Rush Wallet is our in-app wallet where you can add funds, receive refunds, and store promotional credits. Wallet balance can be used for faster checkout and is automatically applied to your orders.",
         },
         {
           question: "How do promo codes work?",
@@ -169,7 +169,7 @@ const FAQPage: React.FC = () => {
         {
           question: "How do I get a refund?",
           answer:
-            "Approved refunds are processed within 5-7 business days. For bKash, Nagad, or Rocket payments, refunds go back to your account. For card payments, refunds appear on your statement within 5-10 business days. You can also opt to receive refunds as Anfi wallet credit (instant).",
+            "Approved refunds are processed within 5-7 business days. For bKash, Nagad, or Rocket payments, refunds go back to your account. For card payments, refunds appear on your statement within 5-10 business days. You can also opt to receive refunds as Food Rush wallet credit (instant).",
         },
         {
           question: "My food arrived cold or damaged. What should I do?",
@@ -197,7 +197,7 @@ const FAQPage: React.FC = () => {
         {
           question: "How do I create an account?",
           answer:
-            "Download the Anfi app or visit our website and click 'Sign Up'. You can register using your phone number or email. A verification code will be sent to confirm your account.",
+            "Download the Food Rush app or visit our website and click 'Sign Up'. You can register using your phone number or email. A verification code will be sent to confirm your account.",
         },
         {
           question: "I forgot my password. How do I reset it?",
@@ -230,7 +230,7 @@ const FAQPage: React.FC = () => {
         {
           question: "How do I contact customer support?",
           answer:
-            "You can reach us through: In-app chat (fastest), Phone: +880 1637 429498 (available 24/7 for order issues), Email: support@anfi.com, or visit our office at 30/7 Lovely Road, Sylhet.",
+            "You can reach us through: In-app chat (fastest), Phone: +880 1637 429498 (available 24/7 for order issues), Email: support@foodrush.com, or visit our office at 30/7 Lovely Road, Sylhet.",
         },
         {
           question: "What are your support hours?",
@@ -238,19 +238,19 @@ const FAQPage: React.FC = () => {
             "Our customer support team is available 24/7 for order-related issues. For general inquiries, we respond within 24 hours on weekdays and 48 hours on weekends.",
         },
         {
-          question: "How can I become a delivery rider for Anfi?",
+          question: "How can I become a delivery rider for Food Rush?",
           answer:
-            "We're always looking for reliable delivery partners in Sylhet! Visit our 'Become a Rider' page or contact us at riders@anfi.com. You'll need a valid NID, smartphone, and your own vehicle (bike or motorcycle).",
+            "We're always looking for reliable delivery partners in Sylhet! Visit our 'Become a Rider' page or contact us at riders@foodrush.com. You'll need a valid NID, smartphone, and your own vehicle (bike or motorcycle).",
         },
         {
-          question: "How can my restaurant partner with Anfi?",
+          question: "How can my restaurant partner with Food Rush?",
           answer:
-            "We'd love to have you! Visit our 'Partner With Us' page or email business@anfi.com. Our team will guide you through the onboarding process, which includes menu setup, tablet configuration, and training.",
+            "We'd love to have you! Visit our 'Partner With Us' page or email business@foodrush.com. Our team will guide you through the onboarding process, which includes menu setup, tablet configuration, and training.",
         },
         {
           question: "How do I give feedback or suggestions?",
           answer:
-            "We value your feedback! After each order, you can rate your experience in the app. For detailed feedback or suggestions, email us at feedback@anfi.com or use the 'Contact Us' form on our website.",
+            "We value your feedback! After each order, you can rate your experience in the app. For detailed feedback or suggestions, email us at feedback@foodrush.com or use the 'Contact Us' form on our website.",
         },
       ],
     },

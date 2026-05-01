@@ -1,35 +1,35 @@
-import React, { useState, useRef, useEffect, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Menu,
-  X,
-  ChevronDown,
-  MapPin,
-  ShoppingBag,
-  User,
-  LogOut,
-  Settings,
-  Heart,
-  Bell,
-  Package,
-  Store,
-  ClipboardList,
-} from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
 import notificationService from "@/services/notificationService";
-import { useToast } from "@/hooks/use-toast";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    Bell,
+    ChevronDown,
+    ClipboardList,
+    Heart,
+    LogOut,
+    MapPin,
+    Menu,
+    Package,
+    Settings,
+    ShoppingBag,
+    Store,
+    User,
+    X,
+} from "lucide-react";
+import React, { memo, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 interface NavItem {
   name: string;
@@ -167,7 +167,7 @@ const Navbar: React.FC = memo(() => {
               </div>
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-              Anfi
+              Food Rush
             </span>
           </Link>
 
@@ -354,7 +354,7 @@ const Navbar: React.FC = memo(() => {
                     className="hidden xl:flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors rounded-full hover:bg-orange-50"
                   >
                     <Store className="w-4 h-4" />
-                    Sell on Anfi
+                    Sell on Food Rush
                   </Link>
                 )}
                 <Link
@@ -440,7 +440,7 @@ const Navbar: React.FC = memo(() => {
                       className="h-5 w-5 brightness-0 invert"
                     />
                   </div>
-                  <span className="text-xl font-bold text-gray-800">Anfi</span>
+                  <span className="text-xl font-bold text-gray-800">Food Rush</span>
                 </Link>
                 <button
                   onClick={() => setIsOpen(false)}
@@ -558,7 +558,7 @@ const Navbar: React.FC = memo(() => {
                           className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors border border-orange-200"
                         >
                           <Store className="w-4 h-4" />
-                          Partner with us – Sell on Anfi
+                          Partner with us – Sell on Food Rush
                         </Link>
                       )}
                     </>

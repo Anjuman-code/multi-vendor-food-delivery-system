@@ -1,6 +1,6 @@
-import React from "react";
 import { motion } from "framer-motion";
-import { Shield, Lock, Eye, FileText, Sparkles } from "lucide-react";
+import { Eye, FileText, Lock, Shield, Sparkles } from "lucide-react";
+import React from "react";
 import { Link } from "react-router-dom";
 
 const PrivacyPolicyPage: React.FC = () => {
@@ -87,7 +87,7 @@ const PrivacyPolicyPage: React.FC = () => {
         },
         {
           subtitle: "Legal Requirements",
-          text: "We may disclose your information when required by Bangladesh law, court orders, or to protect the rights, property, or safety of Anfi, our users, or others.",
+          text: "We may disclose your information when required by Bangladesh law, court orders, or to protect the rights, property, or safety of Food Rush, our users, or others.",
         },
       ],
     },
@@ -175,7 +175,7 @@ const PrivacyPolicyPage: React.FC = () => {
       content: [
         {
           subtitle: "Questions & Concerns",
-          text: "If you have any questions about this Privacy Policy or our data practices, please contact us at privacy@anfi.com or call us at +880 1637 429498. You can also visit our office at 30/7 Lovely Road, Sylhet, Bangladesh.",
+          text: "If you have any questions about this Privacy Policy or our data practices, please contact us at privacy@foodrush.com or call us at +880 1637 429498. You can also visit our office at 30/7 Lovely Road, Sylhet, Bangladesh.",
         },
       ],
     },
@@ -221,7 +221,7 @@ const PrivacyPolicyPage: React.FC = () => {
               variants={itemVariants}
               className="text-lg text-gray-600 max-w-2xl mx-auto mb-8"
             >
-              At Anfi, we are committed to protecting your privacy and ensuring
+              At Food Rush, we are committed to protecting your privacy and ensuring
               the security of your personal information. This policy explains
               how we collect, use, and safeguard your data.
             </motion.p>
