@@ -95,7 +95,7 @@ export const authorize = (...roles: UserRole[]) => {
 /**
  * Require the authenticated user to have a verified email.
  */
-export const requireEmailVerification = (
+const requireEmailVerification = (
   req: Request,
   res: Response,
   next: NextFunction,

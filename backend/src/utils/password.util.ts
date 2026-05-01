@@ -5,13 +5,13 @@ import bcrypt from "bcryptjs";
 import { AUTH } from "../config/constants";
 
 /** Hash a plain-text password. */
-export const hashPassword = async (password: string): Promise<string> => {
+const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(AUTH.BCRYPT_ROUNDS);
   return bcrypt.hash(password, salt);
 };
 
 /** Compare a plain-text password with a bcrypt hash. */
-export const comparePassword = async (
+const comparePassword = async (
   password: string,
   hash: string,
 ): Promise<boolean> => {

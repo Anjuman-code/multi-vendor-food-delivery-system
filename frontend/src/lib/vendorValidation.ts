@@ -61,11 +61,11 @@ export const createRestaurantSchema = z.object({
     .optional(),
 });
 
-export const updateRestaurantSchema = createRestaurantSchema.partial();
+const updateRestaurantSchema = createRestaurantSchema.partial();
 
 // ── Menu category schemas ────────────────────────────────────────
 
-export const menuCategorySchema = z.object({
+const menuCategorySchema = z.object({
   name: z
     .string()
     .min(2, "Category name must be at least 2 characters")
@@ -81,7 +81,7 @@ export const menuCategorySchema = z.object({
 
 // ── Menu item schemas ────────────────────────────────────────────
 
-export const menuItemSchema = z.object({
+const menuItemSchema = z.object({
   name: z
     .string()
     .min(2, "Item name must be at least 2 characters")
@@ -159,7 +159,7 @@ export const couponSchema = couponSchemaBase
     path: ["endDate"],
   });
 
-export const updateCouponSchema = couponSchemaBase.partial().refine(
+const updateCouponSchema = couponSchemaBase.partial().refine(
   (data) => {
     if (data.type === "percentage" && typeof data.value === "number") {
       return data.value <= 100;
@@ -171,7 +171,7 @@ export const updateCouponSchema = couponSchemaBase.partial().refine(
 
 // ── Review reply schema ──────────────────────────────────────────
 
-export const reviewReplySchema = z.object({
+const reviewReplySchema = z.object({
   text: z
     .string()
     .min(1, "Reply cannot be empty")

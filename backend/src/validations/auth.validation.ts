@@ -65,7 +65,7 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
-export const emailVerificationSchema = z.object({
+const emailVerificationSchema = z.object({
   token: z.string().min(1, "Verification token is required"),
 });
 

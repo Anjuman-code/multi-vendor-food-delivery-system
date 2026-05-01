@@ -76,7 +76,7 @@ export const getRestaurantById = async (
 };
 
 /** POST /api/restaurants */
-export const createRestaurant = async (
+const createRestaurant = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
@@ -109,7 +109,7 @@ export const createRestaurant = async (
 };
 
 /** PUT /api/restaurants/:id */
-export const updateRestaurant = async (
+const updateRestaurant = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
@@ -157,7 +157,7 @@ export const updateRestaurant = async (
 };
 
 /** DELETE /api/restaurants/:id */
-export const deleteRestaurant = async (
+const deleteRestaurant = async (
   req: Request,
   res: Response,
 ): Promise<void> => {

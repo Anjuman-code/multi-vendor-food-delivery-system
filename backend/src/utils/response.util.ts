@@ -39,7 +39,7 @@ export const successResponse = (
 };
 
 /** Send an error JSON response. */
-export const errorResponse = (
+const errorResponse = (
   res: Response,
   message: string,
   statusCode = 500,
@@ -53,7 +53,7 @@ export const errorResponse = (
 };
 
 /** Send a paginated success JSON response. */
-export const paginatedResponse = (
+const paginatedResponse = (
   res: Response,
   data: unknown,
   page: number,

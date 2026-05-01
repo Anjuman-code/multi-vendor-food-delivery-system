@@ -49,7 +49,7 @@ export const registerSchema = z
   });
 
 // ── Forgot password schema ─────────────────────────────────────
-export const forgotPasswordSchema = z.object({
+const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 

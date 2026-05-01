@@ -42,6 +42,6 @@ export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
 };
 
 /** Decode a token without verifying the signature. */
-export const decodeToken = (token: string): jwt.JwtPayload | null => {
+const decodeToken = (token: string): jwt.JwtPayload | null => {
   return jwt.decode(token) as jwt.JwtPayload | null;
 };
