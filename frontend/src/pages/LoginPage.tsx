@@ -1,13 +1,3 @@
-import {
-  Box,
-  Button,
-  CircularProgress,
-  InputAdornment,
-  IconButton,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,14 +7,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SocialButton from '../components/SocialButton';
 import { loginSchema, type LoginFormData } from '../lib/validation';
 import authService from '../services/authService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-/**
- * LoginPage - User login page.
- *
- * This page is wrapped by AuthLayout which provides:
- * - Split-screen layout with branding
- * - Logo and footer
- */
 const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -98,199 +84,130 @@ const LoginPage: React.FC = () => {
 
   return (
     <>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
-          Log in to your account
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Welcome back! Please enter your details.
-        </Typography>
-      </Box>
+      <div className="mb-4">
+        <h5 className="font-bold mb-1 text-gray-900">Log in to your account</h5>
+        <p className="text-sm text-gray-500">Welcome back! Please enter your details.</p>
+      </div>
 
-      {/* Tabs */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          mb: 4,
-          borderBottom: '1px solid #e5e7eb',
-        }}
-      >
+      <div className="flex gap-2 mb-4 border-b border-gray-200">
         <Link
           to="/login"
-          style={{
-            paddingBottom: '12px',
-            color: '#f97316',
-            fontWeight: 600,
-            borderBottom: '2px solid #f97316',
-            textDecoration: 'none',
-            transition: 'color 0.3s',
-          }}
+          className="pb-3 text-orange-500 font-semibold border-b-2 border-orange-500 no-underline transition-colors"
         >
           Log in
         </Link>
         <Link
           to="/register"
-          style={{
-            paddingBottom: '12px',
-            color: '#9ca3af',
-            fontWeight: 500,
-            textDecoration: 'none',
-            transition: 'color 0.3s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#f97316')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#9ca3af')}
+          className="pb-3 text-gray-400 font-medium no-underline transition-colors hover:text-orange-500"
         >
           Sign Up
         </Link>
-      </Box>
+      </div>
 
-      {/* Form */}
-      <Box
-        component="form"
-        onSubmit={form.handleSubmit(onSubmit)}
-        sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
-      >
-        {/* Email or Phone Field */}
-        <Controller
-          control={form.control}
-          name="emailOrPhone"
-          render={({ field, fieldState: { error } }) => (
-            <TextField
-              {...field}
-              fullWidth
-              type="text"
-              label="Email or Phone"
-              placeholder="Enter your email or phone number"
-              error={!!error}
-              helperText={error?.message}
-              variant="outlined"
-              size="medium"
-            />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="emailOrPhone">Email or Phone</Label>
+          <Controller
+            control={form.control}
+            name="emailOrPhone"
+            render={({ field, fieldState: { error } }) => (
+              <Input
+                {...field}
+                id="emailOrPhone"
+                type="text"
+                placeholder="Enter your email or phone number"
+                className={error ? 'border-red-500' : ''}
+              />
+            )}
+          />
+          {form.formState.errors.emailOrPhone && (
+            <p className="text-sm text-red-500">
+              {form.formState.errors.emailOrPhone.message as string}
+            </p>
           )}
-        />
+        </div>
 
-        {/* Password Field */}
-        <Box>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 1,
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 600, color: '#374151' }}
-            >
-              Password
-            </Typography>
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <Label htmlFor="password">Password</Label>
             <Link
               to="/forgot-password"
-              style={{
-                fontSize: '14px',
-                color: '#f97316',
-                textDecoration: 'none',
-                fontWeight: 500,
-                transition: 'color 0.3s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#ea580c')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#f97316')}
+              className="text-sm text-orange-500 font-medium no-underline transition-colors hover:text-orange-600"
             >
               Forgot password?
             </Link>
-          </Box>
+          </div>
           <Controller
             control={form.control}
             name="password"
             render={({ field, fieldState: { error } }) => (
-              <TextField
-                {...field}
-                fullWidth
-                type={showPassword ? 'text' : 'password'}
-                label="Password"
-                placeholder="Enter your password"
-                error={!!error}
-                helperText={error?.message}
-                variant="outlined"
-                size="medium"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                        aria-label={
-                          showPassword ? 'Hide password' : 'Show password'
-                        }
-                        sx={{ color: '#6b7280' }}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
+              <div className="relative">
+                <Input
+                  {...field}
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  className={error ? 'border-red-500 pr-10' : 'pr-10'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 bg-transparent border-none cursor-pointer p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
             )}
           />
-        </Box>
+          {form.formState.errors.password && (
+            <p className="text-sm text-red-500 mt-1">
+              {form.formState.errors.password.message as string}
+            </p>
+          )}
+        </div>
 
-        {/* Submit Button */}
         <Button
           type="submit"
-          fullWidth
           disabled={isLoading}
-          variant="contained"
-          sx={{
+          className="w-full py-1.4 font-semibold text-base"
+          style={{
             background: 'linear-gradient(to right, #f97316, #dc2626)',
             color: 'white',
-            fontWeight: 600,
-            py: 1.4,
-            fontSize: '1rem',
             textTransform: 'none',
-            '&:hover': {
-              background: 'linear-gradient(to right, #ea580c, #b91c1c)',
-            },
-            '&:disabled': {
-              background: '#d1d5db',
-              color: 'white',
-            },
-            transition: 'all 0.2s',
           }}
         >
           {isLoading ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CircularProgress size={20} sx={{ color: 'white' }} />
+            <div className="flex items-center gap-1">
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
               <span>Logging in...</span>
-            </Box>
+            </div>
           ) : (
             'Log in'
           )}
         </Button>
-      </Box>
+      </form>
 
-      {/* Divider */}
-      <Box
-        sx={{
-          my: 3,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <Box sx={{ flex: 1, borderTop: '1px solid #e5e7eb' }} />
-        <Typography
-          variant="caption"
-          sx={{ mx: 2, color: '#9ca3af' }}
-        >
-          or continue with
-        </Typography>
-        <Box sx={{ flex: 1, borderTop: '1px solid #e5e7eb' }} />
-      </Box>
+      <div className="my-3 flex items-center">
+        <div className="flex-1 border-t border-gray-200" />
+        <span className="mx-2 text-xs text-gray-400">or continue with</span>
+        <div className="flex-1 border-t border-gray-200" />
+      </div>
 
-      {/* Social Buttons */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 3 }}>
+      <div className="grid grid-cols-2 gap-1.5 mb-3">
         <SocialButton
           provider="google"
           onClick={() => handleSocialLogin('google')}
@@ -301,31 +218,17 @@ const LoginPage: React.FC = () => {
           onClick={() => handleSocialLogin('facebook')}
           isLoading={isLoading}
         />
-      </Box>
+      </div>
 
-      {/* Footer */}
-      <Typography
-        variant="body2"
-        sx={{
-          textAlign: 'center',
-          color: '#4b5563',
-        }}
-      >
+      <p className="text-center text-sm text-gray-600">
         Don't have an account?{' '}
         <Link
           to="/register"
-          style={{
-            fontWeight: 600,
-            color: '#f97316',
-            textDecoration: 'none',
-            transition: 'color 0.3s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#ea580c')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#f97316')}
+          className="font-semibold text-orange-500 no-underline transition-colors hover:text-orange-600"
         >
           Sign up
         </Link>
-      </Typography>
+      </p>
     </>
   );
 };

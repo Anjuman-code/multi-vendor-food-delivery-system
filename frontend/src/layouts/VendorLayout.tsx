@@ -1,26 +1,26 @@
-import React, { useState } from "react";
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSocketContext } from "@/contexts/SocketContext";
+import { useVendor, VendorProvider } from "@/contexts/VendorContext";
+import { useToast } from "@/hooks/use-toast";
+import NotificationPopover from "@/components/NotificationPopover";
+import authService from "@/services/authService";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  Store,
-  UtensilsCrossed,
-  ClipboardList,
-  Star,
-  Tag,
   BarChart3,
-  Settings,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Bell,
+  ClipboardList,
+  LayoutDashboard,
   LogOut,
-  ChevronDown,
+  Settings,
+  Star,
+  Store,
+  Tag,
+  UtensilsCrossed,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useVendor } from "@/contexts/VendorContext";
-import { VendorProvider } from "@/contexts/VendorContext";
-import authService from "@/services/authService";
-import { useToast } from "@/hooks/use-toast";
+import React, { useEffect, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 interface SidebarItem {
   name: string;
@@ -47,6 +47,14 @@ const VendorLayoutInner: React.FC = () => {
   const { restaurants, selectedRestaurantId, setSelectedRestaurantId } =
     useVendor();
   const { toast } = useToast();
+  const { newOrderCount, clearNewOrderCount } = useSocketContext();
+
+  // Clear badge when vendor navigates to /vendor/orders
+  useEffect(() => {
+    if (location.pathname.startsWith("/vendor/orders")) {
+      clearNewOrderCount();
+    }
+  }, [location.pathname, clearNewOrderCount]);
 
   const isActive = (path: string) => {
     if (path === "/vendor") return location.pathname === "/vendor";
@@ -148,7 +156,14 @@ const VendorLayoutInner: React.FC = () => {
                 }`}
                 title={collapsed ? item.name : undefined}
               >
-                <Icon className="w-5 h-5 shrink-0" />
+                <span className="relative shrink-0">
+                  <Icon className="w-5 h-5" />
+                  {item.path === "/vendor/orders" && newOrderCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {newOrderCount > 9 ? "9+" : newOrderCount}
+                    </span>
+                  )}
+                </span>
                 <AnimatePresence>
                   {!collapsed && (
                     <motion.span
@@ -229,12 +244,7 @@ const VendorLayoutInner: React.FC = () => {
             {sidebarItems.find((i) => isActive(i.path))?.name || "Vendor"}
           </h2>
           <div className="flex items-center gap-3">
-            <Link
-              to="/notifications"
-              className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Bell className="w-5 h-5" />
-            </Link>
+            <NotificationPopover />
             <button
               onClick={handleLogout}
               className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

@@ -1,32 +1,31 @@
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
-import notificationService from "@/services/notificationService";
+import NotificationPopover from "@/components/NotificationPopover";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    Bell,
-    ChevronDown,
-    ClipboardList,
-    Heart,
-    LogOut,
-    MapPin,
-    Menu,
-    Package,
-    Settings,
-    ShoppingBag,
-    Store,
-    User,
-    X,
+  ChevronDown,
+  ClipboardList,
+  Heart,
+  LogOut,
+  MapPin,
+  Menu,
+  Package,
+  Settings,
+  ShoppingBag,
+  Store,
+  User,
+  X,
 } from "lucide-react";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -45,7 +44,6 @@ const Navbar: React.FC = memo(() => {
   const { user, isAuthenticated, logout: logoutContext } = useAuth();
   const { itemCount } = useCart();
   const { toast } = useToast();
-  const [unreadNotifs, setUnreadNotifs] = useState(0);
 
   const isVendor = user?.role === "vendor";
 
@@ -64,18 +62,6 @@ const Navbar: React.FC = memo(() => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // Fetch unread notification count
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const fetchUnread = async () => {
-      const res = await notificationService.getUnreadCount();
-      if (res.success && res.data) setUnreadNotifs(res.data.unreadCount);
-    };
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 60_000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -205,19 +191,7 @@ const Navbar: React.FC = memo(() => {
             </button>
 
             {/* Notifications */}
-            {isAuthenticated && (
-              <Link
-                to="/notifications"
-                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadNotifs > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {unreadNotifs > 9 ? "9+" : unreadNotifs}
-                  </span>
-                )}
-              </Link>
-            )}
+            {isAuthenticated && <NotificationPopover />}
 
             {/* Cart – hidden for vendor users */}
             {!isVendor && (
@@ -317,18 +291,6 @@ const Navbar: React.FC = memo(() => {
                       </DropdownMenuItem>
                     </>
                   )}
-                  <DropdownMenuItem
-                    onClick={() => navigate("/notifications")}
-                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
-                  >
-                    <Bell className="mr-2 h-4 w-4" />
-                    <span>Notifications</span>
-                    {unreadNotifs > 0 && (
-                      <span className="ml-auto text-xs bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
-                        {unreadNotifs}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => navigate("/settings")}
                     className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
@@ -440,7 +402,9 @@ const Navbar: React.FC = memo(() => {
                       className="h-5 w-5 brightness-0 invert"
                     />
                   </div>
-                  <span className="text-xl font-bold text-gray-800">Food Rush</span>
+                  <span className="text-xl font-bold text-gray-800">
+                    Food Rush
+                  </span>
                 </Link>
                 <button
                   onClick={() => setIsOpen(false)}

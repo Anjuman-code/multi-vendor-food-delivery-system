@@ -1,19 +1,21 @@
 /**
  * OrdersPage – customer order list with filtering and pagination.
  */
-import { useState, useEffect, useCallback } from "react";
-import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Package,
-  Clock,
-  ChevronRight,
-  Loader2,
-  ShoppingBag,
+    ChevronRight,
+    Clock,
+    Loader2,
+    Package,
+    ShoppingBag,
+    WifiOff,
 } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { useToast } from "../hooks/use-toast";
+import { useSocket } from "../hooks/useSocket";
 import orderService from "../services/orderService";
 import type { Order, OrderStatus } from "../types/order";
 
@@ -44,8 +46,18 @@ const FILTERS: { label: string; value: string }[] = [
   { label: "Cancelled", value: "cancelled" },
 ];
 
+// ── Socket payload ─────────────────────────────────────────────
+interface OrderStatusUpdatePayload {
+  _id: string;
+  orderNumber: string;
+  newStatus: string;
+  previousStatus: string;
+  updatedAt: string;
+}
+
 const OrdersPage: React.FC = () => {
   const { toast } = useToast();
+  const { socket } = useSocket();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const currentFilter = searchParams.get("filter") || "";
@@ -77,6 +89,27 @@ const OrdersPage: React.FC = () => {
     fetchOrders();
   }, [fetchOrders]);
 
+  // ── Real-time: update list in-place when order status changes ────
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleStatusUpdate = (data: OrderStatusUpdatePayload) => {
+      // Toast is shown globally by SocketContext — just update the list
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === data._id
+            ? { ...o, status: data.newStatus as OrderStatus }
+            : o,
+        ),
+      );
+    };
+
+    socket.on("orderStatusUpdate", handleStatusUpdate);
+    return () => {
+      socket.off("orderStatusUpdate", handleStatusUpdate);
+    };
+  }, [socket]);
+
   const setFilter = (val: string) => {
     const params = new URLSearchParams(searchParams);
     if (val) params.set("filter", val);
@@ -106,11 +139,20 @@ const OrdersPage: React.FC = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
+        <div className="flex items-center gap-2 mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
+          {connectionFailed && (
+            <span
+              className="flex items-center gap-1 text-xs text-gray-400"
+              title="Real-time updates unavailable"
+            >
+              <WifiOff className="h-4 w-4" />
+            </span>
+          )}
+        </div>
 
         {/* Filters */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {FILTERS.map((f) => (
+        <div className="flex gap-2 mb-6 flex-wrap">          {FILTERS.map((f) => (
             <Button
               key={f.value}
               variant={currentFilter === f.value ? "default" : "outline"}

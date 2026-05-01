@@ -1,7 +1,6 @@
+import ScrollToTop from "@/components/ScrollToTop";
 import React from "react";
 import { Outlet } from "react-router-dom";
-import { Toaster } from "@/components/ui/toaster";
-import ScrollToTop from "@/components/ScrollToTop";
 
 /**
  * RootLayout - The outermost layout wrapper for the entire application.
@@ -31,8 +30,6 @@ const RootLayout: React.FC = () => {
       {/* Main outlet for nested routes */}
       <Outlet />
 
-      {/* Global toast notifications */}
-      <Toaster />
     </div>
   );
 };
