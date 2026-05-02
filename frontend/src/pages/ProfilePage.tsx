@@ -1,94 +1,107 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  User,
-  Mail,
-  Phone,
-  CreditCard,
-  Shield,
-  Edit3,
-  MapPin,
-  Calendar,
-  CheckCircle2,
-  AlertCircle,
-  Plus,
-  Trash2,
-  Star,
-  Home,
-  Briefcase,
-  Eye,
-  EyeOff,
-  Loader2,
-  Bell,
-  Heart,
-  Award,
-  X,
-  Save,
-  Camera,
-  ShoppingBag,
-  Clock,
-  UtensilsCrossed,
-  ArrowRight,
-  Cake,
-} from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import CoverPhotoPositioner from "@/components/CoverPhotoPositioner";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import CoverPhotoPositioner from "@/components/CoverPhotoPositioner";
-import authService from "@/services/authService";
-import userService from "@/services/userService";
-import type {
-  UserProfile,
-  CustomerProfile,
-  UserAddress,
-  NotificationPreferences,
-  PaymentMethod,
-} from "@/services/userService";
 import {
-  updateProfileSchema,
-  changePasswordSchema,
-  addAddressSchema,
-  deactivateAccountSchema,
-  type UpdateProfileFormData,
-  type ChangePasswordFormData,
-  type AddAddressFormData,
-  type DeactivateAccountFormData,
+    addAddressSchema,
+    changePasswordSchema,
+    deactivateAccountSchema,
+    updateProfileSchema,
+    type AddAddressFormData,
+    type ChangePasswordFormData,
+    type DeactivateAccountFormData,
+    type UpdateProfileFormData,
 } from "@/lib/validation";
+import authService from "@/services/authService";
+import type {
+    CustomerProfile,
+    NotificationPreferences,
+    PaymentMethod,
+    UserAddress,
+    UserProfile,
+} from "@/services/userService";
+import userService from "@/services/userService";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AnimatePresence, motion } from "framer-motion";
+import L from "leaflet";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import "leaflet/dist/leaflet.css";
+import {
+    AlertCircle,
+    ArrowRight,
+    Award,
+    Bell,
+    Briefcase,
+    Cake,
+    Calendar,
+    Camera,
+    CheckCircle2,
+    Clock,
+    CreditCard,
+    Edit3,
+    Eye,
+    EyeOff,
+    Heart,
+    Home,
+    Loader2,
+    Mail,
+    MapPin,
+    Phone,
+    Plus,
+    Save,
+    Shield,
+    ShoppingBag,
+    Star,
+    Trash2,
+    User,
+    UtensilsCrossed,
+    X,
+} from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
+import { Link, useNavigate } from "react-router-dom";
+
+const DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 // ── Types ──────────────────────────────────────────────────────
 type ProfileTab =
@@ -149,6 +162,22 @@ const STATE_OPTIONS = [
   "Mymensingh",
   "Other",
 ];
+
+function LocationPickerMap({ lat, lng, onChange }: { lat: number; lng: number; onChange: (lat: number, lng: number) => void }) {
+  const map = useMapEvents({
+    click(e) {
+      onChange(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  
+  useEffect(() => {
+    if (lat !== 0 && lng !== 0) {
+      map.flyTo([lat, lng], map.getZoom());
+    }
+  }, [lat, lng, map]);
+
+  return lat !== 0 && lng !== 0 ? <Marker position={[lat, lng]} /> : null;
+}
 
 const CITY_OPTIONS = [
   "Sylhet",
@@ -2153,6 +2182,57 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
     setIsSaving(false);
   };
 
+  const handleCoordinatesUpdate = useCallback(async (latitude: number, longitude: number) => {
+    form.setValue("latitude", latitude, { shouldValidate: true });
+    form.setValue("longitude", longitude, { shouldValidate: true });
+    setIsDetectingLocation(true);
+
+    try {
+      const resolvedAddress = await reverseGeocodeCoordinates(
+        latitude,
+        longitude,
+      );
+
+      if (resolvedAddress.street) {
+        form.setValue("street", resolvedAddress.street, {
+          shouldValidate: true,
+        });
+      }
+      if (resolvedAddress.city) {
+        form.setValue("city", resolvedAddress.city, {
+          shouldValidate: true,
+        });
+      }
+      if (resolvedAddress.state) {
+        form.setValue("state", resolvedAddress.state, {
+          shouldValidate: true,
+        });
+      }
+      if (resolvedAddress.country) {
+        form.setValue("country", resolvedAddress.country, {
+          shouldValidate: true,
+        });
+      }
+      if (resolvedAddress.zipCode) {
+        form.setValue("zipCode", resolvedAddress.zipCode, {
+          shouldValidate: true,
+        });
+      }
+
+      toast({
+        title: "Location detected",
+        description: "Your address fields were updated automatically.",
+      });
+    } catch {
+      toast({
+        title: "Location set",
+        description: "Coordinates were saved, but address lookup could not complete.",
+      });
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }, [form, toast]);
+
   const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       toast({
@@ -2168,55 +2248,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
       async (pos) => {
         const latitude = Math.round(pos.coords.latitude * 1e6) / 1e6;
         const longitude = Math.round(pos.coords.longitude * 1e6) / 1e6;
-
-        form.setValue("latitude", latitude, { shouldValidate: true });
-        form.setValue("longitude", longitude, { shouldValidate: true });
-
-        try {
-          const resolvedAddress = await reverseGeocodeCoordinates(
-            latitude,
-            longitude,
-          );
-
-          if (resolvedAddress.street) {
-            form.setValue("street", resolvedAddress.street, {
-              shouldValidate: true,
-            });
-          }
-          if (resolvedAddress.city) {
-            form.setValue("city", resolvedAddress.city, {
-              shouldValidate: true,
-            });
-          }
-          if (resolvedAddress.state) {
-            form.setValue("state", resolvedAddress.state, {
-              shouldValidate: true,
-            });
-          }
-          if (resolvedAddress.country) {
-            form.setValue("country", resolvedAddress.country, {
-              shouldValidate: true,
-            });
-          }
-          if (resolvedAddress.zipCode) {
-            form.setValue("zipCode", resolvedAddress.zipCode, {
-              shouldValidate: true,
-            });
-          }
-
-          toast({
-            title: "Location detected",
-            description: "Your address fields were updated automatically.",
-          });
-        } catch {
-          toast({
-            title: "Location detected",
-            description:
-              "Coordinates were saved, but address lookup could not complete.",
-          });
-        } finally {
-          setIsDetectingLocation(false);
-        }
+        handleCoordinatesUpdate(latitude, longitude);
       },
       (err) => {
         setIsDetectingLocation(false);
@@ -2235,7 +2267,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
         maximumAge: 0,
       },
     );
-  }, [form, toast]);
+  }, [handleCoordinatesUpdate, toast]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2287,6 +2319,24 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   We need your location for delivery
                 </span>
               )}
+            </div>
+
+            <div className="h-48 w-full rounded-2xl overflow-hidden border border-gray-200 z-0 relative">
+              <MapContainer 
+                center={form.watch("latitude") !== 0 ? [form.watch("latitude"), form.watch("longitude")] : [23.8103, 90.4125]} 
+                zoom={13} 
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <LocationPickerMap 
+                  lat={form.watch("latitude")} 
+                  lng={form.watch("longitude")} 
+                  onChange={handleCoordinatesUpdate}
+                />
+              </MapContainer>
             </div>
 
             <FormField
