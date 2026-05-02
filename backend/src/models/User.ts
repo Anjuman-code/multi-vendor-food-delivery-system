@@ -8,17 +8,17 @@ import bcrypt from 'bcryptjs';
 import mongoose, { Schema } from 'mongoose';
 import { AddressType, AUTH, UserRole } from '../config/constants';
 import {
-  IAddress,
-  ICoordinates,
-  IUserDocument,
-  IUserModel,
+    IAddress,
+    ICoordinates,
+    IUserDocument,
+    IUserModel,
 } from '../types/user.types';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.util';
 import {
-  generateOTP,
-  generateResetToken,
-  generateVerificationToken,
-  hashToken,
+    generateOTP,
+    generateResetToken,
+    generateVerificationToken,
+    hashToken,
 } from '../utils/token.util';
 
 // ── Sub-schemas ────────────────────────────────────────────────
@@ -39,10 +39,8 @@ const addressSchema = new Schema<IAddress>({
   },
   street: { type: String, required: true, trim: true },
   apartment: { type: String, trim: true },
-  city: { type: String, required: true, trim: true },
-  state: { type: String, required: true, trim: true },
-  zipCode: { type: String, required: true, trim: true },
-  country: { type: String, required: true, trim: true },
+  area: { type: String, required: true, trim: true },
+  district: { type: String, required: true, trim: true },
   coordinates: { type: coordinatesSchema, required: true },
   isDefault: { type: Boolean, default: false },
 });

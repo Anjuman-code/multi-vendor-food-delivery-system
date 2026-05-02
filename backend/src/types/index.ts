@@ -13,10 +13,8 @@ export * from "./user.types";
 /** Restaurant address sub-document */
 export interface IRestaurantAddress {
   street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  area: string;
+  district: string;
   coordinates?: {
     lat: number;
     lng: number;

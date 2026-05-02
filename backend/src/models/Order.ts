@@ -38,10 +38,8 @@ export interface IOrderItem {
 export interface IDeliveryAddress {
   street: string;
   apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  area: string;
+  district: string;
   coordinates: { latitude: number; longitude: number };
 }
 
@@ -112,10 +110,8 @@ const deliveryAddressSchema = new Schema<IDeliveryAddress>(
   {
     street: { type: String, required: true },
     apartment: { type: String },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    zipCode: { type: String, required: true },
-    country: { type: String, required: true },
+    area: { type: String, required: true },
+    district: { type: String, required: true },
     coordinates: {
       latitude: { type: Number, required: true },
       longitude: { type: Number, required: true },

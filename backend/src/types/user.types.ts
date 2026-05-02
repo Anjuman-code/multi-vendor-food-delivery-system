@@ -3,10 +3,10 @@
  */
 import { Document, Model, Types } from 'mongoose';
 import {
-  AddressType,
-  CustomerTier,
-  PaymentMethodType,
-  UserRole,
+    AddressType,
+    CustomerTier,
+    PaymentMethodType,
+    UserRole,
 } from '../config/constants';
 
 // ────────────────────────────────────────────────────────────────
@@ -23,10 +23,8 @@ export interface IAddress {
   type: AddressType;
   street: string;
   apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  area: string;
+  district: string;
   coordinates: ICoordinates;
   isDefault: boolean;
 }

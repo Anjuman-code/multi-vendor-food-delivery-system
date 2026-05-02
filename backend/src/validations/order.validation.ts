@@ -27,10 +27,8 @@ export const createOrderSchema = z.object({
   deliveryAddress: z.object({
     street: z.string().trim().min(1).max(200),
     apartment: z.string().trim().max(200).optional(),
-    city: z.string().trim().min(1).max(100),
-    state: z.string().trim().min(1).max(100),
-    zipCode: z.string().trim().min(1).max(20),
-    country: z.string().trim().min(1).max(100),
+    area: z.string().trim().min(1).max(100),
+    district: z.string().trim().min(1).max(100),
     coordinates: z.object({
       latitude: z.number().min(-90).max(90),
       longitude: z.number().min(-180).max(180),

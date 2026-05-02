@@ -1,5 +1,5 @@
-import mongoose, { Schema, Model } from "mongoose";
-import { IRestaurant, IOperatingHours } from "../types";
+import mongoose, { Model, Schema } from "mongoose";
+import { IOperatingHours, IRestaurant } from "../types";
 
 // ── Sub-schema: operating hours ──────────────────────────────────
 const operatingHoursSchema = new Schema<IOperatingHours>({
@@ -50,24 +50,14 @@ const restaurantSchema = new Schema<IRestaurant>({
       required: [true, "Street address is required"],
       trim: true,
     },
-    city: {
+    area: {
       type: String,
-      required: [true, "City is required"],
+      required: [true, "Area is required"],
       trim: true,
     },
-    state: {
+    district: {
       type: String,
-      required: [true, "State is required"],
-      trim: true,
-    },
-    zipCode: {
-      type: String,
-      required: [true, "Zip code is required"],
-      trim: true,
-    },
-    country: {
-      type: String,
-      required: [true, "Country is required"],
+      required: [true, "District is required"],
       trim: true,
     },
     coordinates: {
