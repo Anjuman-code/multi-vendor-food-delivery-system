@@ -12,10 +12,8 @@ export interface UserAddress {
   type: "home" | "work" | "other";
   street: string;
   apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  district: string;
+  area: string;
   coordinates: { latitude: number; longitude: number };
   isDefault: boolean;
 }
@@ -80,10 +78,8 @@ export interface AddAddressPayload {
   type: "home" | "work" | "other";
   street: string;
   apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  district: string;
+  area: string;
   coordinates: { latitude: number; longitude: number };
   isDefault?: boolean;
 }

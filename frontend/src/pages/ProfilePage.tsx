@@ -1,56 +1,57 @@
 import CoverPhotoPositioner from "@/components/CoverPhotoPositioner";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
-    addAddressSchema,
-    changePasswordSchema,
-    deactivateAccountSchema,
-    updateProfileSchema,
-    type AddAddressFormData,
-    type ChangePasswordFormData,
-    type DeactivateAccountFormData,
-    type UpdateProfileFormData,
+  addAddressSchema,
+  changePasswordSchema,
+  deactivateAccountSchema,
+  updateProfileSchema,
+  type AddAddressFormData,
+  type ChangePasswordFormData,
+  type DeactivateAccountFormData,
+  type UpdateProfileFormData,
 } from "@/lib/validation";
 import authService from "@/services/authService";
 import type {
-    CustomerProfile,
-    NotificationPreferences,
-    PaymentMethod,
-    UserAddress,
-    UserProfile,
+  CustomerProfile,
+  NotificationPreferences,
+  PaymentMethod,
+  UserAddress,
+  UserProfile,
 } from "@/services/userService";
 import userService from "@/services/userService";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,35 +61,35 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import "leaflet/dist/leaflet.css";
 import {
-    AlertCircle,
-    ArrowRight,
-    Award,
-    Bell,
-    Briefcase,
-    Cake,
-    Calendar,
-    Camera,
-    CheckCircle2,
-    Clock,
-    CreditCard,
-    Edit3,
-    Eye,
-    EyeOff,
-    Heart,
-    Home,
-    Loader2,
-    Mail,
-    MapPin,
-    Phone,
-    Plus,
-    Save,
-    Shield,
-    ShoppingBag,
-    Star,
-    Trash2,
-    User,
-    UtensilsCrossed,
-    X,
+  AlertCircle,
+  ArrowRight,
+  Award,
+  Bell,
+  Briefcase,
+  Cake,
+  Calendar,
+  Camera,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Edit3,
+  Eye,
+  EyeOff,
+  Heart,
+  Home,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Save,
+  Shield,
+  ShoppingBag,
+  Star,
+  Trash2,
+  User,
+  UtensilsCrossed,
+  X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -103,7 +104,6 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// ── Types ──────────────────────────────────────────────────────
 type ProfileTab =
   | "profile"
   | "addresses"
@@ -111,8 +111,7 @@ type ProfileTab =
   | "preferences"
   | "security";
 
-// ── Helpers ────────────────────────────────────────────────────
-const formatRelativeTime = (dateStr: string): string => {
+  const formatRelativeTime = (dateStr: string): string => {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -142,59 +141,86 @@ const formatMemberSince = (dateStr: string): string => {
   });
 };
 
-const COUNTRY_OPTIONS = [
-  "Bangladesh",
-  "India",
-  "United States",
-  "United Kingdom",
-  "United Arab Emirates",
-  "Other",
-];
-
-const STATE_OPTIONS = [
-  "Sylhet",
-  "Dhaka",
-  "Chattogram",
-  "Rajshahi",
-  "Khulna",
-  "Barishal",
-  "Rangpur",
-  "Mymensingh",
-  "Other",
-];
-
-function LocationPickerMap({ lat, lng, onChange }: { lat: number; lng: number; onChange: (lat: number, lng: number) => void }) {
-  const map = useMapEvents({
-    click(e) {
-      onChange(e.latlng.lat, e.latlng.lng);
-    }
-  });
-  
-  useEffect(() => {
-    if (lat !== 0 && lng !== 0) {
-      map.flyTo([lat, lng], map.getZoom());
-    }
-  }, [lat, lng, map]);
-
-  return lat !== 0 && lng !== 0 ? <Marker position={[lat, lng]} /> : null;
+interface DistrictData {
+  district: string;
+  areas: string[];
 }
 
-const CITY_OPTIONS = [
-  "Sylhet",
-  "Moulvibazar",
-  "Habiganj",
-  "Sunamganj",
-  "Dhaka",
-  "Chattogram",
-  "Khulna",
-  "Rajshahi",
-  "Other",
+const DISTRICT_DATA: DistrictData[] = [
+  { district: "Bagerhat", areas: ["Bagerhat Sadar", "Chitalmari", "Fakirhat", "Kachua", "Mollarhat", "Mongla", "Morelganj", "Rampal", "Sarankhola"] },
+  { district: "Bandarban", areas: ["Ali Kadam", "Bandarban Sadar", "Lama", "Nakhoyngchari", "Rawanchari", "Ruma", "Thanchi"] },
+  { district: "Barguna", areas: ["Amtali", "Bamna", "Barguna Sadar", "Betagi", "Patharghata"] },
+  { district: "Barishal", areas: ["Agailjhara", "Babuganj", "Bakerganj", "Banari Para", "Gaurnadi", "Hizla", "Mehonjuri", "Muladi", "Rajapur", "Sariakandi", "Swandip", "Wazirpur"] },
+  { district: "Bhola", areas: ["Bhola Sadar", "Burhanuddin", "Charfasson", "Dasmina", "Haliman", "Lakshmipur", "Manpura", "Tazumuddin"] },
+  { district: "Bogura", areas: ["Bogura Sadar", "Dhunat", "Dhupchanchia", "Gabtali", "Kahaloo", "Nandigram", "Sariakandi", "Shajahanpur", "Sherpur", "Sonatala"] },
+  { district: "Brahmanbaria", areas: ["Ashuganj", "Brahmanbaria Sadar", "Kasba", "Nabinagar", "Nasirnagar", "Sarail", "Shibpur", "Susangaj"] },
+  { district: "Chandpur", areas: ["Chandpur Sadar", "Faridganj", "Haimchar", "Haziganj", "Kachua", "Matlab North", "Matlab South", "Shahrasti"] },
+  { district: "Chattogram", areas: ["Anwara", "Brahmanpara", "Chandanaish", "Fatikchari", "Hathazari", "Lohagara", "Mirsharai", "Patiya", "Ranguni", "Sandwip", "Satkania", "Sitakunda"] },
+  { district: "Chuadanga", areas: ["Chuadanga Sadar", "Domanpara", "Jibannagar", "Kumarkhali"] },
+  { district: "Cox's Bazar", areas: ["Cox's Bazar Sadar", "Kutubdia", "Maheshkhali", "Ramu", "St. Martin", "Teknaf", "Ukhiya"] },
+  { district: "Cumilla", areas: ["Barura", "Brahmanpara", "Chandina", "Chauddagram", "Cumilla Sadar", "Daudkandi", "Dhundhir", "Homna", "Laksar", "Manowar", "Meghna", "Muradnagar", "Nangalkot", "Titas"] },
+  { district: "Dhaka", areas: ["Bangsal", "Dhamrai", "Dohar", "Keraniganj", "Nawabganj", "Savar"] },
+  { district: "Dinajpur", areas: ["Birganj", "Biral", "Birampur", "Boipur", "Chirirbandar", "Dinajpur Sadar", "Ghoraghat", "Hakimpur", "Kaharole", "Koch Para", "Lalpur", "Nawabganj", "Parbatipur"] },
+  { district: "Faridpur", areas: ["Bhanga", "Boalmari", "Charbhadrasan", "Faridpur Sadar", "Madhukhali", "Nagarkanda", "Saltha", "Sadarpur"] },
+  { district: "Feni", areas: ["Chhagolnagar", "Feni Sadar", "Fulgazi", "Praharshadanga", "Sonagazi"] },
+  { district: "Gaibandha", areas: ["Gaibandha Sadar", "Gobindaganj", "Palashbari", "Phulchari", "Sadullapur", "Sughatta"] },
+  { district: "Gopalganj", areas: ["Gopalganj Sadar", "Kashiani", "Kotalipara", "Muksudpur", "Tungipara"] },
+  { district: "Habiganj", areas: ["Ajmiriganj", "Baniyachong", "Chunarughat", "Habiganj Sadar", "Lakhai", "Madhupur", "Nabigram", "Sayni"] },
+  { district: "Joypurhat", areas: ["Akkelpur", "Joypurhat Sadar", "Khetlal", "Panchbibi"] },
+  { district: "Khagrachari", areas: ["Dighinala", "Khagrachari Sadar", "Lakshmichhari", "Mahalchari", "Manikchari", "Matiranga", "Panchhari", "Ramgarh"] },
+  { district: "Khulna", areas: ["Batiaghata", "Dacope", "Dumuria", "Koyra", "Khulna Sadar", "Paikgachha", "Rupsa", "Terokhada"] },
+  { district: "Kishoreganj", areas: ["Austagram", "Bajitpur", "Bhairab", "Hossainpur", "Itna", "Karimganj", "Kishoreganj Sadar", "Kuliarchar", "Mithamain", "Nikli", "Pakundia", "Tarail"] },
+  { district: "Kushtia", areas: ["Kushtia Sadar", "Kumarkhali", "Mirpur", "Sheikher Jany", "Vhur"] },
+  { district: "Lakshmipur", areas: ["Lakshmipur Sadar", "Radhanagar", "Rupganj"] },
+  { district: "Lalmonirhat", areas: ["Aditmari", "Golang人间", "Kaliganj", "Lalmonirhat Sadar", "Patgram"] },
+  { district: "Madaripur", areas: ["Kalkini", "Madaripur Sadar", "Rajoir", "Shibchar"] },
+  { district: "Manikganj", areas: ["Daulatpur", "Ghior", "Harirampur", "Manikganj Sadar", "Saturia", "Shivalaya"] },
+  { district: "Meherpur", areas: ["Meherpur Sadar", "Mujibnagar", "Naugaon"] },
+  { district: "Mymensingh", areas: ["Bhaluka", "Dhobaura", "Gafargaon", "Haluaghat", "Ishwarganj", "Mymensingh Sadar", "Nakla", "Nandail", "Phulpur", "Trishal"] },
+  { district: "Naogaon", areas: ["Badalgachi", "Manda", "Naogaon Sadar", "Niamatpur", "Pangsha", "Patnitala", "Raninagar", "Shahzadpur"] },
+  { district: "Narail", areas: ["Kalia", "Narail Sadar"] },
+  { district: "Narayanganj", areas: ["Araihazar", "Bandar", "Narayanganj Sadar", "Sonargaon"] },
+  { district: "Narsingdi", areas: ["Belabo", "Monohardi", "Narsingdi Sadar", "Palash", "Shibpur"] },
+  { district: "Natore", areas: ["Baliakhola", "Gurdaspur", "Lalpur", "Natore Sadar"] },
+  { district: "Netrakona", areas: ["Atpara", "Barhatta", "Dharmapara", "Khalpara", "Madan", "Mohanganj", "Netrakona Sadar", "Puranakundi", "Titli"] },
+  { district: "Nilphamari", areas: ["Dimla", "Domar", "Jaldhaka", "Nilphamari Sadar", "Saidpur"] },
+  { district: "Noakhali", areas: ["Begumganj", "Chandpur", "Noakhali Sadar"] },
+  { district: "Pabna", options: ["Attohora", "Bera", "Bhangura", "Chatmohar", "Ishwardi", "Pabna Sadar", "Santhia", "Sujapur"] },
+  { district: "Panchagar", areas: ["Atwari", "Badda", "Panchagar Sadar", "Tetulia"] },
+  { district: "Parbatipur", areas: ["Parbatipur Sadar"] },
+  { district: "Patuakhali", areas: ["Bauphal", "Dashmina", "Galachipa", "Kalapara", "Patuakhali Sadar", "Rangabali"] },
+  { district: "Pirojpur", areas: ["Bhandaria", "Kawkhali", "Pirojpur Sadar", "Ziang"] },
+  { district: "Rajbari", areas: ["Balia", "Goaria", "Pangsha", "Rajbari Sadar", "Sthal"] },
+  { district: "Rajshahi", areas: ["Bagha", "Boxirhat", "Charghat", "Durgapur", "Godagari", "Mohanpur", "Naopara", "Paba", "Pthala"] },
+  { district: "Rangpur", areas: ["Badargonj", "Gangachara", "Haripur", "Khatakhali", "Mithapukur", "Pirgacha", "Rangpur Sadar", "Taragonj"] },
+  { district: "Satkhira", areas: ["Assasuni", "Debhata", "Kalaroa", "Satkhira Sadar", "Shyamnagar", "Tala"] },
+  { district: "Shariatpur", areas: ["Bhedarganj", "Damudya", "Ghosair", "Janjira", "Naria", "Shariatpur Sadar"] },
+  { district: "Sherpur", areas: ["Jhenaigati", "Nakla", "Sherpur Sadar", "Sreebari"] },
+  { district: "Sirajganj", areas: ["Belkuchi", "Chouhali", "Kamarkhand", "Khoksha", "Sirajganj Sadar", "Tarash", "Ullapara"] },
+  { district: "Sunamganj", areas: ["Bishwab", "Chhatak", "Derai", "Dharampasha", "Gowainghat", "Jagannathpur", "Jamalganj", "Sulla", "Sunamganj Sadar", "Tahirpur"] },
+  { district: "Sylhet", areas: ["Beanibazar", "Bishwanath", "Companiganj", "Daram", "Fenchuganj", "Gowainghat", "Jaintiapur", "Kanaighat", "Osmani Nagar", "Sylhet Sadar", "Zowra"] },
+  { district: "Tangail", areas: ["Basail", "Delduar", "Dhanbari", "Gopalpur", "Kalihati", "Madhupur", "Mirzapur", "Nagarpur", "Sakhipur", "Tangail Sadar"] },
+  { district: "Thakurgaon", areas: ["Pirganj", "Ranisankail", "Thakurgaon Sadar"] },
 ];
+
+const DISTRICT_OPTIONS = DISTRICT_DATA.map((d) => ({ value: d.district, label: d.district }));
+
+function getAreasByDistrict(district: string): { value: string; label: string }[] {
+  const found = DISTRICT_DATA.find((d) => d.district === district);
+  if (!found) return [];
+return found.areas.map((a) => ({ value: a, label: a }));
+}
+
+interface ResolvedAddress {
+  street?: string;
+  district?: string;
+  area?: string;
+}
 
 const reverseGeocodeCoordinates = async (
   latitude: number,
   longitude: number,
-): Promise<Partial<AddAddressFormData>> => {
+): Promise<ResolvedAddress> => {
   const url = new URL("https://nominatim.openstreetmap.org/reverse");
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("lat", String(latitude));
@@ -244,20 +270,27 @@ const reverseGeocodeCoordinates = async (
 
   return {
     street: street || undefined,
-    city:
-      address.city ||
-      address.town ||
-      address.village ||
-      address.municipality ||
-      address.county ||
-      undefined,
-    state: address.state || undefined,
-    country: address.country || undefined,
-    zipCode: address.postcode || undefined,
+    district: address.county || address.state || undefined,
+    area: address.city || address.town || address.village || address.municipality || undefined,
   };
 };
 
-// ── Stat Pill ──────────────────────────────────────────────────
+function LocationPickerMap({ lat, lng, onChange }: { lat: number; lng: number; onChange: (lat: number, lng: number) => void }) {
+  const map = useMapEvents({
+    click(e) {
+      onChange(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  
+  useEffect(() => {
+    if (lat !== 0 && lng !== 0) {
+      map.flyTo([lat, lng], map.getZoom());
+    }
+  }, [lat, lng, map]);
+
+  return lat !== 0 && lng !== 0 ? <Marker position={[lat, lng]} /> : null;
+}
+
 const StatPill: React.FC<{
   icon: React.ReactNode;
   value: string | number;
@@ -272,9 +305,6 @@ const StatPill: React.FC<{
   </div>
 );
 
-// ════════════════════════════════════════════════════════════════
-// Main Profile Page
-// ════════════════════════════════════════════════════════════════
 const ProfilePage: React.FC = () => {
   const {
     user,
@@ -291,7 +321,7 @@ const ProfilePage: React.FC = () => {
     useState<CustomerProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
-  // Photo upload state
+  
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const profilePhotoRef = useRef<HTMLInputElement>(null);
@@ -306,14 +336,14 @@ const ProfilePage: React.FC = () => {
     return `${API_BASE_URL}${imagePath}`;
   };
 
-  // Redirect if not logged in
+  
   useEffect(() => {
     if (!isAuthenticated || !user) {
       navigate("/login", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
-  // Fetch full profile from API
+  
   const fetchProfile = useCallback(async () => {
     setIsLoadingProfile(true);
     const res = await userService.getProfile();
@@ -336,13 +366,13 @@ const ProfilePage: React.FC = () => {
     }
   }, [isAuthenticated, fetchProfile]);
 
-  // ── Photo upload handlers ──────────────────────────────────
+  
   const handleProfilePhotoChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // Validate client-side
+      
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       if (!allowed.includes(file.type)) {
         toast({
@@ -376,7 +406,7 @@ const ProfilePage: React.FC = () => {
         });
       }
       setIsUploadingProfile(false);
-      // Reset input so re-selecting the same file triggers onChange
+      
       if (profilePhotoRef.current) profilePhotoRef.current.value = "";
     },
     [toast],
@@ -425,7 +455,7 @@ const ProfilePage: React.FC = () => {
     [toast],
   );
 
-  // Save cover photo vertical position
+  
   const handleSaveCoverPosition = useCallback(
     async (position: number) => {
       const res = await userService.updateCoverPhotoPosition(position);
@@ -828,9 +858,6 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Profile Section
-// ════════════════════════════════════════════════════════════════
 interface ProfileSectionProps {
   profile: UserProfile | null;
   customerProfile: CustomerProfile | null;
@@ -1253,9 +1280,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Payment Section
-// ════════════════════════════════════════════════════════════════
 const PaymentSection: React.FC = () => {
   const { toast } = useToast();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -1678,9 +1702,6 @@ const PaymentSection: React.FC = () => {
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Recent Activity Section
-// ════════════════════════════════════════════════════════════════
 interface RecentActivitySectionProps {
   customerProfile: CustomerProfile | null;
   isLoading: boolean;
@@ -1761,9 +1782,6 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Phone Verification Dialog
-// ════════════════════════════════════════════════════════════════
 interface PhoneVerificationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1789,7 +1807,7 @@ const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = ({
 
   const handleSendCode = async () => {
     setIsSending(true);
-    // UI-only — simulate sending
+    
     await new Promise((r) => setTimeout(r, 1200));
     setIsSending(false);
     setStep("verify");
@@ -1883,9 +1901,6 @@ const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = ({
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Addresses Section
-// ════════════════════════════════════════════════════════════════
 interface AddressesSectionProps {
   addresses: UserAddress[];
   isLoading: boolean;
@@ -2079,7 +2094,6 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
   );
 };
 
-// ── Address Dialog ─────────────────────────────────────────────
 interface AddressDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -2099,17 +2113,15 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
   const isEdit = !!address;
 
   const form = useForm<AddAddressFormData>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    
     resolver: zodResolver(addAddressSchema) as any,
     mode: "onChange",
     defaultValues: {
       type: address?.type ?? "home",
       street: address?.street ?? "",
       apartment: address?.apartment ?? "",
-      city: address?.city ?? "",
-      state: address?.state ?? "",
-      zipCode: address?.zipCode ?? "",
-      country: address?.country ?? "",
+      district: address?.district ?? "",
+      area: address?.area ?? "",
       latitude: address?.coordinates?.latitude ?? 0,
       longitude: address?.coordinates?.longitude ?? 0,
       isDefault: address?.isDefault ?? false,
@@ -2122,10 +2134,8 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
         type: address.type,
         street: address.street,
         apartment: address.apartment ?? "",
-        city: address.city,
-        state: address.state,
-        zipCode: address.zipCode,
-        country: address.country,
+        district: address.district,
+        area: address.area,
         latitude: address.coordinates.latitude,
         longitude: address.coordinates.longitude,
         isDefault: address.isDefault,
@@ -2135,10 +2145,8 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
         type: "home",
         street: "",
         apartment: "",
-        city: "",
-        state: "",
-        zipCode: "",
-        country: "",
+        district: "",
+        area: "",
         latitude: 0,
         longitude: 0,
         isDefault: false,
@@ -2152,10 +2160,8 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
       type: data.type as "home" | "work" | "other",
       street: data.street,
       apartment: data.apartment || undefined,
-      city: data.city,
-      state: data.state,
-      zipCode: data.zipCode,
-      country: data.country,
+      district: data.district,
+      area: data.area,
       coordinates: { latitude: data.latitude, longitude: data.longitude },
       isDefault: data.isDefault,
     };
@@ -2185,6 +2191,10 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
   const handleCoordinatesUpdate = useCallback(async (latitude: number, longitude: number) => {
     form.setValue("latitude", latitude, { shouldValidate: true });
     form.setValue("longitude", longitude, { shouldValidate: true });
+    
+    const coordsString = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    form.setValue("apartment", coordsString, { shouldValidate: true });
+    
     setIsDetectingLocation(true);
 
     try {
@@ -2198,23 +2208,35 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
           shouldValidate: true,
         });
       }
-      if (resolvedAddress.city) {
-        form.setValue("city", resolvedAddress.city, {
+
+      let districtValue = resolvedAddress.district;
+      let areaValue = resolvedAddress.area;
+      
+      const districtExists = DISTRICT_DATA.some(
+        (d) => d.district.toLowerCase() === districtValue?.toLowerCase()
+      );
+      if (!districtExists) {
+        districtValue = "Sylhet";
+        areaValue = "Sylhet Sadar";
+      } else if (areaValue) {
+        const districtData = DISTRICT_DATA.find(
+          (d) => d.district.toLowerCase() === districtValue?.toLowerCase()
+        );
+        const areaExists = districtData?.areas.some(
+          (a) => a.toLowerCase() === areaValue?.toLowerCase()
+        );
+        if (!areaExists) {
+          areaValue = districtData?.areas[0] || "Sylhet Sadar";
+        }
+      }
+
+      if (districtValue) {
+        form.setValue("district", districtValue, {
           shouldValidate: true,
         });
       }
-      if (resolvedAddress.state) {
-        form.setValue("state", resolvedAddress.state, {
-          shouldValidate: true,
-        });
-      }
-      if (resolvedAddress.country) {
-        form.setValue("country", resolvedAddress.country, {
-          shouldValidate: true,
-        });
-      }
-      if (resolvedAddress.zipCode) {
-        form.setValue("zipCode", resolvedAddress.zipCode, {
+      if (areaValue) {
+        form.setValue("area", areaValue, {
           shouldValidate: true,
         });
       }
@@ -2224,9 +2246,11 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
         description: "Your address fields were updated automatically.",
       });
     } catch {
+      form.setValue("district", "Sylhet", { shouldValidate: true });
+      form.setValue("area", "Sylhet Sadar", { shouldValidate: true });
       toast({
         title: "Location set",
-        description: "Coordinates were saved, but address lookup could not complete.",
+        description: "Coordinates were saved, but address lookup could not complete. Defaulting to Sylhet.",
       });
     } finally {
       setIsDetectingLocation(false);
@@ -2308,13 +2332,7 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                   {isDetectingLocation ? "Detecting…" : "Use my location"}
                 </Button>
               </div>
-              {form.watch("latitude") !== 0 && form.watch("longitude") !== 0 ? (
-                <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Location set ({form.watch("latitude")?.toFixed(6)},{" "}
-                  {form.watch("longitude")?.toFixed(6)})
-                </span>
-              ) : (
+              {!form.watch("latitude") && (
                 <span className="text-xs text-muted-foreground">
                   We need your location for delivery
                 </span>
@@ -2383,11 +2401,11 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
               name="apartment"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Apartment / Suite (Optional)</FormLabel>
+                  <FormLabel>Apartment / Suite</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="Apt 4B"
+                      placeholder={field.value || "e.g. 24.9174, 92.9372"}
                       className="rounded-xl"
                     />
                   </FormControl>
@@ -2395,99 +2413,36 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <FormField
                 control={form.control}
-                name="city"
+                name="district"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue placeholder="Select city" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CITY_OPTIONS.map((city) => (
-                            <SelectItem key={city} value={city}>
-                              {city}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
+                    <FormLabel>District</FormLabel>
+                    <Combobox
+                      options={DISTRICT_OPTIONS}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Select district"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="state"
+                name="area"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>State</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue placeholder="Select state" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATE_OPTIONS.map((state) => (
-                            <SelectItem key={state} value={state}>
-                              {state}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="zipCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zip Code</FormLabel>
-                    <FormControl>
-                      <Input {...field} className="rounded-xl" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COUNTRY_OPTIONS.map((country) => (
-                            <SelectItem key={country} value={country}>
-                              {country}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
+                    <FormLabel>Area</FormLabel>
+                    <Combobox
+                      options={getAreasByDistrict(form.watch("district"))}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Select area"
+                      disabled={!form.watch("district")}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2524,9 +2479,6 @@ const AddressDialog: React.FC<AddressDialogProps> = ({
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Preferences Section
-// ════════════════════════════════════════════════════════════════
 interface PreferencesSectionProps {
   customerProfile: CustomerProfile | null;
   isLoading: boolean;
@@ -2743,9 +2695,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   );
 };
 
-// ════════════════════════════════════════════════════════════════
-// Security Section
-// ════════════════════════════════════════════════════════════════
 interface SecuritySectionProps {
   profile: UserProfile | null;
   onAccountDeactivated: () => void;
@@ -2816,7 +2765,6 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   );
 };
 
-// ── Change Password Dialog ─────────────────────────────────────
 interface ChangePasswordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -2972,7 +2920,6 @@ const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
   );
 };
 
-// ── Deactivate Account Dialog ──────────────────────────────────
 interface DeactivateAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -3069,9 +3016,6 @@ const DeactivateAccountDialog: React.FC<DeactivateAccountDialogProps> = ({
   );
 };
 
-// ── Helper Components ──────────────────────────────────────────
-
-/** Info row with left orange accent bar, uppercase label, larger value */
 const InfoRow: React.FC<{
   icon: React.ReactNode;
   label: string;

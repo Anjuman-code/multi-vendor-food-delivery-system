@@ -104,10 +104,8 @@ export const addAddressSchema = z.object({
   }),
   street: z.string().min(1, "Street is required").trim(),
   apartment: z.string().trim().optional(),
-  city: z.string().min(1, "City is required").trim(),
-  state: z.string().min(1, "State is required").trim(),
-  zipCode: z.string().min(1, "Zip code is required").trim(),
-  country: z.string().min(1, "Country is required").trim(),
+  district: z.string().min(1, "District is required").trim(),
+  area: z.string().min(1, "Area is required").trim(),
   latitude: z.coerce
     .number()
     .min(-90, "Latitude must be between -90 and 90")
