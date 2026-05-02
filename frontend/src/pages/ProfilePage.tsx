@@ -1,6 +1,7 @@
 import CoverPhotoPositioner from "@/components/CoverPhotoPositioner";
+import { AddressDialog } from "@/components/AddressDialog";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -10,24 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -35,16 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import {
-  addAddressSchema,
-  changePasswordSchema,
-  deactivateAccountSchema,
-  updateProfileSchema,
-  type AddAddressFormData,
-  type ChangePasswordFormData,
-  type DeactivateAccountFormData,
-  type UpdateProfileFormData,
-} from "@/lib/validation";
+import type { UpdateProfileFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 import type {
   CustomerProfile,
@@ -54,12 +28,7 @@ import type {
   UserProfile,
 } from "@/services/userService";
 import userService from "@/services/userService";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import L from "leaflet";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-import "leaflet/dist/leaflet.css";
 import {
   AlertCircle,
   ArrowRight,
@@ -73,8 +42,6 @@ import {
   Clock,
   CreditCard,
   Edit3,
-  Eye,
-  EyeOff,
   Heart,
   Home,
   Loader2,
@@ -93,16 +60,25 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { Link, useNavigate } from "react-router-dom";
 
-const DefaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
+import { Switch } from "@/components/ui/switch";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { DeactivateAccountDialog } from "@/components/DeactivateAccountDialog";
+import { PaymentMethodsDialog, PaymentMethodsList } from "@/components/PaymentMethodsDialog";
+import { PhoneVerificationDialog } from "@/components/PhoneVerificationDialog";
+import { ProfileSkeleton } from "@/components/ProfileSkeleton";
+import { updateProfileSchema } from "@/lib/validation";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type ProfileTab =
   | "profile"
@@ -111,7 +87,7 @@ type ProfileTab =
   | "preferences"
   | "security";
 
-  const formatRelativeTime = (dateStr: string): string => {
+const formatRelativeTime = (dateStr: string): string => {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -140,156 +116,6 @@ const formatMemberSince = (dateStr: string): string => {
     year: "numeric",
   });
 };
-
-interface DistrictData {
-  district: string;
-  areas: string[];
-}
-
-const DISTRICT_DATA: DistrictData[] = [
-  { district: "Bagerhat", areas: ["Bagerhat Sadar", "Chitalmari", "Fakirhat", "Kachua", "Mollarhat", "Mongla", "Morelganj", "Rampal", "Sarankhola"] },
-  { district: "Bandarban", areas: ["Ali Kadam", "Bandarban Sadar", "Lama", "Nakhoyngchari", "Rawanchari", "Ruma", "Thanchi"] },
-  { district: "Barguna", areas: ["Amtali", "Bamna", "Barguna Sadar", "Betagi", "Patharghata"] },
-  { district: "Barishal", areas: ["Agailjhara", "Babuganj", "Bakerganj", "Banari Para", "Gaurnadi", "Hizla", "Mehonjuri", "Muladi", "Rajapur", "Sariakandi", "Swandip", "Wazirpur"] },
-  { district: "Bhola", areas: ["Bhola Sadar", "Burhanuddin", "Charfasson", "Dasmina", "Haliman", "Lakshmipur", "Manpura", "Tazumuddin"] },
-  { district: "Bogura", areas: ["Bogura Sadar", "Dhunat", "Dhupchanchia", "Gabtali", "Kahaloo", "Nandigram", "Sariakandi", "Shajahanpur", "Sherpur", "Sonatala"] },
-  { district: "Brahmanbaria", areas: ["Ashuganj", "Brahmanbaria Sadar", "Kasba", "Nabinagar", "Nasirnagar", "Sarail", "Shibpur", "Susangaj"] },
-  { district: "Chandpur", areas: ["Chandpur Sadar", "Faridganj", "Haimchar", "Haziganj", "Kachua", "Matlab North", "Matlab South", "Shahrasti"] },
-  { district: "Chattogram", areas: ["Anwara", "Brahmanpara", "Chandanaish", "Fatikchari", "Hathazari", "Lohagara", "Mirsharai", "Patiya", "Ranguni", "Sandwip", "Satkania", "Sitakunda"] },
-  { district: "Chuadanga", areas: ["Chuadanga Sadar", "Domanpara", "Jibannagar", "Kumarkhali"] },
-  { district: "Cox's Bazar", areas: ["Cox's Bazar Sadar", "Kutubdia", "Maheshkhali", "Ramu", "St. Martin", "Teknaf", "Ukhiya"] },
-  { district: "Cumilla", areas: ["Barura", "Brahmanpara", "Chandina", "Chauddagram", "Cumilla Sadar", "Daudkandi", "Dhundhir", "Homna", "Laksar", "Manowar", "Meghna", "Muradnagar", "Nangalkot", "Titas"] },
-  { district: "Dhaka", areas: ["Bangsal", "Dhamrai", "Dohar", "Keraniganj", "Nawabganj", "Savar"] },
-  { district: "Dinajpur", areas: ["Birganj", "Biral", "Birampur", "Boipur", "Chirirbandar", "Dinajpur Sadar", "Ghoraghat", "Hakimpur", "Kaharole", "Koch Para", "Lalpur", "Nawabganj", "Parbatipur"] },
-  { district: "Faridpur", areas: ["Bhanga", "Boalmari", "Charbhadrasan", "Faridpur Sadar", "Madhukhali", "Nagarkanda", "Saltha", "Sadarpur"] },
-  { district: "Feni", areas: ["Chhagolnagar", "Feni Sadar", "Fulgazi", "Praharshadanga", "Sonagazi"] },
-  { district: "Gaibandha", areas: ["Gaibandha Sadar", "Gobindaganj", "Palashbari", "Phulchari", "Sadullapur", "Sughatta"] },
-  { district: "Gopalganj", areas: ["Gopalganj Sadar", "Kashiani", "Kotalipara", "Muksudpur", "Tungipara"] },
-  { district: "Habiganj", areas: ["Ajmiriganj", "Baniyachong", "Chunarughat", "Habiganj Sadar", "Lakhai", "Madhupur", "Nabigram", "Sayni"] },
-  { district: "Joypurhat", areas: ["Akkelpur", "Joypurhat Sadar", "Khetlal", "Panchbibi"] },
-  { district: "Khagrachari", areas: ["Dighinala", "Khagrachari Sadar", "Lakshmichhari", "Mahalchari", "Manikchari", "Matiranga", "Panchhari", "Ramgarh"] },
-  { district: "Khulna", areas: ["Batiaghata", "Dacope", "Dumuria", "Koyra", "Khulna Sadar", "Paikgachha", "Rupsa", "Terokhada"] },
-  { district: "Kishoreganj", areas: ["Austagram", "Bajitpur", "Bhairab", "Hossainpur", "Itna", "Karimganj", "Kishoreganj Sadar", "Kuliarchar", "Mithamain", "Nikli", "Pakundia", "Tarail"] },
-  { district: "Kushtia", areas: ["Kushtia Sadar", "Kumarkhali", "Mirpur", "Sheikher Jany", "Vhur"] },
-  { district: "Lakshmipur", areas: ["Lakshmipur Sadar", "Radhanagar", "Rupganj"] },
-  { district: "Lalmonirhat", areas: ["Aditmari", "Golang人间", "Kaliganj", "Lalmonirhat Sadar", "Patgram"] },
-  { district: "Madaripur", areas: ["Kalkini", "Madaripur Sadar", "Rajoir", "Shibchar"] },
-  { district: "Manikganj", areas: ["Daulatpur", "Ghior", "Harirampur", "Manikganj Sadar", "Saturia", "Shivalaya"] },
-  { district: "Meherpur", areas: ["Meherpur Sadar", "Mujibnagar", "Naugaon"] },
-  { district: "Mymensingh", areas: ["Bhaluka", "Dhobaura", "Gafargaon", "Haluaghat", "Ishwarganj", "Mymensingh Sadar", "Nakla", "Nandail", "Phulpur", "Trishal"] },
-  { district: "Naogaon", areas: ["Badalgachi", "Manda", "Naogaon Sadar", "Niamatpur", "Pangsha", "Patnitala", "Raninagar", "Shahzadpur"] },
-  { district: "Narail", areas: ["Kalia", "Narail Sadar"] },
-  { district: "Narayanganj", areas: ["Araihazar", "Bandar", "Narayanganj Sadar", "Sonargaon"] },
-  { district: "Narsingdi", areas: ["Belabo", "Monohardi", "Narsingdi Sadar", "Palash", "Shibpur"] },
-  { district: "Natore", areas: ["Baliakhola", "Gurdaspur", "Lalpur", "Natore Sadar"] },
-  { district: "Netrakona", areas: ["Atpara", "Barhatta", "Dharmapara", "Khalpara", "Madan", "Mohanganj", "Netrakona Sadar", "Puranakundi", "Titli"] },
-  { district: "Nilphamari", areas: ["Dimla", "Domar", "Jaldhaka", "Nilphamari Sadar", "Saidpur"] },
-  { district: "Noakhali", areas: ["Begumganj", "Chandpur", "Noakhali Sadar"] },
-  { district: "Pabna", options: ["Attohora", "Bera", "Bhangura", "Chatmohar", "Ishwardi", "Pabna Sadar", "Santhia", "Sujapur"] },
-  { district: "Panchagar", areas: ["Atwari", "Badda", "Panchagar Sadar", "Tetulia"] },
-  { district: "Parbatipur", areas: ["Parbatipur Sadar"] },
-  { district: "Patuakhali", areas: ["Bauphal", "Dashmina", "Galachipa", "Kalapara", "Patuakhali Sadar", "Rangabali"] },
-  { district: "Pirojpur", areas: ["Bhandaria", "Kawkhali", "Pirojpur Sadar", "Ziang"] },
-  { district: "Rajbari", areas: ["Balia", "Goaria", "Pangsha", "Rajbari Sadar", "Sthal"] },
-  { district: "Rajshahi", areas: ["Bagha", "Boxirhat", "Charghat", "Durgapur", "Godagari", "Mohanpur", "Naopara", "Paba", "Pthala"] },
-  { district: "Rangpur", areas: ["Badargonj", "Gangachara", "Haripur", "Khatakhali", "Mithapukur", "Pirgacha", "Rangpur Sadar", "Taragonj"] },
-  { district: "Satkhira", areas: ["Assasuni", "Debhata", "Kalaroa", "Satkhira Sadar", "Shyamnagar", "Tala"] },
-  { district: "Shariatpur", areas: ["Bhedarganj", "Damudya", "Ghosair", "Janjira", "Naria", "Shariatpur Sadar"] },
-  { district: "Sherpur", areas: ["Jhenaigati", "Nakla", "Sherpur Sadar", "Sreebari"] },
-  { district: "Sirajganj", areas: ["Belkuchi", "Chouhali", "Kamarkhand", "Khoksha", "Sirajganj Sadar", "Tarash", "Ullapara"] },
-  { district: "Sunamganj", areas: ["Bishwab", "Chhatak", "Derai", "Dharampasha", "Gowainghat", "Jagannathpur", "Jamalganj", "Sulla", "Sunamganj Sadar", "Tahirpur"] },
-  { district: "Sylhet", areas: ["Beanibazar", "Bishwanath", "Companiganj", "Daram", "Fenchuganj", "Gowainghat", "Jaintiapur", "Kanaighat", "Osmani Nagar", "Sylhet Sadar", "Zowra"] },
-  { district: "Tangail", areas: ["Basail", "Delduar", "Dhanbari", "Gopalpur", "Kalihati", "Madhupur", "Mirzapur", "Nagarpur", "Sakhipur", "Tangail Sadar"] },
-  { district: "Thakurgaon", areas: ["Pirganj", "Ranisankail", "Thakurgaon Sadar"] },
-];
-
-const DISTRICT_OPTIONS = DISTRICT_DATA.map((d) => ({ value: d.district, label: d.district }));
-
-function getAreasByDistrict(district: string): { value: string; label: string }[] {
-  const found = DISTRICT_DATA.find((d) => d.district === district);
-  if (!found) return [];
-return found.areas.map((a) => ({ value: a, label: a }));
-}
-
-interface ResolvedAddress {
-  street?: string;
-  district?: string;
-  area?: string;
-}
-
-const reverseGeocodeCoordinates = async (
-  latitude: number,
-  longitude: number,
-): Promise<ResolvedAddress> => {
-  const url = new URL("https://nominatim.openstreetmap.org/reverse");
-  url.searchParams.set("format", "jsonv2");
-  url.searchParams.set("lat", String(latitude));
-  url.searchParams.set("lon", String(longitude));
-  url.searchParams.set("addressdetails", "1");
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": "en",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Reverse geocoding failed");
-  }
-
-  const data = (await response.json()) as {
-    address?: {
-      house_number?: string;
-      road?: string;
-      pedestrian?: string;
-      neighbourhood?: string;
-      suburb?: string;
-      city?: string;
-      town?: string;
-      village?: string;
-      municipality?: string;
-      county?: string;
-      state?: string;
-      country?: string;
-      postcode?: string;
-    };
-  };
-
-  const address = data.address ?? {};
-  const street = [
-    address.house_number,
-    address.road ||
-      address.pedestrian ||
-      address.neighbourhood ||
-      address.suburb,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  return {
-    street: street || undefined,
-    district: address.county || address.state || undefined,
-    area: address.city || address.town || address.village || address.municipality || undefined,
-  };
-};
-
-function LocationPickerMap({ lat, lng, onChange }: { lat: number; lng: number; onChange: (lat: number, lng: number) => void }) {
-  const map = useMapEvents({
-    click(e) {
-      onChange(e.latlng.lat, e.latlng.lng);
-    }
-  });
-  
-  useEffect(() => {
-    if (lat !== 0 && lng !== 0) {
-      map.flyTo([lat, lng], map.getZoom());
-    }
-  }, [lat, lng, map]);
-
-  return lat !== 0 && lng !== 0 ? <Marker position={[lat, lng]} /> : null;
-}
 
 const StatPill: React.FC<{
   icon: React.ReactNode;
@@ -321,7 +147,6 @@ const ProfilePage: React.FC = () => {
     useState<CustomerProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
-  
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const profilePhotoRef = useRef<HTMLInputElement>(null);
@@ -336,14 +161,12 @@ const ProfilePage: React.FC = () => {
     return `${API_BASE_URL}${imagePath}`;
   };
 
-  
   useEffect(() => {
     if (!isAuthenticated || !user) {
       navigate("/login", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
-  
   const fetchProfile = useCallback(async () => {
     setIsLoadingProfile(true);
     const res = await userService.getProfile();
@@ -366,13 +189,11 @@ const ProfilePage: React.FC = () => {
     }
   }, [isAuthenticated, fetchProfile]);
 
-  
   const handleProfilePhotoChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       if (!allowed.includes(file.type)) {
         toast({
@@ -406,7 +227,7 @@ const ProfilePage: React.FC = () => {
         });
       }
       setIsUploadingProfile(false);
-      
+
       if (profilePhotoRef.current) profilePhotoRef.current.value = "";
     },
     [toast],
@@ -455,7 +276,6 @@ const ProfilePage: React.FC = () => {
     [toast],
   );
 
-  
   const handleSaveCoverPosition = useCallback(
     async (position: number) => {
       const res = await userService.updateCoverPhotoPosition(position);
@@ -522,14 +342,11 @@ const ProfilePage: React.FC = () => {
           animate="visible"
           className="max-w-5xl mx-auto"
         >
-          {/* ── Profile Header Card with integrated stats ──────── */}
           <motion.div
             variants={itemVariants}
             className="relative bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4"
           >
-            {/* Banner */}
             <div className="group/banner relative h-32 sm:h-36 bg-gradient-to-r from-orange-400 via-red-400 to-pink-400 overflow-hidden">
-              {/* Cover photo with repositioning support */}
               {profile?.coverImage ? (
                 <CoverPhotoPositioner
                   imageUrl={getImageUrl(profile.coverImage)!}
@@ -537,7 +354,6 @@ const ProfilePage: React.FC = () => {
                   onSave={handleSaveCoverPosition}
                   className="absolute inset-0 w-full h-full"
                 >
-                  {/* Stats pills inside banner (desktop) */}
                   <div className="absolute bottom-3 right-4 hidden sm:flex items-center gap-2 z-[5]">
                     {customerProfile && (
                       <>
@@ -561,8 +377,6 @@ const ProfilePage: React.FC = () => {
                       />
                     )}
                   </div>
-
-                  {/* Cover photo upload affordance */}
                   <input
                     ref={coverPhotoRef}
                     type="file"
@@ -589,10 +403,7 @@ const ProfilePage: React.FC = () => {
                 </CoverPhotoPositioner>
               ) : (
                 <>
-                  {/* Fallback pattern overlay (no cover photo) */}
                   <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
-
-                  {/* Stats pills inside banner (desktop) */}
                   <div className="absolute bottom-3 right-4 hidden sm:flex items-center gap-2">
                     {customerProfile && (
                       <>
@@ -616,8 +427,6 @@ const ProfilePage: React.FC = () => {
                       />
                     )}
                   </div>
-
-                  {/* Cover photo upload affordance */}
                   <input
                     ref={coverPhotoRef}
                     type="file"
@@ -645,10 +454,8 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
 
-            {/* Profile info area */}
             <div className="relative px-5 sm:px-8 pb-5">
               <div className="flex flex-col sm:flex-row sm:items-end gap-3 -mt-12 sm:-mt-10">
-                {/* Avatar with camera overlay */}
                 <div className="group/avatar relative self-center sm:self-auto">
                   <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-lg ring-4 ring-white transition-transform duration-200 group-hover/avatar:scale-105 overflow-hidden">
                     {profile?.profileImage ? (
@@ -688,7 +495,6 @@ const ProfilePage: React.FC = () => {
                   </Tooltip>
                 </div>
 
-                {/* Name & badges */}
                 <div className="flex-1 text-center sm:text-left sm:pb-0.5">
                   <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                     {profile?.firstName ?? user.firstName}{" "}
@@ -719,7 +525,6 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Stats pills (mobile: 2×2 grid) */}
               <div className="sm:hidden grid grid-cols-2 gap-2 mt-4">
                 {customerProfile && (
                   <>
@@ -767,7 +572,6 @@ const ProfilePage: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* ── Tab Navigation ─────────────────────────────────── */}
           <motion.div
             variants={itemVariants}
             className="relative bg-white rounded-2xl border border-gray-100 p-1.5 mb-6 flex gap-1 overflow-x-auto"
@@ -797,12 +601,9 @@ const ProfilePage: React.FC = () => {
                 )}
               </button>
             ))}
-
-            {/* Bottom accent line */}
             <div className="absolute bottom-0 left-4 right-4 h-px bg-gray-100" />
           </motion.div>
 
-          {/* ── Tab Content ────────────────────────────────────── */}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -868,7 +669,6 @@ interface ProfileSectionProps {
 
 const ProfileSection: React.FC<ProfileSectionProps> = ({
   profile,
-  customerProfile,
   isLoading,
   onUpdateSuccess,
 }) => {
@@ -944,7 +744,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Main Info Card ──────────────────────────────────── */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
             <div className="flex items-center justify-between mb-6">
@@ -984,16 +783,22 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                           control={form.control}
                           name="firstName"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>First Name</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  className="rounded-xl border-gray-300 focus:border-orange-400 focus:ring-orange-400"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
+                            <FormField
+                              control={form.control}
+                              name="firstName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>First Name</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      className="rounded-xl border-gray-300 focus:border-orange-400 focus:ring-orange-400"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                           )}
                         />
                         <FormField
@@ -1123,7 +928,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                     value={profile?.phoneNumber ?? "Not set"}
                   />
 
-                  {/* Date of Birth with birthday nudge */}
                   {profile?.dateOfBirth ? (
                     <InfoRow
                       icon={<Cake className="w-4 h-4 text-orange-500" />}
@@ -1185,12 +989,10 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
           </div>
         </div>
 
-        {/* ── Account Status Sidebar ───────────────────────────── */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <h3 className="font-semibold text-gray-900 mb-4">Account Status</h3>
             <div className="space-y-3">
-              {/* Email Verified */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Email Verified</span>
                 {profile?.isEmailVerified ? (
@@ -1211,7 +1013,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                 )}
               </div>
 
-              {/* Phone Verified — with CTA */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Phone Verified</span>
                 {profile?.isPhoneVerified ? (
@@ -1242,7 +1043,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                 )}
               </div>
 
-              {/* Account Type */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Account Type</span>
                 <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full capitalize">
@@ -1250,7 +1050,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                 </span>
               </div>
 
-              {/* Last Login — human-friendly */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Last Login</span>
                 <span className="text-xs text-gray-500">
@@ -1264,640 +1063,17 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         </div>
       </div>
 
-      {/* ── Recent Activity Section ────────────────────────────── */}
       <RecentActivitySection
-        customerProfile={customerProfile}
+        customerProfile={null}
         isLoading={isLoading}
       />
 
-      {/* Phone Verification Dialog */}
       <PhoneVerificationDialog
         open={showPhoneVerify}
         onOpenChange={setShowPhoneVerify}
         phoneNumber={profile?.phoneNumber}
       />
     </div>
-  );
-};
-
-const PaymentSection: React.FC = () => {
-  const { toast } = useToast();
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [isLoadingPayments, setIsLoadingPayments] = useState(true);
-  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
-  const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
-  const [newPaymentType, setNewPaymentType] = useState<
-    "card" | "upi" | "wallet"
-  >("card");
-  const [newPaymentProvider, setNewPaymentProvider] = useState("");
-  const [newPaymentAccountRef, setNewPaymentAccountRef] = useState("");
-  const [newPaymentExpiryMonth, setNewPaymentExpiryMonth] = useState("");
-  const [newPaymentExpiryYear, setNewPaymentExpiryYear] = useState("");
-  const [newPaymentDefault, setNewPaymentDefault] = useState(false);
-
-  const resetPaymentForm = useCallback(() => {
-    setNewPaymentType("card");
-    setNewPaymentProvider("");
-    setNewPaymentAccountRef("");
-    setNewPaymentExpiryMonth("");
-    setNewPaymentExpiryYear("");
-    setNewPaymentDefault(false);
-  }, []);
-
-  const fetchPaymentMethods = useCallback(async () => {
-    setIsLoadingPayments(true);
-    const res = await userService.getPaymentMethods();
-    if (res.success && res.data) {
-      setPaymentMethods(res.data.paymentMethods);
-    } else {
-      toast({
-        title: "Error",
-        description: res.message || "Failed to load payment methods",
-        variant: "destructive",
-      });
-    }
-    setIsLoadingPayments(false);
-  }, [toast]);
-
-  useEffect(() => {
-    void fetchPaymentMethods();
-  }, [fetchPaymentMethods]);
-
-  const handleAddPaymentMethod = useCallback(async () => {
-    const provider = newPaymentProvider.trim();
-    const accountRefDigits = newPaymentAccountRef.replace(/\D/g, "");
-
-    if (!provider) {
-      toast({
-        title: "Provider required",
-        description:
-          "Enter a payment provider (for example Visa, bKash, Nagad).",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (accountRefDigits.length < 4) {
-      toast({
-        title: "Invalid account reference",
-        description:
-          "Enter at least 4 digits so we can store the last 4 securely.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const payload: {
-      type: "card" | "upi" | "wallet";
-      provider: string;
-      token: string;
-      last4: string;
-      isDefault?: boolean;
-      expiryMonth?: number;
-      expiryYear?: number;
-    } = {
-      type: newPaymentType,
-      provider,
-      token: `pm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
-      last4: accountRefDigits.slice(-4),
-      isDefault: newPaymentDefault,
-    };
-
-    if (newPaymentType === "card") {
-      const monthNum = Number(newPaymentExpiryMonth);
-      const yearNum = Number(newPaymentExpiryYear);
-      if (
-        !Number.isInteger(monthNum) ||
-        monthNum < 1 ||
-        monthNum > 12 ||
-        !Number.isInteger(yearNum) ||
-        yearNum < 2024 ||
-        yearNum > 2050
-      ) {
-        toast({
-          title: "Invalid expiry",
-          description: "Enter a valid card expiry month and year.",
-          variant: "destructive",
-        });
-        return;
-      }
-      payload.expiryMonth = monthNum;
-      payload.expiryYear = yearNum;
-    }
-
-    setIsAddingPayment(true);
-    const res = await userService.addPaymentMethod(payload);
-    if (res.success && res.data?.paymentMethod) {
-      setPaymentMethods((prev) => {
-        const next = res.data!.paymentMethod.isDefault
-          ? prev.map((pm) => ({ ...pm, isDefault: false }))
-          : prev;
-        return [...next, res.data!.paymentMethod];
-      });
-      setIsAddPaymentOpen(false);
-      resetPaymentForm();
-      toast({ title: "Payment method added" });
-    } else {
-      toast({
-        title: "Add payment failed",
-        description: res.message || "Could not add payment method.",
-        variant: "destructive",
-      });
-    }
-    setIsAddingPayment(false);
-  }, [
-    newPaymentProvider,
-    newPaymentAccountRef,
-    newPaymentType,
-    newPaymentDefault,
-    newPaymentExpiryMonth,
-    newPaymentExpiryYear,
-    resetPaymentForm,
-    toast,
-  ]);
-
-  const handleSetDefaultPayment = useCallback(
-    async (methodId: string) => {
-      setIsUpdatingPayment(true);
-      const res = await userService.updatePaymentMethod(methodId, {
-        isDefault: true,
-      });
-      if (res.success && res.data?.paymentMethod) {
-        setPaymentMethods((prev) =>
-          prev.map((pm) => ({
-            ...pm,
-            isDefault: pm._id === res.data!.paymentMethod._id,
-          })),
-        );
-        toast({ title: "Default payment updated" });
-      } else {
-        toast({
-          title: "Update failed",
-          description:
-            res.message || "Could not update default payment method.",
-          variant: "destructive",
-        });
-      }
-      setIsUpdatingPayment(false);
-    },
-    [toast],
-  );
-
-  const handleDeletePaymentMethod = useCallback(
-    async (methodId: string) => {
-      const shouldDelete = window.confirm(
-        "Remove this payment method from your account?",
-      );
-      if (!shouldDelete) return;
-
-      setIsUpdatingPayment(true);
-      const res = await userService.deletePaymentMethod(methodId);
-      if (res.success) {
-        setPaymentMethods((prev) => prev.filter((pm) => pm._id !== methodId));
-        toast({ title: "Payment method removed" });
-      } else {
-        toast({
-          title: "Remove failed",
-          description: res.message || "Could not remove payment method.",
-          variant: "destructive",
-        });
-      }
-      setIsUpdatingPayment(false);
-    },
-    [toast],
-  );
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-orange-500" />
-            Payment Methods
-          </h2>
-          <Button
-            type="button"
-            onClick={() => setIsAddPaymentOpen(true)}
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Payment Method
-          </Button>
-        </div>
-
-        {isLoadingPayments ? (
-          <div className="text-sm text-gray-500">
-            Loading payment methods...
-          </div>
-        ) : paymentMethods.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-600 mb-2">
-              No saved payment methods yet.
-            </p>
-            <p className="text-xs text-gray-500">
-              Add a card, UPI, or wallet to checkout faster.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {paymentMethods.map((pm) => (
-              <div
-                key={pm._id}
-                className="border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 capitalize">
-                      {pm.type} · {pm.provider}
-                      {pm.isDefault && (
-                        <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                          Default
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      ****{pm.last4}
-                      {pm.expiryMonth && pm.expiryYear
-                        ? ` · Exp ${String(pm.expiryMonth).padStart(2, "0")}/${pm.expiryYear}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {!pm.isDefault && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isUpdatingPayment}
-                      onClick={() => handleSetDefaultPayment(pm._id)}
-                      className="rounded-lg"
-                    >
-                      Set Default
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={isUpdatingPayment}
-                    onClick={() => handleDeletePaymentMethod(pm._id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Dialog open={isAddPaymentOpen} onOpenChange={setIsAddPaymentOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Payment Method</DialogTitle>
-            <DialogDescription>
-              Save a payment method for faster checkout.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label>Type</Label>
-              <Select
-                value={newPaymentType}
-                onValueChange={(value: "card" | "upi" | "wallet") =>
-                  setNewPaymentType(value)
-                }
-              >
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="wallet">Wallet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Provider</Label>
-              <Input
-                value={newPaymentProvider}
-                onChange={(e) => setNewPaymentProvider(e.target.value)}
-                placeholder={
-                  newPaymentType === "card"
-                    ? "Visa / Mastercard"
-                    : newPaymentType === "upi"
-                      ? "bKash / Nagad"
-                      : "Wallet provider"
-                }
-                className="rounded-xl"
-              />
-            </div>
-
-            <div>
-              <Label>
-                {newPaymentType === "card"
-                  ? "Card Number"
-                  : "Account / Phone / UPI Reference"}
-              </Label>
-              <Input
-                value={newPaymentAccountRef}
-                onChange={(e) => setNewPaymentAccountRef(e.target.value)}
-                placeholder={
-                  newPaymentType === "card"
-                    ? "4111 1111 1111 1111"
-                    : "Enter reference with digits"
-                }
-                className="rounded-xl"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Only the last 4 digits are stored in your profile display.
-              </p>
-            </div>
-
-            {newPaymentType === "card" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Expiry Month</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={newPaymentExpiryMonth}
-                    onChange={(e) => setNewPaymentExpiryMonth(e.target.value)}
-                    placeholder="MM"
-                    className="rounded-xl"
-                  />
-                </div>
-                <div>
-                  <Label>Expiry Year</Label>
-                  <Input
-                    type="number"
-                    min={2024}
-                    max={2050}
-                    value={newPaymentExpiryYear}
-                    onChange={(e) => setNewPaymentExpiryYear(e.target.value)}
-                    placeholder="YYYY"
-                    className="rounded-xl"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 p-3">
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Set as default
-                </p>
-                <p className="text-xs text-gray-500">
-                  Use this payment method first at checkout.
-                </p>
-              </div>
-              <Switch
-                checked={newPaymentDefault}
-                onCheckedChange={setNewPaymentDefault}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsAddPaymentOpen(false);
-                resetPaymentForm();
-              }}
-              className="rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleAddPaymentMethod}
-              disabled={isAddingPayment}
-              className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-            >
-              {isAddingPayment ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Save Payment Method
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-interface RecentActivitySectionProps {
-  customerProfile: CustomerProfile | null;
-  isLoading: boolean;
-}
-
-const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
-  customerProfile,
-  isLoading,
-}) => {
-  if (isLoading) return null;
-
-  const hasOrders = customerProfile && customerProfile.totalOrders > 0;
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
-      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-5">
-        <Clock className="w-5 h-5 text-orange-500" />
-        Recent Activity
-      </h2>
-
-      {hasOrders ? (
-        /* Placeholder for when order history API is available */
-        <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2">
-          {[1, 2, 3].map((i) => (
-            <motion.div
-              key={i}
-              whileHover={{ y: -2 }}
-              className="flex-shrink-0 w-64 bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <UtensilsCrossed className="w-5 h-5 text-orange-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    Restaurant #{i}
-                  </p>
-                  <p className="text-xs text-gray-400">Recent order</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Delivered
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg h-7 px-2"
-                >
-                  Reorder
-                </Button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <ShoppingBag className="w-8 h-8 text-gray-300" />
-          </div>
-          <p className="text-gray-500 mb-1">No orders yet</p>
-          <p className="text-sm text-gray-400 mb-4">
-            Explore restaurants nearby and place your first order!
-          </p>
-          <Link to="/restaurants">
-            <Button
-              variant="outline"
-              className="rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
-            >
-              <UtensilsCrossed className="w-4 h-4 mr-2" />
-              Explore Restaurants
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface PhoneVerificationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  phoneNumber?: string;
-}
-
-const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = ({
-  open,
-  onOpenChange,
-  phoneNumber,
-}) => {
-  const { toast } = useToast();
-  const [step, setStep] = useState<"send" | "verify">("send");
-  const [isSending, setIsSending] = useState(false);
-  const [otp, setOtp] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      setStep("send");
-      setOtp("");
-    }
-  }, [open]);
-
-  const handleSendCode = async () => {
-    setIsSending(true);
-    
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsSending(false);
-    setStep("verify");
-    toast({
-      title: "Code Sent",
-      description: `A verification code has been sent to ${phoneNumber || "your phone"}.`,
-    });
-  };
-
-  const handleVerify = () => {
-    toast({
-      title: "Verification",
-      description:
-        "Phone verification is coming soon. We'll notify you when it's available!",
-    });
-    onOpenChange(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Verify Phone Number</DialogTitle>
-          <DialogDescription>
-            {step === "send"
-              ? "We'll send a verification code to your phone number."
-              : "Enter the 6-digit code sent to your phone."}
-          </DialogDescription>
-        </DialogHeader>
-
-        {step === "send" ? (
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-xl text-center">
-              <Phone className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-gray-900">
-                {phoneNumber || "No phone number set"}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {phoneNumber
-                  ? "A code will be sent to this number"
-                  : "Please add a phone number first"}
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="rounded-xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSendCode}
-                disabled={!phoneNumber || isSending}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-              >
-                {isSending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Send Code
-              </Button>
-            </DialogFooter>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <Input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter 6-digit code"
-              maxLength={6}
-              className="rounded-xl text-center text-lg tracking-widest"
-            />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setStep("send")}
-                className="rounded-xl"
-              >
-                Back
-              </Button>
-              <Button
-                onClick={handleVerify}
-                disabled={otp.length < 6}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-              >
-                Verify
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 };
 
@@ -2094,388 +1270,157 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
   );
 };
 
-interface AddressDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  address: UserAddress | null;
-  onSuccess: () => Promise<void>;
-}
-
-const AddressDialog: React.FC<AddressDialogProps> = ({
-  open,
-  onOpenChange,
-  address,
-  onSuccess,
-}) => {
+const PaymentSection: React.FC = () => {
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const isEdit = !!address;
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(true);
+  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
 
-  const form = useForm<AddAddressFormData>({
-    
-    resolver: zodResolver(addAddressSchema) as any,
-    mode: "onChange",
-    defaultValues: {
-      type: address?.type ?? "home",
-      street: address?.street ?? "",
-      apartment: address?.apartment ?? "",
-      district: address?.district ?? "",
-      area: address?.area ?? "",
-      latitude: address?.coordinates?.latitude ?? 0,
-      longitude: address?.coordinates?.longitude ?? 0,
-      isDefault: address?.isDefault ?? false,
-    },
-  });
-
-  useEffect(() => {
-    if (address) {
-      form.reset({
-        type: address.type,
-        street: address.street,
-        apartment: address.apartment ?? "",
-        district: address.district,
-        area: address.area,
-        latitude: address.coordinates.latitude,
-        longitude: address.coordinates.longitude,
-        isDefault: address.isDefault,
-      });
-    } else {
-      form.reset({
-        type: "home",
-        street: "",
-        apartment: "",
-        district: "",
-        area: "",
-        latitude: 0,
-        longitude: 0,
-        isDefault: false,
-      });
-    }
-  }, [address, form]);
-
-  const onSubmit = async (data: AddAddressFormData) => {
-    setIsSaving(true);
-    const payload = {
-      type: data.type as "home" | "work" | "other",
-      street: data.street,
-      apartment: data.apartment || undefined,
-      district: data.district,
-      area: data.area,
-      coordinates: { latitude: data.latitude, longitude: data.longitude },
-      isDefault: data.isDefault,
-    };
-
-    const res = isEdit
-      ? await userService.updateAddress(address._id, payload)
-      : await userService.addAddress(payload);
-
-    if (res.success) {
-      toast({
-        title: "Success",
-        description: isEdit
-          ? "Address updated successfully"
-          : "Address added successfully",
-      });
-      await onSuccess();
+  const fetchPaymentMethods = useCallback(async () => {
+    setIsLoadingPayments(true);
+    const res = await userService.getPaymentMethods();
+    if (res.success && res.data) {
+      setPaymentMethods(res.data.paymentMethods);
     } else {
       toast({
         title: "Error",
-        description: res.message,
+        description: res.message || "Failed to load payment methods",
         variant: "destructive",
       });
     }
-    setIsSaving(false);
-  };
+    setIsLoadingPayments(false);
+  }, [toast]);
 
-  const handleCoordinatesUpdate = useCallback(async (latitude: number, longitude: number) => {
-    form.setValue("latitude", latitude, { shouldValidate: true });
-    form.setValue("longitude", longitude, { shouldValidate: true });
-    
-    const coordsString = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-    form.setValue("apartment", coordsString, { shouldValidate: true });
-    
-    setIsDetectingLocation(true);
-
-    try {
-      const resolvedAddress = await reverseGeocodeCoordinates(
-        latitude,
-        longitude,
-      );
-
-      if (resolvedAddress.street) {
-        form.setValue("street", resolvedAddress.street, {
-          shouldValidate: true,
-        });
-      }
-
-      let districtValue = resolvedAddress.district;
-      let areaValue = resolvedAddress.area;
-      
-      const districtExists = DISTRICT_DATA.some(
-        (d) => d.district.toLowerCase() === districtValue?.toLowerCase()
-      );
-      if (!districtExists) {
-        districtValue = "Sylhet";
-        areaValue = "Sylhet Sadar";
-      } else if (areaValue) {
-        const districtData = DISTRICT_DATA.find(
-          (d) => d.district.toLowerCase() === districtValue?.toLowerCase()
-        );
-        const areaExists = districtData?.areas.some(
-          (a) => a.toLowerCase() === areaValue?.toLowerCase()
-        );
-        if (!areaExists) {
-          areaValue = districtData?.areas[0] || "Sylhet Sadar";
-        }
-      }
-
-      if (districtValue) {
-        form.setValue("district", districtValue, {
-          shouldValidate: true,
-        });
-      }
-      if (areaValue) {
-        form.setValue("area", areaValue, {
-          shouldValidate: true,
-        });
-      }
-
-      toast({
-        title: "Location detected",
-        description: "Your address fields were updated automatically.",
-      });
-    } catch {
-      form.setValue("district", "Sylhet", { shouldValidate: true });
-      form.setValue("area", "Sylhet Sadar", { shouldValidate: true });
-      toast({
-        title: "Location set",
-        description: "Coordinates were saved, but address lookup could not complete. Defaulting to Sylhet.",
-      });
-    } finally {
-      setIsDetectingLocation(false);
-    }
-  }, [form, toast]);
-
-  const handleUseCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      toast({
-        title: "Not supported",
-        description: "Geolocation is not supported by your browser.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsDetectingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const latitude = Math.round(pos.coords.latitude * 1e6) / 1e6;
-        const longitude = Math.round(pos.coords.longitude * 1e6) / 1e6;
-        handleCoordinatesUpdate(latitude, longitude);
-      },
-      (err) => {
-        setIsDetectingLocation(false);
-        toast({
-          title: "Location error",
-          description:
-            err.code === 1
-              ? "Location permission denied. Please allow location access in your browser settings."
-              : "Could not detect your location. Please try again.",
-          variant: "destructive",
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 30000,
-        maximumAge: 0,
-      },
-    );
-  }, [handleCoordinatesUpdate, toast]);
+  useEffect(() => {
+    void fetchPaymentMethods();
+  }, [fetchPaymentMethods]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Address" : "Add Address"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Update your address details below."
-              : "Add a new delivery address."}
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Use your current location
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    We will fill your address fields from the GPS coordinates.
-                  </p>
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-orange-500" />
+            Payment Methods
+          </h2>
+          <Button
+            type="button"
+            onClick={() => setIsAddPaymentOpen(true)}
+            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Payment Method
+          </Button>
+        </div>
+
+        {isLoadingPayments ? (
+          <div className="text-sm text-gray-500">
+            Loading payment methods...
+          </div>
+        ) : paymentMethods.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <p className="text-sm text-gray-600 mb-2">
+              No saved payment methods yet.
+            </p>
+            <p className="text-xs text-gray-500">
+              Add a card, UPI, or wallet to checkout faster.
+            </p>
+          </div>
+        ) : (
+          <PaymentMethodsList
+            paymentMethods={paymentMethods}
+            isLoadingPayments={isLoadingPayments}
+            onRefresh={fetchPaymentMethods}
+          />
+        )}
+      </div>
+
+      <PaymentMethodsDialog
+        isOpen={isAddPaymentOpen}
+        onOpenChange={setIsAddPaymentOpen}
+        paymentMethods={paymentMethods}
+        isLoadingPayments={isLoadingPayments}
+      />
+    </div>
+  );
+};
+
+interface RecentActivitySectionProps {
+  customerProfile: CustomerProfile | null;
+  isLoading: boolean;
+}
+
+const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
+  customerProfile,
+  isLoading,
+}) => {
+  if (isLoading) return null;
+
+  const hasOrders = customerProfile && customerProfile.totalOrders > 0;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
+      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-5">
+        <Clock className="w-5 h-5 text-orange-500" />
+        Recent Activity
+      </h2>
+
+      {hasOrders ? (
+        <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2">
+          {[1, 2, 3].map((i) => (
+            <motion.div
+              key={i}
+              whileHover={{ y: -2 }}
+              className="flex-shrink-0 w-64 bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <UtensilsCrossed className="w-5 h-5 text-orange-500" />
                 </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    Restaurant #{i}
+                  </p>
+                  <p className="text-xs text-gray-400">Recent order</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  Delivered
+                </span>
                 <Button
-                  type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  disabled={isDetectingLocation}
-                  className="rounded-xl gap-2 flex-shrink-0"
-                  onClick={handleUseCurrentLocation}
+                  className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg h-7 px-2"
                 >
-                  {isDetectingLocation ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <MapPin className="w-4 h-4" />
-                  )}
-                  {isDetectingLocation ? "Detecting…" : "Use my location"}
+                  Reorder
                 </Button>
               </div>
-              {!form.watch("latitude") && (
-                <span className="text-xs text-muted-foreground">
-                  We need your location for delivery
-                </span>
-              )}
-            </div>
-
-            <div className="h-48 w-full rounded-2xl overflow-hidden border border-gray-200 z-0 relative">
-              <MapContainer 
-                center={form.watch("latitude") !== 0 ? [form.watch("latitude"), form.watch("longitude")] : [23.8103, 90.4125]} 
-                zoom={13} 
-                style={{ height: "100%", width: "100%" }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <LocationPickerMap 
-                  lat={form.watch("latitude")} 
-                  lng={form.watch("longitude")} 
-                  onChange={handleCoordinatesUpdate}
-                />
-              </MapContainer>
-            </div>
-
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address Type</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="home">Home</SelectItem>
-                      <SelectItem value="work">Work</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="street"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Street</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="123 Main St"
-                      className="rounded-xl"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="apartment"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apartment / Suite</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder={field.value || "e.g. 24.9174, 92.9372"}
-                      className="rounded-xl"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="space-y-2">
-              <FormField
-                control={form.control}
-                name="district"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>District</FormLabel>
-                    <Combobox
-                      options={DISTRICT_OPTIONS}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Select district"
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="area"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Area</FormLabel>
-                    <Combobox
-                      options={getAreasByDistrict(form.watch("district"))}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Select area"
-                      disabled={!form.watch("district")}
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            {(form.formState.errors.latitude ||
-              form.formState.errors.longitude) && (
-              <p className="text-sm font-medium text-destructive">
-                Please detect your location before submitting
-              </p>
-            )}
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="rounded-xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSaving || !form.formState.isValid}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-              >
-                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isEdit ? "Update" : "Add"} Address
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <ShoppingBag className="w-8 h-8 text-gray-300" />
+          </div>
+          <p className="text-gray-500 mb-1">No orders yet</p>
+          <p className="text-sm text-gray-400 mb-4">
+            Explore restaurants nearby and place your first order!
+          </p>
+          <Link to="/restaurants">
+            <Button
+              variant="outline"
+              className="rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+            >
+              <UtensilsCrossed className="w-4 h-4 mr-2" />
+              Explore Restaurants
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -2617,7 +1562,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Notifications */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-6">
           <Bell className="w-5 h-5 text-orange-500" />
@@ -2642,7 +1586,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
         </div>
       </div>
 
-      {/* Dietary Preferences */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-6">
           <Heart className="w-5 h-5 text-orange-500" />
@@ -2708,7 +1651,6 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Change Password */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-6">
           <Shield className="w-5 h-5 text-orange-500" />
@@ -2734,7 +1676,6 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
         </div>
       </div>
 
-      {/* Danger Zone */}
       <div className="bg-white rounded-2xl border border-red-100 p-6 sm:p-8">
         <h2 className="text-lg font-semibold text-red-600 mb-2">Danger Zone</h2>
         <p className="text-sm text-gray-500 mb-4">
@@ -2765,257 +1706,6 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   );
 };
 
-interface ChangePasswordDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
-  open,
-  onOpenChange,
-}) => {
-  const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-
-  const form = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(changePasswordSchema),
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmNewPassword: "",
-    },
-  });
-
-  const onSubmit = async (data: ChangePasswordFormData) => {
-    setIsSaving(true);
-    const res = await authService.changePassword(
-      data.currentPassword,
-      data.newPassword,
-    );
-    if (res.success) {
-      toast({
-        title: "Success",
-        description: "Password changed successfully",
-      });
-      form.reset();
-      onOpenChange(false);
-    } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
-    }
-    setIsSaving(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Change Password</DialogTitle>
-          <DialogDescription>
-            Enter your current password and choose a new one.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="currentPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Current Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showCurrent ? "text" : "password"}
-                        {...field}
-                        className="rounded-xl pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrent(!showCurrent)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showCurrent ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="newPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>New Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showNew ? "text" : "password"}
-                        {...field}
-                        className="rounded-xl pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNew(!showNew)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showNew ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="confirmNewPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm New Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} className="rounded-xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="rounded-xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSaving}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-              >
-                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Change Password
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-interface DeactivateAccountDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDeactivated: () => void;
-}
-
-const DeactivateAccountDialog: React.FC<DeactivateAccountDialogProps> = ({
-  open,
-  onOpenChange,
-  onDeactivated,
-}) => {
-  const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
-  const { logout: logoutContext } = useAuth();
-
-  const form = useForm<DeactivateAccountFormData>({
-    resolver: zodResolver(deactivateAccountSchema),
-    defaultValues: { password: "" },
-  });
-
-  const onSubmit = async (data: DeactivateAccountFormData) => {
-    setIsSaving(true);
-    const res = await userService.deactivateAccount(data.password);
-    if (res.success) {
-      toast({
-        title: "Account Deactivated",
-        description: "Your account has been deactivated.",
-      });
-      logoutContext();
-      onOpenChange(false);
-      onDeactivated();
-    } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
-    }
-    setIsSaving(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-red-600">Deactivate Account</DialogTitle>
-          <DialogDescription>
-            This action will deactivate your account. Enter your password to
-            confirm.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Enter your password"
-                      {...field}
-                      className="rounded-xl"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="rounded-xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSaving}
-                className="rounded-xl bg-red-600 hover:bg-red-700 text-white"
-              >
-                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Deactivate
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 const InfoRow: React.FC<{
   icon: React.ReactNode;
   label: string;
@@ -3031,19 +1721,6 @@ const InfoRow: React.FC<{
       <p className="text-[15px] font-medium text-gray-900 truncate">{value}</p>
     </div>
     {extra && <div className="self-center">{extra}</div>}
-  </div>
-);
-
-const ProfileSkeleton: React.FC = () => (
-  <div className="space-y-4 animate-pulse">
-    <div className="bg-white rounded-2xl border border-gray-100 p-8">
-      <div className="h-6 bg-gray-200 rounded w-48 mb-6" />
-      <div className="space-y-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-14 bg-gray-100 rounded-xl" />
-        ))}
-      </div>
-    </div>
   </div>
 );
 

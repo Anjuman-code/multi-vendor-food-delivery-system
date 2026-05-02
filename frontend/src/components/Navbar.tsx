@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
+import userService from "@/services/userService";
 import NotificationPopover from "@/components/NotificationPopover";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -38,6 +39,7 @@ interface NavItem {
 const Navbar: React.FC = memo(() => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,6 +48,26 @@ const Navbar: React.FC = memo(() => {
   const { toast } = useToast();
 
   const isVendor = user?.role === "vendor";
+
+  const API_BASE_URL =
+    import.meta.env?.VITE_API_BASE_URL || "http://localhost:2002";
+
+  const getImageUrl = (imagePath?: string) => {
+    if (!imagePath) return undefined;
+    if (/^https?:\/\//i.test(imagePath)) return imagePath;
+    return `${API_BASE_URL}${imagePath}`;
+  };
+
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      if (!isAuthenticated) return;
+      const res = await userService.getProfile();
+      if (res.success && res.data?.user?.profileImage) {
+        setProfileImage(res.data.user.profileImage);
+      }
+    };
+    void fetchProfileImage();
+  }, [isAuthenticated]);
 
   const navLinks: NavItem[] = [
     { name: "Home", path: "/" },
@@ -213,9 +235,17 @@ const Navbar: React.FC = memo(() => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                      {getUserInitials()}
-                    </div>
+                    {profileImage ? (
+                      <img
+                        src={getImageUrl(profileImage)}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                        {getUserInitials()}
+                      </div>
+                    )}
                     <div className="text-left hidden xl:block">
                       <p className="text-sm font-medium text-gray-900">
                         {user.firstName} {user.lastName}
