@@ -49,6 +49,7 @@ export interface IUser {
   coverImage?: string;
   coverImagePosition?: number;
   dateOfBirth?: Date;
+  onboardingCompleted?: boolean;
 
   addresses: IAddress[];
 

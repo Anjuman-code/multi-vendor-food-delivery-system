@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { RATE_LIMITS } from '../config/constants';
 import {
   changePassword,
+  completeOnboarding,
   forgotPassword,
   getSession,
   handleGoogleCallback,
@@ -94,5 +95,6 @@ router.put(
   validate(changePasswordSchema),
   changePassword,
 );
+router.patch('/onboarding', authenticate, completeOnboarding);
 
 export default router;

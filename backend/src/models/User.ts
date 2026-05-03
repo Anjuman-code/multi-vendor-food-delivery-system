@@ -109,6 +109,7 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     coverImage: { type: String },
     coverImagePosition: { type: Number, default: 50, min: 0, max: 100 },
     dateOfBirth: { type: Date },
+    onboardingCompleted: { type: Boolean, default: false },
 
     // Addresses
     addresses: { type: [addressSchema], default: [] },

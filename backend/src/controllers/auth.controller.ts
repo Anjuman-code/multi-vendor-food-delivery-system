@@ -83,6 +83,7 @@ const toAuthUser = (safeUser: Record<string, unknown>) => ({
   lastName: safeUser.lastName,
   role: safeUser.role,
   isEmailVerified: safeUser.isEmailVerified,
+  onboardingCompleted: safeUser.onboardingCompleted,
 });
 
 const getOAuthCookieOptions = () => ({
@@ -950,6 +951,38 @@ export const verifyOTP = async (
       },
       "Email verified successfully",
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/auth/onboarding
+ * Mark onboarding as completed for the authenticated user.
+ */
+export const completeOnboarding = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AuthenticationError("Not authenticated");
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    user.onboardingCompleted = true;
+    await user.save({ validateBeforeSave: false });
+
+    console.info("[AUTH] Onboarding completed", {
+      userId: String(user._id),
+    });
+
+    successResponse(res, { onboardingCompleted: true }, "Onboarding completed");
   } catch (error) {
     next(error);
   }
