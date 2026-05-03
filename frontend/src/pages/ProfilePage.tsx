@@ -462,6 +462,7 @@ const ProfilePage: React.FC = () => {
                       <img
                         src={getImageUrl(profile.profileImage)}
                         alt="Profile"
+                        crossOrigin="anonymous"
                         className="w-full h-full object-cover"
                       />
                     ) : (

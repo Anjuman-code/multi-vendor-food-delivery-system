@@ -239,6 +239,7 @@ const Navbar: React.FC = memo(() => {
                       <img
                         src={getImageUrl(profileImage)}
                         alt="Profile"
+                        crossOrigin="anonymous"
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
