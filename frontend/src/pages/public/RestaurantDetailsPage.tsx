@@ -240,7 +240,7 @@ const RestaurantDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pt-20 pb-10">
+    <div className="pb-10">
       <div className="max-w-6xl mx-auto px-4">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="relative rounded-2xl overflow-hidden h-64 sm:h-80 mb-6">

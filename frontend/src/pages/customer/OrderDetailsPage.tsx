@@ -18,13 +18,13 @@ import {
   CheckCircle2,
   Download,
 } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { useToast } from "../hooks/use-toast";
-import { useCart } from "../contexts/CartContext";
-import orderService from "../services/orderService";
-import { foodFallbackSVG } from "../utils/fallbackImages";
-import type { Order, OrderStatus, StatusHistoryEntry } from "../types/order";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/contexts/CartContext";
+import orderService from "@/services/orderService";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
+import type { Order, OrderStatus, StatusHistoryEntry } from "@/types/order";
 
 const STATUS_STEPS: OrderStatus[] = [
   "pending",

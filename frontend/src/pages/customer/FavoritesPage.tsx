@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import userService from "../services/userService";
+import userService from "@/services/userService";
 import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 
 // ── Types for populated restaurant from backend ────────────────

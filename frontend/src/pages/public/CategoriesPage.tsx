@@ -1,25 +1,25 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  MapPin,
-  Plus,
-  Minus,
-  ArrowRight,
-  X,
-  ChevronRight,
-  SlidersHorizontal,
-  Grid3x3,
-  List,
-  Star,
-  Flame,
-  Leaf,
-  Clock,
-  ShoppingBag,
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ArrowRight,
+    ChevronRight,
+    Clock,
+    Flame,
+    Grid3x3,
+    Leaf,
+    List,
+    MapPin,
+    Minus,
+    Plus,
+    ShoppingBag,
+    SlidersHorizontal,
+    Star,
+    X,
+} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 // ============================================================================
 // Types
@@ -958,7 +958,7 @@ const CategoriesPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pt-20">
+    <div>
       {/* Category Navigation */}
       <div className="bg-white border-b border-gray-200 sticky top-20 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

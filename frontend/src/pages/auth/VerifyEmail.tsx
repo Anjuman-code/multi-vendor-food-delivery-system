@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import authService from "../services/authService";
+import authService from "@/services/authService";
 
 // ── Types ──────────────────────────────────────────────────────
 

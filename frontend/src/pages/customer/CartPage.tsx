@@ -17,11 +17,11 @@ import {
 } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { useAuth } from "../contexts/AuthContext";
-import { useCart } from "../contexts/CartContext";
-import { foodFallbackSVG } from "../utils/fallbackImages";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
 
 const FREE_DELIVERY_THRESHOLD = 500;
 
@@ -98,7 +98,7 @@ const CartPage: React.FC = () => {
 
   /* ── Cart ───────────────────────────────────────────────────── */
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div>
       <div className="max-w-5xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 10 }}

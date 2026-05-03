@@ -1,6 +1,12 @@
 /**
  * OrdersPage – customer order list with filtering and pagination.
  */
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useSocket } from "@/hooks/useSocket";
+import orderService from "@/services/orderService";
+import type { Order, OrderStatus } from "@/types/order";
 import { motion } from "framer-motion";
 import {
     ChevronRight,
@@ -12,12 +18,6 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { useToast } from "../hooks/use-toast";
-import { useSocket } from "../hooks/useSocket";
-import orderService from "../services/orderService";
-import type { Order, OrderStatus } from "../types/order";
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -57,7 +57,7 @@ interface OrderStatusUpdatePayload {
 
 const OrdersPage: React.FC = () => {
   const { toast } = useToast();
-  const { socket } = useSocket();
+  const { socket, connectionFailed } = useSocket();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const currentFilter = searchParams.get("filter") || "";

@@ -12,11 +12,11 @@ import {
   Info,
   MessageSquare,
 } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { useToast } from "../hooks/use-toast";
-import notificationService from "../services/notificationService";
-import type { AppNotification, NotificationType } from "../types/notification";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import notificationService from "@/services/notificationService";
+import type { AppNotification, NotificationType } from "@/types/notification";
 
 const TYPE_CONFIG: Record<
   NotificationType,

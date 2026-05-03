@@ -16,9 +16,9 @@ import { Eye, EyeOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import SocialButton from '../components/SocialButton';
-import { registerSchema, type RegisterFormData } from '../lib/validation';
-import authService from '../services/authService';
+import SocialButton from '../../components/SocialButton';
+import { registerSchema, type RegisterFormData } from '../../lib/validation';
+import authService from '../../services/authService';
 
 /**
  * RegisterPage - User registration page.

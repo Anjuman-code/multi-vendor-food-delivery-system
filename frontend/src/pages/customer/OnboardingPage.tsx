@@ -12,15 +12,15 @@ import {
   useMapEvents,
 } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../hooks/use-toast';
-import authService from '../services/authService';
-import type { AddAddressPayload } from '../services/userService';
-import userService from '../services/userService';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/use-toast';
+import authService from '../../services/authService';
+import type { AddAddressPayload } from '../../services/userService';
+import userService from '../../services/userService';
 
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,

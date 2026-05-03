@@ -20,8 +20,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   vendorRegisterSchema,
   type VendorRegisterFormData,
-} from "../lib/validation";
-import authService from "../services/authService";
+} from "@/lib/validation";
+import authService from "@/services/authService";
 
 const STEPS = [
   { label: "Account", description: "Personal details & login" },

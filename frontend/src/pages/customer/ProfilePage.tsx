@@ -335,7 +335,7 @@ const ProfilePage: React.FC = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen pt-20 pb-8 px-4 sm:px-6 lg:px-8">
+      <div className="pb-8 px-4 sm:px-6 lg:px-8">
         <motion.div
           variants={containerVariants}
           initial="hidden"

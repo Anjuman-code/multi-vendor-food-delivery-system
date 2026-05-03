@@ -13,15 +13,15 @@ import {
   Tag,
   Loader2,
 } from "lucide-react";
-import { useCart } from "../contexts/CartContext";
-import { useAuth } from "../contexts/AuthContext";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { useToast } from "../hooks/use-toast";
-import userService from "../services/userService";
-import orderService from "../services/orderService";
-import type { UserAddress, PaymentMethod } from "../services/userService";
+import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import userService from "@/services/userService";
+import orderService from "@/services/orderService";
+import type { UserAddress, PaymentMethod } from "@/services/userService";
 
 type Step = "address" | "payment" | "review";
 
