@@ -1,16 +1,16 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import {
-  ArrowRight,
-  Star,
-  Clock,
-  Leaf,
-  Smartphone,
-  MapPin,
-  Sparkles,
+    ArrowRight,
+    Clock,
+    Leaf,
+    MapPin,
+    Smartphone,
+    Sparkles,
+    Star,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { Link } from "react-router-dom";
 
 const NewHeroSection: React.FC = () => {
   const containerVariants = {
@@ -41,12 +41,6 @@ const NewHeroSection: React.FC = () => {
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Decorative Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-orange-200/40 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-red-200/30 to-transparent rounded-full blur-3xl" />
-      </div>
-
       <div className="container mx-auto px-4 pt-24 pb-16 lg:pt-32 lg:pb-24 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
           {/* Left Side - Content */}

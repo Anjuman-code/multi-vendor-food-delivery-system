@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation } from "swiper/modules";
-import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 import homeService from "@/services/homeService";
 import type { TopCategory } from "@/types/home";
+import { motion } from "framer-motion";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Navigation } from "swiper/modules";
+import { Swiper, SwiperSlide } from "swiper/react";
 
 // Import Swiper styles
 import "swiper/css";
@@ -14,6 +15,7 @@ const fallbackCategoryImage =
   "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=80";
 
 const TopFoodCategories: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
   const [categories, setCategories] = useState<TopCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,12 +57,13 @@ const TopFoodCategories: React.FC = () => {
   }, [activeTab, categories]);
 
   return (
-    <section className="py-16 bg-white overflow-hidden">
+    <section className="py-16 overflow-hidden">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 md:mb-0">
-            Top Food Categories
-          </h2>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-1">Categories</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Top Food Categories</h2>
+          </div>
 
           {/* Tabs for filtering */}
           <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-xl w-full md:w-auto">
@@ -134,10 +137,12 @@ const TopFoodCategories: React.FC = () => {
               >
                 {filteredCategories.map((category, index) => (
                   <SwiperSlide key={category.name}>
-                    <motion.div
-                      className="relative rounded-2xl overflow-hidden shadow-lg h-80"
-                      whileHover={{ y: -10 }}
-                      transition={{ duration: 0.3 }}
+                    <motion.button
+                      type="button"
+                      onClick={() => navigate(`/restaurants?q=${encodeURIComponent(category.name)}`)}
+                      className="relative rounded-2xl overflow-hidden shadow-sm h-64 w-full block"
+                      whileHover={{ y: -6 }}
+                      transition={{ duration: 0.25 }}
                       data-index={index}
                     >
                       <img
@@ -145,15 +150,15 @@ const TopFoodCategories: React.FC = () => {
                         alt={category.name}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
-                        <h3 className="text-xl font-bold text-white">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent flex flex-col justify-end p-5">
+                        <h3 className="text-base font-bold text-white leading-tight">
                           {category.name}
                         </h3>
-                        <span className="text-orange-300 text-sm">
+                        <span className="text-orange-300 text-xs mt-0.5">
                           {category.restaurantCount} Restaurants
                         </span>
                       </div>
-                    </motion.div>
+                    </motion.button>
                   </SwiperSlide>
                 ))}
               </Swiper>

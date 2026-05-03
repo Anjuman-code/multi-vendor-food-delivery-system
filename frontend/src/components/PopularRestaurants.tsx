@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Star, Clock, MapPin, ChefHat, ArrowRight } from "lucide-react";
 import homeService from "@/services/homeService";
 import type { PopularRestaurant } from "@/types/home";
+import { motion } from "framer-motion";
+import { ArrowRight, ChefHat, Clock, MapPin, Star } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 const fallbackRestaurantImage =
   "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80";
@@ -76,21 +77,20 @@ const PopularRestaurants: React.FC = () => {
   }, [restaurants]);
 
   return (
-    <section className="py-20 bg-gray-50">
+    <section className="py-20">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
           <div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight">
-              Popular Restaurants
-            </h2>
-            <p className="text-gray-500 text-lg">
-              Curated dining experiences near you
-            </p>
+            <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-1">Popular</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Popular Restaurants</h2>
           </div>
-          <button className="hidden md:flex items-center gap-2 text-orange-600 font-semibold hover:text-orange-700 transition-colors">
-            View all restaurants <ArrowRight className="w-4 h-4" />
-          </button>
+          <Link
+            to="/restaurants"
+            className="hidden md:inline-flex items-center gap-2 text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+          >
+            View all <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
 
         {/* Grid Layout */}
@@ -125,9 +125,12 @@ const PopularRestaurants: React.FC = () => {
         </div>
 
         {/* Mobile View All Button */}
-        <button className="w-full md:hidden mt-8 flex items-center justify-center gap-2 bg-white border border-gray-200 py-4 rounded-xl text-gray-900 font-semibold shadow-sm">
-          View all restaurants <ArrowRight className="w-4 h-4" />
-        </button>
+        <Link
+          to="/restaurants"
+          className="w-full md:hidden mt-8 flex items-center justify-center gap-2 bg-white border border-gray-200 py-4 rounded-xl text-gray-900 text-sm font-semibold shadow-sm"
+        >
+          View all <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
     </section>
   );
@@ -137,7 +140,7 @@ const PopularRestaurants: React.FC = () => {
 const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
   return (
     <motion.div
-      className="group relative h-[500px] w-full rounded-[2rem] overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-shadow duration-500"
+      className="group relative h-[460px] w-full rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500"
       initial="rest"
       whileHover="hover"
       animate="rest"
@@ -225,7 +228,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
 
             {data.specialties.length > 0 && (
               <div className="mb-6">
-                <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2 block flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2 flex items-center gap-2">
                   <ChefHat className="w-3 h-3" /> Chef Favorites
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -241,10 +244,13 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
               </div>
             )}
 
-            <button className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn">
+            <Link
+              to={`/restaurants/${data.id}`}
+              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn"
+            >
               View Menu{" "}
               <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </div>
         </motion.div>
       </div>

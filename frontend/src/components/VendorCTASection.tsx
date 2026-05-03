@@ -1,17 +1,17 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import {
-  Store,
-  TrendingUp,
-  Users,
-  Zap,
-  ArrowRight,
-  ChefHat,
-  BarChart3,
-  Megaphone,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import {
+    ArrowRight,
+    BarChart3,
+    ChefHat,
+    Megaphone,
+    Store,
+    TrendingUp,
+    Users,
+    Zap,
+} from "lucide-react";
+import React from "react";
+import { Link } from "react-router-dom";
 
 const perks = [
   {
@@ -70,13 +70,8 @@ const itemVariants = {
 
 const VendorCTASection: React.FC = () => {
   return (
-    <section className="relative py-24 overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
-      <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-red-500/10 rounded-full blur-3xl" />
-
-      <div className="container mx-auto px-4 relative z-10">
+    <section className="py-20">
+      <div className="container mx-auto px-4">
         {/* Section header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <motion.div
@@ -84,7 +79,7 @@ const VendorCTASection: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-full text-sm font-medium mb-5 border border-orange-500/30"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-500 rounded-full text-xs font-semibold tracking-widest uppercase mb-5 border border-orange-100"
           >
             <ChefHat className="w-4 h-4" />
             For Restaurant Owners
@@ -94,10 +89,10 @@ const VendorCTASection: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight"
+            className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 leading-tight"
           >
             Grow Your Restaurant{" "}
-            <span className="bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
               with Us
             </span>
           </motion.h2>
@@ -106,7 +101,7 @@ const VendorCTASection: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-gray-400 text-lg"
+            className="text-gray-500 text-base"
           >
             Join hundreds of restaurants already earning more with our platform.
             Set up your store and start receiving orders today.
@@ -124,12 +119,12 @@ const VendorCTASection: React.FC = () => {
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="text-center py-5 px-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm"
+              className="text-center py-5 px-4 rounded-2xl bg-white border border-gray-100 shadow-sm"
             >
-              <div className="text-3xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent mb-1">
+              <div className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mb-1">
                 {stat.value}
               </div>
-              <div className="text-gray-400 text-sm">{stat.label}</div>
+              <div className="text-gray-500 text-xs">{stat.label}</div>
             </div>
           ))}
         </motion.div>
@@ -144,15 +139,15 @@ const VendorCTASection: React.FC = () => {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              className="rounded-2xl bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition-colors duration-300"
+              className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow duration-300"
             >
               <div
                 className={`w-12 h-12 rounded-xl ${perk.bg} flex items-center justify-center mb-4`}
               >
                 <perk.icon className={`w-6 h-6 ${perk.color}`} />
               </div>
-              <h3 className="text-white font-semibold mb-2">{perk.title}</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
+              <h3 className="text-gray-900 font-semibold mb-2">{perk.title}</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
                 {perk.description}
               </p>
             </motion.div>
@@ -177,7 +172,7 @@ const VendorCTASection: React.FC = () => {
           <Link to="/login">
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 px-8 py-6 rounded-full text-base font-medium transition-all duration-300 bg-transparent"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-8 py-6 rounded-full text-base font-medium transition-all duration-300 bg-white"
             >
               <Zap className="w-4 h-4 mr-2" />
               Already a partner? Log in

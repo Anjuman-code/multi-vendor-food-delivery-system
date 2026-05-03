@@ -1,36 +1,36 @@
-import React, {
-  useState,
-  useMemo,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { Award } from "lucide-react";
+import {
+    BookingControls,
+    BookingModal,
+    EmptyState,
+    FiltersPanel,
+    ImageGalleryModal,
+    MapViewToggle,
+    RestaurantCard,
+    RestaurantCardSkeleton,
+    RestaurantMapView,
+} from "@/components/restaurants";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import apiService from "@/services/apiService";
-import {
-  RestaurantCard,
-  RestaurantCardSkeleton,
-  FiltersPanel,
-  BookingControls,
-  BookingModal,
-  RestaurantMapView,
-  MapViewToggle,
-  ImageGalleryModal,
-  EmptyState,
-} from "@/components/restaurants";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import type {
-  Restaurant,
-  FilterState,
-  FilterCategory,
-  SearchFilters,
-  SortOption,
-  Booking,
+    Booking,
+    FilterCategory,
+    FilterState,
+    Restaurant,
+    SearchFilters,
+    SortOption,
 } from "@/types/restaurant";
+import { AnimatePresence, motion } from "framer-motion";
+import { Award } from "lucide-react";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface ApiRestaurant {
   _id: string;
@@ -332,6 +332,7 @@ const ITEMS_PER_PAGE = 6;
 
 const RestaurantsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -339,6 +340,9 @@ const RestaurantsPage: React.FC = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Text search from URL
+  const [textSearch, setTextSearch] = useState(() => searchParams.get("q") ?? "");
 
   // Filter states
   const [filterState, setFilterState] =
@@ -475,6 +479,17 @@ const RestaurantsPage: React.FC = () => {
   const filteredRestaurants = useMemo(() => {
     let result = [...restaurants];
 
+    // Text search filter (from URL param or local state)
+    if (textSearch.trim()) {
+      const q = textSearch.trim().toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.cuisine.toLowerCase().includes(q) ||
+          r.address?.toLowerCase().includes(q),
+      );
+    }
+
     // Type filter
     if (filterState.types.length > 0) {
       result = result.filter((r) => filterState.types.includes(r.type));
@@ -483,9 +498,7 @@ const RestaurantsPage: React.FC = () => {
     // Cuisine filter
     if (filterState.cuisines.length > 0) {
       result = result.filter((r) => filterState.cuisines.includes(r.cuisine));
-    }
-
-    // Amenities filter (must have ALL selected amenities)
+    }    // Amenities filter (must have ALL selected amenities)
     if (filterState.amenities.length > 0) {
       result = result.filter((r) =>
         filterState.amenities.every((amenity) =>
@@ -527,7 +540,7 @@ const RestaurantsPage: React.FC = () => {
     result.sort(sortFunctions[filterState.sortBy]);
 
     return result;
-  }, [restaurants, filterState]);
+  }, [restaurants, filterState, textSearch]);
 
   // Paginated results
   const displayedRestaurants = useMemo(

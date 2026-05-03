@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Flame,
-  Star,
-  ShoppingBag,
-  ChevronRight,
-  ChevronLeft,
-} from "lucide-react";
 import homeService from "@/services/homeService";
 import type { TrendingItem } from "@/types/home";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ChevronLeft,
+    ChevronRight,
+    Flame,
+    ShoppingBag,
+    Star,
+} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const colorPalette = [
   "from-orange-900 to-amber-900",
@@ -128,14 +128,7 @@ const TrendingFoodItems: React.FC = () => {
   };
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-950 py-20 transition-colors duration-700">
-      {/* 1. Ambient Background Layer */}
-      {/* This creates the glow effect behind the cards matching the video style */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${ambientColor} opacity-40 transition-all duration-700 ease-in-out`}
-      />
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />{" "}
-      {/* Overlay to keep it dark */}
+    <section className="relative py-20 flex flex-col items-center overflow-hidden">
       {/* 2. Content Container */}
       <div className="container relative z-10 mx-auto px-4 flex flex-col items-center">
         {/* Header */}
@@ -143,16 +136,16 @@ const TrendingFoodItems: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/90 mb-4"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 border border-orange-100 text-orange-600 mb-4"
           >
             <Flame className="w-4 h-4 text-orange-400" />
             <span className="text-sm font-medium tracking-wide uppercase">
               Trending Now
             </span>
           </motion.div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 tracking-tight">
             Culinary{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">
               Masterpieces
             </span>
           </h2>
@@ -161,12 +154,12 @@ const TrendingFoodItems: React.FC = () => {
         {/* 3. The 3D Carousel Stage */}
         <div className="relative w-full max-w-4xl h-[400px] flex items-center justify-center perspective-1000 mb-8">
           {isLoading ? (
-            <div className="w-[300px] md:w-[380px] aspect-[4/3] rounded-3xl bg-white/10 animate-pulse border border-white/10" />
+            <div className="w-[300px] md:w-[380px] aspect-[4/3] rounded-3xl bg-gray-100 animate-pulse border border-gray-200" />
           ) : errorMessage ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 text-center text-white/70">
+            <div className="rounded-3xl border border-gray-200 bg-white px-8 py-10 text-center text-gray-500">
               <p className="mb-4">{errorMessage}</p>
               <button
-                className="px-4 py-2 rounded-full bg-white text-black font-semibold hover:scale-105 transition-transform"
+                className="px-4 py-2 rounded-full bg-orange-500 text-white font-semibold hover:scale-105 transition-transform"
                 onClick={loadTrendingItems}
                 type="button"
               >
@@ -174,7 +167,7 @@ const TrendingFoodItems: React.FC = () => {
               </button>
             </div>
           ) : itemsWithColor.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 text-center text-white/70">
+            <div className="rounded-3xl border border-dashed border-gray-200 bg-white px-8 py-10 text-center text-gray-400">
               No culinary highlights yet. Check back soon.
             </div>
           ) : (
@@ -229,13 +222,13 @@ const TrendingFoodItems: React.FC = () => {
                 <>
                   <button
                     onClick={handlePrev}
-                    className="absolute left-4 md:left-20 z-50 p-4 rounded-full bg-white/5 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white transition-all"
+                    className="absolute left-4 md:left-20 z-50 p-3 rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm hover:bg-gray-50 transition-all"
                   >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={handleNext}
-                    className="absolute right-4 md:right-20 z-50 p-4 rounded-full bg-white/5 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white transition-all"
+                    className="absolute right-4 md:right-20 z-50 p-3 rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm hover:bg-gray-50 transition-all"
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
@@ -256,19 +249,19 @@ const TrendingFoodItems: React.FC = () => {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <p className="text-orange-400 font-medium tracking-widest text-sm uppercase mb-2">
+                <p className="text-orange-500 font-medium tracking-widest text-xs uppercase mb-2">
                   {activeItem.category || "Chef's pick"}
                 </p>
-                <h3 className="text-3xl font-bold text-white mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-5">
                   {activeItem.name}
                 </h3>
 
                 {/* Action Bar */}
-                <div className="flex items-center justify-between bg-white/10 backdrop-blur-xl border border-white/10 p-2 pr-2 pl-6 rounded-full max-w-xs mx-auto">
-                  <span className="text-2xl font-bold text-white">
+                <div className="flex items-center justify-between bg-white border border-gray-200 shadow-sm p-2 pr-2 pl-6 rounded-full max-w-xs mx-auto">
+                  <span className="text-xl font-bold text-gray-900">
                     ${activeItem.price.toFixed(2)}
                   </span>
-                  <button className="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 active:scale-95 transition-transform flex items-center gap-2">
+                  <button className="bg-orange-500 text-white px-5 py-2.5 rounded-full font-bold hover:bg-orange-600 active:scale-95 transition-all flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
                     Order
                   </button>
@@ -276,12 +269,12 @@ const TrendingFoodItems: React.FC = () => {
               </motion.div>
             </AnimatePresence>
           ) : (
-            <p className="text-white/60 text-sm">Fresh picks are on the way.</p>
+            <p className="text-gray-400 text-sm">Fresh picks are on the way.</p>
           )}
         </div>
 
         {/* Feature Icons Grid (Bottom) */}
-        <div className="mt-16 grid grid-cols-3 gap-8 md:gap-16 text-center opacity-60">
+        <div className="mt-12 grid grid-cols-3 gap-8 md:gap-16 text-center">
           {[
             { label: "Free Delivery", icon: "🚀" },
             { label: "20-30 Mins", icon: "⏱️" },
@@ -289,7 +282,7 @@ const TrendingFoodItems: React.FC = () => {
           ].map((feature, i) => (
             <div key={i} className="flex flex-col items-center gap-2">
               <span className="text-2xl grayscale">{feature.icon}</span>
-              <span className="text-xs text-white font-medium uppercase tracking-wider">
+              <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">
                 {feature.label}
               </span>
             </div>
