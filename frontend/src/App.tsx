@@ -45,6 +45,7 @@ const CartPage = lazy(() => import("./pages/CartPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 
 // Vendor pages
 const VendorDashboardPage = lazy(
@@ -143,6 +144,8 @@ function App(): React.ReactElement {
                       />
                       <Route path="/verify-email" element={<VerifyEmail />} />
                     </Route>
+
+                    <Route path="/onboarding" element={<OnboardingPage />} />
                   </Route>
 
                   {/* Vendor routes (outside RootLayout – uses its own sidebar layout) */}

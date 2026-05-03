@@ -55,7 +55,11 @@ const LoginPage: React.FC = () => {
           title: 'Success',
           description: 'Welcome back! Redirecting...',
         });
-        navigate(response.data.user.role === 'vendor' ? '/vendor' : '/');
+
+        const redirectPath = response.data.user.onboardingCompleted
+          ? (response.data.user.role === 'vendor' ? '/vendor' : '/')
+          : '/onboarding';
+        navigate(redirectPath);
       } else {
         toast({
           title: 'Error',

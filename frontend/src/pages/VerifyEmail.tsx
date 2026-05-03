@@ -138,7 +138,10 @@ const VerifyEmail: React.FC = () => {
           localStorage.setItem('refreshToken', response.data.refreshToken);
         }
         login(response.data.user);
-        navigate("/", { replace: true });
+
+        // Redirect to onboarding if not completed, otherwise to home
+        const redirectPath = response.data.user.onboardingCompleted ? '/' : '/onboarding';
+        navigate(redirectPath, { replace: true });
         return;
       }
 

@@ -59,10 +59,8 @@ const RESTAURANT = {
   description: 'A minimal test restaurant for deterministic local development.',
   address: {
     street: '123 Seed Street',
-    city: 'Dhaka',
-    state: 'Dhaka Division',
-    zipCode: '1207',
-    country: 'Bangladesh',
+    area: 'Dhanmondi',
+    district: 'Dhaka',
   },
   contactInfo: {
     phone: '+8801700000100',

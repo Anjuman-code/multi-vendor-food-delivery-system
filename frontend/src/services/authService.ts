@@ -39,6 +39,7 @@ export interface AuthUser {
   lastName: string;
   role: string;
   isEmailVerified: boolean;
+  onboardingCompleted?: boolean;
 }
 
 /** Payload sent to POST /api/auth/register */
@@ -256,6 +257,21 @@ const authService = {
       const response = await httpClient.put<ApiResponse>(
         "/api/auth/change-password",
         { currentPassword, newPassword },
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  /**
+   * PATCH /api/auth/onboarding
+   * Marks onboarding as completed for the authenticated user.
+   */
+  async completeOnboarding(): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.patch<ApiResponse>(
+        "/api/auth/onboarding",
       );
       return response.data;
     } catch (error: unknown) {

@@ -53,7 +53,9 @@ const GoogleAuthCallbackPage: React.FC = () => {
 
       const fallbackPath =
         response.data.user.role === 'vendor' ? '/vendor' : '/';
-      const redirectPath = nextPath.startsWith('/') ? nextPath : fallbackPath;
+      const redirectPath = !response.data.user.onboardingCompleted
+        ? '/onboarding'
+        : nextPath.startsWith('/') ? nextPath : fallbackPath;
       navigate(redirectPath, { replace: true });
     };
 
