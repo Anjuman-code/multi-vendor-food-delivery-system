@@ -1,20 +1,20 @@
-import React from "react";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import {
-  Heart,
-  Users,
-  MapPin,
-  Target,
-  Sparkles,
-  Award,
-  Clock,
-  Truck,
-  Store,
-  ChefHat,
-  Code,
+    Award,
+    ChefHat,
+    Clock,
+    Code,
+    Heart,
+    MapPin,
+    Sparkles,
+    Store,
+    Target,
+    Truck,
+    Users,
 } from "lucide-react";
+import React from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 
 const AboutPage: React.FC = () => {
   const containerVariants = {
@@ -129,7 +129,7 @@ const AboutPage: React.FC = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8"
             >
-              Anfi was born from a simple idea: making it easier for people in
+              Food Rush was born from a simple idea: making it easier for people in
               Sylhet to enjoy delicious food from their favorite local
               restaurants without leaving home.
             </motion.p>
@@ -290,7 +290,7 @@ const AboutPage: React.FC = () => {
               Meet The Team
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              The Developers Behind Anfi
+              The Developers Behind Food Rush
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Passionate developers committed to building the best food delivery

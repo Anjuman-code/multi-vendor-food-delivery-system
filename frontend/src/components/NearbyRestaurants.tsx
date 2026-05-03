@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Clock, MapPin, Star } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 
 type ApiRestaurant = {
   _id: string;
@@ -62,9 +63,9 @@ const NearbyRestaurants: React.FC = () => {
               [restaurant.address?.city, restaurant.address?.state]
                 .filter(Boolean)
                 .join(", ") || "Nearby area",
-            image:
-              restaurant.images?.coverPhoto ||
-              "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80",
+             image:
+               restaurant.images?.coverPhoto ||
+               restaurantFallbackSVG,
           }));
 
         if (isActive) {

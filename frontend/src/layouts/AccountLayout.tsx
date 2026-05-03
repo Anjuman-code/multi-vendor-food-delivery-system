@@ -1,7 +1,7 @@
-import React from "react";
-import { Outlet, Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { motion } from "framer-motion";
+import React from "react";
+import { Link, Outlet } from "react-router-dom";
 
 /**
  * AccountLayout - Layout for account/profile pages.
@@ -24,7 +24,7 @@ const AccountLayout: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
-        <div className="max-w-7xl mx-auto w-full">
+        <div className="max-w-7xl mx-auto w-full pt-20">
           <Outlet />
         </div>
       </motion.main>
@@ -33,7 +33,7 @@ const AccountLayout: React.FC = () => {
       <footer className="border-t border-gray-200 bg-white/60 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-sm text-gray-400">
-            &copy; {currentYear} Anfi Food Delivery. All rights reserved.
+            &copy; {currentYear} Food Rush Food Delivery. All rights reserved.
           </p>
           <Link
             to="/faq"

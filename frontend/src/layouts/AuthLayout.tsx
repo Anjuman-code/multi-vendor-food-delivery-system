@@ -1,7 +1,7 @@
+import { motion } from "framer-motion";
+import { Clock, MapPin, Shield, Truck } from "lucide-react";
 import React from "react";
 import { Link, Outlet } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Truck, Clock, Shield, MapPin } from "lucide-react";
 
 /**
  * AuthLayout - Layout for authentication pages (login, register, forgot password, etc.)
@@ -69,7 +69,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
               aria-hidden="true"
             />
             <span className="text-2xl font-bold text-gray-800 group-hover:text-orange-500 transition-colors">
-              Anfi
+              Food Rush
             </span>
           </Link>
         </header>
@@ -85,7 +85,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
         {/* Footer */}
         <footer className="p-6 md:p-8 text-center text-sm text-gray-500">
           <p>
-            © {new Date().getFullYear()} Anfi Food Delivery. All rights
+            © {new Date().getFullYear()} Food Rush Food Delivery. All rights
             reserved.
           </p>
         </footer>

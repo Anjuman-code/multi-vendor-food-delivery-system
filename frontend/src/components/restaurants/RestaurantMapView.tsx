@@ -1,10 +1,16 @@
-import React, { useCallback, useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Map, List, Star, Navigation, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/utils/cn";
+import { Button } from "@/components/ui/button";
 import type { Restaurant } from "@/types/restaurant";
+import { cn } from "@/utils/cn";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Map,
+  Navigation,
+  Star,
+  X
+} from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface MapViewToggleProps {
   isMapView: boolean;
@@ -114,7 +120,7 @@ const RestaurantInfoCard: React.FC<{
       <div className="flex">
         {/* Image */}
         <img
-          src={restaurant.image}
+          src={restaurant.image || restaurantFallbackSVG}
           alt=""
           className="w-24 h-24 object-cover flex-shrink-0"
         />

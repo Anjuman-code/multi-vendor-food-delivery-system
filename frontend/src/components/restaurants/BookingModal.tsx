@@ -1,42 +1,31 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Calendar,
-  Clock,
-  Users,
-  MapPin,
-  Star,
-  Check,
-  AlertCircle,
-  Loader2,
-  CalendarPlus,
-} from "lucide-react";
-import { format, addDays } from "date-fns";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-// Badge import removed - not currently used
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { cn } from "@/utils/cn";
 import { useToast } from "@/hooks/use-toast";
-import type { Restaurant, BookingSlot, Booking } from "@/types/restaurant";
+import type { Booking, BookingSlot, Restaurant } from "@/types/restaurant";
+import { cn } from '@/utils/cn';
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
+import { format, addDays } from 'date-fns';
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  AlertCircle,
+  Calendar,
+  CalendarPlus,
+  Check,
+  Clock,
+  Form,
+  Loader2,
+  MapPin,
+  Star,
+  Users
+} from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useForm } from 'react-hook-form';
+import z from 'zod';
+import { DialogHeader } from '../ui/dialog';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '../ui/form';
 
 // Validation schema
 const bookingSchema = z.object({
@@ -291,7 +280,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <img
-              src={restaurant.image}
+              src={restaurant.image || restaurantFallbackSVG}
               alt=""
               className="w-12 h-12 rounded-lg object-cover"
             />

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 import type { Restaurant } from "@/types/restaurant";
 
 interface ImageGalleryModalProps {
@@ -241,6 +242,10 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({
                     !isZoomed && "cursor-zoom-in",
                   )}
                   onLoad={() => setImageLoaded(true)}
+                  onError={(e) => {
+                    setImageLoaded(true);
+                    (e.target as HTMLImageElement).src = restaurantFallbackSVG;
+                  }}
                   draggable={false}
                 />
               </motion.div>

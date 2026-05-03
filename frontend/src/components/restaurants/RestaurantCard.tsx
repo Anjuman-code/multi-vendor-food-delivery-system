@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, memo } from "react";
 import { motion } from "framer-motion";
-import { Star, MapPin, Heart, ImageIcon } from "lucide-react";
+import { Star, MapPin, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,6 +10,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 import type { Restaurant } from "@/types/restaurant";
 
 interface RestaurantCardProps {
@@ -165,11 +166,13 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                 onLoad={handleImageLoad}
                 onError={handleImageError}
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <ImageIcon className="w-12 h-12 text-gray-300" />
-              </div>
-            )}
+             ) : (
+               <img
+                 src={restaurantFallbackSVG}
+                 alt="Restaurant placeholder"
+                 className="w-full h-full object-cover"
+               />
+             )}
 
             {/* View gallery overlay */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">

@@ -23,6 +23,7 @@ import { Card } from "../components/ui/card";
 import { useToast } from "../hooks/use-toast";
 import { useCart } from "../contexts/CartContext";
 import orderService from "../services/orderService";
+import { foodFallbackSVG } from "../utils/fallbackImages";
 import type { Order, OrderStatus, StatusHistoryEntry } from "../types/order";
 
 const STATUS_STEPS: OrderStatus[] = [
@@ -402,18 +403,16 @@ const OrderDetailsPage: React.FC = () => {
             <h3 className="text-sm font-medium text-gray-500 mb-3">Items</h3>
             <div className="space-y-3">
               {order.items.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center text-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    {item.image && (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-sm"
+                  >
+                    <div className="flex items-center gap-3">
                       <img
-                        src={item.image}
+                        src={item.image || foodFallbackSVG}
                         alt={item.name}
                         className="h-10 w-10 rounded object-cover"
                       />
-                    )}
                     <div>
                       <p className="text-gray-800 font-medium">
                         {item.quantity}× {item.name}

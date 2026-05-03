@@ -4,9 +4,9 @@ import { motion } from "framer-motion";
 import { ArrowRight, ChefHat, Clock, MapPin, Star } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 
-const fallbackRestaurantImage =
-  "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80";
+const fallbackRestaurantImage = restaurantFallbackSVG;
 
 type PopularRestaurantCard = {
   id: string;

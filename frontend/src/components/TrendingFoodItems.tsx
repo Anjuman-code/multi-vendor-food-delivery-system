@@ -9,6 +9,7 @@ import {
     Star,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
 
 const colorPalette = [
   "from-orange-900 to-amber-900",
@@ -17,8 +18,7 @@ const colorPalette = [
   "from-amber-950 to-brown-900",
   "from-emerald-900 to-teal-900",
 ];
-const fallbackItemImage =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=80";
+const fallbackItemImage = foodFallbackSVG;
 
 const TrendingFoodItems: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);

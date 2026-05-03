@@ -24,6 +24,7 @@ import vendorService from "@/services/vendorService";
 import { useVendor } from "@/contexts/VendorContext";
 import type { MenuCategory, MenuItem } from "@/types/menu";
 import { useToast } from "@/hooks/use-toast";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
 
 type ModalState =
   | { type: "none" }
@@ -367,22 +368,16 @@ const VendorMenuPage: React.FC = () => {
 const MenuItemRow: React.FC<{
   item: MenuItem;
   onToggle: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+   onEdit: () => void;
+   onDelete: () => void;
 }> = ({ item, onToggle, onEdit, onDelete }) => (
   <div className="flex items-center gap-4 px-5 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
     <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-      {item.image ? (
-        <img
-          src={item.image}
-          alt={item.name}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <UtensilsCrossed className="w-5 h-5 text-gray-300" />
-        </div>
-      )}
+      <img
+        src={item.image || foodFallbackSVG}
+        alt={item.name}
+        className="w-full h-full object-cover"
+      />
     </div>
     <div className="flex-1 min-w-0">
       <p className="font-medium text-gray-900 truncate">{item.name}</p>

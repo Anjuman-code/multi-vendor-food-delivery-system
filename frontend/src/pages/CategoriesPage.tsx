@@ -19,6 +19,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
 
 // ============================================================================
 // Types
@@ -458,7 +459,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         {/* Image */}
         <div className="relative flex-shrink-0 w-48 h-36">
           <img
-            src={item.image}
+            src={item.image || foodFallbackSVG}
             alt={item.name}
             className="w-full h-full object-cover rounded-xl"
           />
@@ -604,7 +605,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
       {/* Image */}
       <div className="relative h-56 overflow-hidden">
         <motion.img
-          src={item.image}
+          src={item.image || foodFallbackSVG}
           alt={item.name}
           className="w-full h-full object-cover"
           animate={{ scale: isHovered ? 1.1 : 1 }}
@@ -756,7 +757,7 @@ const CartItemComponent: React.FC<CartItemProps> = ({
       {/* Item Thumbnail */}
       <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
         <img
-          src={item.image}
+          src={item.image || foodFallbackSVG}
           alt={item.name}
           className="w-full h-full object-cover"
         />

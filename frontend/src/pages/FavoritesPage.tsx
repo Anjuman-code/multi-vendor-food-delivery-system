@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import userService from "../services/userService";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 
 // ── Types for populated restaurant from backend ────────────────
 
@@ -317,13 +318,9 @@ const FavoritesPage: React.FC = () => {
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={restaurant.images?.coverPhoto}
+                      src={restaurant.images?.coverPhoto || restaurantFallbackSVG}
                       alt={restaurant.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80";
-                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 

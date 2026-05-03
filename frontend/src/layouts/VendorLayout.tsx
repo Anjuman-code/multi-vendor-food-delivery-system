@@ -1,23 +1,23 @@
+import NotificationPopover from "@/components/NotificationPopover";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import { useVendor, VendorProvider } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
-import NotificationPopover from "@/components/NotificationPopover";
 import authService from "@/services/authService";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  Star,
-  Store,
-  Tag,
-  UtensilsCrossed,
+    BarChart3,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ClipboardList,
+    LayoutDashboard,
+    LogOut,
+    Settings,
+    Star,
+    Store,
+    Tag,
+    UtensilsCrossed,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -110,7 +110,7 @@ const VendorLayoutInner: React.FC = () => {
                   exit={{ opacity: 0 }}
                   className="text-xl font-bold text-gray-800 whitespace-nowrap"
                 >
-                  Anfi Vendor
+                  Food Rush Vendor
                 </motion.span>
               )}
             </AnimatePresence>
