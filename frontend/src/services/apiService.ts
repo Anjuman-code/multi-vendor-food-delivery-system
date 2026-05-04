@@ -1,5 +1,5 @@
 // API service using the centralized HTTP client
-import httpClient from '../lib/httpClient';
+import httpClient from '@/lib/httpClient';
 import { AxiosResponse } from 'axios';
 
 interface Restaurant {

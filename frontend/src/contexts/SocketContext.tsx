@@ -1,7 +1,7 @@
 import { useToast } from "@/hooks/use-toast";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SOCKET_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ||

@@ -1,7 +1,7 @@
 /**
  * Vendor-specific TypeScript type definitions.
  */
-import type { MenuItem, MenuCategory } from "./menu";
+import type { MenuItem, MenuCategory } from "@/types/menu";
 
 // ── Vendor Profile ─────────────────────────────────────────────
 

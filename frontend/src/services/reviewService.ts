@@ -1,8 +1,8 @@
 /**
  * Review service – wraps /api/reviews endpoints.
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
 
 export interface Review {
   _id: string;

@@ -1,13 +1,13 @@
 /**
  * Home service – fetches data for discovery sections.
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
 import type {
   TopCategory,
   TrendingItem,
   PopularRestaurant,
-} from "../types/home";
+} from "@/types/home";
 
 const extractError = (error: unknown): ApiResponse => {
   if (typeof error === "object" && error !== null && "response" in error) {

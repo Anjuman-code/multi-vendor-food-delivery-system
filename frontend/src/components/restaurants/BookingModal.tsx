@@ -24,8 +24,8 @@ import {
 import React, { useCallback, useMemo, useState } from "react";
 import { useForm } from 'react-hook-form';
 import z from 'zod';
-import { DialogHeader } from '../ui/dialog';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '../ui/form';
+import { DialogHeader } from '@/components/ui/dialog';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 
 // Validation schema
 const bookingSchema = z.object({

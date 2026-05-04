@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import FacebookIcon from '../assets/icons/facebook.svg';
-import GoogleIcon from '../assets/icons/google.svg';
+import FacebookIcon from '@/assets/icons/facebook.svg';
+import GoogleIcon from '@/assets/icons/google.svg';
 
 interface SocialButtonProps {
   provider: 'google' | 'facebook';

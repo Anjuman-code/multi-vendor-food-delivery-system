@@ -6,8 +6,8 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import type { AuthUser } from '../services/authService';
-import authService from '../services/authService';
+import type { AuthUser } from '@/services/authService';
+import authService from '@/services/authService';
 
 interface AuthContextType {
   user: AuthUser | null;

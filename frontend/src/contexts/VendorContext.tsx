@@ -6,8 +6,8 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import type { VendorRestaurant } from "../types/vendor";
-import vendorService from "../services/vendorService";
+import type { VendorRestaurant } from "@/types/vendor";
+import vendorService from "@/services/vendorService";
 
 interface VendorContextType {
   restaurants: VendorRestaurant[];

@@ -2,7 +2,7 @@
  * Authentication service – wraps all /api/auth endpoints.
  * Uses the shared httpClient (which handles tokens + refresh).
  */
-import httpClient from "../lib/httpClient";
+import httpClient from "@/lib/httpClient";
 
 // ── Types matching backend responses ───────────────────────────
 

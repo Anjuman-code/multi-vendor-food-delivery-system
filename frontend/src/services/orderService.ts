@@ -1,9 +1,9 @@
 /**
  * Order service – wraps all /api/orders endpoints.
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
-import type { Order, CreateOrderPayload } from "../types/order";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
+import type { Order, CreateOrderPayload } from "@/types/order";
 
 interface OrderListData {
   orders: Order[];

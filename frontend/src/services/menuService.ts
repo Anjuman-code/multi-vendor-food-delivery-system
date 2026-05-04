@@ -1,9 +1,9 @@
 /**
  * Menu service – wraps /api/restaurants/:id/menu endpoints.
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
-import type { MenuItem, MenuCategory } from "../types/menu";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
+import type { MenuItem, MenuCategory } from "@/types/menu";
 
 const extractError = (error: unknown): ApiResponse => {
   if (typeof error === "object" && error !== null && "response" in error) {

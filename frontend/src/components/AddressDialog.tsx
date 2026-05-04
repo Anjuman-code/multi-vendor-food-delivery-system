@@ -47,7 +47,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 
-import { DISTRICT_DATA, getAreasByDistrict, reverseGeocodeCoordinates } from "./locationUtils";
+import { DISTRICT_DATA, getAreasByDistrict, reverseGeocodeCoordinates } from "@/components/locationUtils";
 
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,

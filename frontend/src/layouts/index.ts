@@ -1,4 +1,4 @@
-export { default as AuthLayout } from "./AuthLayout";
-export { default as MainLayout } from "./MainLayout";
-export { default as RootLayout } from "./RootLayout";
-export { default as VendorLayout } from "./VendorLayout";
+export { default as AuthLayout } from "@/layouts/AuthLayout";
+export { default as MainLayout } from "@/layouts/MainLayout";
+export { default as RootLayout } from "@/layouts/RootLayout";
+export { default as VendorLayout } from "@/layouts/VendorLayout";

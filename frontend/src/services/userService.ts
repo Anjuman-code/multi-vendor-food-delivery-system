@@ -2,8 +2,8 @@
  * User management service – wraps all /api/users endpoints.
  * Uses the shared httpClient (which handles tokens + refresh).
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
 
 // ── Types ──────────────────────────────────────────────────────
 

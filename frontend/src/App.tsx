@@ -1,18 +1,18 @@
 import React, { lazy, Suspense } from "react";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { PageLoader } from "./components/PageLoader";
-import { Toaster } from "./components/ui/toaster";
-import { AuthProvider } from "./contexts/AuthContext";
-import { CartProvider } from "./contexts/CartContext";
-import { SocketProvider } from "./contexts/SocketContext";
-import { AuthLayout, MainLayout, RootLayout, VendorLayout } from "./layouts";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PageLoader } from "@/components/PageLoader";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { SocketProvider } from "@/contexts/SocketContext";
+import { AuthLayout, MainLayout, RootLayout, VendorLayout } from "@/layouts";
 
-// ── Public pages ──────────────────────────────────────────────
-const NewHomePage = lazy(() => import("./pages/public/NewHomePage"));
-const AboutPage = lazy(() => import("./pages/public/AboutPage"));
-const CategoriesPage = lazy(() => import("./pages/public/CategoriesPage"));
-const ContactPage = lazy(() => import("./pages/public/ContactPage"));
+// ── Public pages ──────────────────────────────────────
+const NewHomePage = lazy(() => import("@/pages/public/NewHomePage"));
+const AboutPage = lazy(() => import("@/pages/public/AboutPage"));
+const CategoriesPage = lazy(() => import("@/pages/public/CategoriesPage"));
+const ContactPage = lazy(() => import("@/pages/public/ContactPage"));
 const FAQPage = lazy(() => import("./pages/public/FAQPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/public/PrivacyPolicyPage"));
 const TermsPage = lazy(() => import("./pages/public/TermsPage"));

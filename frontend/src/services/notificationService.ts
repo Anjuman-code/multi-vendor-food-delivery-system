@@ -1,9 +1,9 @@
 /**
  * Notification service – wraps /api/notifications endpoints.
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
-import type { AppNotification } from "../types/notification";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
+import type { AppNotification } from "@/types/notification";
 
 interface NotificationListData {
   notifications: AppNotification[];

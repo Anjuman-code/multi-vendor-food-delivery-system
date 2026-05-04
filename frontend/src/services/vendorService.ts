@@ -1,8 +1,8 @@
 /**
  * Vendor service – wraps all /api/vendor/* endpoints.
  */
-import httpClient from "../lib/httpClient";
-import type { ApiResponse } from "./authService";
+import httpClient from "@/lib/httpClient";
+import type { ApiResponse } from "@/services/authService";
 import type {
   VendorProfileData,
   VendorRestaurant,
@@ -21,8 +21,8 @@ import type {
   CreateCouponPayload,
   UpdateCouponPayload,
   VendorOrdersParams,
-} from "../types/vendor";
-import type { MenuItem, MenuCategory } from "../types/menu";
+} from "@/types/vendor";
+import type { MenuItem, MenuCategory } from "@/types/menu";
 
 const DEFAULT_RESTAURANT_IMAGES = {
   logo: "placeholder-logo",
