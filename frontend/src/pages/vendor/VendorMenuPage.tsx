@@ -1,30 +1,30 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  GripVertical,
-  ChevronDown,
-  ChevronRight,
-  ToggleLeft,
-  ToggleRight,
-  Loader2,
-  X,
-  Save,
-  UtensilsCrossed,
-  ImagePlus,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import vendorService from "@/services/vendorService";
 import { useVendor } from "@/contexts/VendorContext";
-import type { MenuCategory, MenuItem } from "@/types/menu";
 import { useToast } from "@/hooks/use-toast";
+import vendorService from "@/services/vendorService";
+import type { MenuCategory, MenuItem } from "@/types/menu";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ChevronDown,
+    ChevronRight,
+    Edit,
+    GripVertical,
+    ImagePlus,
+    Loader2,
+    Plus,
+    Save,
+    Search,
+    ToggleLeft,
+    ToggleRight,
+    Trash2,
+    UtensilsCrossed,
+    X,
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 type ModalState =
   | { type: "none" }
@@ -437,6 +437,9 @@ const FormModal: React.FC<{
   const [itemImage, setItemImage] = useState("");
   const [itemCategoryId, setItemCategoryId] = useState("");
   const [itemPrepTime, setItemPrepTime] = useState("");
+  const [itemVariants, setItemVariants] = useState<{name: string, price: string}[]>([]);
+  const [itemAddons, setItemAddons] = useState<{name: string, price: string}[]>([]);
+  const [itemDietaryTags, setItemDietaryTags] = useState("");
   const [itemError, setItemError] = useState("");
 
   useEffect(() => {
@@ -456,6 +459,9 @@ const FormModal: React.FC<{
       setItemImage(modal.item.image || "");
       setItemCategoryId(modal.item.categoryId || "");
       setItemPrepTime(String(modal.item.preparationTime || ""));
+      setItemVariants(modal.item.variants?.map(v => ({ name: v.name, price: String(v.price) })) || []);
+      setItemAddons(modal.item.addons?.map(a => ({ name: a.name, price: String(a.price) })) || []);
+      setItemDietaryTags(modal.item.dietaryTags?.join(", ") || "");
     } else if (modal.type === "item") {
       setItemName("");
       setItemDesc("");
@@ -463,6 +469,9 @@ const FormModal: React.FC<{
       setItemImage("");
       setItemCategoryId("");
       setItemPrepTime("");
+      setItemVariants([]);
+      setItemAddons([]);
+      setItemDietaryTags("");
     }
   }, [modal]);
 
@@ -528,6 +537,19 @@ const FormModal: React.FC<{
 
     setItemError("");
     setSaving(true);
+    
+    // Parse complex fields
+    const variants = itemVariants
+      .filter((v) => v.name.trim() !== "")
+      .map((v) => ({ name: v.name.trim(), price: Number(v.price) || 0 }));
+    const addons = itemAddons
+      .filter((a) => a.name.trim() !== "")
+      .map((a) => ({ name: a.name.trim(), price: Number(a.price) || 0 }));
+    const dietaryTags = itemDietaryTags
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t !== "");
+
     const data = {
       name: itemName.trim(),
       description: itemDesc.trim(),
@@ -535,6 +557,9 @@ const FormModal: React.FC<{
       image: itemImage.trim() || undefined,
       categoryId: itemCategoryId || undefined,
       preparationTime: parsedPrepTime,
+      variants,
+      addons,
+      dietaryTags,
     };
     const isEdit = modal.type === "item" && modal.item;
     const res = isEdit
@@ -570,7 +595,7 @@ const FormModal: React.FC<{
         animate={{ scale: 1 }}
         exit={{ scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4"
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
@@ -688,6 +713,114 @@ const FormModal: React.FC<{
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+              <Label className="text-gray-700">Add-ons / Sides</Label>
+              <p className="text-xs text-gray-500 mb-2">Optional extras with additional price.</p>
+              {itemAddons.map((addon, index) => (
+                <div key={index} className="flex gap-2 mb-2">
+                  <Input
+                    placeholder="Add-on name (e.g. Extra Cheese)"
+                    value={addon.name}
+                    onChange={(e) => {
+                      const newAddons = [...itemAddons];
+                      newAddons[index].name = e.target.value;
+                      setItemAddons(newAddons);
+                    }}
+                    className="flex-1 text-sm"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Price"
+                    value={addon.price}
+                    onChange={(e) => {
+                      const newAddons = [...itemAddons];
+                      newAddons[index].price = e.target.value;
+                      setItemAddons(newAddons);
+                    }}
+                    className="w-24 text-sm"
+                  />
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 h-auto"
+                    onClick={() => {
+                      setItemAddons(itemAddons.filter((_, i) => i !== index));
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                type="button"
+                size="sm"
+                onClick={() => setItemAddons([...itemAddons, { name: "", price: "" }])}
+                className="mt-1 w-full text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+              >
+                <Plus className="w-3 h-3 mr-1" /> Add Option
+              </Button>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+              <Label className="text-gray-700">Sizes / Variants</Label>
+              <p className="text-xs text-gray-500 mb-2">Offer different sizes (e.g. Regular, Large).</p>
+              {itemVariants.map((variant, index) => (
+                <div key={index} className="flex gap-2 mb-2">
+                  <Input
+                    placeholder="Variant name (e.g. Large)"
+                    value={variant.name}
+                    onChange={(e) => {
+                      const newVariants = [...itemVariants];
+                      newVariants[index].name = e.target.value;
+                      setItemVariants(newVariants);
+                    }}
+                    className="flex-1 text-sm"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Price"
+                    value={variant.price}
+                    onChange={(e) => {
+                      const newVariants = [...itemVariants];
+                      newVariants[index].price = e.target.value;
+                      setItemVariants(newVariants);
+                    }}
+                    className="w-24 text-sm"
+                  />
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 h-auto"
+                    onClick={() => {
+                      setItemVariants(itemVariants.filter((_, i) => i !== index));
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                type="button"
+                size="sm"
+                onClick={() => setItemVariants([...itemVariants, { name: "", price: "" }])}
+                className="mt-1 w-full text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+              >
+                <Plus className="w-3 h-3 mr-1" /> Add Variant
+              </Button>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+              <Label>Dietary Tags</Label>
+              <Input
+                value={itemDietaryTags}
+                onChange={(e) => setItemDietaryTags(e.target.value)}
+                placeholder="Vegan, Gluten-Free, Halal (comma separated)"
+                className="mt-1 text-sm"
+              />
             </div>
           </div>
         )}
