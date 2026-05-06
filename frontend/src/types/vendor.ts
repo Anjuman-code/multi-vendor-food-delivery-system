@@ -5,6 +5,13 @@ import type { MenuItem, MenuCategory } from "@/types/menu";
 
 // ── Vendor Profile ─────────────────────────────────────────────
 
+export interface VendorNotificationSettings {
+  emailOnNewOrder: boolean;
+  lowStockAlerts: boolean;
+  reviewAlerts: boolean;
+  promotionPerformance: boolean;
+}
+
 export interface VendorProfile {
   _id: string;
   userId: string;
@@ -16,6 +23,8 @@ export interface VendorProfile {
   commissionRate: number;
   isVerified: boolean;
   verificationDocuments: Record<string, unknown>[];
+  autoAcceptOrders: boolean;
+  notificationSettings: VendorNotificationSettings;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +93,8 @@ export interface VendorRestaurant {
   images: RestaurantImages;
   operatingHours: OperatingHoursEntry[];
   isActive: boolean;
+  isTemporarilyClosed: boolean;
+  closureReason?: string;
   approvalStatus: "pending" | "approved" | "rejected";
   rating: RestaurantRating;
   deliveryTime: string;
@@ -330,6 +341,8 @@ export interface CreateRestaurantPayload {
 
 export interface UpdateRestaurantPayload extends Partial<CreateRestaurantPayload> {
   isActive?: boolean;
+  isTemporarilyClosed?: boolean;
+  closureReason?: string;
 }
 
 export interface CreateMenuItemPayload {
@@ -342,6 +355,7 @@ export interface CreateMenuItemPayload {
   variants?: { name: string; price: number }[];
   addons?: { name: string; price: number }[];
   isAvailable?: boolean;
+  stockStatus?: "available" | "out_of_stock" | "hidden";
   preparationTime?: number;
 }
 

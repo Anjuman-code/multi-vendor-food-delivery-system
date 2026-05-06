@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
-import type { MenuCategory, MenuItem } from "@/types/menu";
+import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -13,35 +13,35 @@ import {
     ChevronRight,
     Edit,
     GripVertical,
-    ImagePlus,
     Loader2,
     Plus,
     Save,
     Search,
-    ToggleLeft,
-    ToggleRight,
     Trash2,
     UtensilsCrossed,
     X,
 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-type ModalState =
+// ── Types ────────────────────────────────────────────────────────
+
+type CategoryModalState =
   | { type: "none" }
-  | { type: "category"; category?: MenuCategory }
-  | { type: "item"; item?: MenuItem };
+  | { type: "category"; category?: MenuCategory };
+
+// ── Main page component ──────────────────────────────────────────
 
 const VendorMenuPage: React.FC = () => {
-  const { selectedRestaurantId, restaurants } = useVendor();
+  const { selectedRestaurantId } = useVendor();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(),
-  );
-  const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [catModal, setCatModal] = useState<CategoryModalState>({ type: "none" });
 
   const loadMenu = useCallback(async () => {
     if (!selectedRestaurantId) return;
@@ -50,10 +50,7 @@ const VendorMenuPage: React.FC = () => {
     if (res.success && res.data) {
       setCategories(res.data.categories || []);
       setItems(res.data.items || []);
-      // Expand all categories by default
-      setExpandedCategories(
-        new Set((res.data.categories || []).map((c) => c._id)),
-      );
+      setExpandedCategories(new Set((res.data.categories || []).map((c) => c._id)));
     }
     setLoading(false);
   }, [selectedRestaurantId]);
@@ -73,15 +70,20 @@ const VendorMenuPage: React.FC = () => {
 
   const handleToggleAvailability = async (item: MenuItem) => {
     if (!selectedRestaurantId) return;
-    const res = await vendorService.toggleItemAvailability(
-      selectedRestaurantId,
-      item._id,
-    );
-    if (res.success) {
+    const res = await vendorService.toggleItemAvailability(selectedRestaurantId, item._id);
+    if (res.success && res.data) {
       setItems((prev) =>
-        prev.map((i) =>
-          i._id === item._id ? { ...i, isAvailable: !i.isAvailable } : i,
-        ),
+        prev.map((i) => (i._id === item._id ? { ...i, ...res.data!.item } : i)),
+      );
+    }
+  };
+
+  const handleStockStatus = async (item: MenuItem, status: StockStatus) => {
+    if (!selectedRestaurantId) return;
+    const res = await vendorService.toggleItemAvailability(selectedRestaurantId, item._id, { stockStatus: status });
+    if (res.success && res.data) {
+      setItems((prev) =>
+        prev.map((i) => (i._id === item._id ? { ...i, ...res.data!.item } : i)),
       );
     }
   };
@@ -89,36 +91,25 @@ const VendorMenuPage: React.FC = () => {
   const handleDeleteItem = async (itemId: string) => {
     if (!selectedRestaurantId) return;
     if (!window.confirm("Delete this menu item?")) return;
-    const res = await vendorService.deleteMenuItem(
-      selectedRestaurantId,
-      itemId,
-    );
+    const res = await vendorService.deleteMenuItem(selectedRestaurantId, itemId);
     if (res.success) {
       setItems((prev) => prev.filter((i) => i._id !== itemId));
       toast({ title: "Success", description: "Item deleted" });
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: res.message, variant: "destructive" });
     }
   };
 
   const handleDeleteCategory = async (catId: string) => {
     if (!selectedRestaurantId) return;
-    if (!window.confirm("Delete this category and its items?")) return;
+    if (!window.confirm("Delete this category? Items will be moved to uncategorized.")) return;
     const res = await vendorService.deleteCategory(selectedRestaurantId, catId);
     if (res.success) {
       setCategories((prev) => prev.filter((c) => c._id !== catId));
       setItems((prev) => prev.filter((i) => i.categoryId !== catId));
       toast({ title: "Success", description: "Category deleted" });
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: res.message, variant: "destructive" });
     }
   };
 
@@ -133,23 +124,11 @@ const VendorMenuPage: React.FC = () => {
     (i) => !i.categoryId || !categories.find((c) => c._id === i.categoryId),
   );
 
-  const selectedRestaurant = restaurants.find(
-    (restaurant) => restaurant._id === selectedRestaurantId,
-  );
-
-  const selectedRestaurantImage =
-    selectedRestaurant?.images?.coverPhoto ||
-    selectedRestaurant?.images?.logo ||
-    selectedRestaurant?.coverImage ||
-    "";
-
   if (!selectedRestaurantId) {
     return (
       <div className="text-center py-16">
         <UtensilsCrossed className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500">
-          Select a restaurant from the sidebar to manage its menu.
-        </p>
+        <p className="text-gray-500">Select a restaurant from the sidebar to manage its menu.</p>
       </div>
     );
   }
@@ -164,60 +143,32 @@ const VendorMenuPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-            {selectedRestaurantImage ? (
-              <img
-                src={selectedRestaurantImage}
-                alt={selectedRestaurant?.name || "Restaurant"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ImagePlus className="w-4 h-4 text-gray-300" />
-              </div>
-            )}
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Menu Management</h1>
-          <div>
-            <p className="text-sm text-gray-500 mt-1">
-              {selectedRestaurant?.name || "Selected restaurant"}
-            </p>
-            <p className="text-sm text-gray-500">
-              {categories.length} categories · {items.length} items
-            </p>
-          </div>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Search menu items..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setModal({ type: "category" })}
-            className="rounded-lg gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Category
-          </Button>
-          <Button
-            onClick={() => setModal({ type: "item" })}
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Item
-          </Button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input
-          placeholder="Search menu items..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
+        <Button
+          variant="outline"
+          onClick={() => setCatModal({ type: "category" })}
+          className="rounded-lg gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Category
+        </Button>
+        <Button
+          onClick={() => navigate("/vendor/menu/items/new")}
+          className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Item
+        </Button>
       </div>
 
       {/* Categories & Items */}
@@ -245,29 +196,27 @@ const VendorMenuPage: React.FC = () => {
                 )}
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{cat.name}</h3>
-                  {cat.description && (
-                    <p className="text-sm text-gray-500">{cat.description}</p>
-                  )}
+                  {cat.description && <p className="text-sm text-gray-500">{cat.description}</p>}
                 </div>
-                <span className="text-sm text-gray-400">
-                  {catItems.length} items
-                </span>
-                <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-400">{catItems.length} items</span>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/vendor/menu/items/new")}
+                    className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Item
+                  </Button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModal({ type: "category", category: cat });
-                    }}
+                    onClick={() => setCatModal({ type: "category", category: cat })}
                     className="p-1.5 hover:bg-gray-100 rounded-lg"
                     title="Edit category"
                   >
                     <Edit className="w-4 h-4 text-gray-500" />
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCategory(cat._id);
-                    }}
+                    onClick={() => handleDeleteCategory(cat._id)}
                     className="p-1.5 hover:bg-red-50 rounded-lg"
                     title="Delete category"
                   >
@@ -276,7 +225,7 @@ const VendorMenuPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Items */}
+              {/* Items grid */}
               <AnimatePresence>
                 {isExpanded && (
                   <motion.div
@@ -287,19 +236,28 @@ const VendorMenuPage: React.FC = () => {
                   >
                     <div className="border-t border-gray-100">
                       {catItems.length === 0 ? (
-                        <p className="text-sm text-gray-400 px-5 py-4 text-center">
-                          No items in this category
+                        <p className="text-sm text-gray-400 px-5 py-6 text-center">
+                          No items in this category.{" "}
+                          <button
+                            onClick={() => navigate("/vendor/menu/items/new")}
+                            className="text-orange-500 hover:text-orange-600 underline"
+                          >
+                            Add one
+                          </button>
                         </p>
                       ) : (
-                        catItems.map((item) => (
-                          <MenuItemRow
-                            key={item._id}
-                            item={item}
-                            onToggle={() => handleToggleAvailability(item)}
-                            onEdit={() => setModal({ type: "item", item })}
-                            onDelete={() => handleDeleteItem(item._id)}
-                          />
-                        ))
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-4">
+                          {catItems.map((item) => (
+                            <ItemCard
+                              key={item._id}
+                              item={item}
+                              onToggleAvailability={() => handleToggleAvailability(item)}
+                              onStockStatus={(s) => handleStockStatus(item, s)}
+                              onEdit={() => navigate(`/vendor/menu/items/${item._id}/edit`)}
+                              onDelete={() => handleDeleteItem(item._id)}
+                            />
+                          ))}
+                        </div>
                       )}
                     </div>
                   </motion.div>
@@ -311,33 +269,49 @@ const VendorMenuPage: React.FC = () => {
 
         {/* Uncategorized */}
         {uncategorizedItems.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-600">Uncategorized</h3>
+          <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-amber-100 flex items-center justify-between bg-amber-50/50">
+              <div>
+                <h3 className="font-semibold text-amber-800">Uncategorized</h3>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  {categories.length === 0
+                    ? "Create a category to organize your menu"
+                    : "These items aren't assigned to any category"}
+                </p>
+              </div>
+              {categories.length === 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCatModal({ type: "category" })}
+                  className="text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-100"
+                >
+                  <Plus className="w-3 h-3" /> Create Category
+                </Button>
+              )}
             </div>
-            {uncategorizedItems.map((item) => (
-              <MenuItemRow
-                key={item._id}
-                item={item}
-                onToggle={() => handleToggleAvailability(item)}
-                onEdit={() => setModal({ type: "item", item })}
-                onDelete={() => handleDeleteItem(item._id)}
-              />
-            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-4">
+              {uncategorizedItems.map((item) => (
+                <ItemCard
+                  key={item._id}
+                  item={item}
+                  onToggleAvailability={() => handleToggleAvailability(item)}
+                  onStockStatus={(s) => handleStockStatus(item, s)}
+                  onEdit={() => navigate(`/vendor/menu/items/${item._id}/edit`)}
+                  onDelete={() => handleDeleteItem(item._id)}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {categories.length === 0 && items.length === 0 && (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
             <UtensilsCrossed className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Empty Menu
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Start by adding categories and menu items.
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Empty Menu</h3>
+            <p className="text-gray-500 mb-6">Start by adding categories and menu items.</p>
             <Button
-              onClick={() => setModal({ type: "category" })}
+              onClick={() => setCatModal({ type: "category" })}
               className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -347,14 +321,13 @@ const VendorMenuPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Category modal */}
       <AnimatePresence>
-        {modal.type !== "none" && (
-          <FormModal
-            modal={modal}
-            categories={categories}
+        {catModal.type === "category" && (
+          <CategoryModal
+            category={catModal.category}
             restaurantId={selectedRestaurantId}
-            onClose={() => setModal({ type: "none" })}
+            onClose={() => setCatModal({ type: "none" })}
             onSaved={loadMenu}
           />
         )}
@@ -363,119 +336,122 @@ const VendorMenuPage: React.FC = () => {
   );
 };
 
-// ── Menu Item Row ────────────────────────────────────────────────
+// ── Item Card ────────────────────────────────────────────────────
 
-const MenuItemRow: React.FC<{
+const ItemCard: React.FC<{
   item: MenuItem;
-  onToggle: () => void;
-   onEdit: () => void;
-   onDelete: () => void;
-}> = ({ item, onToggle, onEdit, onDelete }) => (
-  <div className="flex items-center gap-4 px-5 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-    <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-      <img
-        src={item.image || foodFallbackSVG}
-        alt={item.name}
-        className="w-full h-full object-cover"
-      />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="font-medium text-gray-900 truncate">{item.name}</p>
-      <p className="text-sm text-gray-500 truncate">{item.description}</p>
-    </div>
-    <p className="font-semibold text-gray-900 whitespace-nowrap">
-      ৳{item.price}
-    </p>
-    <button
-      onClick={onToggle}
-      title={item.isAvailable ? "Mark unavailable" : "Mark available"}
-    >
-      {item.isAvailable ? (
-        <ToggleRight className="w-8 h-8 text-green-500" />
-      ) : (
-        <ToggleLeft className="w-8 h-8 text-gray-300" />
-      )}
-    </button>
-    <button
-      onClick={onEdit}
-      className="p-1.5 hover:bg-gray-100 rounded-lg"
-      title="Edit"
-    >
-      <Edit className="w-4 h-4 text-gray-500" />
-    </button>
-    <button
-      onClick={onDelete}
-      className="p-1.5 hover:bg-red-50 rounded-lg"
-      title="Delete"
-    >
-      <Trash2 className="w-4 h-4 text-red-400" />
-    </button>
-  </div>
-);
+  onToggleAvailability: () => void;
+  onStockStatus: (status: StockStatus) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}> = ({ item, onToggleAvailability, onStockStatus, onEdit, onDelete }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
 
-// ── Form Modal ───────────────────────────────────────────────────
+  const stockLabel = useMemo(() => {
+    if (item.stockStatus === "out_of_stock") return { text: "Out of Stock", color: "bg-amber-100 text-amber-700" };
+    if (item.stockStatus === "hidden" || !item.isAvailable) return { text: "Hidden", color: "bg-gray-100 text-gray-500" };
+    return { text: "Available", color: "bg-emerald-100 text-emerald-700" };
+  }, [item.stockStatus, item.isAvailable]);
 
-const FormModal: React.FC<{
-  modal: ModalState;
-  categories: MenuCategory[];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-card-md transition-all overflow-hidden relative group"
+    >
+      <div className="relative h-32 bg-gray-100">
+        <img
+          src={item.image || foodFallbackSVG}
+          alt={item.name}
+          className="w-full h-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).src = foodFallbackSVG; }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onEdit} className="p-1.5 bg-white rounded-lg shadow hover:bg-gray-50" title="Edit">
+            <Edit className="w-3.5 h-3.5 text-gray-700" />
+          </button>
+          <button onClick={onDelete} className="p-1.5 bg-white rounded-lg shadow hover:bg-red-50" title="Delete">
+            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+          </button>
+        </div>
+      </div>
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h4 className="font-medium text-gray-900 text-sm leading-snug line-clamp-2">{item.name}</h4>
+          <span className="font-bold text-gray-900 text-sm whitespace-nowrap">৳{item.price}</span>
+        </div>
+        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{item.description}</p>
+        {item.dietaryTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {item.dietaryTags.slice(0, 3).map((tag) => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium">{tag}</span>
+            ))}
+            {item.dietaryTags.length > 3 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-500">+{item.dietaryTags.length - 3}</span>
+            )}
+          </div>
+        )}
+        {(item.variants.length > 0 || item.addons.length > 0) && (
+          <p className="text-[10px] text-gray-400 mb-2">
+            {item.variants.length > 0 && `${item.variants.length} size${item.variants.length > 1 ? "s" : ""}`}
+            {item.variants.length > 0 && item.addons.length > 0 && " · "}
+            {item.addons.length > 0 && `${item.addons.length} add-on${item.addons.length > 1 ? "s" : ""}`}
+          </p>
+        )}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer ${stockLabel.color}`}
+            >
+              {stockLabel.text}
+            </button>
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  className="absolute bottom-full left-0 mb-1 bg-white rounded-lg border border-gray-200 shadow-card-lg py-1 z-10 w-36"
+                >
+                  {(["available", "out_of_stock", "hidden"] as StockStatus[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { onStockStatus(s); setMenuOpen(false); }}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${
+                        item.stockStatus === s ? "text-orange-600 font-medium" : "text-gray-600"
+                      }`}
+                    >
+                      {s === "available" ? "Available" : s === "out_of_stock" ? "Out of Stock" : "Hidden"}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <span className="text-[10px] text-gray-400">{item.preparationTime}min</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ── Category Modal (category only) ───────────────────────────────
+
+const CategoryModal: React.FC<{
+  category?: MenuCategory;
   restaurantId: string;
   onClose: () => void;
   onSaved: () => void;
-}> = ({ modal, categories, restaurantId, onClose, onSaved }) => {
+}> = ({ category, restaurantId, onClose, onSaved }) => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-
-  // Category form state
-  const [catName, setCatName] = useState("");
-  const [catDesc, setCatDesc] = useState("");
+  const [catName, setCatName] = useState(category?.name || "");
+  const [catDesc, setCatDesc] = useState(category?.description || "");
   const [catError, setCatError] = useState("");
 
-  // Item form state
-  const [itemName, setItemName] = useState("");
-  const [itemDesc, setItemDesc] = useState("");
-  const [itemPrice, setItemPrice] = useState("");
-  const [itemImage, setItemImage] = useState("");
-  const [itemCategoryId, setItemCategoryId] = useState("");
-  const [itemPrepTime, setItemPrepTime] = useState("");
-  const [itemVariants, setItemVariants] = useState<{name: string, price: string}[]>([]);
-  const [itemAddons, setItemAddons] = useState<{name: string, price: string}[]>([]);
-  const [itemDietaryTags, setItemDietaryTags] = useState("");
-  const [itemError, setItemError] = useState("");
-
-  useEffect(() => {
-    setCatError("");
-    setItemError("");
-    if (modal.type === "category" && modal.category) {
-      setCatName(modal.category.name);
-      setCatDesc(modal.category.description || "");
-    } else if (modal.type === "category") {
-      setCatName("");
-      setCatDesc("");
-    }
-    if (modal.type === "item" && modal.item) {
-      setItemName(modal.item.name);
-      setItemDesc(modal.item.description);
-      setItemPrice(String(modal.item.price));
-      setItemImage(modal.item.image || "");
-      setItemCategoryId(modal.item.categoryId || "");
-      setItemPrepTime(String(modal.item.preparationTime || ""));
-      setItemVariants(modal.item.variants?.map(v => ({ name: v.name, price: String(v.price) })) || []);
-      setItemAddons(modal.item.addons?.map(a => ({ name: a.name, price: String(a.price) })) || []);
-      setItemDietaryTags(modal.item.dietaryTags?.join(", ") || "");
-    } else if (modal.type === "item") {
-      setItemName("");
-      setItemDesc("");
-      setItemPrice("");
-      setItemImage("");
-      setItemCategoryId("");
-      setItemPrepTime("");
-      setItemVariants([]);
-      setItemAddons([]);
-      setItemDietaryTags("");
-    }
-  }, [modal]);
-
-  const handleSaveCategory = async () => {
+  const handleSave = async () => {
     if (!catName.trim()) {
       setCatError("Category name is required.");
       return;
@@ -483,101 +459,15 @@ const FormModal: React.FC<{
     setSaving(true);
     setCatError("");
     const data = { name: catName.trim(), description: catDesc.trim() };
-    const isEdit = modal.type === "category" && modal.category;
-    const res = isEdit
-      ? await vendorService.updateCategory(
-          restaurantId,
-          modal.category!._id,
-          data,
-        )
+    const res = category
+      ? await vendorService.updateCategory(restaurantId, category._id, data)
       : await vendorService.createCategory(restaurantId, data);
     if (res.success) {
-      toast({
-        title: "Success",
-        description: isEdit ? "Category updated" : "Category created",
-      });
+      toast({ title: "Success", description: category ? "Category updated" : "Category created" });
       onSaved();
       onClose();
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
-    }
-    setSaving(false);
-  };
-
-  const handleSaveItem = async () => {
-    const parsedPrice = Number(itemPrice);
-    const parsedPrepTime = itemPrepTime ? Number(itemPrepTime) : undefined;
-
-    if (!itemName.trim()) {
-      setItemError("Item name is required.");
-      return;
-    }
-
-    if (!itemDesc.trim()) {
-      setItemError("Description is required.");
-      return;
-    }
-
-    if (!itemPrice || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
-      setItemError("Price must be greater than 0.");
-      return;
-    }
-
-    if (
-      itemPrepTime &&
-      (Number.isNaN(parsedPrepTime) || (parsedPrepTime ?? 0) < 1)
-    ) {
-      setItemError("Preparation time must be at least 1 minute.");
-      return;
-    }
-
-    setItemError("");
-    setSaving(true);
-    
-    // Parse complex fields
-    const variants = itemVariants
-      .filter((v) => v.name.trim() !== "")
-      .map((v) => ({ name: v.name.trim(), price: Number(v.price) || 0 }));
-    const addons = itemAddons
-      .filter((a) => a.name.trim() !== "")
-      .map((a) => ({ name: a.name.trim(), price: Number(a.price) || 0 }));
-    const dietaryTags = itemDietaryTags
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t !== "");
-
-    const data = {
-      name: itemName.trim(),
-      description: itemDesc.trim(),
-      price: parsedPrice,
-      image: itemImage.trim() || undefined,
-      categoryId: itemCategoryId || undefined,
-      preparationTime: parsedPrepTime,
-      variants,
-      addons,
-      dietaryTags,
-    };
-    const isEdit = modal.type === "item" && modal.item;
-    const res = isEdit
-      ? await vendorService.updateMenuItem(restaurantId, modal.item!._id, data)
-      : await vendorService.createMenuItem(restaurantId, data);
-    if (res.success) {
-      toast({
-        title: "Success",
-        description: isEdit ? "Item updated" : "Item created",
-      });
-      onSaved();
-      onClose();
-    } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: res.message, variant: "destructive" });
     }
     setSaving(false);
   };
@@ -595,252 +485,35 @@ const FormModal: React.FC<{
         animate={{ scale: 1 }}
         exit={{ scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
-            {modal.type === "category"
-              ? modal.category
-                ? "Edit Category"
-                : "New Category"
-              : modal.type === "item" && modal.item
-                ? "Edit Item"
-                : "New Item"}
+            {category ? "Edit Category" : "New Category"}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg"
-          >
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-
-        {modal.type === "category" ? (
-          <div className="space-y-4">
-            {catError && (
-              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {catError}
-              </p>
-            )}
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={catName}
-                onChange={(e) => setCatName(e.target.value)}
-                placeholder="e.g. Appetizers"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Description (optional)</Label>
-              <Textarea
-                value={catDesc}
-                onChange={(e) => setCatDesc(e.target.value)}
-                placeholder="A brief description"
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {itemError && (
-              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {itemError}
-              </p>
-            )}
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-                placeholder="e.g. Chicken Biryani"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea
-                value={itemDesc}
-                onChange={(e) => setItemDesc(e.target.value)}
-                placeholder="Describe the dish..."
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Image URL (optional)</Label>
-              <Input
-                value={itemImage}
-                onChange={(e) => setItemImage(e.target.value)}
-                placeholder="https://example.com/item.jpg"
-                className="mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Price (৳)</Label>
-                <Input
-                  type="number"
-                  value={itemPrice}
-                  onChange={(e) => setItemPrice(e.target.value)}
-                  placeholder="0"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Prep Time (min)</Label>
-                <Input
-                  type="number"
-                  value={itemPrepTime}
-                  onChange={(e) => setItemPrepTime(e.target.value)}
-                  placeholder="15"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Category</Label>
-              <select
-                value={itemCategoryId}
-                onChange={(e) => setItemCategoryId(e.target.value)}
-                className="w-full mt-1 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-              >
-                <option value="">Uncategorized</option>
-                {categories.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100">
-              <Label className="text-gray-700">Add-ons / Sides</Label>
-              <p className="text-xs text-gray-500 mb-2">Optional extras with additional price.</p>
-              {itemAddons.map((addon, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <Input
-                    placeholder="Add-on name (e.g. Extra Cheese)"
-                    value={addon.name}
-                    onChange={(e) => {
-                      const newAddons = [...itemAddons];
-                      newAddons[index].name = e.target.value;
-                      setItemAddons(newAddons);
-                    }}
-                    className="flex-1 text-sm"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Price"
-                    value={addon.price}
-                    onChange={(e) => {
-                      const newAddons = [...itemAddons];
-                      newAddons[index].price = e.target.value;
-                      setItemAddons(newAddons);
-                    }}
-                    className="w-24 text-sm"
-                  />
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 h-auto"
-                    onClick={() => {
-                      setItemAddons(itemAddons.filter((_, i) => i !== index));
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                type="button"
-                size="sm"
-                onClick={() => setItemAddons([...itemAddons, { name: "", price: "" }])}
-                className="mt-1 w-full text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
-              >
-                <Plus className="w-3 h-3 mr-1" /> Add Option
-              </Button>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100">
-              <Label className="text-gray-700">Sizes / Variants</Label>
-              <p className="text-xs text-gray-500 mb-2">Offer different sizes (e.g. Regular, Large).</p>
-              {itemVariants.map((variant, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <Input
-                    placeholder="Variant name (e.g. Large)"
-                    value={variant.name}
-                    onChange={(e) => {
-                      const newVariants = [...itemVariants];
-                      newVariants[index].name = e.target.value;
-                      setItemVariants(newVariants);
-                    }}
-                    className="flex-1 text-sm"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Price"
-                    value={variant.price}
-                    onChange={(e) => {
-                      const newVariants = [...itemVariants];
-                      newVariants[index].price = e.target.value;
-                      setItemVariants(newVariants);
-                    }}
-                    className="w-24 text-sm"
-                  />
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 h-auto"
-                    onClick={() => {
-                      setItemVariants(itemVariants.filter((_, i) => i !== index));
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                type="button"
-                size="sm"
-                onClick={() => setItemVariants([...itemVariants, { name: "", price: "" }])}
-                className="mt-1 w-full text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
-              >
-                <Plus className="w-3 h-3 mr-1" /> Add Variant
-              </Button>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100">
-              <Label>Dietary Tags</Label>
-              <Input
-                value={itemDietaryTags}
-                onChange={(e) => setItemDietaryTags(e.target.value)}
-                placeholder="Vegan, Gluten-Free, Halal (comma separated)"
-                className="mt-1 text-sm"
-              />
-            </div>
-          </div>
+        {catError && (
+          <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{catError}</p>
         )}
-
+        <div>
+          <Label>Name</Label>
+          <Input value={catName} onChange={(e) => setCatName(e.target.value)} placeholder="e.g. Appetizers" className="mt-1" />
+        </div>
+        <div>
+          <Label>Description (optional)</Label>
+          <Textarea value={catDesc} onChange={(e) => setCatDesc(e.target.value)} placeholder="A brief description" rows={2} className="mt-1" />
+        </div>
         <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={onClose} className="rounded-lg">
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={onClose} className="rounded-lg">Cancel</Button>
           <Button
             disabled={saving}
-            onClick={
-              modal.type === "category" ? handleSaveCategory : handleSaveItem
-            }
+            onClick={handleSave}
             className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
           >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save
           </Button>
         </div>

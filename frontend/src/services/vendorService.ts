@@ -376,10 +376,12 @@ const vendorService = {
   async toggleItemAvailability(
     restaurantId: string,
     itemId: string,
+    body?: { isAvailable?: boolean; stockStatus?: string },
   ): Promise<ApiResponse<{ item: MenuItem }>> {
     try {
       const res = await httpClient.patch<ApiResponse<{ item: MenuItem }>>(
         `/api/vendor/restaurants/${restaurantId}/menu/items/${itemId}/availability`,
+        body || {},
       );
       return res.data;
     } catch (error: unknown) {

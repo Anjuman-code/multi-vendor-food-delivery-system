@@ -1,286 +1,590 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   DollarSign,
   ShoppingBag,
-  TrendingUp,
-  Star,
   Clock,
+  TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
+  AlertCircle,
+  ChevronRight,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import vendorService from "@/services/vendorService";
-import type { VendorDashboardStats } from "@/types/vendor";
+import { useVendor } from "@/contexts/VendorContext";
+import { useToast } from "@/hooks/use-toast";
+import type {
+  VendorDashboardStats,
+  VendorAnalytics,
+  VendorOrder,
+  RevenueDataPoint,
+} from "@/types/vendor";
 
-const StatCard: React.FC<{
+// ── Helpers ──────────────────────────────────────────────────────
+
+const formatCurrency = (amount: number) =>
+  `৳${amount.toLocaleString("en-BD", { minimumFractionDigits: 0 })}`;
+
+const computePercentChange = (
+  current: number,
+  previous: number,
+): number | null => {
+  if (previous === 0) return current > 0 ? 100 : null;
+  return Math.round(((current - previous) / previous) * 100);
+};
+
+const statusPillClass = (status: string): string => {
+  switch (status) {
+    case "preparing":
+      return "status-pill status-pill-warning";
+    case "ready":
+    case "ready_for_pickup":
+      return "status-pill status-pill-success";
+    case "pending":
+      return "status-pill status-pill-info";
+    case "delivered":
+      return "status-pill status-pill-success";
+    case "cancelled":
+      return "status-pill status-pill-danger";
+    default:
+      return "status-pill status-pill-neutral";
+  }
+};
+
+// ── KPI Card Component ───────────────────────────────────────────
+
+interface KpiCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  change?: number;
-  color: string;
-}> = ({ title, value, icon: Icon, change, color }) => (
+  trend?: number | null;
+  iconColor: string;
+  subtitle?: string;
+}
+
+const KpiCard: React.FC<KpiCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  iconColor,
+  subtitle,
+}) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-gray-200 p-6"
+    className="kpi-card"
   >
-    <div className="flex items-center justify-between mb-4">
-      <div className={`p-3 rounded-xl ${color}`}>
+    <div className="flex items-center justify-between mb-3">
+      <div className={`p-3 rounded-xl ${iconColor}`}>
         <Icon className="w-5 h-5 text-white" />
       </div>
-      {change !== undefined && (
+      {trend !== null && trend !== undefined && (
         <span
-          className={`flex items-center gap-1 text-sm font-medium ${
-            change >= 0 ? "text-green-600" : "text-red-500"
+          className={`kpi-card-delta ${
+            trend >= 0 ? "text-green-600" : "text-red-500"
           }`}
         >
-          {change >= 0 ? (
-            <ArrowUpRight className="w-4 h-4" />
+          {trend >= 0 ? (
+            <ArrowUpRight className="w-3.5 h-3.5" />
           ) : (
-            <ArrowDownRight className="w-4 h-4" />
+            <ArrowDownRight className="w-3.5 h-3.5" />
           )}
-          {Math.abs(change)}%
+          {Math.abs(trend)}%
         </span>
       )}
     </div>
-    <p className="text-2xl font-bold text-gray-900">{value}</p>
-    <p className="text-sm text-gray-500 mt-1">{title}</p>
+    <p className="kpi-card-value">{value}</p>
+    <p className="kpi-card-label">{title}</p>
+    {subtitle && (
+      <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>
+    )}
   </motion.div>
 );
 
+// ── 7-Day Revenue Sparkline (CSS bars since Recharts not available) ──
+
+interface SparklineProps {
+  data: RevenueDataPoint[];
+}
+
+const RevenueSparkline: React.FC<SparklineProps> = ({ data }) => {
+  const maxRevenue = Math.max(...data.map((d) => d.revenue), 1);
+
+  return (
+    <div className="flex items-end gap-1.5 h-28">
+      {data.map((point) => {
+        const heightPct = Math.max((point.revenue / maxRevenue) * 100, 3);
+        const dayLabel = new Date(point.date).toLocaleDateString("en-US", {
+          weekday: "short",
+        });
+        return (
+          <div
+            key={point.date}
+            className="flex-1 flex flex-col items-center gap-1 group relative"
+          >
+            {/* Bar */}
+            <div
+              className="w-full rounded-t-sm transition-all duration-300 cursor-pointer"
+              style={{
+                height: `${heightPct}%`,
+                background:
+                  "linear-gradient(to top, #ea580c, #fb923c)",
+              }}
+            />
+            {/* Hover tooltip */}
+            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-2xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-card-md">
+              {formatCurrency(point.revenue)}
+            </div>
+            {/* Day label */}
+            <span className="text-2xs text-gray-400 mt-0.5">{dayLabel}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Live Order Row ───────────────────────────────────────────────
+
+interface LiveOrderRowProps {
+  order: VendorOrder;
+}
+
+const LiveOrderRow: React.FC<LiveOrderRowProps> = ({ order }) => (
+  <Link
+    to={`/vendor/orders/${order._id}`}
+    className="flex items-center justify-between p-3 rounded-lg hover:bg-orange-50 border border-transparent hover:border-orange-100 transition-all group"
+  >
+    <div className="flex items-center gap-3 min-w-0">
+      <div className="w-9 h-9 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold shrink-0">
+        #{order.orderNumber?.slice(-4) || "—"}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">
+          {order.customer?.name || "Guest"}
+        </p>
+        <p className="text-xs text-gray-500">
+          {order.items?.length || 0} item
+          {(order.items?.length ?? 0) !== 1 ? "s" : ""} —{" "}
+          {formatCurrency(order.total)}
+        </p>
+      </div>
+    </div>
+    <div className="flex items-center gap-2 shrink-0">
+      <span className={statusPillClass(order.status)}>
+        {order.status === "ready_for_pickup"
+          ? "Ready"
+          : order.status.replace(/_/g, " ")}
+      </span>
+      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-orange-400 transition-colors" />
+    </div>
+  </Link>
+);
+
+// ── Popular Item Row ─────────────────────────────────────────────
+
+interface PopularItemRowProps {
+  item: NonNullable<VendorDashboardStats["popularItems"]>[number];
+  rank: number;
+}
+
+const PopularItemRow: React.FC<PopularItemRowProps> = ({ item, rank }) => {
+  const rankColors = [
+    "bg-orange-500 text-white",
+    "bg-orange-200 text-orange-700",
+    "bg-orange-100 text-orange-600",
+    "bg-gray-100 text-gray-500",
+    "bg-gray-50 text-gray-400",
+  ];
+
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors">
+      <span
+        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+          rankColors[rank] ?? rankColors[4]
+        }`}
+      >
+        {rank + 1}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">
+          {item.name}
+        </p>
+        {item.totalRevenue !== undefined && item.totalRevenue > 0 && (
+          <p className="text-xs text-gray-400">
+            {formatCurrency(item.totalRevenue)}
+          </p>
+        )}
+      </div>
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium">
+        <UtensilsCrossed className="w-3 h-3" />
+        {(item.orderCount ?? item.totalOrdered) || 0}
+      </span>
+    </div>
+  );
+};
+
+// ── Skeleton Components ──────────────────────────────────────────
+
+const KpiSkeleton: React.FC = () => (
+  <div className="kpi-card animate-pulse">
+    <div className="h-11 w-11 bg-gray-200 rounded-xl mb-4" />
+    <div className="h-7 w-24 bg-gray-200 rounded mb-2" />
+    <div className="h-4 w-32 bg-gray-200 rounded" />
+  </div>
+);
+
+const CardSkeleton: React.FC<{ rows?: number }> = ({ rows = 4 }) => (
+  <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+    <div className="h-5 w-32 bg-gray-200 rounded mb-4" />
+    {Array.from({ length: rows }).map((_, i) => (
+      <div key={i} className="h-10 bg-gray-100 rounded mb-2" />
+    ))}
+  </div>
+);
+
+// ── Main Dashboard Component ─────────────────────────────────────
+
 const VendorDashboardPage: React.FC = () => {
+  const { selectedRestaurantId } = useVendor();
+  const { toast } = useToast();
+
   const [stats, setStats] = useState<VendorDashboardStats | null>(null);
+  const [analytics, setAnalytics] = useState<VendorAnalytics | null>(null);
+  const [liveOrders, setLiveOrders] = useState<VendorOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadStats = async () => {
-      const res = await vendorService.getDashboardStats();
-      if (res.success && res.data) {
-        setStats(res.data);
+    let cancelled = false;
+
+    const loadDashboard = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const params = selectedRestaurantId
+          ? { limit: 5, status: "preparing,ready", restaurantId: selectedRestaurantId }
+          : { limit: 5, status: "preparing,ready" };
+
+        const [statsRes, analyticsRes, ordersRes] = await Promise.all([
+          vendorService.getDashboardStats(),
+          vendorService.getAnalytics("7d"),
+          vendorService.getOrders(params),
+        ]);
+
+        if (cancelled) return;
+
+        if (statsRes.success && statsRes.data) {
+          setStats(statsRes.data);
+        } else {
+          toast({
+            title: "Error",
+            description: statsRes.message || "Failed to load dashboard statistics.",
+            variant: "destructive",
+          });
+        }
+
+        if (analyticsRes.success && analyticsRes.data) {
+          setAnalytics(analyticsRes.data);
+        }
+
+        if (ordersRes.success && ordersRes.data) {
+          setLiveOrders(ordersRes.data.orders);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Failed to load dashboard data. Please try again.");
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred while loading the dashboard.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     };
-    loadStats();
-  }, []);
+
+    loadDashboard();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRestaurantId, toast]);
+
+  // ── Compute KPI data including trends vs yesterday ──────────
+
+  const kpis = useMemo(() => {
+    if (!stats) {
+      return {
+        todayRevenue: 0,
+        todayRevenueTrend: null as number | null,
+        activeOrders: 0,
+        pendingOrders: 0,
+        avgOrderValue: 0,
+        avgOrderValueTrend: null as number | null,
+        revenueOverTime: [] as RevenueDataPoint[],
+      };
+    }
+
+    const revenueData = analytics?.revenueOverTime ?? [];
+    const todayStr = new Date().toISOString().split("T")[0];
+    const yesterdayStr = new Date(Date.now() - 86400000)
+      .toISOString()
+      .split("T")[0];
+
+    // Try to find yesterday's data point in revenueOverTime
+    const yesterdayPoint = revenueData.find((d) => d.date === yesterdayStr);
+    const yesterdayRevenue = yesterdayPoint?.revenue ?? 0;
+    const yesterdayOrders = yesterdayPoint?.orders ?? 0;
+
+    // Count active orders: PREPARING + READY / READY_FOR_PICKUP
+    const preparingCount =
+      stats.ordersByStatus?.find((s) => s.status === "preparing")?.count ?? 0;
+    const readyCount =
+      stats.ordersByStatus?.find(
+        (s) => s.status === "ready" || s.status === "ready_for_pickup",
+      )?.count ?? 0;
+
+    // Average order value trend: compare today's AOV vs yesterday's AOV
+    const yesterdayAov =
+      yesterdayOrders > 0 ? yesterdayRevenue / yesterdayOrders : 0;
+
+    return {
+      todayRevenue: stats.todayRevenue ?? 0,
+      todayRevenueTrend: computePercentChange(
+        stats.todayRevenue ?? 0,
+        yesterdayRevenue,
+      ),
+      activeOrders: preparingCount + readyCount,
+      pendingOrders: stats.pendingOrders ?? 0,
+      avgOrderValue: stats.avgOrderValue ?? 0,
+      avgOrderValueTrend: yesterdayAov > 0
+        ? computePercentChange(stats.avgOrderValue ?? 0, yesterdayAov)
+        : null,
+      revenueOverTime: revenueData,
+    };
+  }, [stats, analytics]);
+
+  // ── Derived data ────────────────────────────────────────────
+
+  const topItems = (stats?.popularItems ?? []).slice(0, 5);
+  const hasLiveOrders = liveOrders.length > 0;
+
+  // ── Loading State ───────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse"
-            >
-              <div className="h-12 w-12 bg-gray-200 rounded-xl mb-4" />
-              <div className="h-8 w-24 bg-gray-200 rounded mb-2" />
-              <div className="h-4 w-32 bg-gray-200 rounded" />
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <KpiSkeleton key={i} />
           ))}
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+          <div className="h-5 w-40 bg-gray-200 rounded mb-4" />
+          <div className="h-28 bg-gray-100 rounded" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CardSkeleton rows={4} />
+          <CardSkeleton rows={4} />
         </div>
       </div>
     );
   }
 
-  if (!stats) {
+  // ── Error State ─────────────────────────────────────────────
+
+  if (error) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        Failed to load dashboard data.
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+        <AlertCircle className="w-14 h-14 text-red-300 mb-4" />
+        <p className="text-lg font-semibold text-gray-700">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-5 px-5 py-2.5 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors text-sm font-medium shadow-card"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
-  const formatCurrency = (amount: number) =>
-    `৳${amount.toLocaleString("en-BD", { minimumFractionDigits: 0 })}`;
+  // ── Empty / No-data State ───────────────────────────────────
+
+  if (!stats) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+        <AlertCircle className="w-14 h-14 text-gray-300 mb-4" />
+        <p className="text-lg font-semibold text-gray-700">
+          No dashboard data available.
+        </p>
+        <p className="text-sm text-gray-400 mt-1">
+          Data will appear once you start receiving orders.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Render ──────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(stats.totalRevenue)}
-          icon={DollarSign}
-          color="bg-gradient-to-r from-green-500 to-emerald-500"
-        />
-        <StatCard
-          title="Total Orders"
-          value={stats.totalOrders}
-          icon={ShoppingBag}
-          color="bg-gradient-to-r from-blue-500 to-indigo-500"
-        />
-        <StatCard
+      {/* ═══ KPI Cards Row ═══ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <KpiCard
           title="Today's Revenue"
-          value={formatCurrency(stats.todayRevenue)}
-          icon={TrendingUp}
-          color="bg-gradient-to-r from-orange-500 to-red-500"
+          value={formatCurrency(kpis.todayRevenue)}
+          icon={DollarSign}
+          trend={kpis.todayRevenueTrend}
+          iconColor="bg-gradient-to-r from-green-500 to-emerald-500"
         />
-        <StatCard
-          title="Average Rating"
-          value={(stats.averageRating ?? 0).toFixed(1)}
-          icon={Star}
-          color="bg-gradient-to-r from-yellow-500 to-amber-500"
+        <KpiCard
+          title="Active Orders"
+          value={kpis.activeOrders}
+          icon={ShoppingBag}
+          iconColor="bg-gradient-to-r from-blue-500 to-indigo-500"
+          subtitle="Preparing &amp; Ready"
+        />
+        <KpiCard
+          title="Pending Orders"
+          value={kpis.pendingOrders}
+          icon={Clock}
+          iconColor="bg-gradient-to-r from-orange-500 to-red-500"
+        />
+        <KpiCard
+          title="Avg. Order Value"
+          value={formatCurrency(kpis.avgOrderValue)}
+          icon={TrendingUp}
+          trend={kpis.avgOrderValueTrend}
+          iconColor="bg-gradient-to-r from-purple-500 to-pink-500"
         />
       </div>
 
+      {/* ═══ 7-Day Revenue Sparkline ═══ */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-white rounded-xl border border-gray-200 p-6 shadow-card"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">
+              7-Day Revenue
+            </h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Daily revenue for the past week
+            </p>
+          </div>
+          <Link
+            to="/vendor/analytics"
+            className="text-sm text-orange-600 hover:text-orange-700 font-medium inline-flex items-center gap-1 transition-colors"
+          >
+            Analytics
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {kpis.revenueOverTime.length > 0 ? (
+          <RevenueSparkline data={kpis.revenueOverTime} />
+        ) : (
+          <div className="h-28 flex items-center justify-center text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg">
+            No revenue data available for the past week.
+          </div>
+        )}
+      </motion.div>
+
+      {/* ═══ Two-column: Live Orders + Popular Items ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Orders by Status */}
+        {/* ── Live Orders Widget ────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl border border-gray-200 p-6"
+          className="bg-white rounded-xl border border-gray-200 p-6 shadow-card"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Orders by Status
-          </h3>
-          <div className="space-y-3">
-            {(stats.ordersByStatus ?? []).map((item) => {
-              const total = stats.totalOrders || 1;
-              const pct = Math.round((item.count / total) * 100);
-              return (
-                <div key={item.status}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-600 capitalize">
-                      {item.status.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-medium text-gray-900">
-                      {item.count} ({pct}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-base font-semibold text-gray-900">
+                Live Orders
+              </h3>
+              {hasLiveOrders && (
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                </span>
+              )}
+            </div>
+            <Link
+              to="/vendor/orders"
+              className="text-sm text-orange-600 hover:text-orange-700 font-medium transition-colors"
+            >
+              View all
+            </Link>
           </div>
+
+          {hasLiveOrders ? (
+            <div className="space-y-1">
+              {liveOrders.map((order) => (
+                <LiveOrderRow key={order._id} order={order} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3">
+                <ShoppingBag className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-medium text-gray-500">
+                No live orders
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                All orders have been processed.
+              </p>
+            </div>
+          )}
         </motion.div>
 
-        {/* Popular Items */}
+        {/* ── Top 5 Popular Items ──────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-white rounded-xl border border-gray-200 p-6"
+          className="bg-white rounded-xl border border-gray-200 p-6 shadow-card"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Popular Items
-          </h3>
-          <div className="space-y-3">
-            {(stats.popularItems ?? []).map((item, idx) => (
-              <div
-                key={item.name}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <span className="w-7 h-7 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold">
-                  {idx + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {item.name}
-                  </p>
-                </div>
-                <span className="text-sm text-gray-500">
-                  {item.orderCount} orders
-                </span>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900">
+              Popular Items
+            </h3>
+            <span className="text-2xs font-medium text-gray-400 uppercase tracking-wide">
+              This week
+            </span>
+          </div>
+
+          {topItems.length > 0 ? (
+            <div className="space-y-0.5">
+              {topItems.map((item, idx) => (
+                <PopularItemRow key={item._id || item.name} item={item} rank={idx} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3">
+                <TrendingUp className="w-6 h-6" />
               </div>
-            ))}
-            {stats.popularItems?.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">
+              <p className="text-sm font-medium text-gray-500">
                 No data yet
               </p>
-            )}
-          </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Popular items will appear once orders come in.
+              </p>
+            </div>
+          )}
         </motion.div>
       </div>
-
-      {/* Recent Orders */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl border border-gray-200 p-6"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
-          <Link
-            to="/vendor/orders"
-            className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-          >
-            View all
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b border-gray-100">
-                <th className="pb-3 font-medium">Order #</th>
-                <th className="pb-3 font-medium">Customer</th>
-                <th className="pb-3 font-medium">Items</th>
-                <th className="pb-3 font-medium">Total</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {(stats.recentOrders ?? []).map((order) => (
-                <tr key={order._id} className="hover:bg-gray-50">
-                  <td className="py-3">
-                    <Link
-                      to={`/vendor/orders/${order._id}`}
-                      className="text-orange-600 hover:underline font-medium"
-                    >
-                      {order.orderNumber}
-                    </Link>
-                  </td>
-                  <td className="py-3 text-gray-600">
-                    {order.customer?.name || "—"}
-                  </td>
-                  <td className="py-3 text-gray-600">
-                    {order.items?.length || 0}
-                  </td>
-                  <td className="py-3 font-medium text-gray-900">
-                    {formatCurrency(order.total)}
-                  </td>
-                  <td className="py-3">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        order.status === "delivered"
-                          ? "bg-green-100 text-green-700"
-                          : order.status === "cancelled"
-                            ? "bg-red-100 text-red-700"
-                            : order.status === "preparing"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-blue-100 text-blue-700"
-                      }`}
-                    >
-                      {order.status.replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td className="py-3 text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {(stats.recentOrders?.length ?? 0) === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-400">
-                    No recent orders
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
     </div>
   );
 };

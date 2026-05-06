@@ -12,6 +12,8 @@ export interface MenuItemAddon {
   price: number;
 }
 
+export type StockStatus = "available" | "out_of_stock" | "hidden";
+
 export interface MenuItem {
   _id: string;
   restaurantId: string;
@@ -24,6 +26,7 @@ export interface MenuItem {
   variants: MenuItemVariant[];
   addons: MenuItemAddon[];
   isAvailable: boolean;
+  stockStatus: StockStatus;
   preparationTime: number;
   createdAt: string;
   updatedAt: string;

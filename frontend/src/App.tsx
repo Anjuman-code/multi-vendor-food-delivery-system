@@ -44,6 +44,7 @@ const VendorDashboardPage = lazy(() => import("./pages/vendor/VendorDashboardPag
 const VendorRestaurantsPage = lazy(() => import("./pages/vendor/VendorRestaurantsPage"));
 const RestaurantFormPage = lazy(() => import("./pages/vendor/RestaurantFormPage"));
 const VendorMenuPage = lazy(() => import("./pages/vendor/VendorMenuPage"));
+const MenuItemEditorPage = lazy(() => import("./pages/vendor/MenuItemEditorPage"));
 const VendorOrdersPage = lazy(() => import("./pages/vendor/VendorOrdersPage"));
 const VendorOrderDetailPage = lazy(() => import("./pages/vendor/VendorOrderDetailPage"));
 const VendorReviewsPage = lazy(() => import("./pages/vendor/VendorReviewsPage"));
@@ -110,6 +111,8 @@ function App(): React.ReactElement {
                     <Route path="/vendor/restaurants/new" element={<RestaurantFormPage />} />
                     <Route path="/vendor/restaurants/:id/edit" element={<RestaurantFormPage />} />
                     <Route path="/vendor/menu" element={<VendorMenuPage />} />
+                    <Route path="/vendor/menu/items/new" element={<MenuItemEditorPage />} />
+                    <Route path="/vendor/menu/items/:itemId/edit" element={<MenuItemEditorPage />} />
                     <Route path="/vendor/orders" element={<VendorOrdersPage />} />
                     <Route path="/vendor/orders/:id" element={<VendorOrderDetailPage />} />
                     <Route path="/vendor/reviews" element={<VendorReviewsPage />} />
