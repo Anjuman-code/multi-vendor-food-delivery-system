@@ -170,8 +170,11 @@ export const createOrder = async (
           `Menu item ${item.menuItemId} is not available for this restaurant`,
         );
       }
-      if (!menuItem.isAvailable) {
+      if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
         throw new ValidationError(`${menuItem.name} is currently unavailable`);
+      }
+      if (menuItem.stockStatus === "out_of_stock") {
+        throw new ValidationError(`${menuItem.name} is currently out of stock`);
       }
 
       const quantity = item.quantity;
@@ -520,7 +523,7 @@ export const reorder = async (
         ...resolvedVariants.missing,
         ...resolvedAddons.missing,
       ];
-      const isAvailable = menuItem.isAvailable && missingOptions.length === 0;
+      const isAvailable = menuItem.isAvailable && missingOptions.length === 0 && menuItem.stockStatus !== "hidden";
 
       if (!isAvailable) {
         hasUnavailableItems = true;
@@ -531,11 +534,13 @@ export const reorder = async (
         resolvedVariants.trusted.reduce((sum, option) => sum + option.price, 0) +
         resolvedAddons.trusted.reduce((sum, option) => sum + option.price, 0);
 
-      const unavailableReason = !menuItem.isAvailable
-        ? `${menuItem.name} is currently unavailable`
-        : missingOptions.length > 0
-          ? `Some previously selected options are no longer available: ${missingOptions.join(", ")}`
-          : undefined;
+      const unavailableReason = menuItem.stockStatus === "out_of_stock"
+        ? `${menuItem.name} is currently out of stock`
+        : !menuItem.isAvailable || menuItem.stockStatus === "hidden"
+          ? `${menuItem.name} is currently unavailable`
+          : missingOptions.length > 0
+            ? `Some previously selected options are no longer available: ${missingOptions.join(", ")}`
+            : undefined;
 
       cartItems.push({
         menuItemId: item.menuItemId.toString(),

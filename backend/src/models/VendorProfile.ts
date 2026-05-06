@@ -25,6 +25,13 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
     commissionRate: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
     verificationDocuments: { type: Schema.Types.Mixed, default: [] },
+    autoAcceptOrders: { type: Boolean, default: false },
+    notificationSettings: {
+      emailOnNewOrder: { type: Boolean, default: true },
+      lowStockAlerts: { type: Boolean, default: false },
+      reviewAlerts: { type: Boolean, default: true },
+      promotionPerformance: { type: Boolean, default: false },
+    },
   },
   { timestamps: true },
 );

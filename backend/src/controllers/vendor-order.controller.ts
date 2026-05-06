@@ -92,6 +92,11 @@ export const getVendorOrders = async (
 
     if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
       filter.status = status;
+    } else if (status && status.includes(",")) {
+      const statuses = status.split(",").filter((s) => Object.values(OrderStatus).includes(s as OrderStatus));
+      if (statuses.length > 0) {
+        filter.status = { $in: statuses };
+      }
     }
 
     if (dateFrom || dateTo) {

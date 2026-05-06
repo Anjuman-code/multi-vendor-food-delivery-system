@@ -107,6 +107,11 @@ export const updateProfile = async (
     if (updates.businessLicense !== undefined)
       profile.businessLicense = updates.businessLicense;
     if (updates.taxId !== undefined) profile.taxId = updates.taxId;
+    if (updates.bankDetails !== undefined) profile.bankDetails = updates.bankDetails;
+    if (updates.autoAcceptOrders !== undefined)
+      profile.autoAcceptOrders = updates.autoAcceptOrders;
+    if (updates.notificationSettings !== undefined)
+      profile.notificationSettings = { ...profile.notificationSettings, ...updates.notificationSettings };
 
     await profile.save();
 

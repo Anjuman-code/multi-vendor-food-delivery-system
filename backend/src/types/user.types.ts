@@ -142,6 +142,13 @@ export interface ICustomerProfileDocument
 // Vendor Profile (placeholder)
 // ────────────────────────────────────────────────────────────────
 
+export interface IVendorNotificationSettings {
+  emailOnNewOrder: boolean;
+  lowStockAlerts: boolean;
+  reviewAlerts: boolean;
+  promotionPerformance: boolean;
+}
+
 export interface IVendorProfile {
   userId: Types.ObjectId;
   restaurantIds: Types.ObjectId[];
@@ -152,6 +159,8 @@ export interface IVendorProfile {
   commissionRate: number;
   isVerified: boolean;
   verificationDocuments: Record<string, unknown>[];
+  autoAcceptOrders: boolean;
+  notificationSettings: IVendorNotificationSettings;
   createdAt: Date;
   updatedAt: Date;
 }

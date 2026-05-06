@@ -82,6 +82,16 @@ export const updateVendorProfileSchema = z.object({
     .max(50, "Tax ID cannot exceed 50 characters")
     .trim()
     .optional(),
+  bankDetails: z.record(z.unknown()).optional(),
+  autoAcceptOrders: z.boolean().optional(),
+  notificationSettings: z
+    .object({
+      emailOnNewOrder: z.boolean().optional(),
+      lowStockAlerts: z.boolean().optional(),
+      reviewAlerts: z.boolean().optional(),
+      promotionPerformance: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export type UpdateVendorProfileInput = z.infer<
@@ -185,6 +195,8 @@ export const updateRestaurantSchema = z.object({
   deliveryFee: z.number().min(0).optional(),
   minimumOrder: z.number().min(0).optional(),
   isActive: z.boolean().optional(),
+  isTemporarilyClosed: z.boolean().optional(),
+  closureReason: z.string().max(300).trim().optional(),
 });
 
 export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;
@@ -255,6 +267,7 @@ export const createMenuItemSchema = z.object({
   variants: z.array(variantSchema).optional().default([]),
   addons: z.array(addonSchema).optional().default([]),
   isAvailable: z.boolean().optional().default(true),
+  stockStatus: z.enum(["available", "out_of_stock", "hidden"]).optional().default("available"),
   preparationTime: z.number().int().min(1).optional().default(15),
 });
 
@@ -280,6 +293,7 @@ export const updateMenuItemSchema = z.object({
   variants: z.array(variantSchema).optional(),
   addons: z.array(addonSchema).optional(),
   isAvailable: z.boolean().optional(),
+  stockStatus: z.enum(["available", "out_of_stock", "hidden"]).optional(),
   preparationTime: z.number().int().min(1).optional(),
 });
 

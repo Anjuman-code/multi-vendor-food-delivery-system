@@ -275,6 +275,7 @@ export const deleteItem = async (
 
 /**
  * PATCH /api/vendor/restaurants/:restaurantId/menu/items/:itemId/availability
+ * Body: { isAvailable?: boolean, stockStatus?: "available" | "out_of_stock" | "hidden" }
  */
 export const toggleItemAvailability = async (
   req: Request,
@@ -292,13 +293,30 @@ export const toggleItemAvailability = async (
 
     if (!item) throw new NotFoundError("Menu item not found");
 
-    item.isAvailable = !item.isAvailable;
+    if (req.body.stockStatus) {
+      item.stockStatus = req.body.stockStatus;
+      if (req.body.stockStatus === "hidden") {
+        item.isAvailable = false;
+      } else {
+        item.isAvailable = true;
+      }
+    } else if (typeof req.body.isAvailable === "boolean") {
+      item.isAvailable = req.body.isAvailable;
+      if (!req.body.isAvailable) {
+        item.stockStatus = "hidden";
+      } else {
+        item.stockStatus = "available";
+      }
+    } else {
+      item.isAvailable = !item.isAvailable;
+      item.stockStatus = item.isAvailable ? "available" : "hidden";
+    }
     await item.save();
 
     successResponse(
       res,
       { item },
-      `Item marked as ${item.isAvailable ? "available" : "unavailable"}`,
+      `Item marked as ${item.stockStatus === "out_of_stock" ? "out of stock" : item.isAvailable ? "available" : "unavailable"}`,
     );
   } catch (error) {
     next(error);

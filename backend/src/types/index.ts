@@ -66,6 +66,8 @@ export interface IRestaurant {
   images: IImages;
   operatingHours: IOperatingHours[];
   isActive: boolean;
+  isTemporarilyClosed: boolean;
+  closureReason?: string;
   approvalStatus: "pending" | "approved" | "rejected";
   rating: IRating;
   deliveryTime: string;

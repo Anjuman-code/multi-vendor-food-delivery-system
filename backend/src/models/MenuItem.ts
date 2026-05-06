@@ -17,6 +17,8 @@ export interface IMenuItemAddon {
   price: number;
 }
 
+export type StockStatus = "available" | "out_of_stock" | "hidden";
+
 export interface IMenuItem {
   restaurantId: Types.ObjectId;
   categoryId?: Types.ObjectId;
@@ -28,6 +30,7 @@ export interface IMenuItem {
   variants: IMenuItemVariant[];
   addons: IMenuItemAddon[];
   isAvailable: boolean;
+  stockStatus: StockStatus;
   preparationTime: number; // minutes
   createdAt: Date;
   updatedAt: Date;
@@ -89,6 +92,11 @@ const menuItemSchema = new Schema<IMenuItem>(
     variants: { type: [variantSchema], default: [] },
     addons: { type: [addonSchema], default: [] },
     isAvailable: { type: Boolean, default: true },
+    stockStatus: {
+      type: String,
+      enum: ["available", "out_of_stock", "hidden"],
+      default: "available",
+    },
     preparationTime: { type: Number, default: 15 },
   },
   { timestamps: true },

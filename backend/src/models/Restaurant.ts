@@ -113,6 +113,15 @@ const restaurantSchema = new Schema<IRestaurant>({
     type: Boolean,
     default: true,
   },
+  isTemporarilyClosed: {
+    type: Boolean,
+    default: false,
+  },
+  closureReason: {
+    type: String,
+    trim: true,
+    maxlength: 300,
+  },
   approvalStatus: {
     type: String,
     enum: ["pending", "approved", "rejected"],
