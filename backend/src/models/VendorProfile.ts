@@ -2,7 +2,7 @@
  * VendorProfile Mongoose model – placeholder for vendor-specific data.
  * Structure defined; full implementation deferred.
  */
-import mongoose, { Schema, Model } from "mongoose";
+import mongoose, { Model, Schema } from "mongoose";
 import { IVendorProfileDocument } from "../types/user.types";
 
 const vendorProfileSchema = new Schema<IVendorProfileDocument>(
@@ -21,10 +21,25 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
     businessName: { type: String, required: true, trim: true },
     businessLicense: { type: String, required: true },
     taxId: { type: String, required: true },
-    bankDetails: { type: Schema.Types.Mixed, default: {} },
+    bankDetails: {
+      bankName: { type: String, trim: true },
+      accountNumber: { type: String, trim: true },
+      accountName: { type: String, trim: true },
+      branchName: { type: String, trim: true },
+      routingNumber: { type: String, trim: true },
+      mobileMoneyNumber: { type: String, trim: true },
+      mobileMoneyProvider: { type: String, trim: true },
+    },
     commissionRate: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
-    verificationDocuments: { type: Schema.Types.Mixed, default: [] },
+    verificationDocuments: [
+      {
+        type: { type: String, enum: ['nid', 'trade_license', 'tin', 'vat_certificate', 'other'] },
+        url: { type: String, trim: true },
+        uploadedAt: { type: Date, default: Date.now },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+      },
+    ],
     autoAcceptOrders: { type: Boolean, default: false },
     notificationSettings: {
       emailOnNewOrder: { type: Boolean, default: true },
@@ -32,6 +47,11 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
       reviewAlerts: { type: Boolean, default: true },
       promotionPerformance: { type: Boolean, default: false },
     },
+    // Denormalized analytics for dashboard speed
+    totalOrders: { type: Number, default: 0 },
+    totalEarnings: { type: Number, default: 0 },
+    pendingPayout: { type: Number, default: 0 },
+    averageRating: { type: Number, min: 0, max: 5, default: 0 },
   },
   { timestamps: true },
 );

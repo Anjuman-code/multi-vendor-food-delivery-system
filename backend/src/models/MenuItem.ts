@@ -1,7 +1,7 @@
 /**
  * MenuItem Mongoose model – individual food items in a restaurant's menu.
  */
-import mongoose, { Schema, Model, Types } from "mongoose";
+import mongoose, { Model, Schema, Types } from "mongoose";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -15,9 +15,11 @@ export interface IMenuItemAddon {
   _id?: Types.ObjectId;
   name: string;
   price: number;
+  isRequired?: boolean;
 }
 
 export type StockStatus = "available" | "out_of_stock" | "hidden";
+export type SpiceLevel = "none" | "mild" | "medium" | "hot" | "extra-hot";
 
 export interface IMenuItem {
   restaurantId: Types.ObjectId;
@@ -25,13 +27,21 @@ export interface IMenuItem {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number; // price before discount
   image?: string;
-  dietaryTags: string[];
+  imageGallery: string[];
+  dietaryTags: string[];  // e.g. ['halal', 'vegetarian', 'gluten-free']
   variants: IMenuItemVariant[];
   addons: IMenuItemAddon[];
   isAvailable: boolean;
   stockStatus: StockStatus;
   preparationTime: number; // minutes
+  displayOrder: number;
+  isPopular: boolean;
+  isFeatured: boolean;
+  spiceLevel: SpiceLevel;
+  calories?: number;
+  servingSize?: string; // e.g. "1 plate", "300g"
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +62,7 @@ const addonSchema = new Schema<IMenuItemAddon>(
   {
     name: { type: String, required: true, trim: true },
     price: { type: Number, required: true, min: 0 },
+    isRequired: { type: Boolean, default: false },
   },
   { _id: true },
 );
@@ -69,6 +80,7 @@ const menuItemSchema = new Schema<IMenuItem>(
     categoryId: {
       type: Schema.Types.ObjectId,
       ref: "MenuCategory",
+      index: true,
     },
     name: {
       type: String,
@@ -80,14 +92,16 @@ const menuItemSchema = new Schema<IMenuItem>(
       type: String,
       required: [true, "Description is required"],
       trim: true,
-      maxlength: 500,
+      maxlength: 1000,
     },
     price: {
       type: Number,
       required: [true, "Price is required"],
       min: 0,
     },
+    originalPrice: { type: Number, min: 0 },
     image: { type: String, trim: true },
+    imageGallery: { type: [String], default: [] },
     dietaryTags: { type: [String], default: [] },
     variants: { type: [variantSchema], default: [] },
     addons: { type: [addonSchema], default: [] },
@@ -98,11 +112,24 @@ const menuItemSchema = new Schema<IMenuItem>(
       default: "available",
     },
     preparationTime: { type: Number, default: 15 },
+    displayOrder: { type: Number, default: 0 },
+    isPopular: { type: Boolean, default: false },
+    isFeatured: { type: Boolean, default: false },
+    spiceLevel: {
+      type: String,
+      enum: ["none", "mild", "medium", "hot", "extra-hot"],
+      default: "none",
+    },
+    calories: { type: Number, min: 0 },
+    servingSize: { type: String, trim: true },
   },
   { timestamps: true },
 );
 
 menuItemSchema.index({ restaurantId: 1, isAvailable: 1 });
+menuItemSchema.index({ restaurantId: 1, displayOrder: 1 });
+menuItemSchema.index({ restaurantId: 1, isPopular: 1 });
+menuItemSchema.index({ categoryId: 1, displayOrder: 1 });
 
 const MenuItem: Model<IMenuItem> = mongoose.model<IMenuItem>(
   "MenuItem",

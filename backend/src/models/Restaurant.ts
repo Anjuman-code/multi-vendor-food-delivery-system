@@ -2,169 +2,119 @@ import mongoose, { Model, Schema } from "mongoose";
 import { IOperatingHours, IRestaurant } from "../types";
 
 // ── Sub-schema: operating hours ──────────────────────────────────
-const operatingHoursSchema = new Schema<IOperatingHours>({
-  day: {
-    type: String,
-    required: true,
-    enum: [
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-      "Sunday",
-    ],
+const operatingHoursSchema = new Schema<IOperatingHours>(
+  {
+    day: {
+      type: String,
+      required: true,
+      enum: [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ],
+    },
+    openTime: { type: String, required: true }, // "HH:MM"
+    closeTime: { type: String, required: true }, // "HH:MM"
+    isOpen: { type: Boolean, default: true },
   },
-  openTime: {
-    type: String, // Format: "HH:MM"
-    required: true,
-  },
-  closeTime: {
-    type: String, // Format: "HH:MM"
-    required: true,
-  },
-  isOpen: {
-    type: Boolean,
-    default: true,
-  },
-});
+  { _id: false },
+);
 
 // ── Main schema ──────────────────────────────────────────────────
-const restaurantSchema = new Schema<IRestaurant>({
-  name: {
-    type: String,
-    required: [true, "Restaurant name is required"],
-    trim: true,
-    maxlength: [100, "Restaurant name cannot exceed 100 characters"],
-  },
-  description: {
-    type: String,
-    required: [true, "Description is required"],
-    trim: true,
-    maxlength: [500, "Description cannot exceed 500 characters"],
-  },
-  address: {
-    street: {
+const restaurantSchema = new Schema<IRestaurant>(
+  {
+    name: {
       type: String,
-      required: [true, "Street address is required"],
+      required: [true, "Restaurant name is required"],
       trim: true,
+      maxlength: [150, "Restaurant name cannot exceed 150 characters"],
     },
-    area: {
+    slug: {
       type: String,
-      required: [true, "Area is required"],
-      trim: true,
-    },
-    district: {
-      type: String,
-      required: [true, "District is required"],
-      trim: true,
-    },
-    coordinates: {
-      lat: Number,
-      lng: Number,
-    },
-  },
-  contactInfo: {
-    phone: {
-      type: String,
-      required: [true, "Phone number is required"],
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: [true, "Email is required"],
-      trim: true,
+      required: true,
+      unique: true,
       lowercase: true,
-    },
-    website: {
-      type: String,
       trim: true,
-      lowercase: true,
+      index: true,
     },
-  },
-  cuisineType: [
-    {
+    description: {
       type: String,
-      required: [true, "At least one cuisine type is required"],
+      required: [true, "Description is required"],
       trim: true,
+      maxlength: [1000, "Description cannot exceed 1000 characters"],
     },
-  ],
-  images: {
-    logo: {
-      type: String,
-      required: [true, "Logo image URL is required"],
-      trim: true,
+    address: {
+      street: { type: String, required: true, trim: true },
+      area: { type: String, required: true, trim: true },
+      district: { type: String, required: true, trim: true },
+      coordinates: { lat: Number, lng: Number },
     },
-    coverPhoto: {
-      type: String,
-      required: [true, "Cover photo URL is required"],
-      trim: true,
-    },
-    gallery: [
-      {
+    // GeoJSON Point for $near / $geoWithin queries (2dsphere index below)
+    location: {
+      type: {
         type: String,
-        trim: true,
+        enum: ["Point"],
       },
-    ],
-  },
-  operatingHours: [operatingHoursSchema],
-  isActive: {
-    type: Boolean,
-    default: true,
-  },
-  isTemporarilyClosed: {
-    type: Boolean,
-    default: false,
-  },
-  closureReason: {
-    type: String,
-    trim: true,
-    maxlength: 300,
-  },
-  approvalStatus: {
-    type: String,
-    enum: ["pending", "approved", "rejected"],
-    default: "pending",
-  },
-  rating: {
-    average: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0,
+      coordinates: { type: [Number] }, // [longitude, latitude]
     },
-    count: {
-      type: Number,
-      default: 0,
+    contactInfo: {
+      phone: { type: String, required: true, trim: true },
+      email: { type: String, required: true, trim: true, lowercase: true },
+      website: { type: String, trim: true, lowercase: true },
     },
+    cuisineType: [{ type: String, trim: true }],
+    tags: { type: [String], default: [] }, // e.g. ['halal', 'family-friendly']
+    images: {
+      logo: { type: String, required: true, trim: true },
+      coverPhoto: { type: String, required: true, trim: true },
+      gallery: [{ type: String, trim: true }],
+    },
+    operatingHours: { type: [operatingHoursSchema], default: [] },
+    isActive: { type: Boolean, default: true },
+    isTemporarilyClosed: { type: Boolean, default: false },
+    closureReason: { type: String, trim: true, maxlength: 300 },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+    rating: {
+      average: { type: Number, min: 0, max: 5, default: 0 },
+      count: { type: Number, default: 0 },
+    },
+    // Structured delivery time in minutes — queryable & sortable
+    deliveryTime: {
+      min: { type: Number, default: 20 },
+      max: { type: Number, default: 45 },
+    },
+    deliveryFee: { type: Number, default: 0 },
+    minimumOrder: { type: Number, default: 0 },
+    // Price range: 1=৳ 2=৳৳ 3=৳৳৳ 4=৳৳৳৳
+    priceRange: { type: Number, enum: [1, 2, 3, 4], default: 2 },
+    serviceOptions: {
+      type: [String],
+      enum: ["delivery", "dine-in", "takeaway"],
+      default: ["delivery"],
+    },
+    paymentMethods: {
+      type: [String],
+      default: ["cash"],
+    },
+    totalOrders: { type: Number, default: 0 },
+    averagePreparationTime: { type: Number, default: 20 }, // minutes
   },
-  deliveryTime: {
-    type: String, // e.g. "25-35 min"
-    default: "30-45 min",
-  },
-  deliveryFee: {
-    type: Number,
-    default: 0,
-  },
-  minimumOrder: {
-    type: Number,
-    default: 0,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  { timestamps: true },
+);
 
-// ── Pre-save: update updatedAt ───────────────────────────────────
-restaurantSchema.pre("save", function () {
-  this.updatedAt = new Date();
-});
+// ── Indexes ──────────────────────────────────────────────────────
+restaurantSchema.index({ location: "2dsphere" });
+restaurantSchema.index({ approvalStatus: 1, isActive: 1 });
+restaurantSchema.index({ cuisineType: 1 });
+restaurantSchema.index({ "rating.average": -1 });
 
 // ── Export model ─────────────────────────────────────────────────
 const Restaurant: Model<IRestaurant> = mongoose.model<IRestaurant>(
