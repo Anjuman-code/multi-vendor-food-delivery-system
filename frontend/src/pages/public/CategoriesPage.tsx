@@ -1,12 +1,11 @@
 import { Badge } from "@/components/ui/badge";
+import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useToast } from "@/hooks/use-toast";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ArrowRight,
     ChevronRight,
-    Clock,
-    Flame,
     Grid3x3,
     Leaf,
     List,
@@ -15,8 +14,7 @@ import {
     Plus,
     ShoppingBag,
     SlidersHorizontal,
-    Star,
-    X,
+    X
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -417,324 +415,6 @@ const CategoryTab: React.FC<CategoryTabProps> = ({
 // Session storage key for cart
 const CART_STORAGE_KEY = "food_delivery_cart";
 
-// Enhanced Menu Item Card Component
-interface MenuItemCardProps {
-  item: MenuItem;
-  onAddToCart: (item: MenuItem, event: React.MouseEvent) => void;
-  onUpdateQuantity: (
-    id: number,
-    quantity: number,
-    event: React.MouseEvent,
-  ) => void;
-  viewMode: ViewMode;
-  cartQuantity: number;
-}
-
-const MenuItemCard: React.FC<MenuItemCardProps> = ({
-  item,
-  onAddToCart,
-  onUpdateQuantity,
-  viewMode,
-  cartQuantity,
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const hasDiscount = item.originalPrice && item.originalPrice > item.price;
-  const discountPercent = hasDiscount
-    ? Math.round(
-        ((item.originalPrice! - item.price) / item.originalPrice!) * 100,
-      )
-    : 0;
-
-  if (viewMode === "list") {
-    return (
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex gap-6 p-5 bg-white rounded-2xl hover:shadow-lg transition-all duration-300 border border-gray-100 group"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* Image */}
-        <div className="relative flex-shrink-0 w-48 h-36">
-          <img
-            src={item.image || foodFallbackSVG}
-            alt={item.name}
-            className="w-full h-full object-cover rounded-xl"
-          />
-          {hasDiscount && (
-            <div className="absolute top-3 left-3 bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-              {discountPercent}% OFF
-            </div>
-          )}
-          {item.isMostLiked && (
-            <div className="absolute top-3 right-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
-              <Flame className="w-3 h-3" />
-              Popular
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex-1">
-              <h3 className="text-xl font-semibold text-gray-900 group-hover:text-orange-500 transition-colors mb-1">
-                {item.name}
-              </h3>
-              <div className="flex items-center gap-3 mb-2">
-                {item.rating && (
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-orange-500 text-orange-500" />
-                    <span className="text-sm font-medium text-gray-900">
-                      {item.rating}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      ({item.reviewCount})
-                    </span>
-                  </div>
-                )}
-                {item.prepTime && (
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm">{item.prepTime} min</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <p className="text-gray-600 text-sm leading-relaxed mb-3 flex-1">
-            {item.description}
-          </p>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900">
-                  BDT {item.price.toFixed(2)}
-                </span>
-                {hasDiscount && (
-                  <span className="text-sm text-gray-400 line-through">
-                    BDT {item.originalPrice!.toFixed(2)}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {item.isVegetarian && (
-                  <Badge
-                    variant="success"
-                    className="flex items-center gap-1 text-xs"
-                  >
-                    <Leaf className="w-3 h-3" />
-                    Veg
-                  </Badge>
-                )}
-                {item.isSpicy && (
-                  <Badge
-                    variant="warning"
-                    className="flex items-center gap-1 text-xs"
-                  >
-                    <Flame className="w-3 h-3" />
-                    Spicy
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {cartQuantity > 0 ? (
-              <div className="flex items-center gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) =>
-                    onUpdateQuantity(item.id, cartQuantity - 1, e)
-                  }
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center"
-                >
-                  <Minus className="w-4 h-4" />
-                </motion.button>
-                <motion.span
-                  key={cartQuantity}
-                  initial={{ scale: 1.3 }}
-                  animate={{ scale: 1 }}
-                  className="text-gray-900 font-bold text-lg w-8 text-center"
-                >
-                  {cartQuantity}
-                </motion.span>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) =>
-                    onUpdateQuantity(item.id, cartQuantity + 1, e)
-                  }
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md"
-                >
-                  <Plus className="w-4 h-4" />
-                </motion.button>
-              </div>
-            ) : (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => onAddToCart(item, e)}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                Add to Cart
-              </motion.button>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  // Grid view (default)
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 group flex flex-col"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Image */}
-      <div className="relative h-56 overflow-hidden">
-        <motion.img
-          src={item.image || foodFallbackSVG}
-          alt={item.name}
-          className="w-full h-full object-cover"
-          animate={{ scale: isHovered ? 1.1 : 1 }}
-          transition={{ duration: 0.4 }}
-        />
-        {hasDiscount && (
-          <div className="absolute top-3 left-3 bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-            {discountPercent}% OFF
-          </div>
-        )}
-        {item.isMostLiked && (
-          <div className="absolute top-3 right-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
-            <Flame className="w-3.5 h-3.5" />
-            Popular
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      </div>
-
-      {/* Content */}
-      <div className="p-5 flex flex-col flex-1">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-orange-500 transition-colors line-clamp-1">
-            {item.name}
-          </h3>
-        </div>
-
-        <div className="flex items-center gap-3 mb-2">
-          {item.rating && (
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 fill-orange-500 text-orange-500" />
-              <span className="text-sm font-medium text-gray-900">
-                {item.rating}
-              </span>
-              <span className="text-xs text-gray-500">
-                ({item.reviewCount})
-              </span>
-            </div>
-          )}
-          {item.prepTime && (
-            <div className="flex items-center gap-1 text-gray-600">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="text-xs">{item.prepTime} min</span>
-            </div>
-          )}
-        </div>
-
-        <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-2 flex-1">
-          {item.description}
-        </p>
-
-        <div className="flex items-center gap-2 mb-4">
-          {item.isVegetarian && (
-            <Badge
-              variant="success"
-              className="flex items-center gap-1 text-xs"
-            >
-              <Leaf className="w-3 h-3" />
-              Veg
-            </Badge>
-          )}
-          {item.isSpicy && (
-            <Badge
-              variant="warning"
-              className="flex items-center gap-1 text-xs"
-            >
-              <Flame className="w-3 h-3" />
-              Spicy
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-gray-900">
-                BDT {item.price.toFixed(2)}
-              </span>
-            </div>
-            {hasDiscount && (
-              <span className="text-sm text-gray-400 line-through">
-                BDT {item.originalPrice!.toFixed(2)}
-              </span>
-            )}
-          </div>
-
-          {cartQuantity > 0 ? (
-            <div className="flex items-center gap-1">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => onUpdateQuantity(item.id, cartQuantity - 1, e)}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold w-9 h-9 rounded-lg transition-all duration-200 flex items-center justify-center"
-              >
-                <Minus className="w-4 h-4" />
-              </motion.button>
-              <motion.span
-                key={cartQuantity}
-                initial={{ scale: 1.3 }}
-                animate={{ scale: 1 }}
-                className="text-gray-900 font-bold text-base w-7 text-center"
-              >
-                {cartQuantity}
-              </motion.span>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => onUpdateQuantity(item.id, cartQuantity + 1, e)}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-9 h-9 rounded-lg transition-all duration-200 flex items-center justify-center shadow-md"
-              >
-                <Plus className="w-4 h-4" />
-              </motion.button>
-            </div>
-          ) : (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => onAddToCart(item, e)}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold w-10 h-10 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-            </motion.button>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
 // Cart Item Component
 interface CartItemProps {
   item: CartItem;
@@ -1114,12 +794,28 @@ const CategoriesPage: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                     >
-                      <MenuItemCard
-                        item={item}
-                        onAddToCart={handleAddToCart}
-                        onUpdateQuantity={handleMenuCardQuantityUpdate}
-                        viewMode={viewMode}
+                      <FoodItemCard
+                        variant={viewMode === "list" ? "list" : "grid"}
+                        item={{
+                          id: item.id,
+                          name: item.name,
+                          description: item.description,
+                          price: item.price,
+                          originalPrice: item.originalPrice,
+                          image: item.image,
+                          isAvailable: true,
+                          dietaryTags: [
+                            ...(item.isVegetarian ? ["vegetarian"] : []),
+                            ...(item.isSpicy ? ["spicy"] : []),
+                          ],
+                          prepTimeMinutes: item.prepTime,
+                          rating: item.rating,
+                          reviewCount: item.reviewCount,
+                          isPopular: item.isMostLiked,
+                        }}
                         cartQuantity={getCartQuantity(item.id)}
+                        onAddToCart={() => handleAddToCart(item, {} as React.MouseEvent)}
+                        onUpdateQuantity={(_, qty) => handleMenuCardQuantityUpdate(item.id, qty, {} as React.MouseEvent)}
                       />
                     </motion.div>
                   ))

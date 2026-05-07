@@ -1,9 +1,9 @@
 import apiService from "@/services/apiService";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 import { motion } from "framer-motion";
 import { ArrowRight, Clock, MapPin, Star } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 
 type ApiRestaurant = {
   _id: string;
@@ -58,7 +58,9 @@ const NearbyRestaurants: React.FC = () => {
             name: restaurant.name,
             cuisine: restaurant.cuisineType?.[0] || "Local favorite",
             rating: restaurant.rating?.average ?? 0,
-            deliveryTime: restaurant.deliveryTime || "30-45 min",
+            deliveryTime: typeof restaurant.deliveryTime === "object" && restaurant.deliveryTime !== null
+              ? `${(restaurant.deliveryTime as { min: number; max: number }).min}-${(restaurant.deliveryTime as { min: number; max: number }).max} min`
+              : (restaurant.deliveryTime as string) || "30-45 min",
             location:
               [restaurant.address?.city, restaurant.address?.state]
                 .filter(Boolean)

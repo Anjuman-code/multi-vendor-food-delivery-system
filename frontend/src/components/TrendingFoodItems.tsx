@@ -1,15 +1,14 @@
+import FoodItemCard from "@/components/ui/FoodItemCard";
 import homeService from "@/services/homeService";
 import type { TrendingItem } from "@/types/home";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ChevronLeft,
     ChevronRight,
-    Flame,
-    ShoppingBag,
-    Star,
+    Flame
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
 
 const colorPalette = [
   "from-orange-900 to-amber-900",
@@ -194,26 +193,19 @@ const TrendingFoodItems: React.FC = () => {
                       if (swipe > 100) handlePrev();
                     }}
                   >
-                    {/* Card Content */}
-                    <div className="relative w-full h-full overflow-hidden rounded-3xl border border-white/10 bg-gray-900">
-                      <img
-                        src={item.image || fallbackItemImage}
-                        alt={item.name}
-                        className="w-full h-full object-cover pointer-events-none"
-                      />
-                      {/* Glass Overlay on Card */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
-
-                      {/* On-Card Badges */}
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                          <span className="text-white text-xs font-bold">
-                            {item.rating?.toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    <FoodItemCard
+                      variant="highlight"
+                      item={{
+                        id: item._id,
+                        name: item.name,
+                        price: item.price,
+                        image: item.image,
+                        category: item.category,
+                        rating: item.rating,
+                        isAvailable: true,
+                      }}
+                      className="w-full h-full"
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -235,41 +227,6 @@ const TrendingFoodItems: React.FC = () => {
                 </>
               )}
             </>
-          )}
-        </div>
-
-        {/* 4. Active Item Details (Text transition below cards) */}
-        <div className="w-full max-w-md text-center">
-          {activeItem ? (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeItem._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <p className="text-orange-500 font-medium tracking-widest text-xs uppercase mb-2">
-                  {activeItem.category || "Chef's pick"}
-                </p>
-                <h3 className="text-2xl font-bold text-gray-900 mb-5">
-                  {activeItem.name}
-                </h3>
-
-                {/* Action Bar */}
-                <div className="flex items-center justify-between bg-white border border-gray-200 shadow-sm p-2 pr-2 pl-6 rounded-full max-w-xs mx-auto">
-                  <span className="text-xl font-bold text-gray-900">
-                    ${activeItem.price.toFixed(2)}
-                  </span>
-                  <button className="bg-orange-500 text-white px-5 py-2.5 rounded-full font-bold hover:bg-orange-600 active:scale-95 transition-all flex items-center gap-2">
-                    <ShoppingBag className="w-4 h-4" />
-                    Order
-                  </button>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <p className="text-gray-400 text-sm">Fresh picks are on the way.</p>
           )}
         </div>
 

@@ -1,27 +1,25 @@
 /**
  * CartPage – displays cart items with quantity controls and order summary.
  */
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import FoodItemCard from "@/components/ui/FoodItemCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ArrowRight,
     ChevronLeft,
-    MessageSquare,
-    Minus,
     Plus,
     ShoppingBag,
     ShoppingCart,
     Store,
     Tag,
     Trash2,
-    Truck,
+    Truck
 } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCart } from "@/contexts/CartContext";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
 
 const FREE_DELIVERY_THRESHOLD = 500;
 
@@ -178,88 +176,23 @@ const CartPage: React.FC = () => {
                       transition={{ duration: 0.22, delay: idx * 0.03 }}
                     >
                       <Card className="overflow-hidden bg-white border-gray-100 hover:shadow-md transition-shadow">
-                        <div className="flex items-stretch">
-                          {/* Image */}
-                          <div className="w-24 sm:w-28 flex-shrink-0">
-                            <img
-                              src={item.image || foodFallbackSVG}
-                              alt={item.name}
-                              className="h-full w-full object-cover"
-                              style={{ minHeight: "96px" }}
-                            />
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-                            <div>
-                              <div className="flex items-start justify-between gap-2">
-                                <h3 className="font-semibold text-gray-900 text-sm leading-snug">
-                                  {item.name}
-                                </h3>
-                                <button
-                                  onClick={() => handleRemove(itemKey)}
-                                  className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 p-0.5"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-
-                              {(item.variants.length > 0 || item.addons.length > 0) && (
-                                <div className="mt-1 space-y-0.5">
-                                  {item.variants.length > 0 && (
-                                    <p className="text-xs text-gray-400">
-                                      {item.variants.map((v) => v.name).join(", ")}
-                                    </p>
-                                  )}
-                                  {item.addons.length > 0 && (
-                                    <p className="text-xs text-gray-400">
-                                      +{item.addons.map((a) => a.name).join(", ")}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              {item.specialInstructions && (
-                                <div className="flex items-start gap-1 mt-1.5">
-                                  <MessageSquare className="h-3 w-3 text-gray-300 mt-0.5 flex-shrink-0" />
-                                  <p className="text-xs text-gray-400 italic leading-snug">
-                                    {item.specialInstructions}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Price + Qty row */}
-                            <div className="flex items-center justify-between mt-3">
-                              <div>
-                                <p className="text-xs text-gray-400">৳{item.price.toFixed(0)} each</p>
-                                <p className="text-sm font-bold text-gray-900">
-                                  ৳{lineTotal.toFixed(2)}
-                                </p>
-                              </div>
-
-                              {/* Quantity stepper */}
-                              <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-full px-1 py-1">
-                                <button
-                                  className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-orange-100 hover:text-orange-600 transition-colors disabled:opacity-40"
-                                  onClick={() => updateQuantity(itemKey, item.quantity - 1)}
-                                  disabled={item.quantity <= 1}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <span className="w-6 text-center text-sm font-semibold text-gray-800">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-orange-100 hover:text-orange-600 transition-colors"
-                                  onClick={() => updateQuantity(itemKey, item.quantity + 1)}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <FoodItemCard
+                          variant="cart"
+                          item={{
+                            id: itemKey,
+                            name: item.name,
+                            image: item.image,
+                            price: item.price,
+                            quantity: item.quantity,
+                            variants: item.variants,
+                            addons: item.addons,
+                            specialInstructions: item.specialInstructions,
+                            itemKey: itemKey,
+                            lineTotal: lineTotal,
+                          }}
+                          onUpdateQuantity={(_, qty) => updateQuantity(itemKey, qty)}
+                          onRemove={(key) => handleRemove(key as string)}
+                        />
                       </Card>
                     </motion.div>
                   );

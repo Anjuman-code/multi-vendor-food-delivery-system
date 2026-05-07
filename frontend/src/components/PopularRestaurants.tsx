@@ -1,10 +1,10 @@
 import homeService from "@/services/homeService";
 import type { PopularRestaurant } from "@/types/home";
+import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 import { motion } from "framer-motion";
 import { ArrowRight, ChefHat, Clock, MapPin, Star } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 
 const fallbackRestaurantImage = restaurantFallbackSVG;
 
@@ -64,7 +64,9 @@ const PopularRestaurants: React.FC = () => {
         name: restaurant.name,
         cuisine,
         rating,
-        deliveryTime: restaurant.deliveryTime || "30-45 min",
+        deliveryTime: typeof restaurant.deliveryTime === "object" && restaurant.deliveryTime !== null
+          ? `${(restaurant.deliveryTime as { min: number; max: number }).min}-${(restaurant.deliveryTime as { min: number; max: number }).max} min`
+          : (restaurant.deliveryTime as string) || "30-45 min",
         location,
         image: restaurant.images?.coverPhoto || fallbackRestaurantImage,
         description:

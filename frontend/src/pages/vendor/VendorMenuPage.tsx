@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import FoodItemCard from "@/components/ui/FoodItemCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,55 +7,25 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
-import type { MenuCategory, MenuItem, SpiceLevel, StockStatus } from "@/types/menu";
+import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ChevronDown,
     ChevronRight,
-    Clock,
     Edit,
-    Flame,
     GripVertical,
     Loader2,
     Plus,
     Save,
     Search,
-    Star,
     Trash2,
     UtensilsCrossed,
     X,
-    Zap,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// ── Helpers ──────────────────────────────────────────────────────
 
-/** Deterministic warm gradient per item name for photo-less items */
-const ITEM_GRADIENTS = [
-  { from: "#f97316", to: "#ea580c" },  // orange
-  { from: "#e11d48", to: "#be123c" },  // rose
-  { from: "#7c3aed", to: "#6d28d9" },  // violet
-  { from: "#0891b2", to: "#0e7490" },  // cyan
-  { from: "#16a34a", to: "#15803d" },  // green
-  { from: "#d97706", to: "#b45309" },  // amber
-  { from: "#db2777", to: "#be185d" },  // pink
-  { from: "#2563eb", to: "#1d4ed8" },  // blue
-];
-
-const getItemGradient = (name: string) =>
-  ITEM_GRADIENTS[name.charCodeAt(0) % ITEM_GRADIENTS.length];
-
-const spiceConfig: Record<
-  SpiceLevel,
-  { label: string; color: string; dots: number }
-> = {
-  none: { label: "", color: "", dots: 0 },
-  mild: { label: "Mild", color: "text-yellow-500", dots: 1 },
-  medium: { label: "Medium", color: "text-orange-500", dots: 2 },
-  hot: { label: "Hot", color: "text-red-500", dots: 3 },
-  "extra-hot": { label: "Extra Hot", color: "text-red-700", dots: 4 },
-};
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -342,9 +313,26 @@ const VendorMenuPage: React.FC = () => {
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-4">
                           {catItems.map((item) => (
-                            <ItemCard
+                            <FoodItemCard
                               key={item._id}
-                              item={item}
+                              variant="vendor"
+                              item={{
+                                id: item._id,
+                                name: item.name,
+                                description: item.description,
+                                price: item.price,
+                                originalPrice: item.originalPrice,
+                                image: item.image,
+                                isAvailable: item.isAvailable,
+                                stockStatus: item.stockStatus,
+                                dietaryTags: item.dietaryTags,
+                                prepTimeMinutes: item.preparationTime,
+                                variants: item.variants.map((v) => ({ id: v._id, name: v.name, price: v.price })),
+                                addons: item.addons.map((a) => ({ id: a._id, name: a.name, price: a.price })),
+                                isFeatured: item.isFeatured,
+                                isPopular: item.isPopular,
+                                spiceLevel: item.spiceLevel,
+                              }}
                               onToggleAvailability={() => handleToggleAvailability(item)}
                               onStockStatus={(s) => handleStockStatus(item, s)}
                               onEdit={() => navigate(`/vendor/menu/items/${item._id}/edit`)}
@@ -395,9 +383,26 @@ const VendorMenuPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-4">
               {uncategorizedItems.map((item) => (
-                <ItemCard
+                <FoodItemCard
                   key={item._id}
-                  item={item}
+                  variant="vendor"
+                  item={{
+                    id: item._id,
+                    name: item.name,
+                    description: item.description,
+                    price: item.price,
+                    originalPrice: item.originalPrice,
+                    image: item.image,
+                    isAvailable: item.isAvailable,
+                    stockStatus: item.stockStatus,
+                    dietaryTags: item.dietaryTags,
+                    prepTimeMinutes: item.preparationTime,
+                    variants: item.variants.map((v) => ({ id: v._id, name: v.name, price: v.price })),
+                    addons: item.addons.map((a) => ({ id: a._id, name: a.name, price: a.price })),
+                    isFeatured: item.isFeatured,
+                    isPopular: item.isPopular,
+                    spiceLevel: item.spiceLevel,
+                  }}
                   onToggleAvailability={() => handleToggleAvailability(item)}
                   onStockStatus={(s) => handleStockStatus(item, s)}
                   onEdit={() => navigate(`/vendor/menu/items/${item._id}/edit`)}
@@ -448,215 +453,6 @@ const VendorMenuPage: React.FC = () => {
   );
 };
 
-// ── Item Card ────────────────────────────────────────────────────
-
-const ItemCard: React.FC<{
-  item: MenuItem;
-  onToggleAvailability: () => void;
-  onStockStatus: (status: StockStatus) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}> = ({ item, onToggleAvailability, onStockStatus, onEdit, onDelete }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const statusConfig = useMemo(() => {
-    if (item.stockStatus === "out_of_stock")
-      return { label: "Out of Stock", bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-400" };
-    if (item.stockStatus === "hidden" || !item.isAvailable)
-      return { label: "Hidden", bg: "bg-gray-100", text: "text-gray-500", dot: "bg-gray-400" };
-    return { label: "Available", bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" };
-  }, [item.stockStatus, item.isAvailable]);
-
-  const gradient = getItemGradient(item.name);
-  const initial = item.name.charAt(0).toUpperCase();
-  const hasImage = Boolean(item.image);
-  const spice = item.spiceLevel && item.spiceLevel !== "none" ? spiceConfig[item.spiceLevel] : null;
-  const discount =
-    item.originalPrice && item.originalPrice > item.price
-      ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)
-      : null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="group bg-white rounded-xl border border-gray-200/80 hover:border-gray-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col"
-    >
-      {/* Image / Gradient placeholder */}
-      <div className="relative h-32 shrink-0 overflow-hidden">
-        {hasImage ? (
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
-          >
-            <span className="text-4xl font-bold text-white/80 select-none">{initial}</span>
-          </div>
-        )}
-
-        {/* Overlay on hover */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200" />
-
-        {/* Top badges */}
-        <div className="absolute top-2 left-2 flex gap-1">
-          {item.isFeatured && (
-            <span className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-yellow-400 text-yellow-900 shadow-sm">
-              <Zap className="w-2.5 h-2.5" /> Featured
-            </span>
-          )}
-          {item.isPopular && !item.isFeatured && (
-            <span className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-white/90 text-orange-600 shadow-sm">
-              <Star className="w-2.5 h-2.5" /> Popular
-            </span>
-          )}
-          {discount && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white shadow-sm">
-              -{discount}%
-            </span>
-          )}
-        </div>
-
-        {/* Action buttons (hover) */}
-        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-          <button
-            onClick={onEdit}
-            className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-            title="Edit"
-          >
-            <Edit className="w-3.5 h-3.5 text-gray-700" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* Card body */}
-      <div className="p-3 flex flex-col flex-1">
-        {/* Name + price */}
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <h4 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1 flex-1">{item.name}</h4>
-          <div className="text-right shrink-0">
-            <span className="font-bold text-gray-900 text-sm">৳{item.price}</span>
-            {item.originalPrice && item.originalPrice > item.price && (
-              <div className="text-[10px] text-gray-400 line-through leading-none">৳{item.originalPrice}</div>
-            )}
-          </div>
-        </div>
-
-        {/* Description */}
-        <p className="text-xs text-gray-400 line-clamp-2 mb-2 flex-1">{item.description}</p>
-
-        {/* Dietary tags */}
-        {item.dietaryTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {item.dietaryTags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                style={{
-                  background:
-                    tag === "halal"
-                      ? "#ecfdf5"
-                      : tag === "vegetarian" || tag === "vegan"
-                        ? "#f0fdf4"
-                        : "#fff7ed",
-                  color:
-                    tag === "halal"
-                      ? "#065f46"
-                      : tag === "vegetarian" || tag === "vegan"
-                        ? "#166534"
-                        : "#9a3412",
-                }}
-              >
-                {tag}
-              </span>
-            ))}
-            {item.dietaryTags.length > 3 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400">
-                +{item.dietaryTags.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Extras line */}
-        {(item.variants.length > 0 || item.addons.length > 0) && (
-          <p className="text-[10px] text-gray-400 mb-2">
-            {item.variants.length > 0 && `${item.variants.length} size${item.variants.length > 1 ? "s" : ""}`}
-            {item.variants.length > 0 && item.addons.length > 0 && " · "}
-            {item.addons.length > 0 && `${item.addons.length} add-on${item.addons.length > 1 ? "s" : ""}`}
-          </p>
-        )}
-
-        {/* Status & meta row */}
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 mt-auto">
-          {/* Status dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full font-medium cursor-pointer transition-colors ${statusConfig.bg} ${statusConfig.text}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
-              {statusConfig.label}
-            </button>
-            <AnimatePresence>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, y: 4, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 4, scale: 0.97 }}
-                    transition={{ duration: 0.1 }}
-                    className="absolute bottom-full left-0 mb-1.5 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-20 w-36"
-                  >
-                    {(["available", "out_of_stock", "hidden"] as StockStatus[]).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => { onStockStatus(s); setMenuOpen(false); }}
-                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${
-                          item.stockStatus === s ? "text-orange-600 font-semibold" : "text-gray-600"
-                        }`}
-                      >
-                        {s === "available" ? "Available" : s === "out_of_stock" ? "Out of Stock" : "Hidden"}
-                      </button>
-                    ))}
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Right meta */}
-          <div className="flex items-center gap-2">
-            {spice && (
-              <span className={`flex items-center gap-0.5 text-[10px] font-medium ${spice.color}`} title={spice.label}>
-                {Array.from({ length: spice.dots }).map((_, i) => (
-                  <Flame key={i} className="w-2.5 h-2.5" />
-                ))}
-              </span>
-            )}
-            <span className="flex items-center gap-1 text-[10px] text-gray-400">
-              <Clock className="w-2.5 h-2.5" />
-              {item.preparationTime}m
-            </span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
 
 // ── Category Modal ───────────────────────────────────────────────
 
