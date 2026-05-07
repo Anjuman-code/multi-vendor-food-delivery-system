@@ -403,16 +403,16 @@ const OrderDetailsPage: React.FC = () => {
             <h3 className="text-sm font-medium text-gray-500 mb-3">Items</h3>
             <div className="space-y-3">
               {order.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center text-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={item.image || foodFallbackSVG}
-                        alt={item.name}
-                        className="h-10 w-10 rounded object-cover"
-                      />
+                <div
+                  key={idx}
+                  className="flex justify-between items-center text-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={item.image || foodFallbackSVG}
+                      alt={item.name}
+                      className="h-10 w-10 rounded object-cover"
+                    />
                     <div>
                       <p className="text-gray-800 font-medium">
                         {item.quantity}× {item.name}
@@ -468,8 +468,7 @@ const OrderDetailsPage: React.FC = () => {
                   `, ${order.deliveryAddress.apartment}`}
               </p>
               <p className="text-sm text-gray-600">
-                {order.deliveryAddress.city}, {order.deliveryAddress.state}{" "}
-                {order.deliveryAddress.zipCode}
+                {order.deliveryAddress.area}, {order.deliveryAddress.district}
               </p>
             </Card>
             <Card className="p-4">

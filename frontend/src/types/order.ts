@@ -15,10 +15,8 @@ export interface OrderItem {
 export interface DeliveryAddress {
   street: string;
   apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  area: string;
+  district: string;
   coordinates: { latitude: number; longitude: number };
 }
 

@@ -161,10 +161,8 @@ const CheckoutPage: React.FC = () => {
       deliveryAddress: {
         street: selectedAddr.street,
         apartment: selectedAddr.apartment,
-        city: selectedAddr.city,
-        state: selectedAddr.state,
-        zipCode: selectedAddr.zipCode,
-        country: selectedAddr.country,
+        area: selectedAddr.area,
+        district: selectedAddr.district,
         coordinates: selectedAddr.coordinates,
       },
       paymentMethod: `${selectedPm.type} - ${selectedPm.provider} ****${selectedPm.last4}`,
@@ -294,7 +292,7 @@ const CheckoutPage: React.FC = () => {
                           <p className="text-sm text-gray-600">
                             {addr.street}
                             {addr.apartment && `, ${addr.apartment}`},{" "}
-                            {addr.city}, {addr.state} {addr.zipCode}
+                            {addr.area}, {addr.district}
                           </p>
                         </div>
                       </div>
@@ -397,8 +395,8 @@ const CheckoutPage: React.FC = () => {
                     <p className="text-sm text-gray-800">
                       {selectedAddr.street}
                       {selectedAddr.apartment &&
-                        `, ${selectedAddr.apartment}`}, {selectedAddr.city},{" "}
-                      {selectedAddr.state} {selectedAddr.zipCode}
+                        `, ${selectedAddr.apartment}`}, {selectedAddr.area},{" "}
+                      {selectedAddr.district}
                     </p>
                   </Card>
                 )}

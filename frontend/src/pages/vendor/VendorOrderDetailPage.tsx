@@ -5,13 +5,13 @@ import vendorService from "@/services/vendorService";
 import type { VendorOrder } from "@/types/vendor";
 import { motion } from "framer-motion";
 import {
-    ArrowLeft,
-    Clock,
-    Loader2,
-    MapPin,
-    Package,
-    Phone,
-    User,
+  ArrowLeft,
+  Clock,
+  Loader2,
+  MapPin,
+  Package,
+  Phone,
+  User,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -76,7 +76,11 @@ const VendorOrderDetailPage: React.FC = () => {
 
   const handleCancel = async () => {
     if (!id) return;
-    const ok = await confirm({ title: "Cancel order", description: "Are you sure you want to cancel this order?", confirmLabel: "Cancel order" });
+    const ok = await confirm({
+      title: "Cancel order",
+      description: "Are you sure you want to cancel this order?",
+      confirmLabel: "Cancel order",
+    });
     if (!ok) return;
     setUpdating(true);
     const res = await vendorService.updateOrderStatus(id, "cancelled");
@@ -291,9 +295,7 @@ const VendorOrderDetailPage: React.FC = () => {
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-700">
-                  {customerName || "—"}
-                </span>
+                <span className="text-gray-700">{customerName || "—"}</span>
               </div>
               {customerPhone && (
                 <div className="flex items-center gap-3">
@@ -314,10 +316,8 @@ const VendorOrderDetailPage: React.FC = () => {
                 <div>
                   <p>{order.deliveryAddress.street}</p>
                   <p>
-                    {order.deliveryAddress.city}
-                    {order.deliveryAddress.state
-                      ? `, ${order.deliveryAddress.state}`
-                      : ""}
+                    {order.deliveryAddress.area},{" "}
+                    {order.deliveryAddress.district}
                   </p>
                   {order.deliveryAddress.instructions && (
                     <p className="text-gray-500 mt-1">

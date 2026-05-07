@@ -219,10 +219,8 @@ export interface VendorOrder {
   deliveryAddress: {
     street: string;
     apartment?: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
+    area: string;
+    district: string;
     coordinates: { latitude: number; longitude: number };
     instructions?: string;
   };
