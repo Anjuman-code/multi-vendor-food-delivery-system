@@ -1,30 +1,31 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Plus,
-  Tag,
-  Percent,
-  DollarSign,
-  Trash2,
-  Edit,
-  BarChart3,
-  Calendar,
-  X,
-  Loader2,
-  Check,
-  ChevronRight,
-  ChevronLeft,
-  Clock,
-  AlertTriangle,
-  Sparkles,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import vendorService from "@/services/vendorService";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
-import type { VendorCoupon, CouponStats } from "@/types/vendor";
 import { useToast } from "@/hooks/use-toast";
+import vendorService from "@/services/vendorService";
+import type { CouponStats, VendorCoupon } from "@/types/vendor";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    AlertTriangle,
+    BarChart3,
+    Calendar,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Edit,
+    Loader2,
+    Percent,
+    Plus,
+    Sparkles,
+    Tag,
+    Trash2,
+    X,
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ const getUsagePercent = (coupon: VendorCoupon): number => {
 const VendorPromotionsPage: React.FC = () => {
   const { restaurants } = useVendor();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [coupons, setCoupons] = useState<VendorCoupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -187,8 +189,8 @@ const VendorPromotionsPage: React.FC = () => {
   // ── Delete ──
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this coupon? This action cannot be undone."))
-      return;
+    const ok = await confirm({ title: "Delete coupon", description: "Delete this coupon? This action cannot be undone.", confirmLabel: "Delete" });
+    if (!ok) return;
     const res = await vendorService.deleteCoupon(id);
     if (res.success) {
       setCoupons((prev) => prev.filter((c) => c._id !== id));

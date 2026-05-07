@@ -6,22 +6,21 @@ import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    BarChart3,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ClipboardList,
-    LayoutDashboard,
-    LogOut,
-    Package,
-    Plus,
-    Settings,
-    Star,
-    Store,
-    Tag,
-    User,
-    UtensilsCrossed,
-    Zap,
+  BarChart3,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  LayoutDashboard,
+  LogOut,
+  Plus,
+  Settings,
+  Star,
+  Store,
+  Tag,
+  User,
+  UtensilsCrossed,
+  Zap
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -155,10 +154,11 @@ const VendorLayoutInner: React.FC = () => {
       <motion.aside
         animate={{ width: collapsed ? 72 : 256 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="fixed left-0 top-0 bottom-0 z-40 bg-vendor-sidebar text-white flex flex-col shadow-sidebar"
+        className="fixed left-0 top-0 bottom-0 z-40 bg-[#0d1117] text-white flex flex-col"
+        style={{ boxShadow: "1px 0 0 0 rgba(255,255,255,0.06)" }}
       >
         {/* Logo */}
-        <Link to="/vendor" className="flex items-center gap-3 px-4 h-16 border-b border-gray-800">
+        <Link to="/vendor" className="flex items-center gap-3 px-4 h-16 border-b border-white/[0.06]">
           <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-xl shrink-0">
             <img src="/logo.svg" alt="" className="h-5 w-5 brightness-0 invert" />
           </div>
@@ -177,16 +177,16 @@ const VendorLayoutInner: React.FC = () => {
         </Link>
 
         {/* Restaurant switcher */}
-        <div className="px-3 py-3 border-b border-gray-800">
+        <div className="px-3 py-3 border-b border-white/[0.06]">
           {restaurants.length > 0 ? (
             <div className="relative">
               {!collapsed ? (
                 <>
-                  <label className="text-[10px] font-medium uppercase tracking-wider text-gray-500 mb-1.5 block">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-1.5 block px-1">
                     Active Restaurant
                   </label>
                   <button
-                    className="w-full flex items-center gap-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-2 text-sm transition-colors"
+                    className="w-full flex items-center gap-2.5 bg-white/[0.07] hover:bg-white/[0.11] border border-white/[0.08] rounded-xl px-3 py-2 text-sm transition-colors"
                     onClick={() => document.getElementById("vendor-restaurant-select")?.focus()}
                   >
                     {selectedRestaurant?.images?.logo ? (
@@ -196,10 +196,10 @@ const VendorLayoutInner: React.FC = () => {
                         className="w-5 h-5 rounded object-cover shrink-0"
                       />
                     ) : (
-                      <Store className="w-5 h-5 text-orange-400 shrink-0" />
-                    )}
-                    <span className="flex-1 text-left truncate">{selectedRestaurant?.name || "Select"}</span>
-                    <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+                    <Store className="w-4 h-4 text-orange-400 shrink-0" />
+                  )}
+                    <span className="flex-1 text-left truncate text-gray-200 text-[13px]">{selectedRestaurant?.name || "Select"}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                   </button>
                   <select
                     id="vendor-restaurant-select"
@@ -220,10 +220,10 @@ const VendorLayoutInner: React.FC = () => {
                     <img
                       src={selectedRestaurant.images.logo}
                       alt=""
-                      className="w-8 h-8 rounded-lg object-cover"
+                      className="w-8 h-8 rounded-xl object-cover border border-white/10"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-xl bg-white/[0.07] border border-white/[0.08] flex items-center justify-center">
                       <Store className="w-4 h-4 text-orange-400" />
                     </div>
                   )}
@@ -238,7 +238,7 @@ const VendorLayoutInner: React.FC = () => {
         </div>
 
         {/* Navigation groups */}
-        <nav className="flex-1 overflow-y-auto vendor-scrollbar px-3 py-3 space-y-4">
+        <nav className="flex-1 overflow-y-auto vendor-scrollbar px-2.5 py-3 space-y-5">
           {sidebarGroups.map((group) => (
             <div key={group.label}>
               <AnimatePresence>
@@ -247,7 +247,7 @@ const VendorLayoutInner: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-[10px] font-medium uppercase tracking-wider text-gray-500 mb-1 px-3"
+                    className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-600 mb-1.5 px-2"
                   >
                     {group.label}
                   </motion.p>
@@ -261,17 +261,20 @@ const VendorLayoutInner: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative ${
+                      className={`flex items-center gap-3 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 relative group/nav ${
                         active
-                          ? "bg-orange-500/15 text-orange-400"
-                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-                      }`}
+                          ? "bg-orange-500/[0.18] text-white"
+                          : "text-gray-400 hover:bg-white/[0.06] hover:text-gray-100"
+                      } ${collapsed ? "justify-center" : ""}`}
                       title={collapsed ? item.name : undefined}
                     >
+                      {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-orange-500 rounded-r-full" />
+                      )}
                       <span className="relative shrink-0">
-                        <Icon className="w-5 h-5" />
+                        <Icon className={`w-[18px] h-[18px] ${active ? "text-orange-400" : "text-gray-500 group-hover/nav:text-gray-300"}`} />
                         {item.badge && newOrderCount > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
                             {newOrderCount > 9 ? "9+" : newOrderCount}
                           </span>
                         )}
@@ -282,18 +285,12 @@ const VendorLayoutInner: React.FC = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="whitespace-nowrap"
+                            className="whitespace-nowrap tracking-[-0.01em]"
                           >
                             {item.name}
                           </motion.span>
                         )}
                       </AnimatePresence>
-                      {active && !collapsed && (
-                        <motion.div
-                          layoutId="vendorSidebarActive"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-orange-500 rounded-r-full"
-                        />
-                      )}
                     </Link>
                   );
                 })}
@@ -303,26 +300,26 @@ const VendorLayoutInner: React.FC = () => {
         </nav>
 
         {/* Collapse toggle */}
-        <div className="px-3 py-2 border-t border-gray-800">
+        <div className="px-2.5 py-2 border-t border-white/[0.06]">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-800 hover:text-gray-300 transition-colors"
+            className={`flex items-center gap-3 w-full px-2.5 py-2 rounded-xl text-[13px] text-gray-500 hover:bg-white/[0.06] hover:text-gray-300 transition-all duration-150 ${collapsed ? "justify-center" : ""}`}
           >
             {collapsed ? (
-              <ChevronRight className="w-5 h-5 shrink-0" />
+              <ChevronRight className="w-4 h-4 shrink-0" />
             ) : (
               <>
-                <ChevronLeft className="w-5 h-5 shrink-0" />
-                <span>Collapse</span>
+                <ChevronLeft className="w-4 h-4 shrink-0" />
+                <span className="tracking-[-0.01em]">Collapse</span>
               </>
             )}
           </button>
         </div>
 
         {/* User section */}
-        <div className="px-3 py-3 border-t border-gray-800">
-          <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
-            <div className="w-9 h-9 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0">
+        <div className="px-2.5 py-3 border-t border-white/[0.06]">
+          <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
+            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm">
               {getUserInitials()}
             </div>
             <AnimatePresence>
@@ -333,13 +330,22 @@ const VendorLayoutInner: React.FC = () => {
                   exit={{ opacity: 0 }}
                   className="flex-1 min-w-0"
                 >
-                  <p className="text-sm font-medium text-gray-200 truncate">
+                  <p className="text-[13px] font-semibold text-gray-200 truncate leading-tight tracking-[-0.01em]">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  <p className="text-[11px] text-gray-500 truncate leading-tight mt-0.5">{user?.email}</p>
                 </motion.div>
               )}
             </AnimatePresence>
+            {!collapsed && (
+              <button
+                onClick={handleLogout}
+                title="Log out"
+                className="shrink-0 p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </motion.aside>

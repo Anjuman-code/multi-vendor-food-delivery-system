@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Clock, MapPin, Phone, Star, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/hooks/use-toast";
 import apiService from "@/services/apiService";
 import menuService from "@/services/menuService";
 import type { MenuCategory, MenuItem } from "@/types/menu";
+import { motion } from "framer-motion";
+import { Clock, MapPin, Phone, Star, UtensilsCrossed } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 
 type ApiRestaurant = {
   _id: string;
@@ -46,6 +47,7 @@ const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 const RestaurantDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { addItem, clearCart, items, updateQuantity } = useCart();
 
   const [restaurant, setRestaurant] = useState<ApiRestaurant | null>(null);
@@ -175,9 +177,11 @@ const RestaurantDetailsPage: React.FC = () => {
         return;
       }
 
-      const shouldReplace = window.confirm(
-        "Your cart has items from another restaurant. Clear cart and add this item?",
-      );
+      const shouldReplace = await confirm({
+        title: "Different restaurant",
+        description: "Your cart has items from another restaurant. Clear cart and add this item?",
+        confirmLabel: "Clear & add",
+      });
       if (!shouldReplace) return;
 
       clearCart();

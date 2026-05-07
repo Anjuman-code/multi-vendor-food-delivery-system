@@ -1,12 +1,13 @@
-import React, { lazy, Suspense } from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageLoader } from "@/components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import { SocketProvider } from "@/contexts/SocketContext";
 import { AuthLayout, MainLayout, RootLayout, VendorLayout } from "@/layouts";
+import React, { lazy, Suspense } from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 
 // ── Public pages ──────────────────────────────────────
 const NewHomePage = lazy(() => import("@/pages/public/NewHomePage"));
@@ -57,7 +58,8 @@ function App(): React.ReactElement {
     <Router>
       <AuthProvider>
         <CartProvider>
-          <SocketProvider>
+          <ConfirmProvider>
+            <SocketProvider>
             <Toaster />
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
@@ -124,6 +126,7 @@ function App(): React.ReactElement {
               </Suspense>
             </ErrorBoundary>
           </SocketProvider>
+          </ConfirmProvider>
         </CartProvider>
       </AuthProvider>
     </Router>

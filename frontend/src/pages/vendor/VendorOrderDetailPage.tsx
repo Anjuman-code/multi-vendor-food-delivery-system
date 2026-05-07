@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Clock,
-  MapPin,
-  Phone,
-  User,
-  Loader2,
-  Package,
-} from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
 import type { VendorOrder } from "@/types/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
+import {
+    ArrowLeft,
+    Clock,
+    Loader2,
+    MapPin,
+    Package,
+    Phone,
+    User,
+} from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 const STATUS_FLOW = [
   "pending",
@@ -36,6 +37,7 @@ const VendorOrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [order, setOrder] = useState<VendorOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -74,7 +76,8 @@ const VendorOrderDetailPage: React.FC = () => {
 
   const handleCancel = async () => {
     if (!id) return;
-    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+    const ok = await confirm({ title: "Cancel order", description: "Are you sure you want to cancel this order?", confirmLabel: "Cancel order" });
+    if (!ok) return;
     setUpdating(true);
     const res = await vendorService.updateOrderStatus(id, "cancelled");
     if (res.success && res.data) {

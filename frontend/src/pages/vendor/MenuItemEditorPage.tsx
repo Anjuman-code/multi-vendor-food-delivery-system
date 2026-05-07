@@ -2,15 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
 import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
-import { motion } from "framer-motion";
 import {
     ArrowLeft,
+    Check,
     Eye,
     Loader2,
     Plus,
@@ -19,7 +19,7 @@ import {
     X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 // ── Dietary tags ─────────────────────────────────────────────────
 
@@ -142,6 +142,7 @@ const MenuItemEditorPage: React.FC = () => {
     const isEdit = Boolean(itemId);
     const { selectedRestaurantId } = useVendor();
     const { toast } = useToast();
+    const confirm = useConfirm();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(isEdit);
@@ -161,6 +162,9 @@ const MenuItemEditorPage: React.FC = () => {
     const [variants, setVariants] = useState<{ name: string; price: string }[]>([]);
     const [addons, setAddons] = useState<{ name: string; price: string }[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const [showNewCategory, setShowNewCategory] = useState(false);
+    const [creatingCategory, setCreatingCategory] = useState(false);
 
     // Load categories and existing item data
     useEffect(() => {
@@ -233,6 +237,24 @@ const MenuItemEditorPage: React.FC = () => {
         return Object.keys(errs).length === 0;
     };
 
+    const handleCreateCategory = async () => {
+        if (!newCategoryName.trim() || !selectedRestaurantId) return;
+        setCreatingCategory(true);
+        const res = await vendorService.createCategory(selectedRestaurantId, { name: newCategoryName.trim() });
+        if (res.success && res.data?.category) {
+            const created = res.data.category;
+            setCategories((prev) => [...prev, created]);
+            setCategoryId(created._id);
+            markDirty();
+            setShowNewCategory(false);
+            setNewCategoryName("");
+            toast({ title: "Category created", description: `"${created.name}" added` });
+        } else {
+            toast({ title: "Error", description: res.message || "Failed to create category", variant: "destructive" });
+        }
+        setCreatingCategory(false);
+    };
+
     const handleSave = async () => {
         if (!validate() || !selectedRestaurantId) return;
         setSaving(true);
@@ -289,17 +311,19 @@ const MenuItemEditorPage: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <Link
-                        to="/vendor/menu"
+                    <button
+                        type="button"
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        onClick={(e) => {
-                            if (dirty && !window.confirm("You have unsaved changes. Leave anyway?")) {
-                                e.preventDefault();
+                        onClick={async () => {
+                            if (dirty) {
+                                const ok = await confirm({ description: "You have unsaved changes. Leave anyway?", confirmLabel: "Leave" });
+                                if (!ok) return;
                             }
+                            navigate("/vendor/menu");
                         }}
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-500" />
-                    </Link>
+                    </button>
                     <div>
                         <h1 className="text-xl font-bold text-gray-900">
                             {isEdit ? "Edit Item" : "New Menu Item"}
@@ -383,16 +407,60 @@ const MenuItemEditorPage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label>Category</Label>
-                            <select
-                                value={categoryId}
-                                onChange={(e) => { setCategoryId(e.target.value); markDirty(); }}
-                                className="w-full mt-1 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                            >
-                                <option value="">Uncategorized</option>
-                                {categories.map((c) => (
-                                    <option key={c._id} value={c._id}>{c.name}</option>
-                                ))}
-                            </select>
+                            <div className="flex gap-1.5 mt-1">
+                                <select
+                                    value={categoryId}
+                                    onChange={(e) => { setCategoryId(e.target.value); markDirty(); }}
+                                    className="flex-1 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                                >
+                                    <option value="">Uncategorized</option>
+                                    {categories.map((c) => (
+                                        <option key={c._id} value={c._id}>{c.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    title="Create new category"
+                                    onClick={() => { setShowNewCategory((v) => !v); setNewCategoryName(""); }}
+                                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-orange-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </button>
+                            </div>
+                            {showNewCategory && (
+                                <div className="flex gap-1.5 mt-1.5">
+                                    <Input
+                                        autoFocus
+                                        value={newCategoryName}
+                                        onChange={(e) => setNewCategoryName(e.target.value)}
+                                        onKeyDown={async (e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                await handleCreateCategory();
+                                            } else if (e.key === "Escape") {
+                                                setShowNewCategory(false);
+                                            }
+                                        }}
+                                        placeholder="New category name"
+                                        className="flex-1 text-sm h-8"
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={creatingCategory || !newCategoryName.trim()}
+                                        onClick={handleCreateCategory}
+                                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                                    >
+                                        {creatingCategory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewCategory(false)}
+                                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <Label>Stock Status</Label>
@@ -595,8 +663,11 @@ const MenuItemEditorPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <Button
                         variant="outline"
-                        onClick={() => {
-                            if (dirty && !window.confirm("You have unsaved changes. Leave anyway?")) return;
+                        onClick={async () => {
+                            if (dirty) {
+                                const ok = await confirm({ description: "You have unsaved changes. Leave anyway?", confirmLabel: "Leave" });
+                                if (!ok) return;
+                            }
                             navigate("/vendor/menu");
                         }}
                         className="rounded-lg"

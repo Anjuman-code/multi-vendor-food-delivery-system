@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Plus, MapPin, Clock, Star, Edit, Trash2 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import vendorService from "@/services/vendorService";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
-import type { VendorRestaurant } from "@/types/vendor";
 import { useToast } from "@/hooks/use-toast";
+import vendorService from "@/services/vendorService";
+import type { VendorRestaurant } from "@/types/vendor";
+import { motion } from "framer-motion";
+import { Clock, Edit, MapPin, Plus, Star, Trash2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const VendorRestaurantsPage: React.FC = () => {
   const [restaurants, setRestaurants] = useState<VendorRestaurant[]>([]);
@@ -14,6 +15,7 @@ const VendorRestaurantsPage: React.FC = () => {
   const navigate = useNavigate();
   const { refreshRestaurants } = useVendor();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     const load = async () => {
@@ -27,8 +29,8 @@ const VendorRestaurantsPage: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this restaurant?"))
-      return;
+    const ok = await confirm({ title: "Delete restaurant", description: "Are you sure you want to delete this restaurant? This cannot be undone.", confirmLabel: "Delete" });
+    if (!ok) return;
     const res = await vendorService.deleteRestaurant(id);
     if (res.success) {
       setRestaurants((prev) => prev.filter((r) => r._id !== id));

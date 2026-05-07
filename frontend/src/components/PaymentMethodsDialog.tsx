@@ -1,29 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/hooks/use-toast";
 import type { PaymentMethod } from "@/services/userService";
 import userService from "@/services/userService";
-import { Loader2, Save, Trash2 } from "lucide-react";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Loader2, Save, Trash2 } from "lucide-react";
 
 export interface PaymentMethodsDialogProps {
   isOpen: boolean;
@@ -39,6 +39,7 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
   isLoadingPayments,
 }) => {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [newPaymentType, setNewPaymentType] = useState<"card" | "upi" | "wallet">("card");
@@ -168,10 +169,12 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
 
   const handleDeletePaymentMethod = useCallback(
     async (methodId: string) => {
-      const shouldDelete = window.confirm(
-        "Remove this payment method from your account?",
-      );
-      if (!shouldDelete) return;
+      const ok = await confirm({
+        title: "Remove payment method",
+        description: "Remove this payment method from your account?",
+        confirmLabel: "Remove",
+      });
+      if (!ok) return;
 
       setIsUpdatingPayment(true);
       const res = await userService.deletePaymentMethod(methodId);
@@ -186,7 +189,7 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
       }
       setIsUpdatingPayment(false);
     },
-    [toast],
+    [toast, confirm],
   );
 
   return (
@@ -344,6 +347,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   onRefresh,
 }) => {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   const handleSetDefaultPayment = useCallback(
@@ -370,10 +374,12 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
 
   const handleDeletePaymentMethod = useCallback(
     async (methodId: string) => {
-      const shouldDelete = window.confirm(
-        "Remove this payment method from your account?",
-      );
-      if (!shouldDelete) return;
+      const ok = await confirm({
+        title: "Remove payment method",
+        description: "Remove this payment method from your account?",
+        confirmLabel: "Remove",
+      });
+      if (!ok) return;
 
       setIsUpdatingPayment(true);
       const res = await userService.deletePaymentMethod(methodId);
@@ -389,7 +395,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
       }
       setIsUpdatingPayment(false);
     },
-    [toast, onRefresh],
+    [toast, onRefresh, confirm],
   );
 
   return (
