@@ -149,18 +149,40 @@ export interface IVendorNotificationSettings {
   promotionPerformance: boolean;
 }
 
+export interface IVendorBankDetails {
+  bankName?: string;
+  accountNumber?: string;
+  accountName?: string;
+  branchName?: string;
+  routingNumber?: string;
+  mobileMoneyNumber?: string;  // bKash, Nagad, Rocket
+  mobileMoneyProvider?: string;
+}
+
+export interface IVendorVerificationDocument {
+  type: 'nid' | 'trade_license' | 'tin' | 'vat_certificate' | 'other';
+  url: string;
+  uploadedAt: Date;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 export interface IVendorProfile {
   userId: Types.ObjectId;
   restaurantIds: Types.ObjectId[];
   businessName: string;
   businessLicense: string;
   taxId: string;
-  bankDetails: Record<string, unknown>;
+  bankDetails: IVendorBankDetails;
   commissionRate: number;
   isVerified: boolean;
-  verificationDocuments: Record<string, unknown>[];
+  verificationDocuments: IVendorVerificationDocument[];
   autoAcceptOrders: boolean;
   notificationSettings: IVendorNotificationSettings;
+  // Analytics (denormalized for dashboard speed)
+  totalOrders: number;
+  totalEarnings: number;
+  pendingPayout: number;
+  averageRating: number;
   createdAt: Date;
   updatedAt: Date;
 }

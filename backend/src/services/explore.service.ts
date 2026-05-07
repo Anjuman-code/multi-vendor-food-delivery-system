@@ -4,8 +4,8 @@
 import mongoose from "mongoose";
 import MenuCategory from "../models/MenuCategory";
 import MenuItem from "../models/MenuItem";
-import Restaurant from "../models/Restaurant";
 import Order from "../models/Order";
+import Restaurant from "../models/Restaurant";
 
 const MAX_LIMIT = 20;
 
@@ -64,7 +64,7 @@ export interface PopularRestaurantSummary {
     average?: number;
     count?: number;
   };
-  deliveryTime?: string;
+  deliveryTime?: { min: number; max: number };
   address?: {
     city?: string;
     state?: string;
@@ -84,7 +84,7 @@ interface PopularRestaurantRecord {
     average?: number;
     count?: number;
   };
-  deliveryTime?: string;
+  deliveryTime?: { min: number; max: number };
   address?: {
     city?: string;
     state?: string;

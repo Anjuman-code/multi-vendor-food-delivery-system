@@ -50,6 +50,18 @@ export interface IOperatingHours {
   isOpen: boolean;
 }
 
+/** Structured delivery time in minutes */
+export interface IDeliveryTime {
+  min: number;
+  max: number;
+}
+
+/** GeoJSON Point for geospatial queries */
+export interface IGeoLocation {
+  type: "Point";
+  coordinates: [number, number]; // [longitude, latitude]
+}
+
 /** Rating sub-document */
 export interface IRating {
   average: number;
@@ -59,10 +71,13 @@ export interface IRating {
 /** Plain restaurant data interface (matches Mongoose schema fields) */
 export interface IRestaurant {
   name: string;
+  slug: string;
   description: string;
   address: IRestaurantAddress;
+  location?: IGeoLocation;
   contactInfo: IContactInfo;
   cuisineType: string[];
+  tags: string[];
   images: IImages;
   operatingHours: IOperatingHours[];
   isActive: boolean;
@@ -70,9 +85,14 @@ export interface IRestaurant {
   closureReason?: string;
   approvalStatus: "pending" | "approved" | "rejected";
   rating: IRating;
-  deliveryTime: string;
+  deliveryTime: IDeliveryTime;
   deliveryFee: number;
   minimumOrder: number;
+  priceRange: 1 | 2 | 3 | 4;
+  serviceOptions: ("delivery" | "dine-in" | "takeaway")[];
+  totalOrders: number;
+  averagePreparationTime: number;
+  paymentMethods: string[];
   createdAt: Date;
   updatedAt: Date;
 }

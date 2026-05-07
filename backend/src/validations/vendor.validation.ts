@@ -157,7 +157,13 @@ export const createRestaurantSchema = z.object({
     gallery: z.array(z.string().trim()).optional().default([]),
   }),
   operatingHours: z.array(operatingHoursSchema).optional().default([]),
-  deliveryTime: z.string().optional().default("30-45 min"),
+  deliveryTime: z
+    .object({
+      min: z.number().int().min(1).max(180),
+      max: z.number().int().min(1).max(180),
+    })
+    .optional()
+    .default({ min: 30, max: 45 }),
   deliveryFee: z.number().min(0).optional().default(0),
   minimumOrder: z.number().min(0).optional().default(0),
 });
@@ -191,7 +197,12 @@ export const updateRestaurantSchema = z.object({
     })
     .optional(),
   operatingHours: z.array(operatingHoursSchema).optional(),
-  deliveryTime: z.string().optional(),
+  deliveryTime: z
+    .object({
+      min: z.number().int().min(1).max(180),
+      max: z.number().int().min(1).max(180),
+    })
+    .optional(),
   deliveryFee: z.number().min(0).optional(),
   minimumOrder: z.number().min(0).optional(),
   isActive: z.boolean().optional(),
