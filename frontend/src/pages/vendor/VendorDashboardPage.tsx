@@ -27,6 +27,109 @@ import type {
 const formatCurrency = (amount: number) =>
   `৳${amount.toLocaleString("en-BD", { minimumFractionDigits: 0 })}`;
 
+const toSafeNumber = (value: unknown): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (value && typeof value === "object" && "$numberDecimal" in value) {
+    const parsed = Number(
+      (value as { $numberDecimal?: string }).$numberDecimal,
+    );
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const toIsoDate = (value: unknown): string => {
+  if (!value) return "";
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime())
+      ? value
+      : parsed.toISOString().split("T")[0];
+  }
+  return "";
+};
+
+const buildSevenDaySeries = (
+  analytics: VendorAnalytics | null,
+  todayRevenue: number,
+  todayOrders: number,
+): RevenueDataPoint[] => {
+  if (!analytics) {
+    if (todayRevenue > 0 || todayOrders > 0) {
+      const series: RevenueDataPoint[] = [];
+      for (let i = 6; i >= 0; i -= 1) {
+        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const isoDate = date.toISOString().split("T")[0];
+        series.push({
+          date: isoDate,
+          revenue: i === 0 ? todayRevenue : 0,
+          orders: i === 0 ? todayOrders : 0,
+        });
+      }
+      return series;
+    }
+    return [];
+  }
+
+  const rawRevenue =
+    analytics.revenueOverTime && analytics.revenueOverTime.length > 0
+      ? analytics.revenueOverTime
+      : (analytics.revenueByDay ?? []);
+
+  if (rawRevenue.length === 0) {
+    if (todayRevenue > 0 || todayOrders > 0) {
+      const series: RevenueDataPoint[] = [];
+      for (let i = 6; i >= 0; i -= 1) {
+        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const isoDate = date.toISOString().split("T")[0];
+        series.push({
+          date: isoDate,
+          revenue: i === 0 ? todayRevenue : 0,
+          orders: i === 0 ? todayOrders : 0,
+        });
+      }
+      return series;
+    }
+    return [];
+  }
+
+  const normalized = rawRevenue
+    .map((point) => ({
+      date: toIsoDate(point.date),
+      revenue: toSafeNumber((point as { revenue?: unknown }).revenue),
+      orders: toSafeNumber(
+        (point as { orders?: unknown; count?: unknown }).orders ??
+          (point as { count?: unknown }).count ??
+          0,
+      ),
+    }))
+    .filter((point) => point.date);
+
+  if (normalized.length === 0) return [];
+
+  const byDate = new Map(normalized.map((point) => [point.date, point]));
+  const series: RevenueDataPoint[] = [];
+
+  for (let i = 6; i >= 0; i -= 1) {
+    const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const isoDate = date.toISOString().split("T")[0];
+    series.push(
+      byDate.get(isoDate) ?? {
+        date: isoDate,
+        revenue: 0,
+        orders: 0,
+      },
+    );
+  }
+
+  return series;
+};
+
 const computePercentChange = (
   current: number,
   previous: number,
@@ -98,9 +201,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
     </div>
     <p className="kpi-card-value">{value}</p>
     <p className="kpi-card-label">{title}</p>
-    {subtitle && (
-      <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>
-    )}
+    {subtitle && <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>}
   </motion.div>
 );
 
@@ -130,8 +231,7 @@ const RevenueSparkline: React.FC<SparklineProps> = ({ data }) => {
               className="w-full rounded-t-sm transition-all duration-300 cursor-pointer"
               style={{
                 height: `${heightPct}%`,
-                background:
-                  "linear-gradient(to top, #ea580c, #fb923c)",
+                background: "linear-gradient(to top, #ea580c, #fb923c)",
               }}
             />
             {/* Hover tooltip */}
@@ -267,7 +367,11 @@ const VendorDashboardPage: React.FC = () => {
 
       try {
         const params = selectedRestaurantId
-          ? { limit: 5, status: "preparing,ready", restaurantId: selectedRestaurantId }
+          ? {
+              limit: 5,
+              status: "preparing,ready",
+              restaurantId: selectedRestaurantId,
+            }
           : { limit: 5, status: "preparing,ready" };
 
         const [statsRes, analyticsRes, ordersRes] = await Promise.all([
@@ -283,7 +387,8 @@ const VendorDashboardPage: React.FC = () => {
         } else {
           toast({
             title: "Error",
-            description: statsRes.message || "Failed to load dashboard statistics.",
+            description:
+              statsRes.message || "Failed to load dashboard statistics.",
             variant: "destructive",
           });
         }
@@ -300,7 +405,8 @@ const VendorDashboardPage: React.FC = () => {
           setError("Failed to load dashboard data. Please try again.");
           toast({
             title: "Error",
-            description: "An unexpected error occurred while loading the dashboard.",
+            description:
+              "An unexpected error occurred while loading the dashboard.",
             variant: "destructive",
           });
         }
@@ -330,7 +436,11 @@ const VendorDashboardPage: React.FC = () => {
       };
     }
 
-    const revenueData = analytics?.revenueOverTime ?? [];
+    const revenueData = buildSevenDaySeries(
+      analytics,
+      toSafeNumber(stats.todayRevenue),
+      toSafeNumber(stats.todayOrders),
+    );
     const todayStr = new Date().toISOString().split("T")[0];
     const yesterdayStr = new Date(Date.now() - 86400000)
       .toISOString()
@@ -338,8 +448,8 @@ const VendorDashboardPage: React.FC = () => {
 
     // Try to find yesterday's data point in revenueOverTime
     const yesterdayPoint = revenueData.find((d) => d.date === yesterdayStr);
-    const yesterdayRevenue = yesterdayPoint?.revenue ?? 0;
-    const yesterdayOrders = yesterdayPoint?.orders ?? 0;
+    const yesterdayRevenue = toSafeNumber(yesterdayPoint?.revenue);
+    const yesterdayOrders = toSafeNumber(yesterdayPoint?.orders);
 
     // Count active orders: PREPARING + READY / READY_FOR_PICKUP
     const preparingCount =
@@ -354,17 +464,21 @@ const VendorDashboardPage: React.FC = () => {
       yesterdayOrders > 0 ? yesterdayRevenue / yesterdayOrders : 0;
 
     return {
-      todayRevenue: stats.todayRevenue ?? 0,
+      todayRevenue: toSafeNumber(stats.todayRevenue),
       todayRevenueTrend: computePercentChange(
-        stats.todayRevenue ?? 0,
+        toSafeNumber(stats.todayRevenue),
         yesterdayRevenue,
       ),
       activeOrders: preparingCount + readyCount,
-      pendingOrders: stats.pendingOrders ?? 0,
-      avgOrderValue: stats.avgOrderValue ?? 0,
-      avgOrderValueTrend: yesterdayAov > 0
-        ? computePercentChange(stats.avgOrderValue ?? 0, yesterdayAov)
-        : null,
+      pendingOrders: toSafeNumber(stats.pendingOrders),
+      avgOrderValue: toSafeNumber(stats.avgOrderValue),
+      avgOrderValueTrend:
+        yesterdayAov > 0
+          ? computePercentChange(
+              toSafeNumber(stats.avgOrderValue),
+              yesterdayAov,
+            )
+          : null,
       revenueOverTime: revenueData,
     };
   }, [stats, analytics]);
@@ -567,7 +681,11 @@ const VendorDashboardPage: React.FC = () => {
           {topItems.length > 0 ? (
             <div className="space-y-0.5">
               {topItems.map((item, idx) => (
-                <PopularItemRow key={item._id || item.name} item={item} rank={idx} />
+                <PopularItemRow
+                  key={item._id || item.name}
+                  item={item}
+                  rank={idx}
+                />
               ))}
             </div>
           ) : (
@@ -575,9 +693,7 @@ const VendorDashboardPage: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <p className="text-sm font-medium text-gray-500">
-                No data yet
-              </p>
+              <p className="text-sm font-medium text-gray-500">No data yet</p>
               <p className="text-xs text-gray-400 mt-1">
                 Popular items will appear once orders come in.
               </p>
