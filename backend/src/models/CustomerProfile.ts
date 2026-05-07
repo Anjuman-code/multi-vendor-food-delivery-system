@@ -73,6 +73,7 @@ const customerProfileSchema = new Schema<ICustomerProfileDocument>(
     totalOrders: { type: Number, default: 0 },
     totalSpent: { type: Number, default: 0 },
     averageOrderValue: { type: Number, default: 0 },
+    referredBy: { type: Schema.Types.ObjectId, ref: "User" },
 
     // Notifications
     notifications: {
@@ -85,10 +86,50 @@ const customerProfileSchema = new Schema<ICustomerProfileDocument>(
   },
 );
 
-const CustomerProfile: Model<ICustomerProfileDocument> =
-  mongoose.model<ICustomerProfileDocument>(
-    "CustomerProfile",
-    customerProfileSchema,
-  );
+// ── Statics ──────────────────────────────────────────────────────
+
+interface ICustomerProfileModel extends Model<ICustomerProfileDocument> {
+  addLoyaltyPoints(
+    userId: Types.ObjectId,
+    amount: number,
+    type: import("./LoyaltyTransaction").LoyaltyTransactionType,
+    description: string,
+    referenceId?: Types.ObjectId,
+  ): Promise<ICustomerProfileDocument>;
+}
+
+customerProfileSchema.statics.addLoyaltyPoints = async function (
+  userId: Types.ObjectId,
+  amount: number,
+  type: string,
+  description: string,
+  referenceId?: Types.ObjectId,
+) {
+  const LoyaltyTransaction = (
+    await import("./LoyaltyTransaction")
+  ).default;
+
+  const profile = await this.findOne({ userId });
+  if (!profile) throw new Error("Customer profile not found");
+
+  profile.loyaltyPoints = Math.max(0, profile.loyaltyPoints + amount);
+
+  await LoyaltyTransaction.create({
+    customerId: userId,
+    amount,
+    type,
+    referenceId,
+    description,
+    balanceAfter: profile.loyaltyPoints,
+  });
+
+  await profile.save();
+  return profile;
+};
+
+const CustomerProfile = mongoose.model<
+  ICustomerProfileDocument,
+  ICustomerProfileModel
+>("CustomerProfile", customerProfileSchema);
 
 export default CustomerProfile;

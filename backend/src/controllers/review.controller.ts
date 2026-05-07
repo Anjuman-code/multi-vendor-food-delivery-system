@@ -7,6 +7,7 @@ import Review from "../models/Review";
 import Order, { OrderStatus } from "../models/Order";
 import Restaurant from "../models/Restaurant";
 import { successResponse } from "../utils/response.util";
+import ReviewVote from "../models/ReviewVote";
 import {
   AuthenticationError,
   NotFoundError,
@@ -207,6 +208,46 @@ export const deleteReview = async (
     await Restaurant.findByIdAndUpdate(restaurantId, { rating: newRating });
 
     successResponse(res, null, "Review deleted");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/reviews/:reviewId/vote
+ * Vote a review as helpful or unhelpful. One vote per user per review.
+ */
+export const voteReview = async (
+  req: Request, res: Response, next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { reviewId } = req.params;
+    const { vote } = req.body as { vote: "helpful" | "unhelpful" };
+
+    const review = await Review.findById(reviewId);
+    if (!review) throw new NotFoundError("Review not found");
+
+    // Upsert vote
+    await ReviewVote.findOneAndUpdate(
+      { reviewId, userId: authReq.user._id },
+      { vote },
+      { upsert: true, new: true },
+    );
+
+    // Recalculate counts
+    const [helpful, unhelpful] = await Promise.all([
+      ReviewVote.countDocuments({ reviewId, vote: "helpful" }),
+      ReviewVote.countDocuments({ reviewId, vote: "unhelpful" }),
+    ]);
+
+    review.helpfulVotes = helpful;
+    review.unhelpfulVotes = unhelpful;
+    await review.save();
+
+    successResponse(res, { review, helpful, unhelpful }, "Vote recorded");
   } catch (error) {
     next(error);
   }

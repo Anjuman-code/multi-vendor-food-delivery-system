@@ -29,8 +29,8 @@ export interface IOrderItem {
   name: string;
   price: number;
   quantity: number;
-  variants?: { name: string; price: number }[];
-  addons?: { name: string; price: number }[];
+  variants?: { variantId?: Types.ObjectId; name: string; price: number }[];
+  addons?: { addonId?: Types.ObjectId; name: string; price: number }[];
   specialInstructions?: string;
   itemTotal: number;
 }
@@ -46,7 +46,23 @@ export interface IDeliveryAddress {
 export interface IStatusHistoryEntry {
   status: OrderStatus;
   timestamp: Date;
+  actorId?: Types.ObjectId;
+  actorRole?: string;
   note?: string;
+}
+
+export interface IDeliveryProof {
+  photoUrl: string;
+  timestamp: Date;
+  note?: string;
+}
+
+export interface IRefundLineItem {
+  menuItemId: Types.ObjectId;
+  itemName: string;
+  quantity: number;
+  refundAmount: number;
+  reason: string;
 }
 
 export interface IOrder {
@@ -64,11 +80,16 @@ export interface IOrder {
   tax: number;
   deliveryFee: number;
   discount: number;
+  tipAmount: number;
   total: number;
   couponCode?: string;
   specialInstructions?: string;
-  estimatedDeliveryTime?: string;
+  estimatedDeliveryTime?: Date;
   actualDeliveryTime?: Date;
+  scheduledFor?: Date;
+  vendorAcceptedAt?: Date;
+  deliveryProof?: IDeliveryProof;
+  refundLineItems: IRefundLineItem[];
   cancelReason?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -90,12 +111,14 @@ const orderItemSchema = new Schema<IOrderItem>(
     quantity: { type: Number, required: true, min: 1 },
     variants: [
       {
+        variantId: { type: Schema.Types.ObjectId },
         name: { type: String, required: true },
         price: { type: Number, required: true },
       },
     ],
     addons: [
       {
+        addonId: { type: Schema.Types.ObjectId },
         name: { type: String, required: true },
         price: { type: Number, required: true },
       },
@@ -128,7 +151,29 @@ const statusHistorySchema = new Schema<IStatusHistoryEntry>(
       required: true,
     },
     timestamp: { type: Date, default: Date.now },
+    actorId: { type: Schema.Types.ObjectId, ref: "User" },
+    actorRole: { type: String },
     note: { type: String },
+  },
+  { _id: false },
+);
+
+const deliveryProofSchema = new Schema<IDeliveryProof>(
+  {
+    photoUrl: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    note: { type: String, maxlength: 300 },
+  },
+  { _id: false },
+);
+
+const refundLineItemSchema = new Schema<IRefundLineItem>(
+  {
+    menuItemId: { type: Schema.Types.ObjectId, ref: "MenuItem", required: true },
+    itemName: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    refundAmount: { type: Number, required: true, min: 0 },
+    reason: { type: String, required: true, maxlength: 300 },
   },
   { _id: false },
 );
@@ -189,11 +234,16 @@ const orderSchema = new Schema<IOrder>(
     tax: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
+    tipAmount: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
     couponCode: { type: String },
     specialInstructions: { type: String, maxlength: 500 },
-    estimatedDeliveryTime: { type: String },
+    estimatedDeliveryTime: { type: Date },
     actualDeliveryTime: { type: Date },
+    scheduledFor: { type: Date },
+    vendorAcceptedAt: { type: Date },
+    deliveryProof: { type: deliveryProofSchema },
+    refundLineItems: { type: [refundLineItemSchema], default: [] },
     cancelReason: { type: String, maxlength: 300 },
   },
   { timestamps: true },

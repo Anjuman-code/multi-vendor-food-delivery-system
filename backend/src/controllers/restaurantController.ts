@@ -162,7 +162,11 @@ const deleteRestaurant = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const restaurant = await Restaurant.findByIdAndDelete(req.params.id);
+    const restaurant = await Restaurant.findByIdAndUpdate(
+      req.params.id,
+      { deletedAt: new Date() },
+      { new: true },
+    );
 
     if (!restaurant) {
       res.status(404).json({ success: false, message: "Restaurant not found" });

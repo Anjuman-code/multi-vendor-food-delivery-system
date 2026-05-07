@@ -36,6 +36,18 @@ export interface OrderStatusUpdatePayload {
   updatedAt: Date;
 }
 
+export interface DriverLocationPayload {
+  driverId: string;
+  orderId: string;
+  latitude: number;
+  longitude: number;
+  heading?: number;
+  speed?: number;
+  accuracy?: number;
+  batteryLevel?: number;
+  timestamp: string;
+}
+
 // ── Initialise ────────────────────────────────────────────────
 
 /** Parse a raw Cookie header string into a key→value map. */
@@ -106,6 +118,39 @@ export const initSocket = (server: HTTPServer): SocketServer => {
     const room =
       role === 'vendor' ? `vendor:${userId}` : `user:${userId}`;
     void socket.join(room);
+
+    // Driver location updates — persist and relay to customer
+    if (role === 'driver') {
+      socket.on('driver:locationUpdate', async (payload: DriverLocationPayload) => {
+        try {
+          // Persist location event (lazy-import to avoid circular deps)
+          const DriverLocationEvent = (await import('./models/DriverLocationEvent')).default;
+          const Order = (await import('./models/Order')).default;
+
+          await DriverLocationEvent.create({
+            driverId: payload.driverId,
+            orderId: payload.orderId,
+            location: {
+              type: 'Point',
+              coordinates: [payload.longitude, payload.latitude],
+            },
+            heading: payload.heading,
+            speed: payload.speed,
+            accuracy: payload.accuracy,
+            batteryLevel: payload.batteryLevel,
+            timestamp: new Date(payload.timestamp),
+          });
+
+          // Relay to the customer who owns this order
+          const order = await Order.findById(payload.orderId).select('customerId');
+          if (order) {
+            io!.to(`user:${order.customerId.toString()}`).emit('driver:locationUpdate', payload);
+          }
+        } catch {
+          // Non-blocking — don't crash the socket on persistence failure
+        }
+      });
+    }
   });
 
   return io;

@@ -18,6 +18,8 @@ export interface ICoupon {
   validTo: Date;
   usageLimit: number;
   usedCount: number;
+  perUserLimit: number;
+  usedBy: { userId: Types.ObjectId; usedAt: Date }[];
   applicableRestaurants: Types.ObjectId[];
   isActive: boolean;
   createdAt: Date;
@@ -52,6 +54,17 @@ const couponSchema = new Schema<ICoupon>(
     validTo: { type: Date, required: true },
     usageLimit: { type: Number, default: 0 },
     usedCount: { type: Number, default: 0 },
+    perUserLimit: { type: Number, default: 1 },
+    usedBy: {
+      type: [
+        {
+          userId: { type: Schema.Types.ObjectId, ref: "User" },
+          usedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+      _id: false,
+    },
     applicableRestaurants: {
       type: [{ type: Schema.Types.ObjectId, ref: "Restaurant" }],
       default: [],

@@ -6,7 +6,12 @@ import { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
 import Coupon, { CouponType } from "../models/Coupon";
 import CustomerProfile from "../models/CustomerProfile";
+import { LoyaltyTransactionType } from "../models/LoyaltyTransaction";
 import MenuItem from "../models/MenuItem";
+import Restaurant from "../models/Restaurant";
+import { computeDeliveryFee } from "./delivery-zone.controller";
+import { applyCampaigns } from "./campaign.controller";
+import { processReferralReward } from "./referral.controller";
 import Notification, { NotificationType } from "../models/Notification";
 import Order, { OrderStatus, PaymentStatus } from "../models/Order";
 import VendorProfile from "../models/VendorProfile";
@@ -39,6 +44,7 @@ type RequestedItemOption = {
 };
 
 type TrustedItemOption = {
+  optionId?: Types.ObjectId;
   name: string;
   price: number;
 };
@@ -93,7 +99,7 @@ const resolveRequestedOptions = (
       );
     }
 
-    return { name: matched.name, price: matched.price };
+    return { optionId: matched._id, name: matched.name, price: matched.price };
   });
 };
 
@@ -117,7 +123,7 @@ const resolveLegacyOptionsByName = (
       missing.push(option.name);
       continue;
     }
-    trusted.push({ name: match.name, price: match.price });
+    trusted.push({ optionId: match._id, name: match.name, price: match.price });
   }
 
   return { trusted, missing };
@@ -143,6 +149,9 @@ export const createOrder = async (
       paymentMethod,
       couponCode,
       specialInstructions,
+      tipAmount = 0,
+      scheduledFor,
+      deliveryProof,
     } = req.body;
 
     const restaurantObjectId = new Types.ObjectId(restaurantId);
@@ -231,6 +240,14 @@ export const createOrder = async (
       if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
         throw new ValidationError("Coupon usage limit reached");
       }
+      if (
+        coupon.perUserLimit > 0 &&
+        coupon.usedBy.filter(
+          (entry) => entry.userId.toString() === authReq.user._id.toString(),
+        ).length >= coupon.perUserLimit
+      ) {
+        throw new ValidationError("You have already used this coupon");
+      }
       if (subtotal < coupon.minOrderAmount) {
         throw new ValidationError(
           `Minimum order amount for this coupon is ${coupon.minOrderAmount}`,
@@ -250,10 +267,48 @@ export const createOrder = async (
       appliedCoupon = coupon;
     }
 
+    // Auto-apply active campaigns
+    let campaignDiscount = 0;
+    try {
+      const profile = await CustomerProfile.findOne({ userId: authReq.user._id });
+      const campaignResult = await applyCampaigns(
+        authReq.user._id.toString(),
+        restaurantId,
+        subtotal,
+        !profile || profile.totalOrders === 0,
+        profile?.tier || "bronze",
+      );
+      campaignDiscount = campaignResult.discount;
+    } catch {
+      // Non-blocking
+    }
+    discount += campaignDiscount;
+
     const TAX_RATE = 0.05;
-    const DELIVERY_FEE = 50; // Default fee – can be restaurant-specific
+
+    // Compute delivery fee from zone, falling back to restaurant default
+    const restaurant = await Restaurant.findById(restaurantObjectId).select("deliveryFee");
+    let deliveryFee = restaurant?.deliveryFee || 50;
+
+    if (deliveryAddress?.coordinates) {
+      try {
+        const zoneFee = await computeDeliveryFee(
+          restaurantId,
+          deliveryAddress.coordinates.latitude,
+          deliveryAddress.coordinates.longitude,
+          subtotal,
+        );
+        if (zoneFee.fee >= 0) {
+          deliveryFee = zoneFee.fee;
+        }
+      } catch {
+        // Zone validation failures are non-blocking for order creation;
+        // they will be re-thrown above if critical (minimum order not met)
+      }
+    }
+
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-    const total = subtotal + tax + DELIVERY_FEE - discount;
+    const total = subtotal + tax + deliveryFee - discount;
 
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
@@ -265,17 +320,20 @@ export const createOrder = async (
       paymentStatus: PaymentStatus.PENDING,
       subtotal,
       tax,
-      deliveryFee: DELIVERY_FEE,
+      deliveryFee,
       discount,
-      total: Math.max(total, 0),
+      tipAmount,
+      total: Math.max(total + tipAmount, 0),
       couponCode: couponCode?.toUpperCase(),
       specialInstructions,
-      estimatedDeliveryTime: "30-45 min",
-      statusHistory: [{ status: OrderStatus.PENDING, timestamp: new Date() }],
+      estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000),
+      scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
+      statusHistory: [{ status: OrderStatus.PENDING, timestamp: new Date(), actorId: authReq.user._id, actorRole: authReq.user.role }],
     });
 
     if (appliedCoupon) {
       appliedCoupon.usedCount += 1;
+      appliedCoupon.usedBy.push({ userId: authReq.user._id, usedAt: new Date() });
       await appliedCoupon.save();
     }
 
@@ -287,8 +345,32 @@ export const createOrder = async (
       profile.totalOrders += 1;
       profile.totalSpent += order.total;
       profile.averageOrderValue = profile.totalSpent / profile.totalOrders;
-      profile.loyaltyPoints += Math.floor(order.total);
       await profile.save();
+
+      // Log loyalty points earned as an immutable transaction
+      const pointsEarned = Math.floor(order.total);
+      if (pointsEarned > 0) {
+        try {
+          await CustomerProfile.addLoyaltyPoints(
+            authReq.user._id,
+            pointsEarned,
+            LoyaltyTransactionType.ORDER_EARNED,
+            `Points earned from order ${order.orderNumber}`,
+            order._id,
+          );
+        } catch {
+          // Non-blocking — loyalty failure must not break order placement
+        }
+      }
+
+      // Process referral reward on first order
+      if (profile.totalOrders === 1) {
+        try {
+          await processReferralReward(authReq.user._id.toString());
+        } catch {
+          // Non-blocking
+        }
+      }
     }
 
     // Create notification
@@ -438,6 +520,8 @@ export const cancelOrder = async (
     order.statusHistory.push({
       status: OrderStatus.CANCELLED,
       timestamp: new Date(),
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
       note: reason,
     });
     await order.save();

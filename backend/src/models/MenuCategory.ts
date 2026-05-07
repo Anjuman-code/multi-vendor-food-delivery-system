@@ -13,6 +13,7 @@ export interface IMenuCategory {
   isActive: boolean;
   availableFrom?: string; // "HH:MM" — for time-restricted categories (e.g. breakfast)
   availableUntil?: string; // "HH:MM"
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,13 +41,32 @@ const menuCategorySchema = new Schema<IMenuCategory>(
     isActive: { type: Boolean, default: true },
     availableFrom: { type: String },  // "HH:MM"
     availableUntil: { type: String }, // "HH:MM"
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 
 menuCategorySchema.index({ restaurantId: 1, displayOrder: 1 });
+menuCategorySchema.index({ deletedAt: 1 });
 
-const MenuCategory: Model<IMenuCategory> = mongoose.model<IMenuCategory>(
+menuCategorySchema.pre(
+  /^find/,
+  function (this: mongoose.Query<unknown, unknown>) {
+    if (this.getFilter().deletedAt === undefined) {
+      this.setQuery({ ...this.getFilter(), deletedAt: null });
+    }
+  },
+);
+
+menuCategorySchema.statics.findActive = function (filter = {}) {
+  return this.find({ ...filter, deletedAt: null });
+};
+
+interface IMenuCategoryModel extends Model<IMenuCategory> {
+  findActive(filter?: Record<string, unknown>): ReturnType<Model<IMenuCategory>["find"]>;
+}
+
+const MenuCategory = mongoose.model<IMenuCategory, IMenuCategoryModel>(
   "MenuCategory",
   menuCategorySchema,
 );

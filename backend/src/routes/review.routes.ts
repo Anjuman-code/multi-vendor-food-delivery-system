@@ -6,6 +6,7 @@ import {
   createReview,
   getMyReviews,
   deleteReview,
+  voteReview,
 } from "../controllers/review.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { UserRole } from "../config/constants";
@@ -21,5 +22,8 @@ router.delete(
   authorize(UserRole.CUSTOMER),
   deleteReview,
 );
+
+// Voting — any authenticated user
+router.post("/:reviewId/vote", authenticate, voteReview);
 
 export default router;

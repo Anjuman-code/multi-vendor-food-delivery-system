@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import VendorProfile from "../models/VendorProfile";
 import Coupon from "../models/Coupon";
 import Order, { OrderStatus } from "../models/Order";
+import { createAuditLog } from "../utils/audit.util";
 import { successResponse } from "../utils/response.util";
 import {
   AuthenticationError,
@@ -95,7 +96,7 @@ export const createVendorCoupon = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { profile } = await getVendorProfile(req);
+    const { authReq, profile } = await getVendorProfile(req);
     const data = req.body as CreateCouponInput;
 
     // If no restaurants specified, apply to all vendor's restaurants
@@ -111,6 +112,19 @@ export const createVendorCoupon = async (
       applicableRestaurants: applicableRestaurants.map(
         (restaurantId) => new mongoose.Types.ObjectId(restaurantId),
       ),
+    });
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "coupon.created",
+      resourceType: "Coupon",
+      resourceId: coupon._id,
+      changes: [
+        { field: "code", newValue: coupon.code },
+        { field: "type", newValue: coupon.type },
+        { field: "value", newValue: coupon.value },
+      ],
     });
 
     successResponse(res, { coupon }, "Coupon created", 201);
@@ -169,7 +183,7 @@ export const deleteVendorCoupon = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { profile } = await getVendorProfile(req);
+    const { authReq, profile } = await getVendorProfile(req);
     const { couponId } = req.params;
 
     const coupon = await Coupon.findById(couponId);
@@ -185,6 +199,15 @@ export const deleteVendorCoupon = async (
 
     coupon.isActive = false;
     await coupon.save();
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "coupon.deactivated",
+      resourceType: "Coupon",
+      resourceId: coupon._id,
+      changes: [{ field: "isActive", oldValue: true, newValue: false }],
+    });
 
     successResponse(res, null, "Coupon deactivated");
   } catch (error) {

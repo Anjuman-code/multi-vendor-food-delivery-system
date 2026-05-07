@@ -33,6 +33,7 @@ const restaurantSchema = new Schema<IRestaurant>(
       trim: true,
       maxlength: [150, "Restaurant name cannot exceed 150 characters"],
     },
+    nameI18n: { type: Map, of: String },
     slug: {
       type: String,
       required: true,
@@ -47,6 +48,7 @@ const restaurantSchema = new Schema<IRestaurant>(
       trim: true,
       maxlength: [1000, "Description cannot exceed 1000 characters"],
     },
+    descriptionI18n: { type: Map, of: String },
     address: {
       street: { type: String, required: true, trim: true },
       area: { type: String, required: true, trim: true },
@@ -82,6 +84,7 @@ const restaurantSchema = new Schema<IRestaurant>(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    rejectionReason: { type: String, trim: true, maxlength: 500 },
     rating: {
       average: { type: Number, min: 0, max: 5, default: 0 },
       count: { type: Number, default: 0 },
@@ -106,8 +109,19 @@ const restaurantSchema = new Schema<IRestaurant>(
     },
     totalOrders: { type: Number, default: 0 },
     averagePreparationTime: { type: Number, default: 20 }, // minutes
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true },
+);
+
+// ── Soft-delete query middleware ─────────────────────────────────
+restaurantSchema.pre(
+  /^find/,
+  function (this: mongoose.Query<unknown, unknown>) {
+    if (this.getFilter().deletedAt === undefined) {
+      this.setQuery({ ...this.getFilter(), deletedAt: null });
+    }
+  },
 );
 
 // ── Indexes ──────────────────────────────────────────────────────
@@ -115,9 +129,19 @@ restaurantSchema.index({ location: "2dsphere" });
 restaurantSchema.index({ approvalStatus: 1, isActive: 1 });
 restaurantSchema.index({ cuisineType: 1 });
 restaurantSchema.index({ "rating.average": -1 });
+restaurantSchema.index({ deletedAt: 1 });
+
+// ── Statics ──────────────────────────────────────────────────────
+restaurantSchema.statics.findActive = function (filter = {}) {
+  return this.find({ ...filter, deletedAt: null });
+};
 
 // ── Export model ─────────────────────────────────────────────────
-const Restaurant: Model<IRestaurant> = mongoose.model<IRestaurant>(
+interface IRestaurantModel extends Model<IRestaurant> {
+  findActive(filter?: Record<string, unknown>): ReturnType<Model<IRestaurant>["find"]>;
+}
+
+const Restaurant = mongoose.model<IRestaurant, IRestaurantModel>(
   "Restaurant",
   restaurantSchema,
 );

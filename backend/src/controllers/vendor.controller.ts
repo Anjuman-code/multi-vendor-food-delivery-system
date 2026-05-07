@@ -9,6 +9,7 @@ import Order, { OrderStatus } from "../models/Order";
 import MenuItem from "../models/MenuItem";
 import Review from "../models/Review";
 import Notification, { NotificationType } from "../models/Notification";
+import { createAuditLog } from "../utils/audit.util";
 import { successResponse } from "../utils/response.util";
 import {
   AuthenticationError,
@@ -121,6 +122,54 @@ export const updateProfile = async (
   }
 };
 
+/**
+ * PATCH /api/admin/vendors/:vendorId/commission
+ * Update a vendor's commission rate with history tracking.
+ */
+export const updateCommissionRate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { vendorId } = req.params;
+    const { rate, reason } = req.body as { rate: number; reason?: string };
+
+    const vendor = await VendorProfile.findOne({ userId: vendorId });
+    if (!vendor) throw new NotFoundError("Vendor profile not found");
+
+    const oldRate = vendor.commissionRate;
+
+    vendor.commissionHistory.push({
+      rate,
+      effectiveFrom: new Date(),
+      setBy: authReq.user._id,
+      reason,
+    });
+    vendor.commissionRate = rate;
+    await vendor.save();
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "commission.updated",
+      resourceType: "VendorProfile",
+      resourceId: vendor._id,
+      changes: [
+        { field: "commissionRate", oldValue: oldRate, newValue: rate },
+      ],
+      metadata: { reason },
+    });
+
+    successResponse(res, { vendorProfile: vendor }, "Commission rate updated");
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ────────────────────────────────────────────────────────────────
 // Restaurant Management
 // ────────────────────────────────────────────────────────────────
@@ -201,6 +250,15 @@ export const createMyRestaurant = async (
     profile.restaurantIds.push(restaurant._id as mongoose.Types.ObjectId);
     await profile.save();
 
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "restaurant.created",
+      resourceType: "Restaurant",
+      resourceId: restaurant._id as mongoose.Types.ObjectId,
+      changes: [{ field: "name", newValue: restaurant.name }],
+    });
+
     successResponse(
       res,
       { restaurant },
@@ -257,7 +315,7 @@ export const deleteMyRestaurant = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { profile } = await getVendorProfile(req);
+    const { authReq, profile } = await getVendorProfile(req);
     const restaurantId = req.params.restaurantId as string;
 
     if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
@@ -272,6 +330,15 @@ export const deleteMyRestaurant = async (
     // Soft-delete: deactivate instead of hard-deleting
     restaurant.isActive = false;
     await restaurant.save();
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "restaurant.deactivated",
+      resourceType: "Restaurant",
+      resourceId: restaurant._id,
+      changes: [{ field: "isActive", oldValue: true, newValue: false }],
+    });
 
     successResponse(res, null, "Restaurant deactivated");
   } catch (error) {

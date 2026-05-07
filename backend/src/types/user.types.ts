@@ -128,6 +128,7 @@ export interface ICustomerProfile {
   totalOrders: number;
   totalSpent: number;
   averageOrderValue: number;
+  referredBy?: Types.ObjectId;
   notifications: INotificationPreferences;
   createdAt: Date;
   updatedAt: Date;
@@ -147,6 +148,13 @@ export interface IVendorNotificationSettings {
   lowStockAlerts: boolean;
   reviewAlerts: boolean;
   promotionPerformance: boolean;
+}
+
+export interface ICommissionRateEntry {
+  rate: number;
+  effectiveFrom: Date;
+  setBy: Types.ObjectId;
+  reason?: string;
 }
 
 export interface IVendorBankDetails {
@@ -174,6 +182,7 @@ export interface IVendorProfile {
   taxId: string;
   bankDetails: IVendorBankDetails;
   commissionRate: number;
+  commissionHistory: ICommissionRateEntry[];
   isVerified: boolean;
   verificationDocuments: IVendorVerificationDocument[];
   autoAcceptOrders: boolean;

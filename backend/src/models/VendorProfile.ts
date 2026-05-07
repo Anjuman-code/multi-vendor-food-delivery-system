@@ -31,6 +31,18 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
       mobileMoneyProvider: { type: String, trim: true },
     },
     commissionRate: { type: Number, default: 0 },
+    commissionHistory: {
+      type: [
+        {
+          rate: { type: Number, required: true },
+          effectiveFrom: { type: Date, required: true, default: Date.now },
+          setBy: { type: Schema.Types.ObjectId, ref: "User" },
+          reason: { type: String, trim: true },
+        },
+      ],
+      default: [],
+      _id: false,
+    },
     isVerified: { type: Boolean, default: false },
     verificationDocuments: [
       {

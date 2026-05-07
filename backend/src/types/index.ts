@@ -71,8 +71,10 @@ export interface IRating {
 /** Plain restaurant data interface (matches Mongoose schema fields) */
 export interface IRestaurant {
   name: string;
+  nameI18n?: Map<string, string>;
   slug: string;
   description: string;
+  descriptionI18n?: Map<string, string>;
   address: IRestaurantAddress;
   location?: IGeoLocation;
   contactInfo: IContactInfo;
@@ -84,6 +86,7 @@ export interface IRestaurant {
   isTemporarilyClosed: boolean;
   closureReason?: string;
   approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   rating: IRating;
   deliveryTime: IDeliveryTime;
   deliveryFee: number;
@@ -93,6 +96,7 @@ export interface IRestaurant {
   totalOrders: number;
   averagePreparationTime: number;
   paymentMethods: string[];
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

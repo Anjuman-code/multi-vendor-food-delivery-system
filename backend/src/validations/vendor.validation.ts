@@ -367,6 +367,7 @@ export const createCouponSchema = z.object({
     return value;
   }, z.date()),
   usageLimit: z.number().int().min(0).optional().default(0),
+  perUserLimit: z.number().int().min(0).optional().default(1),
   applicableRestaurants: z.array(z.string()).optional().default([]),
   isActive: z.boolean().optional().default(true),
 });
@@ -404,6 +405,7 @@ export const updateCouponSchema = z.object({
     }, z.date())
     .optional(),
   usageLimit: z.number().int().min(0).optional(),
+  perUserLimit: z.number().int().min(0).optional(),
   applicableRestaurants: z.array(z.string()).optional(),
   isActive: z.boolean().optional(),
 });

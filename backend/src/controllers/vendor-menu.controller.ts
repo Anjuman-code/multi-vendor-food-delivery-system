@@ -116,10 +116,14 @@ export const deleteCategory = async (
     const { restaurantId } = await verifyRestaurantOwnership(req);
     const categoryId = req.params.categoryId as string;
 
-    const category = await MenuCategory.findOneAndDelete({
-      _id: categoryId,
-      restaurantId: new mongoose.Types.ObjectId(restaurantId),
-    });
+    const category = await MenuCategory.findOneAndUpdate(
+      {
+        _id: categoryId,
+        restaurantId: new mongoose.Types.ObjectId(restaurantId),
+      },
+      { deletedAt: new Date() },
+      { new: true },
+    );
 
     if (!category) throw new NotFoundError("Category not found");
 
@@ -260,10 +264,14 @@ export const deleteItem = async (
     const { restaurantId } = await verifyRestaurantOwnership(req);
     const itemId = req.params.itemId as string;
 
-    const item = await MenuItem.findOneAndDelete({
-      _id: itemId,
-      restaurantId: new mongoose.Types.ObjectId(restaurantId),
-    });
+    const item = await MenuItem.findOneAndUpdate(
+      {
+        _id: itemId,
+        restaurantId: new mongoose.Types.ObjectId(restaurantId),
+      },
+      { deletedAt: new Date() },
+      { new: true },
+    );
 
     if (!item) throw new NotFoundError("Menu item not found");
 

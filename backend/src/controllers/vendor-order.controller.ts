@@ -180,7 +180,7 @@ export const updateVendorOrderStatus = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { restaurantIds } = await getVendorRestaurantIds(req);
+    const { authReq, restaurantIds } = await getVendorRestaurantIds(req);
     const { orderId } = req.params;
     const { status: newStatus, note } = req.body as UpdateOrderStatusInput;
 
@@ -206,8 +206,14 @@ export const updateVendorOrderStatus = async (
     order.statusHistory.push({
       status: newStatus as OrderStatus,
       timestamp: new Date(),
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
       note,
     });
+
+    if (newStatus === OrderStatus.CONFIRMED && !order.vendorAcceptedAt) {
+      order.vendorAcceptedAt = new Date();
+    }
 
     if (newStatus === OrderStatus.CANCELLED) {
       order.cancelReason = note || "Cancelled by restaurant";
