@@ -37,10 +37,16 @@ type ApiRestaurant = {
     average?: number;
     count?: number;
   };
-  deliveryTime?: string;
+  deliveryTime?: string | { min: number; max: number };
   deliveryFee?: number;
   minimumOrder?: number;
 };
+
+function formatDeliveryTime(deliveryTime?: string | { min: number; max: number }): string {
+  if (!deliveryTime) return "30-45 min";
+  if (typeof deliveryTime === "object") return `${deliveryTime.min}-${deliveryTime.max} min`;
+  return deliveryTime;
+}
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -155,7 +161,7 @@ const RestaurantDetailsPage: React.FC = () => {
   );
 
   const handleAddToCart = useCallback(
-    (item: MenuItem) => {
+    async (item: MenuItem) => {
       if (!restaurant) return;
 
       const cartItem = {
@@ -269,7 +275,7 @@ const RestaurantDetailsPage: React.FC = () => {
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  {restaurant.deliveryTime || "30-45 min"}
+                  {formatDeliveryTime(restaurant.deliveryTime)}
                 </span>
               </div>
             </div>
@@ -366,7 +372,7 @@ const RestaurantDetailsPage: React.FC = () => {
                   <p className="flex items-center justify-between">
                     <span>Estimated time</span>
                     <span className="font-medium">
-                      {restaurant.deliveryTime || "30-45 min"}
+                      {formatDeliveryTime(restaurant.deliveryTime)}
                     </span>
                   </p>
                 </div>
