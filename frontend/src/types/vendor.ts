@@ -96,6 +96,7 @@ export interface VendorRestaurant {
   isTemporarilyClosed: boolean;
   closureReason?: string;
   approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   rating: RestaurantRating;
   deliveryTime: string;
   deliveryFee: number;
@@ -257,6 +258,7 @@ export interface VendorCoupon {
   startDate?: string;
   endDate?: string;
   usageLimit: number;
+  perUserLimit: number;
   usedCount: number;
   maxUses?: number;
   currentUses?: number;

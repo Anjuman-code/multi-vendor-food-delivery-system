@@ -8,8 +8,11 @@ import React, {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+import { useAuth } from "./AuthContext";
+import { cartService } from "@/services/cartService";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -110,11 +113,79 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [cart, setCart] = useState<CartState>(loadCart);
+  const { isAuthenticated } = useAuth();
+  const initialSyncDone = useRef(false);
 
-  // Persist on change
+  // Sync server cart on first authentication
+  useEffect(() => {
+    if (isAuthenticated && !initialSyncDone.current) {
+      initialSyncDone.current = true;
+      cartService.getCart().then((serverCart) => {
+        if (serverCart && serverCart.items.length > 0) {
+          const localCart = loadCart();
+          if (localCart.items.length === 0) {
+            // Server has items, local doesn't — use server
+            setCart({
+              restaurantId: serverCart.restaurantId,
+              restaurantName: serverCart.restaurantName,
+              items: serverCart.items.map((i) => ({
+                menuItemId: i.menuItemId,
+                name: i.name,
+                price: i.price,
+                image: i.image,
+                quantity: i.quantity,
+                variants: i.variants,
+                addons: i.addons,
+                specialInstructions: i.specialInstructions,
+              })),
+            });
+          } else if (
+            localCart.restaurantId === serverCart.restaurantId
+          ) {
+            // Same restaurant — merge (server wins on quantity for matching items)
+            // For now, keep local if both exist
+          }
+          // Different restaurant — keep local, server cart is stale
+        }
+      }).catch(() => {
+        // Server unreachable — continue with local cart
+      });
+    }
+  }, [isAuthenticated]);
+
+  // Persist on change (localStorage + server)
   useEffect(() => {
     saveCart(cart);
-  }, [cart]);
+    syncToServer(cart);
+  }, [cart, syncToServer]);
+
+  // Fire-and-forget server sync helper
+  const syncToServer = useCallback(
+    (state: CartState) => {
+      if (!isAuthenticated) return;
+      if (state.items.length === 0) {
+        cartService.clearCart().catch(() => {});
+        return;
+      }
+      if (state.restaurantId && state.restaurantName) {
+        cartService.syncCart({
+          restaurantId: state.restaurantId,
+          restaurantName: state.restaurantName,
+          items: state.items.map((i) => ({
+            menuItemId: i.menuItemId,
+            name: i.name,
+            price: i.price,
+            image: i.image,
+            quantity: i.quantity,
+            variants: i.variants,
+            addons: i.addons,
+            specialInstructions: i.specialInstructions,
+          })),
+        }).catch(() => {});
+      }
+    },
+    [isAuthenticated],
+  );
 
   const addItem = useCallback(
     (restaurantId: string, restaurantName: string, item: CartItem): boolean => {

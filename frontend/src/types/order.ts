@@ -6,8 +6,8 @@ export interface OrderItem {
   price: number;
   quantity: number;
   image?: string;
-  variants?: { name: string; price: number }[];
-  addons?: { name: string; price: number }[];
+  variants?: { variantId?: string; name: string; price: number }[];
+  addons?: { addonId?: string; name: string; price: number }[];
   specialInstructions?: string;
   itemTotal: number;
 }
@@ -34,6 +34,8 @@ export type PaymentStatusType = "pending" | "paid" | "failed" | "refunded";
 export interface StatusHistoryEntry {
   status: OrderStatus;
   timestamp: string;
+  actorId?: string;
+  actorRole?: string;
   note?: string;
 }
 
