@@ -12,22 +12,27 @@ import {
 // Users
 import {
     adjustLoyaltyPoints,
+    approveDriver,
     banCustomer,
     changeVendorCommission,
     createAdminUser,
     deactivateAdminUser,
     getCustomerDetail,
     getDriverDetail,
+    getDriverRatings,
     getVendorDetail,
     listAdmins,
     listCustomers,
+    listDriverApplications,
     listDrivers,
     listVendors,
+    rejectDriver,
     suspendCustomer,
     suspendDriver,
     suspendVendor,
     unbanCustomer,
     unsuspendCustomer,
+    unsuspendDriver,
     updateAdminUser,
     updateCustomer,
     verifyVendor,
@@ -139,8 +144,13 @@ router.patch("/vendors/:vendorId/commission", ...superAdminOnly, updateCommissio
 
 // ── Drivers ──────────────────────────────────────────────────────
 router.get("/users/drivers", ...adminAuth, listDrivers);
+router.get("/users/drivers/applications", ...adminAuth, listDriverApplications);
 router.get("/users/drivers/:id", ...adminAuth, getDriverDetail);
+router.get("/users/drivers/:id/ratings", ...adminAuth, getDriverRatings);
+router.post("/users/drivers/:id/approve", ...adminOnly, approveDriver);
+router.post("/users/drivers/:id/reject", ...adminOnly, rejectDriver);
 router.post("/users/drivers/:id/suspend", ...adminOnly, suspendDriver);
+router.post("/users/drivers/:id/unsuspend", ...adminOnly, unsuspendDriver);
 
 // ── Admin Team (super_admin only) ────────────────────────────────
 router.get("/team", ...superAdminOnly, listAdmins);

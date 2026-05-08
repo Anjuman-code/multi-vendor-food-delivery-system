@@ -5,39 +5,41 @@
 import { randomBytes } from "crypto";
 import { NextFunction, Request, Response } from "express";
 import CustomerProfile from "../models/CustomerProfile";
+import DriverProfile from "../models/DriverProfile";
 import User from "../models/User";
 import VendorProfile from "../models/VendorProfile";
 import {
-  buildGoogleAuthUrl,
-  GOOGLE_OAUTH_NEXT_COOKIE,
-  GOOGLE_OAUTH_STATE_COOKIE,
-  normaliseNextPath,
-  verifyGoogleAuthorizationCode,
+    buildGoogleAuthUrl,
+    GOOGLE_OAUTH_NEXT_COOKIE,
+    GOOGLE_OAUTH_STATE_COOKIE,
+    normaliseNextPath,
+    verifyGoogleAuthorizationCode,
 } from "../services/google-oauth.service";
 import { clearAuthCookies, setAuthCookies } from "../utils/auth-cookie.util";
 import {
-  sendPasswordResetEmail,
-  sendVerificationEmail,
+    sendPasswordResetEmail,
+    sendVerificationEmail,
 } from "../utils/email.util";
 import {
-  AuthenticationError,
-  ConflictError,
-  NotFoundError,
-  ValidationError,
+    AuthenticationError,
+    ConflictError,
+    NotFoundError,
+    ValidationError,
 } from "../utils/errors";
 import { verifyRefreshToken } from "../utils/jwt.util";
 import { validatePasswordStrength } from "../utils/password.util";
 import { successResponse } from "../utils/response.util";
 import { hashToken } from "../utils/token.util";
 import type {
-  ChangePasswordInput,
-  ForgotPasswordInput,
-  LoginInput,
-  OTPVerificationInput,
-  RegisterInput,
-  ResendVerificationInput,
-  ResetPasswordInput,
+    ChangePasswordInput,
+    ForgotPasswordInput,
+    LoginInput,
+    OTPVerificationInput,
+    RegisterInput,
+    ResendVerificationInput,
+    ResetPasswordInput,
 } from "../validations/auth.validation";
+import type { DriverRegisterInput } from "../validations/driver.validation";
 import type { VendorRegisterInput } from "../validations/vendor.validation";
 
 // ────────────────────────────────────────────────────────────────
@@ -280,6 +282,96 @@ export const registerVendor = async (
       res,
       { userId: user._id },
       "Vendor registration successful. Please verify your email.",
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/auth/register/driver
+ * Register a new driver — creates User (role: driver) and DriverProfile.
+ * Account is pending admin approval after email verification.
+ */
+export const registerDriver = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      licenseNumber,
+      vehicleType,
+      vehicleNumber,
+      licensePhoto,
+      vehicleRegistrationPhoto,
+      insurancePhoto,
+    } = req.body as DriverRegisterInput;
+
+    const existingEmail = await User.findByEmail(email);
+    if (existingEmail) {
+      throw new ConflictError("A user with this email already exists");
+    }
+
+    const existingPhone = await User.findByPhone(phoneNumber);
+    if (existingPhone) {
+      throw new ConflictError("A user with this phone number already exists");
+    }
+
+    const pwdCheck = validatePasswordStrength(password);
+    if (!pwdCheck.valid) {
+      throw new ValidationError(pwdCheck.errors.join(". "));
+    }
+
+    const user = new User({
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      role: "driver",
+    });
+
+    const { token: verificationToken, otp } =
+      user.generateEmailVerificationToken();
+    await user.save();
+
+    await DriverProfile.create({
+      userId: user._id,
+      licenseNumber,
+      vehicleType,
+      vehicleNumber,
+      applicationStatus: "pending",
+      documents: {
+        licensePhoto: licensePhoto ?? undefined,
+        vehicleRegistrationPhoto: vehicleRegistrationPhoto ?? undefined,
+        insurancePhoto: insurancePhoto ?? undefined,
+      },
+    });
+
+    try {
+      await sendVerificationEmail(email, otp, verificationToken);
+    } catch (emailError) {
+      console.error("[EMAIL] Failed to send verification email:", emailError);
+    }
+
+    console.log("\n========================================");
+    console.log("[EMAIL VERIFICATION - DRIVER]");
+    console.log(`  User:  ${email}`);
+    console.log(`  OTP:   ${otp}`);
+    console.log(`  Token: ${verificationToken}`);
+    console.log("========================================\n");
+
+    successResponse(
+      res,
+      { userId: user._id },
+      "Driver registration submitted. Please verify your email. Your application will be reviewed by an admin.",
       201,
     );
   } catch (error) {

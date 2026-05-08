@@ -115,15 +115,37 @@ export const initSocket = (server: HTTPServer): SocketServer => {
     const { userId, role } = socket.data as SocketData;
 
     // Join role-scoped room for targeted delivery
-    const room =
-      role === 'vendor' ? `vendor:${userId}` : `user:${userId}`;
+    let room: string;
+    if (role === 'vendor') {
+      room = `vendor:${userId}`;
+    } else if (role === 'driver') {
+      room = `driver:${userId}`;
+    } else if (role === 'admin' || role === 'support') {
+      room = 'admin:room';
+    } else {
+      room = `user:${userId}`;
+    }
     void socket.join(room);
+
+    // Driver: also join order-specific rooms for active deliveries
+    if (role === 'driver') {
+      socket.on('driver:joinOrderRoom', (orderId: string) => {
+        void socket.join(`order:${orderId}`);
+      });
+    }
+
+    // Customer: join own room (already done above via user:<userId>)
+    // Vendor: also join order rooms on request
+    if (role === 'vendor' || role === 'customer') {
+      socket.on('joinOrderRoom', (orderId: string) => {
+        void socket.join(`order:${orderId}`);
+      });
+    }
 
     // Driver location updates — persist and relay to customer
     if (role === 'driver') {
       socket.on('driver:locationUpdate', async (payload: DriverLocationPayload) => {
         try {
-          // Persist location event (lazy-import to avoid circular deps)
           const DriverLocationEvent = (await import('./models/DriverLocationEvent')).default;
           const Order = (await import('./models/Order')).default;
 
@@ -147,7 +169,20 @@ export const initSocket = (server: HTTPServer): SocketServer => {
             io!.to(`user:${order.customerId.toString()}`).emit('driver:locationUpdate', payload);
           }
         } catch {
-          // Non-blocking — don't crash the socket on persistence failure
+          // Non-blocking
+        }
+      });
+
+      // Auto-set unavailable on disconnect while on a delivery
+      socket.on('disconnect', async () => {
+        try {
+          const DriverProfile = (await import('./models/DriverProfile')).default;
+          await DriverProfile.updateOne(
+            { userId, isAvailable: true },
+            { isAvailable: false },
+          );
+        } catch {
+          // Non-blocking
         }
       });
     }

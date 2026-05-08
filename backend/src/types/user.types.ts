@@ -216,18 +216,47 @@ export interface IVendorProfileDocument
 }
 
 // ────────────────────────────────────────────────────────────────
-// Driver Profile (placeholder)
+// Driver Profile
 // ────────────────────────────────────────────────────────────────
+
+export interface IDriverDocuments {
+  licensePhoto?: string;
+  vehicleRegistrationPhoto?: string;
+  insurancePhoto?: string;
+}
+
+export interface IDriverBankDetails {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  mobileMoneyNumber?: string;
+  mobileMoneyProvider?: string;
+}
 
 export interface IDriverProfile {
   userId: Types.ObjectId;
+  // Application lifecycle
+  applicationStatus: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  approvedBy?: Types.ObjectId;
+  approvedAt?: Date;
+  // Vehicle & license
   licenseNumber: string;
   vehicleType: string;
   vehicleNumber: string;
+  // Documents
+  documents?: IDriverDocuments;
+  // Availability & location
   isAvailable: boolean;
   currentLocation: ICoordinates;
-  rating: number;
-  completedDeliveries: number;
+  // Performance
+  rating: { average: number; count: number };
+  totalDeliveries: number;
+  totalEarnings: number;
+  // Bank details
+  bankDetails?: IDriverBankDetails;
+  // Onboarding
+  onboardingCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

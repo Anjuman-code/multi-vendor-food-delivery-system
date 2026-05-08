@@ -8,7 +8,9 @@ import { AdminTier, UserRole } from '../config/constants';
 import AuditLog from '../models/AuditLog';
 import CustomerProfile from '../models/CustomerProfile';
 import DriverProfile from '../models/DriverProfile';
+import DriverRating from '../models/DriverRating';
 import LoyaltyTransaction from '../models/LoyaltyTransaction';
+import Notification, { NotificationType } from '../models/Notification';
 import Order from '../models/Order';
 import Restaurant from '../models/Restaurant';
 import User from '../models/User';
@@ -707,6 +709,196 @@ export const suspendDriver = async (
     });
 
     successResponse(res, { user }, 'Driver suspended');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/admin/users/drivers/:id/unsuspend */
+export const unsuspendDriver = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { reason } = req.body as { reason: string };
+    if (!reason) throw new ValidationError('Reason is required');
+
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.id, role: UserRole.DRIVER },
+      { isSuspended: false, suspendedReason: undefined, suspendedUntil: undefined, suspendedBy: undefined, isActive: true },
+      { new: true },
+    ).select('-password -refreshToken');
+    if (!user) throw new NotFoundError('Driver not found');
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: 'driver.unsuspended',
+      resourceType: 'User',
+      resourceId: user._id,
+      changes: [{ field: 'isSuspended', newValue: false }],
+      metadata: { reason },
+    });
+
+    successResponse(res, { user }, 'Driver unsuspended');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/admin/users/drivers/applications — pending driver applications */
+export const listDriverApplications = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
+    const skip = (page - 1) * limit;
+
+    const profiles = await DriverProfile.find({ applicationStatus: 'pending' })
+      .sort({ createdAt: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    const userIds = profiles.map((p) => p.userId);
+    const users = await User.find({ _id: { $in: userIds } }).select('-password -refreshToken');
+    const userMap = new Map(users.map((u) => [u._id.toString(), u]));
+
+    const total = await DriverProfile.countDocuments({ applicationStatus: 'pending' });
+
+    const applications = profiles.map((p) => ({
+      ...p.toObject(),
+      user: userMap.get(p.userId.toString()) ?? null,
+    }));
+
+    successResponse(res, { applications, pagination: buildPagination(page, limit, total) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/admin/users/drivers/:id/approve */
+export const approveDriver = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { welcomeNote } = req.body as { welcomeNote?: string };
+
+    const profile = await DriverProfile.findOneAndUpdate(
+      { userId: req.params.id, applicationStatus: 'pending' },
+      {
+        applicationStatus: 'approved',
+        approvedBy: authReq.user._id,
+        approvedAt: new Date(),
+      },
+      { new: true },
+    );
+    if (!profile) throw new NotFoundError('Pending driver application not found');
+
+    await User.updateOne({ _id: req.params.id }, { isActive: true });
+
+    // Notify driver
+    await Notification.create({
+      userId: req.params.id,
+      type: NotificationType.SYSTEM,
+      title: 'Application approved!',
+      message: welcomeNote || 'Your driver application has been approved. You can now start accepting deliveries.',
+      data: { action: 'driver_approved' },
+    });
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: 'driver.approved',
+      resourceType: 'DriverProfile',
+      resourceId: profile._id,
+      changes: [{ field: 'applicationStatus', newValue: 'approved' }],
+    });
+
+    successResponse(res, { profile }, 'Driver application approved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/admin/users/drivers/:id/reject */
+export const rejectDriver = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { reason } = req.body as { reason: string };
+    if (!reason) throw new ValidationError('Rejection reason is required');
+
+    const profile = await DriverProfile.findOneAndUpdate(
+      { userId: req.params.id },
+      { applicationStatus: 'rejected', rejectionReason: reason },
+      { new: true },
+    );
+    if (!profile) throw new NotFoundError('Driver profile not found');
+
+    // Notify driver
+    await Notification.create({
+      userId: req.params.id,
+      type: NotificationType.SYSTEM,
+      title: 'Application not approved',
+      message: `Your driver application was not approved. Reason: ${reason}. You may resubmit after correcting the issues.`,
+      data: { action: 'driver_rejected', reason },
+    });
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: 'driver.rejected',
+      resourceType: 'DriverProfile',
+      resourceId: profile._id,
+      changes: [{ field: 'applicationStatus', newValue: 'rejected' }, { field: 'rejectionReason', newValue: reason }],
+      metadata: { reason },
+    });
+
+    successResponse(res, { profile }, 'Driver application rejected');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/admin/users/drivers/:id/ratings */
+export const getDriverRatings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, parseInt(req.query.limit as string) || 20);
+    const skip = (page - 1) * limit;
+
+    const [ratings, total] = await Promise.all([
+      DriverRating.find({ driverId: req.params.id })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('orderId', 'orderNumber')
+        .populate('customerId', 'firstName lastName'),
+      DriverRating.countDocuments({ driverId: req.params.id }),
+    ]);
+
+    successResponse(res, { ratings, pagination: buildPagination(page, limit, total) });
   } catch (error) {
     next(error);
   }

@@ -5,33 +5,35 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { RATE_LIMITS } from '../config/constants';
 import {
-  changePassword,
-  completeOnboarding,
-  forgotPassword,
-  getSession,
-  handleGoogleCallback,
-  login,
-  logout,
-  refreshToken,
-  register,
-  registerVendor,
-  resendVerification,
-  resetPassword,
-  startGoogleAuth,
-  verifyEmail,
-  verifyOTP,
+    changePassword,
+    completeOnboarding,
+    forgotPassword,
+    getSession,
+    handleGoogleCallback,
+    login,
+    logout,
+    refreshToken,
+    register,
+    registerDriver,
+    registerVendor,
+    resendVerification,
+    resetPassword,
+    startGoogleAuth,
+    verifyEmail,
+    verifyOTP,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import {
-  changePasswordSchema,
-  forgotPasswordSchema,
-  loginSchema,
-  otpVerificationSchema,
-  registerSchema,
-  resendVerificationSchema,
-  resetPasswordSchema,
+    changePasswordSchema,
+    forgotPasswordSchema,
+    loginSchema,
+    otpVerificationSchema,
+    registerSchema,
+    resendVerificationSchema,
+    resetPasswordSchema,
 } from '../validations/auth.validation';
+import { driverRegisterSchema } from '../validations/driver.validation';
 import { vendorRegisterSchema } from '../validations/vendor.validation';
 
 const router: Router = Router();
@@ -71,6 +73,12 @@ router.post(
   registerLimiter,
   validate(vendorRegisterSchema),
   registerVendor,
+);
+router.post(
+  '/register/driver',
+  registerLimiter,
+  validate(driverRegisterSchema),
+  registerDriver,
 );
 router.post('/login', loginLimiter, validate(loginSchema), login);
 router.post('/refresh', refreshToken);
