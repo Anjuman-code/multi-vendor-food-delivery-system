@@ -4,6 +4,7 @@
 import { Document, Model, Types } from 'mongoose';
 import {
     AddressType,
+    AdminTier,
     CustomerTier,
     PaymentMethodType,
     UserRole,
@@ -40,6 +41,19 @@ export interface IUser {
   role: UserRole;
   isEmailVerified: boolean;
   isActive: boolean;
+
+  // Admin sub-tier
+  adminTier?: AdminTier | null;
+
+  // Suspension / ban
+  isSuspended: boolean;
+  suspendedReason?: string;
+  suspendedUntil?: Date | null;
+  suspendedBy?: Types.ObjectId;
+  isBanned: boolean;
+  bannedReason?: string;
+  bannedAt?: Date;
+  bannedBy?: Types.ObjectId;
 
   firstName: string;
   lastName: string;

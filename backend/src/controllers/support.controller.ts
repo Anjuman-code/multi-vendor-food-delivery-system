@@ -2,24 +2,24 @@
  * Support ticket controller — customers create/view tickets;
  * support agents manage and resolve them.
  */
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import SupportTicket, { TicketStatus } from "../models/SupportTicket";
-import { createAuditLog } from "../utils/audit.util";
-import { successResponse } from "../utils/response.util";
-import {
-  AuthenticationError,
-  AuthorizationError,
-  NotFoundError,
-  ValidationError,
-} from "../utils/errors";
-import type { AuthRequest } from "../types";
-import type {
-  CreateTicketInput,
-  AddMessageInput,
-  UpdateTicketInput,
-} from "../validations/support.validation";
 import { UserRole } from "../config/constants";
+import SupportTicket, { TicketStatus } from "../models/SupportTicket";
+import type { AuthRequest } from "../types";
+import { createAuditLog } from "../utils/audit.util";
+import {
+    AuthenticationError,
+    AuthorizationError,
+    NotFoundError,
+    ValidationError,
+} from "../utils/errors";
+import { successResponse } from "../utils/response.util";
+import type {
+    AddMessageInput,
+    CreateTicketInput,
+    UpdateTicketInput,
+} from "../validations/support.validation";
 
 // ── Customer Endpoints ───────────────────────────────────────────
 
@@ -157,17 +157,28 @@ export const listAllTickets = async (
 
     const status = req.query.status as string | undefined;
     const priority = req.query.priority as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const skip = (page - 1) * limit;
 
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
 
-    const tickets = await SupportTicket.find(filter)
-      .populate("userId", "firstName lastName email")
-      .populate("assignedTo", "firstName lastName")
-      .sort("-createdAt");
+    const [tickets, total] = await Promise.all([
+      SupportTicket.find(filter)
+        .populate("userId", "firstName lastName email")
+        .populate("assignedTo", "firstName lastName")
+        .sort("-createdAt")
+        .skip(skip)
+        .limit(limit),
+      SupportTicket.countDocuments(filter),
+    ]);
 
-    successResponse(res, { tickets, count: tickets.length });
+    successResponse(res, {
+      tickets,
+      pagination: { total, pages: Math.ceil(total / limit), page, limit },
+    });
   } catch (error) {
     next(error);
   }

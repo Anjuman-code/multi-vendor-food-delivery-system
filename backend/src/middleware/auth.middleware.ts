@@ -2,7 +2,7 @@
  * Authentication & authorisation middleware.
  */
 import { NextFunction, Request, Response } from 'express';
-import { UserRole } from '../config/constants';
+import { AdminTier, UserRole } from '../config/constants';
 import User from '../models/User';
 import { IUserDocument } from '../types/user.types';
 import { verifyAccessToken } from '../utils/jwt.util';
@@ -84,6 +84,35 @@ export const authorize = (...roles: UserRole[]) => {
       res.status(403).json({
         success: false,
         message: 'You do not have permission to perform this action',
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+/**
+ * Admin tier-based access control – restrict endpoint to specified admin tiers.
+ * Must be used AFTER authenticate + authorize(UserRole.ADMIN | UserRole.SUPPORT).
+ *
+ * Tier hierarchy: super_admin > admin > support
+ *
+ * @example router.delete('/...', authenticate, authorize(UserRole.ADMIN), requireAdminTier(AdminTier.SUPER_ADMIN), handler);
+ */
+export const requireAdminTier = (...tiers: AdminTier[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    const userTier = req.user.adminTier as AdminTier | undefined | null;
+
+    if (!userTier || !tiers.includes(userTier)) {
+      res.status(403).json({
+        success: false,
+        message: 'Insufficient admin privileges for this action',
       });
       return;
     }

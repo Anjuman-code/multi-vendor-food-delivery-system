@@ -11,6 +11,16 @@ export enum UserRole {
   SUPPORT = "support",
 }
 
+// ── Admin Tiers ────────────────────────────────────────────────
+// super_admin: full destructive access, financial controls
+// admin: operational management, no financial destructive actions
+// support: read + limited write, customer-facing resolution only
+export enum AdminTier {
+  SUPER_ADMIN = "super_admin",
+  ADMIN = "admin",
+  SUPPORT = "support",
+}
+
 // ── Address Types ──────────────────────────────────────────────
 export enum AddressType {
   HOME = "home",
@@ -39,6 +49,13 @@ export enum VehicleType {
   MOTORCYCLE = "motorcycle",
   CAR = "car",
   VAN = "van",
+}
+
+// ── Account Suspension ─────────────────────────────────────────
+export enum AccountStatus {
+  ACTIVE = "active",
+  SUSPENDED = "suspended",
+  BANNED = "banned",
 }
 
 // ── Auth Constants ─────────────────────────────────────────────

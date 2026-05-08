@@ -6,7 +6,7 @@
  */
 import bcrypt from 'bcryptjs';
 import mongoose, { Schema } from 'mongoose';
-import { AddressType, AUTH, UserRole } from '../config/constants';
+import { AddressType, AdminTier, AUTH, UserRole } from '../config/constants';
 import {
     IAddress,
     ICoordinates,
@@ -80,6 +80,23 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     },
     isEmailVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+
+    // Admin tier (only set when role === admin or support)
+    adminTier: {
+      type: String,
+      enum: Object.values(AdminTier),
+      default: null,
+    },
+
+    // Account suspension / ban
+    isSuspended: { type: Boolean, default: false },
+    suspendedReason: { type: String },
+    suspendedUntil: { type: Date }, // null = indefinite
+    suspendedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    isBanned: { type: Boolean, default: false },
+    bannedReason: { type: String },
+    bannedAt: { type: Date },
+    bannedBy: { type: Schema.Types.ObjectId, ref: 'User' },
 
     // Profile
     firstName: {
