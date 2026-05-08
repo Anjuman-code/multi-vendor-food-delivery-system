@@ -1,12 +1,23 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { UserRole } from '../backend/src/config/constants';
+import { AdminTier, UserRole } from '../backend/src/config/constants';
 import CustomerProfile from '../backend/src/models/CustomerProfile';
 import MenuCategory from '../backend/src/models/MenuCategory';
 import MenuItem from '../backend/src/models/MenuItem';
 import Restaurant from '../backend/src/models/Restaurant';
 import User from '../backend/src/models/User';
 import VendorProfile from '../backend/src/models/VendorProfile';
+
+const ANSI = {
+  reset: '\x1b[0m',
+  cyan: '\x1b[36m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  red: '\x1b[31m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+};
+const c = (color: string, msg: string) => `${color}${msg}${ANSI.reset}`;
 
 const backendRequire = createRequire(
   path.resolve(__dirname, '../backend/package.json'),
@@ -23,6 +34,31 @@ const ADMIN_USER = {
   firstName: 'System',
   lastName: 'Admin',
   role: UserRole.ADMIN,
+  adminTier: AdminTier.SUPER_ADMIN,
+  isEmailVerified: true,
+  isPhoneVerified: true,
+  isActive: true,
+} as const;
+
+const ADMIN_USER_2 = {
+  email: 'ops@seed.com',
+  password: 'Admin@123456',
+  firstName: 'Ops',
+  lastName: 'Manager',
+  role: UserRole.ADMIN,
+  adminTier: AdminTier.ADMIN,
+  isEmailVerified: true,
+  isPhoneVerified: true,
+  isActive: true,
+} as const;
+
+const SUPPORT_USER = {
+  email: 'support@seed.com',
+  password: 'Admin@123456',
+  firstName: 'Support',
+  lastName: 'Agent',
+  role: UserRole.ADMIN,
+  adminTier: AdminTier.SUPPORT,
   isEmailVerified: true,
   isPhoneVerified: true,
   isActive: true,
@@ -176,26 +212,31 @@ const PACH_BHAI_RESTAURANT = {
 const seedDatabase = async (): Promise<void> => {
   const mongoDbUri = process.env.MONGODB_URI;
   if (!mongoDbUri) {
-    throw new Error('MONGODB_URI is not defined in environment variables.');
+    console.error(c(ANSI.red, '✖  MONGODB_URI is not defined in .env'));
+    process.exit(1);
   }
 
+  console.log(c(ANSI.cyan, 'Connecting to MongoDB...'));
   await mongoose.connect(mongoDbUri);
 
   try {
     const db = mongoose.connection.db;
     if (!db) throw new Error('Database handle is undefined after connecting.');
 
+    console.log(c(ANSI.cyan, 'Dropping database...'));
     await db.dropDatabase();
-    console.log('Database dropped. Seeding...\n');
+    console.log(c(ANSI.yellow, 'Database dropped. Seeding...\n'));
 
-    // ── Admin user ──────────────────────────────────────────────
+    // ── Admin users ─────────────────────────────────────────────
     await User.create(ADMIN_USER);
-    console.log('✓ Admin user created');
+    await User.create(ADMIN_USER_2);
+    await User.create(SUPPORT_USER);
+    console.log(c(ANSI.green, '✓ Admin users created (super_admin, admin, support)'));
 
     // ── Customer user ───────────────────────────────────────────
     const regularUser = await User.create(REGULAR_USER);
     await CustomerProfile.create({ userId: regularUser._id });
-    console.log('✓ Customer user created');
+    console.log(c(ANSI.green, '✓ Customer user created'));
 
     // ── Panshi Restaurant ───────────────────────────────────────
     const panshiVendorUser = await User.create(PANSHI_VENDOR_USER);
@@ -432,7 +473,7 @@ const seedDatabase = async (): Promise<void> => {
       },
     ]);
 
-    console.log('✓ Panshi Restaurant created with 3 categories and 15 menu items');
+    console.log(c(ANSI.green, '✓ Panshi Restaurant created with 3 categories and 15 menu items'));
 
     // ── Pach Bhai Restaurant ────────────────────────────────────
     const pachBhaiVendorUser = await User.create(PACH_BHAI_VENDOR_USER);
@@ -662,7 +703,7 @@ const seedDatabase = async (): Promise<void> => {
       },
     ]);
 
-    console.log('✓ Pach Bhai Restaurant created with 4 categories and 13 menu items');
+    console.log(c(ANSI.green, '✓ Pach Bhai Restaurant created with 4 categories and 13 menu items'));
 
     // ── Verification ────────────────────────────────────────────
     const [
@@ -685,28 +726,33 @@ const seedDatabase = async (): Promise<void> => {
       User.countDocuments({}),
     ]);
 
-    if (adminCount !== 1) throw new Error(`Expected 1 admin, got ${adminCount}.`);
+    if (adminCount !== 3) throw new Error(`Expected 3 admin users, got ${adminCount}.`);
     if (vendorCount !== 2) throw new Error(`Expected 2 vendor users, got ${vendorCount}.`);
     if (vendorProfileCount !== 2) throw new Error(`Expected 2 vendor profiles, got ${vendorProfileCount}.`);
     if (restaurantCount !== 2) throw new Error(`Expected 2 restaurants, got ${restaurantCount}.`);
     if (categoryCount !== 7) throw new Error(`Expected 7 menu categories, got ${categoryCount}.`);
     if (menuItemCount !== 28) throw new Error(`Expected 28 menu items, got ${menuItemCount}.`);
     if (regularUserCount !== 1) throw new Error(`Expected 1 regular user, got ${regularUserCount}.`);
-    if (totalUserCount !== 4) throw new Error(`Expected 4 total users, got ${totalUserCount}.`);
+    if (totalUserCount !== 6) throw new Error(`Expected 6 total users, got ${totalUserCount}.`);
 
-    console.log('\n✅ Seed completed successfully.');
-    console.log('────────────────────────────────────────────');
-    console.log(`  Users       : ${totalUserCount} (1 admin, 2 vendors, 1 customer)`);
+    console.log(c(ANSI.bold, '\n✅ Seed completed successfully.'));
+    console.log(c(ANSI.dim, '────────────────────────────────────────────'));
+    console.log(`  Users       : ${totalUserCount} (3 admins, 2 vendors, 1 customer)`);
+    console.log(c(ANSI.dim, `    admin@seed.com    — super_admin  / Admin@123456`));
+    console.log(c(ANSI.dim, `    ops@seed.com      — admin        / Admin@123456`));
+    console.log(c(ANSI.dim, `    support@seed.com  — support      / Admin@123456`));
+    console.log(c(ANSI.dim, `    customer@seed.com — customer     / Customer@123456`));
     console.log(`  Restaurants : ${restaurantCount} (Panshi, Pach Bhai)`);
     console.log(`  Categories  : ${categoryCount}`);
     console.log(`  Menu items  : ${menuItemCount} (15 Panshi + 13 Pach Bhai)`);
-    console.log('────────────────────────────────────────────');
+    console.log(c(ANSI.dim, '────────────────────────────────────────────'));
+  } catch (error) {
+    console.error(c(ANSI.red, '\n✖  Seed failed.'));
+    console.error(error);
+    process.exitCode = 1;
   } finally {
     await mongoose.connection.close();
   }
 };
 
-seedDatabase().catch((error: unknown) => {
-  console.error('Error seeding database:', error);
-  process.exit(1);
-});
+void seedDatabase();
