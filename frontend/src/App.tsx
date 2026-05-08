@@ -53,6 +53,30 @@ const VendorPromotionsPage = lazy(() => import("./pages/vendor/VendorPromotionsP
 const VendorAnalyticsPage = lazy(() => import("./pages/vendor/VendorAnalyticsPage"));
 const VendorSettingsPage = lazy(() => import("./pages/vendor/VendorSettingsPage"));
 
+// ── Admin pages ─────────────────────────────────────────────────
+const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
+const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
+const AdminCustomersPage = lazy(() => import("./pages/admin/users/CustomersPage"));
+const AdminCustomerDetailPage = lazy(() => import("./pages/admin/users/CustomerDetailPage"));
+const AdminVendorsPage = lazy(() => import("./pages/admin/users/VendorsPage"));
+const AdminVendorDetailPage = lazy(() => import("./pages/admin/users/VendorDetailPage"));
+const AdminDriversPage = lazy(() => import("./pages/admin/users/DriversPage"));
+const AdminDriverDetailPage = lazy(() => import("./pages/admin/users/DriverDetailPage"));
+const AdminRestaurantsPage = lazy(() => import("./pages/admin/restaurants/RestaurantsPage"));
+const AdminApprovalQueuePage = lazy(() => import("./pages/admin/restaurants/ApprovalQueuePage"));
+const AdminRestaurantDetailPage = lazy(() => import("./pages/admin/restaurants/RestaurantDetailPage"));
+const AdminOrdersPage = lazy(() => import("./pages/admin/orders/OrdersPage"));
+const AdminOrderDetailPage = lazy(() => import("./pages/admin/orders/OrderDetailPage"));
+const AdminPayoutsPage = lazy(() => import("./pages/admin/finance/PayoutsPage"));
+const AdminRevenueReportsPage = lazy(() => import("./pages/admin/finance/RevenueReportsPage"));
+const AdminSupportPage = lazy(() => import("./pages/admin/support/SupportPage"));
+const AdminReviewModerationPage = lazy(() => import("./pages/admin/support/ReviewModerationPage"));
+const AdminTaxonomyPage = lazy(() => import("./pages/admin/content/TaxonomyPage"));
+const AdminContentBlocksPage = lazy(() => import("./pages/admin/content/ContentBlocksPage"));
+const AdminAuditLogPage = lazy(() => import("./pages/admin/system/AuditLogPage"));
+const AdminTeamPage = lazy(() => import("./pages/admin/system/AdminTeamPage"));
+const AdminPlatformSettingsPage = lazy(() => import("./pages/admin/settings/PlatformSettingsPage"));
+
 function App(): React.ReactElement {
   return (
     <Router>
@@ -121,6 +145,31 @@ function App(): React.ReactElement {
                     <Route path="/vendor/promotions" element={<VendorPromotionsPage />} />
                     <Route path="/vendor/analytics" element={<VendorAnalyticsPage />} />
                     <Route path="/vendor/settings" element={<VendorSettingsPage />} />
+                  </Route>
+
+                  {/* ── Admin routes (own sidebar layout) ───── */}
+                  <Route path="/admin" element={<AdminLayout />}>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="users/customers" element={<AdminCustomersPage />} />
+                    <Route path="users/customers/:id" element={<AdminCustomerDetailPage />} />
+                    <Route path="users/vendors" element={<AdminVendorsPage />} />
+                    <Route path="users/vendors/:id" element={<AdminVendorDetailPage />} />
+                    <Route path="users/drivers" element={<AdminDriversPage />} />
+                    <Route path="users/drivers/:id" element={<AdminDriverDetailPage />} />
+                    <Route path="restaurants" element={<AdminRestaurantsPage />} />
+                    <Route path="restaurants/approval-queue" element={<AdminApprovalQueuePage />} />
+                    <Route path="restaurants/:id" element={<AdminRestaurantDetailPage />} />
+                    <Route path="orders" element={<AdminOrdersPage />} />
+                    <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+                    <Route path="finance/payouts" element={<AdminPayoutsPage />} />
+                    <Route path="finance/revenue" element={<AdminRevenueReportsPage />} />
+                    <Route path="support" element={<AdminSupportPage />} />
+                    <Route path="reviews" element={<AdminReviewModerationPage />} />
+                    <Route path="content/taxonomy" element={<AdminTaxonomyPage />} />
+                    <Route path="content/blocks" element={<AdminContentBlocksPage />} />
+                    <Route path="audit-log" element={<AdminAuditLogPage />} />
+                    <Route path="team" element={<AdminTeamPage />} />
+                    <Route path="settings" element={<AdminPlatformSettingsPage />} />
                   </Route>
                 </Routes>
               </Suspense>

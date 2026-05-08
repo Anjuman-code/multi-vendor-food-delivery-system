@@ -2,6 +2,7 @@
  * CartContext – persistent shopping cart state with localStorage backing.
  * Enforces single-restaurant cart (standard for food delivery).
  */
+import { cartService } from "@/services/cartService";
 import React, {
     createContext,
     useCallback,
@@ -12,7 +13,6 @@ import React, {
     useState,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { cartService } from "@/services/cartService";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -153,12 +153,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isAuthenticated]);
 
-  // Persist on change (localStorage + server)
-  useEffect(() => {
-    saveCart(cart);
-    syncToServer(cart);
-  }, [cart, syncToServer]);
-
   // Fire-and-forget server sync helper
   const syncToServer = useCallback(
     (state: CartState) => {
@@ -186,6 +180,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [isAuthenticated],
   );
+
+  // Persist on change (localStorage + server)
+  useEffect(() => {
+    saveCart(cart);
+    syncToServer(cart);
+  }, [cart, syncToServer]);
 
   const addItem = useCallback(
     (restaurantId: string, restaurantName: string, item: CartItem): boolean => {
