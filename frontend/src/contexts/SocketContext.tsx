@@ -1,7 +1,7 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { useAuth } from "@/contexts/AuthContext";
 
 const SOCKET_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
@@ -20,6 +20,17 @@ interface OrderStatusPayload {
   _id: string;
   orderNumber: string;
   newStatus: string;
+  previousStatus?: string;
+}
+
+export interface DriverLocationPayload {
+  driverId: string;
+  orderId: string;
+  latitude: number;
+  longitude: number;
+  heading?: number;
+  speed?: number;
+  timestamp: string;
 }
 
 // ── Context type ─────────────────────────────────────────────────
@@ -31,6 +42,10 @@ export interface SocketContextType {
   /** Number of unread new orders (vendors only). Resets via clearNewOrderCount. */
   newOrderCount: number;
   clearNewOrderCount: () => void;
+  /** Last driver location update — available to customers watching an active order */
+  driverLocation: DriverLocationPayload | null;
+  /** Subscribe to driver location for a specific orderId */
+  watchOrderLocation: (orderId: string) => void;
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -39,6 +54,8 @@ const SocketContext = createContext<SocketContextType>({
   connectionFailed: false,
   newOrderCount: 0,
   clearNewOrderCount: () => {},
+  driverLocation: null,
+  watchOrderLocation: () => {},
 });
 
 export const useSocketContext = () => useContext(SocketContext);
@@ -85,6 +102,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isConnected, setIsConnected] = useState(false);
   const [connectionFailed, setConnectionFailed] = useState(false);
   const [newOrderCount, setNewOrderCount] = useState(0);
+  const [driverLocation, setDriverLocation] = useState<DriverLocationPayload | null>(null);
 
   // One socket per authenticated user — recreate on login/logout
   useEffect(() => {
@@ -156,11 +174,41 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     };
 
+    const locationHandler = (data: DriverLocationPayload) => {
+      setDriverLocation(data);
+    };
+
     socket.on("orderStatusUpdate", handler);
+    socket.on("driver:locationUpdate", locationHandler);
     return () => {
       socket.off("orderStatusUpdate", handler);
+      socket.off("driver:locationUpdate", locationHandler);
     };
   }, [socket, user?.role, toast]);
+
+  // ── Driver: new delivery available ───────────────────────────
+  useEffect(() => {
+    if (!socket || user?.role !== "driver") return;
+
+    const handler = (data: { orderNumber: string; restaurantName?: string; deliveryFee?: number }) => {
+      toast({
+        title: "New Delivery Available!",
+        description: `Order ${data.orderNumber}${data.restaurantName ? ` from ${data.restaurantName}` : ""}${data.deliveryFee ? ` · ৳${data.deliveryFee}` : ""}`,
+      });
+      playBeep();
+    };
+
+    socket.on("driver:newDeliveryAvailable", handler);
+    return () => {
+      socket.off("driver:newDeliveryAvailable", handler);
+    };
+  }, [socket, user?.role, toast]);
+
+  const watchOrderLocation = (orderId: string) => {
+    if (socket) {
+      socket.emit("joinOrderRoom", orderId);
+    }
+  };
 
   return (
     <SocketContext.Provider
@@ -170,6 +218,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         connectionFailed,
         newOrderCount,
         clearNewOrderCount: () => setNewOrderCount(0),
+        driverLocation,
+        watchOrderLocation,
       }}
     >
       {children}

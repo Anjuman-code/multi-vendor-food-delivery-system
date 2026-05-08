@@ -186,3 +186,37 @@ export const vendorRegisterSchema = z
   });
 
 export type VendorRegisterFormData = z.infer<typeof vendorRegisterSchema>;
+
+// ── Rider Registration schema ──────────────────────────────────
+export const riderRegisterSchema = z
+  .object({
+    firstName: z.string().min(2, "First name must be at least 2 characters").max(50).trim(),
+    lastName: z.string().min(2, "Last name must be at least 2 characters").max(50).trim(),
+    email: z.string().email("Please enter a valid email address"),
+    phoneNumber: z
+      .string()
+      .min(7, "Phone number is too short")
+      .max(20, "Phone number is too long")
+      .regex(/^\+?[\d\s\-()]+$/, "Please enter a valid phone number"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128)
+      .regex(/[a-z]/, "Must contain a lowercase letter")
+      .regex(/[A-Z]/, "Must contain an uppercase letter")
+      .regex(/[0-9]/, "Must contain a number")
+      .regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/, "Must contain a special character"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+    licenseNumber: z.string().min(2, "License number is required").max(50).trim(),
+    vehicleType: z.enum(["bicycle", "motorcycle", "car", "van", "truck"], {
+      errorMap: () => ({ message: "Please select a vehicle type" }),
+    }),
+    vehicleNumber: z.string().min(2, "Vehicle number is required").max(20).trim(),
+    agreedToTerms: z.boolean().refine((v) => v, { message: "You must agree to the terms" }),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type RiderRegisterFormData = z.infer<typeof riderRegisterSchema>;

@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { AdminTier, UserRole } from '../backend/src/config/constants';
+import { AdminTier, UserRole, VehicleType } from '../backend/src/config/constants';
 import CustomerProfile from '../backend/src/models/CustomerProfile';
+import DriverProfile from '../backend/src/models/DriverProfile';
 import MenuCategory from '../backend/src/models/MenuCategory';
 import MenuItem from '../backend/src/models/MenuItem';
 import Restaurant from '../backend/src/models/Restaurant';
@@ -92,6 +93,18 @@ const REGULAR_USER = {
   firstName: 'Regular',
   lastName: 'User',
   role: UserRole.CUSTOMER,
+  isEmailVerified: true,
+  isPhoneVerified: true,
+  isActive: true,
+} as const;
+
+const DRIVER_USER = {
+  email: 'driver@seed.com',
+  password: 'Driver@123456',
+  firstName: 'Rahim',
+  lastName: 'Driver',
+  role: UserRole.DRIVER,
+  phoneNumber: '+8801911223344',
   isEmailVerified: true,
   isPhoneVerified: true,
   isActive: true,
@@ -237,6 +250,22 @@ const seedDatabase = async (): Promise<void> => {
     const regularUser = await User.create(REGULAR_USER);
     await CustomerProfile.create({ userId: regularUser._id });
     console.log(c(ANSI.green, '✓ Customer user created'));
+
+    // ── Driver user ─────────────────────────────────────────────
+    const driverUser = await User.create(DRIVER_USER);
+    await DriverProfile.create({
+      userId: driverUser._id,
+      applicationStatus: 'approved',
+      licenseNumber: 'SYL-DL-2024-007',
+      vehicleType: VehicleType.MOTORCYCLE,
+      vehicleNumber: 'SYLHET-M-1234',
+      isAvailable: false,
+      isVerified: true,
+      totalDeliveries: 0,
+      totalEarnings: 0,
+      rating: { average: 0, count: 0 },
+    });
+    console.log(c(ANSI.green, '✓ Driver user created (approved, motorcycle)'));
 
     // ── Panshi Restaurant ───────────────────────────────────────
     const panshiVendorUser = await User.create(PANSHI_VENDOR_USER);
@@ -714,6 +743,8 @@ const seedDatabase = async (): Promise<void> => {
       categoryCount,
       menuItemCount,
       regularUserCount,
+      driverCount,
+      driverProfileCount,
       totalUserCount,
     ] = await Promise.all([
       User.countDocuments({ role: UserRole.ADMIN }),
@@ -723,6 +754,8 @@ const seedDatabase = async (): Promise<void> => {
       MenuCategory.countDocuments({}),
       MenuItem.countDocuments({}),
       User.countDocuments({ role: UserRole.CUSTOMER }),
+      User.countDocuments({ role: UserRole.DRIVER }),
+      DriverProfile.countDocuments({}),
       User.countDocuments({}),
     ]);
 
@@ -733,15 +766,18 @@ const seedDatabase = async (): Promise<void> => {
     if (categoryCount !== 7) throw new Error(`Expected 7 menu categories, got ${categoryCount}.`);
     if (menuItemCount !== 28) throw new Error(`Expected 28 menu items, got ${menuItemCount}.`);
     if (regularUserCount !== 1) throw new Error(`Expected 1 regular user, got ${regularUserCount}.`);
-    if (totalUserCount !== 6) throw new Error(`Expected 6 total users, got ${totalUserCount}.`);
+    if (driverCount !== 1) throw new Error(`Expected 1 driver user, got ${driverCount}.`);
+    if (driverProfileCount !== 1) throw new Error(`Expected 1 driver profile, got ${driverProfileCount}.`);
+    if (totalUserCount !== 7) throw new Error(`Expected 7 total users, got ${totalUserCount}.`);
 
     console.log(c(ANSI.bold, '\n✅ Seed completed successfully.'));
     console.log(c(ANSI.dim, '────────────────────────────────────────────'));
-    console.log(`  Users       : ${totalUserCount} (3 admins, 2 vendors, 1 customer)`);
+    console.log(`  Users       : ${totalUserCount} (3 admins, 2 vendors, 1 customer, 1 driver)`);
     console.log(c(ANSI.dim, `    admin@seed.com    — super_admin  / Admin@123456`));
     console.log(c(ANSI.dim, `    ops@seed.com      — admin        / Admin@123456`));
     console.log(c(ANSI.dim, `    support@seed.com  — support      / Admin@123456`));
     console.log(c(ANSI.dim, `    customer@seed.com — customer     / Customer@123456`));
+    console.log(c(ANSI.dim, `    driver@seed.com   — driver       / Driver@123456`));
     console.log(`  Restaurants : ${restaurantCount} (Panshi, Pach Bhai)`);
     console.log(`  Categories  : ${categoryCount}`);
     console.log(`  Menu items  : ${menuItemCount} (15 Panshi + 13 Pach Bhai)`);

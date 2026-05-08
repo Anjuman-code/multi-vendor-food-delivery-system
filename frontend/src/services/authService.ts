@@ -63,6 +63,18 @@ export interface VendorRegisterPayload {
   taxId: string;
 }
 
+/** Payload sent to POST /api/auth/register/driver */
+export interface DriverRegisterPayload {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  licenseNumber: string;
+  vehicleType: string;
+  vehicleNumber: string;
+}
+
 /** Payload sent to POST /api/auth/login */
 export interface LoginPayload {
   emailOrPhone: string;
@@ -119,6 +131,24 @@ const authService = {
     try {
       const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
         "/api/auth/register/vendor",
+        payload,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<RegisterResponseData>;
+    }
+  },
+
+  /**
+   * POST /api/auth/register/driver
+   * Creates a new driver account pending admin approval.
+   */
+  async registerDriver(
+    payload: DriverRegisterPayload,
+  ): Promise<ApiResponse<RegisterResponseData>> {
+    try {
+      const response = await httpClient.post<ApiResponse<RegisterResponseData>>(
+        "/api/auth/register/driver",
         payload,
       );
       return response.data;

@@ -25,6 +25,7 @@ const NotFoundPage = lazy(() => import("./pages/public/NotFoundPage"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
 const VendorRegisterPage = lazy(() => import("./pages/auth/VendorRegisterPage"));
+const RiderRegisterPage = lazy(() => import("./pages/auth/RiderRegisterPage"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
 const VerifyEmail = lazy(() => import("./pages/auth/VerifyEmail"));
@@ -52,6 +53,13 @@ const VendorReviewsPage = lazy(() => import("./pages/vendor/VendorReviewsPage"))
 const VendorPromotionsPage = lazy(() => import("./pages/vendor/VendorPromotionsPage"));
 const VendorAnalyticsPage = lazy(() => import("./pages/vendor/VendorAnalyticsPage"));
 const VendorSettingsPage = lazy(() => import("./pages/vendor/VendorSettingsPage"));
+
+// ── Rider pages ────────────────────────────────────────────────
+const RiderLayout = lazy(() => import("./layouts/RiderLayout"));
+const RiderDashboardPage = lazy(() => import("./pages/rider/RiderDashboardPage"));
+const AvailableDeliveriesPage = lazy(() => import("./pages/rider/AvailableDeliveriesPage"));
+const ActiveDeliveryPage = lazy(() => import("./pages/rider/ActiveDeliveryPage"));
+const RiderEarningsPage = lazy(() => import("./pages/rider/RiderEarningsPage"));
 
 // ── Admin pages ─────────────────────────────────────────────────
 const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
@@ -124,6 +132,7 @@ function App(): React.ReactElement {
                       <Route path="/auth/google/callback" element={<GoogleAuthCallbackPage />} />
                       <Route path="/register" element={<RegisterPage />} />
                       <Route path="/vendor/register" element={<VendorRegisterPage />} />
+                      <Route path="/rider/register" element={<RiderRegisterPage />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/reset-password" element={<ResetPassword />} />
                       <Route path="/verify-email" element={<VerifyEmail />} />
@@ -145,6 +154,15 @@ function App(): React.ReactElement {
                     <Route path="/vendor/promotions" element={<VendorPromotionsPage />} />
                     <Route path="/vendor/analytics" element={<VendorAnalyticsPage />} />
                     <Route path="/vendor/settings" element={<VendorSettingsPage />} />
+                  </Route>
+
+                  {/* ── Rider routes (own sidebar layout) ───── */}
+                  <Route element={<RiderLayout />}>
+                    <Route path="/rider" element={<RiderDashboardPage />} />
+                    <Route path="/rider/available" element={<AvailableDeliveriesPage />} />
+                    <Route path="/rider/active" element={<ActiveDeliveryPage />} />
+                    <Route path="/rider/earnings" element={<RiderEarningsPage />} />
+                    <Route path="/rider/history" element={<RiderEarningsPage />} />
                   </Route>
 
                   {/* ── Admin routes (own sidebar layout) ───── */}

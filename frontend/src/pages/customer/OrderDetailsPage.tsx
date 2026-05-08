@@ -1,30 +1,35 @@
 /**
  * OrderDetailsPage – single order view with status timeline, items, and actions.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useCart } from "@/contexts/CartContext";
+import { useSocketContext } from "@/contexts/SocketContext";
+import { useToast } from "@/hooks/use-toast";
+import orderService from "@/services/orderService";
+import riderService from "@/services/riderService";
+import type { Order, OrderStatus, StatusHistoryEntry } from "@/types/order";
+import { foodFallbackSVG } from "@/utils/fallbackImages";
 import { motion } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
-  ArrowLeft,
-  MapPin,
-  CreditCard,
-  Clock,
-  Package,
-  Loader2,
-  XCircle,
-  RefreshCw,
-  CheckCircle2,
-  Download,
+    ArrowLeft,
+    Bike,
+    CheckCircle2,
+    Clock,
+    CreditCard,
+    Download,
+    Loader2,
+    MapPin,
+    Package,
+    RefreshCw,
+    Star,
+    XCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/contexts/CartContext";
-import orderService from "@/services/orderService";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
-import type { Order, OrderStatus, StatusHistoryEntry } from "@/types/order";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 const STATUS_STEPS: OrderStatus[] = [
   "pending",
@@ -63,12 +68,20 @@ const OrderDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { addItem: addToCart } = useCart();
+  const { socket, watchOrderLocation, driverLocation } = useSocketContext();
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
+
+  // Driver rating state
+  const [ratingStars, setRatingStars] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     if (!id) return;
@@ -89,6 +102,28 @@ const OrderDetailsPage: React.FC = () => {
   useEffect(() => {
     fetchOrder();
   }, [fetchOrder]);
+
+  // Live order status updates via socket
+  useEffect(() => {
+    if (!socket || !id) return;
+    const handler = (data: { _id: string; newStatus: OrderStatus }) => {
+      if (data._id === id || data._id === order?._id) {
+        setOrder((prev) => prev ? { ...prev, status: data.newStatus } : prev);
+        if (data.newStatus === "picked_up" && order?._id) {
+          watchOrderLocation(order._id);
+        }
+      }
+    };
+    socket.on("orderStatusUpdate", handler);
+    return () => { socket.off("orderStatusUpdate", handler); };
+  }, [socket, id, order?._id, watchOrderLocation]);
+
+  // Watch driver location when order is picked_up
+  useEffect(() => {
+    if (order?.status === "picked_up" && order?._id) {
+      watchOrderLocation(order._id);
+    }
+  }, [order?.status, order?._id, watchOrderLocation]);
 
   const handleCancel = async () => {
     if (!order) return;
@@ -238,6 +273,23 @@ const OrderDetailsPage: React.FC = () => {
       });
     }
   }, [order, toast]);
+
+  const handleRatingSubmit = async () => {
+    if (!order || ratingStars === 0) return;
+    setRatingSubmitting(true);
+    const res = await riderService.submitRating({
+      orderId: order._id,
+      rating: ratingStars,
+      comment: ratingComment.trim() || undefined,
+    });
+    setRatingSubmitting(false);
+    if (res.success) {
+      setRatingSubmitted(true);
+      toast({ title: "Rating submitted", description: "Thank you for your feedback!" });
+    } else {
+      toast({ title: "Failed to submit rating", description: res.message || "Please try again.", variant: "destructive" });
+    }
+  };
 
   const canCancel =
     order && (order.status === "pending" || order.status === "confirmed");
@@ -520,6 +572,74 @@ const OrderDetailsPage: React.FC = () => {
             </Card>
           )}
         </div>
+
+        {/* Driver location card (only when picked_up) */}
+        {order.status === "picked_up" && (
+          <Card className="p-4 border-orange-200 bg-orange-50">
+            <p className="text-sm font-medium text-orange-800 flex items-center gap-2 mb-1">
+              <Bike className="h-4 w-4" /> Your order is on the way!
+            </p>
+            {driverLocation && driverLocation.orderId === order._id ? (
+              <p className="text-xs text-orange-700">
+                Driver location updated · {new Date(driverLocation.timestamp).toLocaleTimeString()}
+                {driverLocation.speed != null && ` · ${Math.round(driverLocation.speed)} km/h`}
+              </p>
+            ) : (
+              <p className="text-xs text-orange-600">Waiting for driver location…</p>
+            )}
+          </Card>
+        )}
+
+        {/* Driver rating (only after delivered, not yet rated) */}
+        {order.status === "delivered" && !ratingSubmitted && (
+          <Card className="p-5 mt-4 border-orange-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Star className="h-4 w-4 text-orange-400" /> Rate your delivery rider
+            </h3>
+            <div className="flex gap-1 mb-3">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onMouseEnter={() => setRatingHover(star)}
+                  onMouseLeave={() => setRatingHover(0)}
+                  onClick={() => setRatingStars(star)}
+                  className="p-0.5 focus:outline-none"
+                >
+                  <Star
+                    className={`h-7 w-7 transition-colors ${star <= (ratingHover || ratingStars) ? "text-orange-400 fill-orange-400" : "text-gray-300"}`}
+                  />
+                </button>
+              ))}
+            </div>
+            <Textarea
+              placeholder="Leave a comment (optional)"
+              value={ratingComment}
+              onChange={(e) => setRatingComment(e.target.value)}
+              className="mb-3 text-sm resize-none"
+              rows={2}
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                disabled={ratingStars === 0 || ratingSubmitting}
+                onClick={handleRatingSubmit}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                {ratingSubmitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                Submit Rating
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setRatingSubmitted(true)}>
+                Skip
+              </Button>
+            </div>
+          </Card>
+        )}
+        {order.status === "delivered" && ratingSubmitted && (
+          <p className="text-sm text-green-600 text-center mt-4 flex items-center justify-center gap-1">
+            <CheckCircle2 className="h-4 w-4" /> Thank you for rating your rider!
+          </p>
+        )}
 
         {/* Review CTA */}
         {order.status === "delivered" && (

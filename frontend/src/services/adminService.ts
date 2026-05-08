@@ -157,11 +157,26 @@ const adminService = {
   listDrivers: (params?: Record<string, unknown>) =>
     httpClient.get("/api/admin/users/drivers", { params }),
 
+  listDriverApplications: (params?: Record<string, unknown>) =>
+    httpClient.get("/api/admin/users/drivers/applications", { params }),
+
   getDriver: (id: string) =>
     httpClient.get(`/api/admin/users/drivers/${id}`),
 
+  getDriverRatings: (id: string, params?: Record<string, unknown>) =>
+    httpClient.get(`/api/admin/users/drivers/${id}/ratings`, { params }),
+
+  approveDriver: (id: string, data?: { welcomeNote?: string }) =>
+    httpClient.post(`/api/admin/users/drivers/${id}/approve`, data ?? {}),
+
+  rejectDriver: (id: string, data: { reason: string }) =>
+    httpClient.post(`/api/admin/users/drivers/${id}/reject`, data),
+
   suspendDriver: (id: string, data: { reason: string; durationDays?: number }) =>
     httpClient.post(`/api/admin/users/drivers/${id}/suspend`, data),
+
+  unsuspendDriver: (id: string, data: { reason: string }) =>
+    httpClient.post(`/api/admin/users/drivers/${id}/unsuspend`, data),
 
   // ── Admin Team ─────────────────────────────────────────────────
 
