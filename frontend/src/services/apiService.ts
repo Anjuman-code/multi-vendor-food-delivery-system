@@ -6,20 +6,34 @@ interface Restaurant {
   _id?: string;
   id?: string;
   name: string;
-  [key: string]: any; // Allow additional properties
+  [key: string]: unknown;
 }
 
 interface Category {
   _id?: string;
   id?: string;
   name: string;
-  [key: string]: any; // Allow additional properties
+  [key: string]: unknown;
+}
+
+interface RestaurantsResponse {
+  success?: boolean;
+  count?: number;
+  data?: Restaurant[];
+}
+
+interface PopularRestaurantsResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    restaurants?: Restaurant[];
+  };
 }
 
 // API service functions
 const apiService = {
   // Get all restaurants
-  getAllRestaurants: (): Promise<AxiosResponse<{ data: Restaurant[] }>> => {
+  getAllRestaurants: (): Promise<AxiosResponse<RestaurantsResponse>> => {
     return httpClient.get('/api/restaurants');
   },
 
@@ -49,8 +63,13 @@ const apiService = {
   },
 
   // Get featured restaurants
-  getFeaturedRestaurants: (): Promise<AxiosResponse<{ data: Restaurant[] }>> => {
+  getFeaturedRestaurants: (): Promise<AxiosResponse<RestaurantsResponse>> => {
     return httpClient.get('/api/restaurants/featured');
+  },
+
+  // Get popular restaurants for discovery sections
+  getPopularRestaurants: (limit = 6): Promise<AxiosResponse<PopularRestaurantsResponse>> => {
+    return httpClient.get(`/api/explore/popular-restaurants?limit=${encodeURIComponent(String(limit))}`);
   },
 
   // Search restaurants

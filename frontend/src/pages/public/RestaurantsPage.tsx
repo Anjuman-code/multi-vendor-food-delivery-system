@@ -1,34 +1,34 @@
 import {
-    BookingControls,
-    BookingModal,
-    EmptyState,
-    FiltersPanel,
-    ImageGalleryModal,
-    MapViewToggle,
-    RestaurantCard,
-    RestaurantCardSkeleton,
-    RestaurantMapView,
+  BookingControls,
+  BookingModal,
+  EmptyState,
+  FiltersPanel,
+  ImageGalleryModal,
+  MapViewToggle,
+  RestaurantCard,
+  RestaurantCardSkeleton,
+  RestaurantMapView,
 } from "@/components/restaurants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import apiService from "@/services/apiService";
 import type {
-    Booking,
-    FilterCategory,
-    FilterState,
-    Restaurant,
-    SearchFilters,
-    SortOption,
+  Booking,
+  FilterCategory,
+  FilterState,
+  Restaurant,
+  SearchFilters,
+  SortOption,
 } from "@/types/restaurant";
 import { AnimatePresence, motion } from "framer-motion";
 import { Award } from "lucide-react";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -37,259 +37,247 @@ interface ApiRestaurant {
   name: string;
   cuisineType?: string[];
   rating?: { average?: number; count?: number };
-  address?: { street?: string; city?: string };
-  images?: { coverPhoto?: string; gallery?: string[] };
+  address?: {
+    street?: string;
+    area?: string;
+    city?: string;
+    district?: string;
+    coordinates?: { lat?: number; lng?: number };
+  };
+  location?: {
+    coordinates?: number[];
+  };
+  images?: { logo?: string; coverPhoto?: string; gallery?: string[] };
+  serviceOptions?: string[];
+  paymentMethods?: string[];
+  tags?: string[];
+  deliveryTime?: { min?: number; max?: number };
   deliveryFee?: number;
+  priceRange?: number;
+  isTemporarilyClosed?: boolean;
 }
 
-// ============================================================================
-// Mock Data - Sylhet Local Restaurants
-// ============================================================================
+interface ApiRestaurantsResponse {
+  success?: boolean;
+  count?: number;
+  data?: ApiRestaurant[];
+}
 
-const mockRestaurants: Restaurant[] = [
-  {
-    id: 1,
-    name: "Panshi Restaurant",
-    type: "restaurant",
-    cuisine: "bengali",
-    rating: 4.7,
-    reviewCount: 523,
-    address: "Zindabazar, Sylhet",
-    distance: 0.8,
-    image:
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-    images: [
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1424847651672-bf20a4b0982b?auto=format&fit=crop&w=800&q=80",
-    ],
-    isFavorite: true,
-    isRecommended: true,
-    recommendedReason: "Top rated in Sylhet — 4.7/5",
-    amenities: ["card-payment", "parking", "kids"],
-    priceRange: "$$",
-    coordinates: { lat: 24.8949, lng: 91.8687 },
-  },
-  {
-    id: 2,
-    name: "Pach Bhai Restaurant",
-    type: "restaurant",
-    cuisine: "bengali",
-    rating: 4.5,
-    reviewCount: 412,
-    address: "Amberkhana, Sylhet",
-    distance: 1.2,
-    image:
-      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: true,
-    recommendedReason: "Popular for Bengali cuisine",
-    amenities: ["card-payment", "to-go"],
-    priceRange: "$$",
-    coordinates: { lat: 24.901, lng: 91.872 },
-  },
-  {
-    id: 3,
-    name: "Satkora Restaurant",
-    type: "restaurant",
-    cuisine: "sylheti",
-    rating: 4.8,
-    reviewCount: 289,
-    address: "Bondor Bazar, Sylhet",
-    distance: 1.5,
-    image:
-      "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: true,
-    recommendedReason: "Best Sylheti cuisine",
-    amenities: ["garden", "parking", "kids"],
-    priceRange: "$$$",
-    coordinates: { lat: 24.892, lng: 91.865 },
-  },
-  {
-    id: 4,
-    name: "Cafe Mezban",
-    type: "cafe",
-    cuisine: "continental",
-    rating: 4.3,
-    reviewCount: 178,
-    address: "Shahjalal Upashahar, Sylhet",
-    distance: 2.1,
-    image:
-      "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["card-payment", "wifi"],
-    priceRange: "$$",
-    coordinates: { lat: 24.915, lng: 91.84 },
-  },
-  {
-    id: 5,
-    name: "Woondaal",
-    type: "restaurant",
-    cuisine: "bengali",
-    rating: 4.6,
-    reviewCount: 345,
-    address: "Upashahar, Sylhet",
-    distance: 2.3,
-    image:
-      "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?auto=format&fit=crop&w=800&q=80",
-    isFavorite: true,
-    isRecommended: false,
-    amenities: ["card-payment", "parking", "garden"],
-    priceRange: "$$$",
-    coordinates: { lat: 24.91, lng: 91.85 },
-  },
-  {
-    id: 6,
-    name: "Pizza Inn Sylhet",
-    type: "fast-food",
-    cuisine: "italian",
-    rating: 4.2,
-    reviewCount: 234,
-    address: "Zindabazar, Sylhet",
-    distance: 0.9,
-    image:
-      "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["card-payment", "to-go", "kids"],
-    priceRange: "$$",
-    coordinates: { lat: 24.8955, lng: 91.869 },
-  },
-  {
-    id: 7,
-    name: "The Daily Grind",
-    type: "cafe",
-    cuisine: "continental",
-    rating: 4.4,
-    reviewCount: 156,
-    address: "Subhanighat, Sylhet",
-    distance: 1.8,
-    image:
-      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["wifi", "card-payment"],
-    priceRange: "$",
-    coordinates: { lat: 24.888, lng: 91.87 },
-  },
-  {
-    id: 8,
-    name: "Khana Khazana",
-    type: "restaurant",
-    cuisine: "indian",
-    rating: 4.5,
-    reviewCount: 267,
-    address: "Mendibagh, Sylhet",
-    distance: 2.5,
-    image:
-      "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["card-payment", "parking"],
-    priceRange: "$$$",
-    coordinates: { lat: 24.905, lng: 91.875 },
-  },
-  {
-    id: 9,
-    name: "Foodie's Paradise",
-    type: "restaurant",
-    cuisine: "chinese",
-    rating: 4.1,
-    reviewCount: 189,
-    address: "Lamabazar, Sylhet",
-    distance: 1.3,
-    image:
-      "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["to-go", "card-payment"],
-    priceRange: "$$",
-    coordinates: { lat: 24.893, lng: 91.868 },
-  },
-  {
-    id: 10,
-    name: "Arabian Nights",
-    type: "restaurant",
-    cuisine: "middle-eastern",
-    rating: 4.3,
-    reviewCount: 145,
-    address: "Subidbazar, Sylhet",
-    distance: 1.7,
-    image:
-      "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80",
-    isFavorite: true,
-    isRecommended: false,
-    amenities: ["parking", "garden"],
-    priceRange: "$$$",
-    coordinates: { lat: 24.899, lng: 91.866 },
-  },
-  {
-    id: 11,
-    name: "KFC Sylhet",
-    type: "fast-food",
-    cuisine: "american",
-    rating: 4.0,
-    reviewCount: 456,
-    address: "Kumarpara, Sylhet",
-    distance: 0.6,
-    image:
-      "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["card-payment", "to-go", "kids", "parking"],
-    priceRange: "$",
-    coordinates: { lat: 24.897, lng: 91.8695 },
-  },
-  {
-    id: 12,
-    name: "Chillox Sylhet",
-    type: "fast-food",
-    cuisine: "american",
-    rating: 4.2,
-    reviewCount: 312,
-    address: "Zindabazar, Sylhet",
-    distance: 0.7,
-    image:
-      "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&w=800&q=80",
-    isFavorite: false,
-    isRecommended: false,
-    amenities: ["card-payment", "to-go"],
-    priceRange: "$",
-    coordinates: { lat: 24.896, lng: 91.8688 },
-  },
-];
+interface ApiPopularRestaurantsResponse {
+  success?: boolean;
+  data?: {
+    restaurants?: ApiRestaurant[];
+  };
+}
 
-// ============================================================================
-// Filter Categories
-// ============================================================================
+const SYLHET_CENTER = { lat: 24.8949, lng: 91.8687 };
 
-const typeFilters: FilterCategory[] = [
-  { id: "restaurant", label: "Restaurants", count: 6 },
-  { id: "cafe", label: "Cafes", count: 2 },
-  { id: "fast-food", label: "Fast Food", count: 3 },
-];
+const mapCuisine = (cuisine?: string): Restaurant["cuisine"] => {
+  const normalized = cuisine?.toLowerCase() || "continental";
+  if (
+    normalized.includes("sylheti") ||
+    normalized.includes("bengali") ||
+    normalized.includes("bangladeshi")
+  ) {
+    return "bengali";
+  }
+  if (normalized.includes("indian")) return "indian";
+  if (normalized.includes("chinese")) return "chinese";
+  if (normalized.includes("italian") || normalized.includes("pizza")) {
+    return "italian";
+  }
+  if (normalized.includes("american") || normalized.includes("burger")) {
+    return "american";
+  }
+  if (normalized.includes("thai")) return "thai";
+  if (normalized.includes("japanese")) return "japanese";
+  if (normalized.includes("mexican")) return "mexican";
+  if (normalized.includes("middle")) return "middle-eastern";
+  return "continental";
+};
 
-const cuisineFilters: FilterCategory[] = [
-  { id: "bengali", label: "Bengali", count: 3 },
-  { id: "sylheti", label: "Sylheti", count: 1 },
-  { id: "indian", label: "Indian", count: 1 },
-  { id: "chinese", label: "Chinese", count: 1 },
-  { id: "continental", label: "Continental", count: 2 },
-  { id: "italian", label: "Italian", count: 1 },
-  { id: "american", label: "American", count: 2 },
-  { id: "middle-eastern", label: "Middle Eastern", count: 1 },
-];
+const inferType = (restaurant: ApiRestaurant): Restaurant["type"] => {
+  const value = `${restaurant.name} ${(restaurant.cuisineType || []).join(" ")}`
+    .toLowerCase();
+  if (value.includes("cafe") || value.includes("coffee")) return "cafe";
+  if (
+    value.includes("fast") ||
+    value.includes("burger") ||
+    value.includes("pizza") ||
+    value.includes("kfc") ||
+    value.includes("chillox")
+  ) {
+    return "fast-food";
+  }
+  return "restaurant";
+};
 
-const amenityFilters: FilterCategory[] = [
-  { id: "wifi", label: "WiFi", count: 2 },
-  { id: "kids", label: "Kid Friendly", count: 4 },
-  { id: "garden", label: "Garden", count: 3 },
-  { id: "card-payment", label: "Card Payment", count: 10 },
-  { id: "parking", label: "Parking", count: 5 },
-  { id: "to-go", label: "Takeaway", count: 5 },
-];
+const toPriceRange = (
+  schemaPriceRange?: number,
+  deliveryFee?: number,
+): Restaurant["priceRange"] | undefined => {
+  if (schemaPriceRange === 1) return "$";
+  if (schemaPriceRange === 2) return "$$";
+  if (schemaPriceRange === 3) return "$$$";
+  if (schemaPriceRange === 4) return "$$$$";
+  if (typeof deliveryFee === "number") {
+    if (deliveryFee <= 30) return "$";
+    if (deliveryFee <= 60) return "$$";
+    return "$$$";
+  }
+  return undefined;
+};
+
+const toAmenities = (restaurant: ApiRestaurant): Restaurant["amenities"] => {
+  const amenities = new Set<Restaurant["amenities"][number]>();
+  const paymentMethods = (restaurant.paymentMethods || []).map((method) =>
+    method.toLowerCase(),
+  );
+  const serviceOptions = (restaurant.serviceOptions || []).map((option) =>
+    option.toLowerCase(),
+  );
+  const tags = (restaurant.tags || []).map((tag) => tag.toLowerCase());
+
+  if (
+    paymentMethods.some(
+      (method) => method.includes("card") || method.includes("visa"),
+    )
+  ) {
+    amenities.add("card-payment");
+  }
+
+  if (serviceOptions.includes("takeaway")) {
+    amenities.add("to-go");
+  }
+
+  if (tags.some((tag) => tag.includes("wifi"))) amenities.add("wifi");
+  if (tags.some((tag) => tag.includes("parking"))) amenities.add("parking");
+  if (tags.some((tag) => tag.includes("kids") || tag.includes("family"))) {
+    amenities.add("kids");
+  }
+  if (tags.some((tag) => tag.includes("garden"))) amenities.add("garden");
+
+  return Array.from(amenities);
+};
+
+const extractCoordinates = (restaurant: ApiRestaurant) => {
+  const addressCoords = restaurant.address?.coordinates;
+  if (
+    typeof addressCoords?.lat === "number" &&
+    typeof addressCoords?.lng === "number"
+  ) {
+    return { lat: addressCoords.lat, lng: addressCoords.lng };
+  }
+
+  const locationCoordinates = restaurant.location?.coordinates;
+  if (
+    Array.isArray(locationCoordinates) &&
+    locationCoordinates.length === 2 &&
+    typeof locationCoordinates[0] === "number" &&
+    typeof locationCoordinates[1] === "number"
+  ) {
+    return { lat: locationCoordinates[1], lng: locationCoordinates[0] };
+  }
+
+  return undefined;
+};
+
+const haversineKm = (
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+) => {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.lat - from.lat);
+  const dLng = toRadians(to.lng - from.lng);
+  const lat1 = toRadians(from.lat);
+  const lat2 = toRadians(to.lat);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
+};
+
+const mapRestaurant = (
+  item: ApiRestaurant,
+  recommendedRestaurantIds: Set<string>,
+): Restaurant => {
+  const avgRating = item.rating?.average ?? 0;
+  const coordinates = extractCoordinates(item);
+  const distance = coordinates
+    ? haversineKm(SYLHET_CENTER, coordinates)
+    : undefined;
+  const address = [
+    item.address?.street,
+    item.address?.area,
+    item.address?.city,
+    item.address?.district,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const isRecommended =
+    recommendedRestaurantIds.has(item._id) || avgRating >= 4.5;
+
+  return {
+    id: item._id,
+    name: item.name,
+    type: inferType(item),
+    cuisine: mapCuisine(item.cuisineType?.[0]),
+    rating: avgRating,
+    reviewCount: item.rating?.count ?? 0,
+    address: address || "Address unavailable",
+    distance,
+    image: item.images?.coverPhoto || item.images?.logo || "",
+    images: [item.images?.coverPhoto, ...(item.images?.gallery || [])].filter(
+      (image): image is string => Boolean(image),
+    ),
+    isFavorite: false,
+    isRecommended,
+    recommendedReason: isRecommended
+      ? `Highly rated ${avgRating.toFixed(1)}/5`
+      : undefined,
+    amenities: toAmenities(item),
+    priceRange: toPriceRange(item.priceRange, item.deliveryFee),
+    coordinates,
+  };
+};
+
+const cuisineLabelMap: Record<Restaurant["cuisine"], string> = {
+  bengali: "Bengali",
+  sylheti: "Sylheti",
+  indian: "Indian",
+  chinese: "Chinese",
+  continental: "Continental",
+  italian: "Italian",
+  american: "American",
+  "middle-eastern": "Middle Eastern",
+  thai: "Thai",
+  japanese: "Japanese",
+  mexican: "Mexican",
+};
+
+const amenityLabelMap: Record<Restaurant["amenities"][number], string> = {
+  wifi: "WiFi",
+  kids: "Kid Friendly",
+  garden: "Garden",
+  "card-payment": "Card Payment",
+  parking: "Parking",
+  "to-go": "Takeaway",
+  "outdoor-seating": "Outdoor Seating",
+  "private-dining": "Private Dining",
+  "wheelchair-accessible": "Wheelchair Accessible",
+  "pet-friendly": "Pet Friendly",
+};
+
+const typeLabelMap: Record<Restaurant["type"], string> = {
+  restaurant: "Restaurants",
+  cafe: "Cafes",
+  "fast-food": "Fast Food",
+  bar: "Bars",
+  bakery: "Bakeries",
+};
 
 // ============================================================================
 // Animation Variants
@@ -339,6 +327,7 @@ const RestaurantsPage: React.FC = () => {
   // Restaurant data state
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Text search from URL
@@ -365,79 +354,128 @@ const RestaurantsPage: React.FC = () => {
     null,
   );
 
-  useEffect(() => {
-    const mapCuisine = (cuisine?: string): Restaurant["cuisine"] => {
-      const normalized = cuisine?.toLowerCase() || "continental";
-      if (
-        normalized.includes("sylheti") ||
-        normalized.includes("bengali") ||
-        normalized.includes("bangladeshi")
-      ) {
-        return "bengali";
-      }
-      if (normalized.includes("indian")) return "indian";
-      if (normalized.includes("chinese")) return "chinese";
-      if (normalized.includes("italian") || normalized.includes("pizza")) {
-        return "italian";
-      }
-      if (normalized.includes("american") || normalized.includes("burger")) {
-        return "american";
-      }
-      if (normalized.includes("thai")) return "thai";
-      if (normalized.includes("japanese")) return "japanese";
-      if (normalized.includes("mexican")) return "mexican";
-      if (normalized.includes("middle")) return "middle-eastern";
-      return "continental";
-    };
+  const loadRestaurants = useCallback(async () => {
+    setIsLoading(true);
+    setHasLoadError(false);
 
-    const mapRestaurant = (item: ApiRestaurant): Restaurant => {
-      const avg = item.rating?.average ?? 0;
-      return {
-        id: item._id,
-        name: item.name,
-        type: "restaurant",
-        cuisine: mapCuisine(item.cuisineType?.[0]),
-        rating: avg,
-        reviewCount: item.rating?.count ?? 0,
-        address:
-          `${item.address?.street || ""}${item.address?.street && item.address?.city ? ", " : ""}${item.address?.city || ""}`.trim(),
-        image:
-          item.images?.coverPhoto ||
-          "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-        images: item.images?.gallery || [],
-        isFavorite: false,
-        isRecommended: avg >= 4.5,
-        recommendedReason:
-          avg >= 4.5 ? `Highly rated ${avg.toFixed(1)}/5` : undefined,
-        amenities: ["card-payment", "to-go"],
-        priceRange: item.deliveryFee && item.deliveryFee > 60 ? "$$$" : "$$",
-      };
-    };
+    try {
+      const [restaurantsResult, popularResult] = await Promise.allSettled([
+        apiService.getAllRestaurants(),
+        apiService.getPopularRestaurants(12),
+      ]);
 
-    const loadRestaurants = async () => {
-      setIsLoading(true);
-      try {
-        const res = await apiService.getAllRestaurants();
-        const payload = res.data as {
-          data?: ApiRestaurant[];
-          success?: boolean;
-        };
-        const apiRestaurants = Array.isArray(payload.data) ? payload.data : [];
-        setRestaurants(apiRestaurants.map(mapRestaurant));
-      } catch {
-        setRestaurants(mockRestaurants);
-        toast({
-          title: "Error",
-          description: "Failed to load restaurants.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+      if (restaurantsResult.status !== "fulfilled") {
+        throw new Error("Unable to fetch restaurants");
       }
-    };
 
-    loadRestaurants();
+      const restaurantsPayload = restaurantsResult.value
+        .data as ApiRestaurantsResponse;
+      const allRestaurants = Array.isArray(restaurantsPayload.data)
+        ? restaurantsPayload.data
+        : [];
+
+      const popularRestaurants =
+        popularResult.status === "fulfilled"
+          ? ((popularResult.value.data as ApiPopularRestaurantsResponse)?.data
+              ?.restaurants ?? [])
+          : [];
+
+      const recommendedRestaurantIds = new Set(
+        popularRestaurants.map((restaurant) => restaurant._id),
+      );
+
+      const normalizedRestaurants =
+        allRestaurants.length > 0 ? allRestaurants : popularRestaurants;
+
+      setRestaurants(
+        normalizedRestaurants.map((restaurant) =>
+          mapRestaurant(restaurant, recommendedRestaurantIds),
+        ),
+      );
+    } catch {
+      setRestaurants([]);
+      setHasLoadError(true);
+      toast({
+        title: "Error",
+        description: "Failed to load restaurants.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
+
+  useEffect(() => {
+    void loadRestaurants();
+  }, [loadRestaurants]);
+
+  useEffect(() => {
+    setTextSearch(searchParams.get("q") ?? "");
+  }, [searchParams]);
+
+  const typeFilters = useMemo<FilterCategory[]>(() => {
+    const typeOrder: Restaurant["type"][] = [
+      "restaurant",
+      "cafe",
+      "fast-food",
+      "bar",
+      "bakery",
+    ];
+
+    return typeOrder
+      .map((type) => {
+        const count = restaurants.filter((restaurant) => restaurant.type === type)
+          .length;
+        return {
+          id: type,
+          label: typeLabelMap[type],
+          count,
+        };
+      })
+      .filter((entry) => entry.count > 0);
+  }, [restaurants]);
+
+  const cuisineFilters = useMemo<FilterCategory[]>(() => {
+    const counts = restaurants.reduce(
+      (acc, restaurant) => {
+        acc[restaurant.cuisine] = (acc[restaurant.cuisine] || 0) + 1;
+        return acc;
+      },
+      {} as Partial<Record<Restaurant["cuisine"], number>>,
+    );
+
+    return Object.keys(counts)
+      .map((key) => key as Restaurant["cuisine"])
+      .map((cuisine) => ({
+        id: cuisine,
+        label: cuisineLabelMap[cuisine],
+        count: counts[cuisine] || 0,
+      }))
+      .filter((entry) => entry.count > 0)
+      .sort((left, right) => right.count - left.count);
+  }, [restaurants]);
+
+  const amenityFilters = useMemo<FilterCategory[]>(() => {
+    const counts = restaurants.reduce(
+      (acc, restaurant) => {
+        restaurant.amenities.forEach((amenity) => {
+          acc[amenity] = (acc[amenity] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Partial<Record<Restaurant["amenities"][number], number>>,
+    );
+
+    return Object.keys(counts)
+      .map((key) => key as Restaurant["amenities"][number])
+      .map((amenity) => ({
+        id: amenity,
+        label: amenityLabelMap[amenity],
+        count: counts[amenity] || 0,
+      }))
+      .filter((entry) => entry.count > 0)
+      .sort((left, right) => right.count - left.count);
+  }, [restaurants]);
 
   // ============================================================================
   // Filter handlers
@@ -460,17 +498,12 @@ const RestaurantsPage: React.FC = () => {
     setSearchFilters(filters);
   }, []);
 
-  const handleSearch = useCallback(() => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Search updated",
-        description: `Showing restaurants ${searchFilters.date ? `for ${searchFilters.date}` : ""}`,
-      });
-    }, 500);
-  }, [searchFilters, toast]);
+  const handleSearch = useCallback(async () => {
+    const nextQuery = (searchFilters.query || "").trim();
+    setTextSearch(nextQuery);
+    setDisplayCount(ITEMS_PER_PAGE);
+    await loadRestaurants();
+  }, [loadRestaurants, searchFilters.query]);
 
   // ============================================================================
   // Restaurant filtering and sorting
@@ -568,11 +601,8 @@ const RestaurantsPage: React.FC = () => {
 
   const handleLoadMore = useCallback(() => {
     setIsLoadingMore(true);
-    // Simulate loading delay
-    setTimeout(() => {
-      setDisplayCount((prev) => prev + ITEMS_PER_PAGE);
-      setIsLoadingMore(false);
-    }, 500);
+    setDisplayCount((prev) => prev + ITEMS_PER_PAGE);
+    setIsLoadingMore(false);
   }, []);
 
   // Optional: Intersection Observer for infinite scroll
@@ -637,7 +667,7 @@ const RestaurantsPage: React.FC = () => {
     setGalleryModalOpen(true);
   }, []);
 
-  const handleRestaurantSelect = useCallback((restaurant: Restaurant) => {
+  const handleRestaurantSelect = useCallback((restaurant: Restaurant | null) => {
     setSelectedRestaurant(restaurant);
   }, []);
 
@@ -733,9 +763,9 @@ const RestaurantsPage: React.FC = () => {
                   exit={{ opacity: 0 }}
                 >
                   <EmptyState
-                    type="no-filters"
-                    onAction={handleClearAllFilters}
-                    actionLabel="Clear all filters"
+                    type={hasLoadError ? "error" : "no-filters"}
+                    onAction={hasLoadError ? () => void loadRestaurants() : handleClearAllFilters}
+                    actionLabel={hasLoadError ? "Try again" : "Clear all filters"}
                   />
                 </motion.div>
               ) : (

@@ -1,16 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Restaurant } from "@/types/restaurant";
-import { cn } from "@/utils/cn";
 import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Map,
-  Navigation,
-  Star,
-  X
-} from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import { List, Map, Navigation, Star, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
+
+const DEFAULT_CENTER: [number, number] = [24.8949, 91.8687];
 
 interface MapViewToggleProps {
   isMapView: boolean;
@@ -28,6 +27,7 @@ export const MapViewToggle: React.FC<MapViewToggleProps> = ({
       onClick={onToggle}
       className="flex items-center gap-2 text-orange-600 font-medium hover:text-orange-700 transition-colors"
       aria-label={isMapView ? "Switch to list view" : "Switch to map view"}
+      type="button"
     >
       {isMapView ? (
         <>
@@ -47,64 +47,93 @@ export const MapViewToggle: React.FC<MapViewToggleProps> = ({
 interface RestaurantMapViewProps {
   restaurants: Restaurant[];
   selectedRestaurant: Restaurant | null;
-  onRestaurantSelect: (restaurant: Restaurant) => void;
+  onRestaurantSelect: (restaurant: Restaurant | null) => void;
   onBookClick: (restaurant: Restaurant) => void;
   onClose: () => void;
   isOpen: boolean;
 }
 
-// Mock map pin component (placeholder for real map integration)
-const MapPin_: React.FC<{
-  restaurant: Restaurant;
-  isSelected: boolean;
-  onClick: () => void;
-  style: React.CSSProperties;
-}> = ({ restaurant, isSelected, onClick, style }) => {
-  return (
-    <motion.button
-      onClick={onClick}
-      style={style}
-      initial={{ scale: 0, y: 20 }}
-      animate={{ scale: 1, y: 0 }}
-      whileHover={{ scale: 1.1, zIndex: 50 }}
-      className={cn(
-        "absolute transform -translate-x-1/2 -translate-y-full transition-all duration-200",
-        isSelected ? "z-40" : "z-10",
-      )}
-      aria-label={`View ${restaurant.name}`}
-    >
-      <div
-        className={cn(
-          "relative flex flex-col items-center",
-          isSelected && "scale-110",
-        )}
-      >
-        {/* Pin head */}
-        <div
-          className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 transition-colors",
-            isSelected
-              ? "bg-orange-500 border-orange-600 text-white"
-              : "bg-white border-gray-200 text-gray-700 hover:border-orange-300",
-          )}
-        >
-          <span className="text-xs font-bold">{restaurant.rating}</span>
-        </div>
-        {/* Pin tail */}
-        <div
-          className={cn(
-            "w-0 h-0 border-l-[8px] border-r-[8px] border-t-[10px] border-l-transparent border-r-transparent -mt-0.5",
-            isSelected ? "border-t-orange-500" : "border-t-white",
-          )}
-        />
-        {/* Shadow */}
-        <div className="w-4 h-1 bg-black/20 rounded-full mt-1 blur-sm" />
-      </div>
-    </motion.button>
-  );
+interface MappableRestaurant extends Restaurant {
+  coordinates: { lat: number; lng: number };
+}
+
+const hasCoordinates = (
+  restaurant: Restaurant,
+): restaurant is MappableRestaurant => {
+  const lat = restaurant.coordinates?.lat;
+  const lng = restaurant.coordinates?.lng;
+  return Number.isFinite(lat) && Number.isFinite(lng);
 };
 
-// Restaurant info card that appears when pin is selected
+const createMarkerIcon = (rating: number, selected: boolean) =>
+  L.divIcon({
+    className: "custom-restaurant-marker",
+    iconSize: [42, 42],
+    iconAnchor: [21, 38],
+    popupAnchor: [0, -32],
+    html: `<div style="
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: ${selected ? "#fff" : "#111827"};
+      border: 2px solid ${selected ? "#ea580c" : "#ffffff"};
+      background: ${selected ? "#f97316" : "#fed7aa"};
+      box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+    ">${rating.toFixed(1)}</div>`,
+  });
+
+const createUserLocationIcon = () =>
+  L.divIcon({
+    className: "custom-user-location-marker",
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    html: `<div style="
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 3px solid #ffffff;
+      background: #2563eb;
+      box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.22);
+    "></div>`,
+  });
+
+const FitBoundsController: React.FC<{
+  positions: [number, number][];
+  selectedPosition: [number, number] | null;
+}> = ({ positions, selectedPosition }) => {
+  const map = useMap();
+
+  React.useEffect(() => {
+    if (selectedPosition) {
+      map.setView(selectedPosition, 15, { animate: true });
+      return;
+    }
+
+    if (positions.length === 0) {
+      map.setView(DEFAULT_CENTER, 13);
+      return;
+    }
+
+    if (positions.length === 1) {
+      map.setView(positions[0], 14, { animate: true });
+      return;
+    }
+
+    map.fitBounds(positions, {
+      padding: [40, 40],
+      maxZoom: 15,
+      animate: true,
+    });
+  }, [map, positions, selectedPosition]);
+
+  return null;
+};
+
 const RestaurantInfoCard: React.FC<{
   restaurant: Restaurant;
   onBook: () => void;
@@ -115,26 +144,23 @@ const RestaurantInfoCard: React.FC<{
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
-      className="absolute bottom-4 left-4 right-4 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 max-w-md mx-auto"
+      className="absolute bottom-4 left-4 right-4 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[1000] max-w-md mx-auto"
     >
       <div className="flex">
-        {/* Image */}
         <img
           src={restaurant.image || restaurantFallbackSVG}
           alt=""
           className="w-24 h-24 object-cover flex-shrink-0"
         />
 
-        {/* Content */}
         <div className="flex-1 p-3 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-gray-900 truncate">
-              {restaurant.name}
-            </h3>
+            <h3 className="font-bold text-gray-900 truncate">{restaurant.name}</h3>
             <button
               onClick={onClose}
               className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
               aria-label="Close"
+              type="button"
             >
               <X className="w-4 h-4 text-gray-400" />
             </button>
@@ -178,46 +204,88 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
   onClose,
   isOpen,
 }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const navigate = useNavigate();
+  const [hoveredRestaurant, setHoveredRestaurant] = useState<Restaurant | null>(
+    null,
+  );
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null,
+  );
 
-  // Simulate map loading
   useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => setMapLoaded(true), 500);
-      return () => clearTimeout(timer);
-    } else {
-      setMapLoaded(false);
+    if (!isOpen || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation([position.coords.latitude, position.coords.longitude]);
+      },
+      () => {
+        setUserLocation(null);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 5 * 60 * 1000,
+      },
+    );
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setHoveredRestaurant(null);
     }
   }, [isOpen]);
 
-  // Generate pseudo-random but consistent positions for pins based on restaurant id
-  const getPinPosition = useCallback((restaurant: Restaurant) => {
-    const seedBase = String(restaurant.id)
-      .split("")
-      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    const seed = seedBase * 137.5;
-    const x = 10 + (Math.sin(seed) * 0.5 + 0.5) * 80;
-    const y = 15 + (Math.cos(seed * 1.3) * 0.5 + 0.5) * 65;
-    return { left: `${x}%`, top: `${y}%` };
-  }, []);
-
-  const handlePinClick = useCallback(
-    (restaurant: Restaurant) => {
-      onRestaurantSelect(restaurant);
-    },
-    [onRestaurantSelect],
+  const mappableRestaurants = useMemo(
+    () => restaurants.filter(hasCoordinates),
+    [restaurants],
   );
 
-  const handleBookClick = useCallback(() => {
-    if (selectedRestaurant) {
-      onBookClick(selectedRestaurant);
+  const selectedWithCoordinates = useMemo(() => {
+    if (!selectedRestaurant || !hasCoordinates(selectedRestaurant)) {
+      return null;
     }
-  }, [selectedRestaurant, onBookClick]);
 
-  const handleInfoClose = useCallback(() => {
-    onRestaurantSelect(null as unknown as Restaurant);
-  }, [onRestaurantSelect]);
+    return selectedRestaurant;
+  }, [selectedRestaurant]);
+
+  const positions = useMemo(() => {
+    const restaurantPositions = mappableRestaurants.map(
+      (restaurant) =>
+        [restaurant.coordinates.lat, restaurant.coordinates.lng] as [number, number],
+    );
+
+    if (userLocation) {
+      restaurantPositions.push(userLocation);
+    }
+
+    return restaurantPositions;
+  }, [mappableRestaurants, userLocation]);
+
+  const selectedPosition = selectedWithCoordinates
+    ? ([selectedWithCoordinates.coordinates.lat, selectedWithCoordinates.coordinates.lng] as [
+        number,
+        number,
+      ])
+    : null;
+
+  const initialCenter = selectedPosition || positions[0] || DEFAULT_CENTER;
+
+  const activeRestaurant = hoveredRestaurant || selectedRestaurant;
+
+  const handleBookClick = useCallback(() => {
+    if (activeRestaurant) {
+      onBookClick(activeRestaurant);
+    }
+  }, [activeRestaurant, onBookClick]);
+
+  const handleNavigateToRestaurant = useCallback(
+    (restaurant: Restaurant) => {
+      onClose();
+      navigate(`/restaurants/${restaurant.id}`);
+    },
+    [navigate, onClose],
+  );
 
   return (
     <AnimatePresence>
@@ -230,10 +298,9 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
           role="dialog"
           aria-label="Restaurant map view"
         >
-          {/* Header */}
-          <div className="absolute top-0 left-0 right-0 bg-white shadow-sm z-40 px-4 py-3 flex items-center justify-between">
+          <div className="absolute top-0 left-0 right-0 bg-white shadow-sm z-[1000] px-4 py-3 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">
-              {restaurants.length} restaurants nearby
+              {mappableRestaurants.length} restaurants on map
             </h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="w-4 h-4 mr-1" />
@@ -241,90 +308,100 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
             </Button>
           </div>
 
-          {/* Map Container */}
-          <div
-            ref={mapRef}
-            className="absolute inset-0 top-14"
-            style={{
-              background: `
-                linear-gradient(135deg, #f0f4f8 25%, transparent 25%),
-                linear-gradient(225deg, #f0f4f8 25%, transparent 25%),
-                linear-gradient(45deg, #f0f4f8 25%, transparent 25%),
-                linear-gradient(315deg, #f0f4f8 25%, #e8ecf0 25%)
-              `,
-              backgroundSize: "40px 40px",
-              backgroundPosition: "0 0, 20px 0, 20px -20px, 0 20px",
-            }}
-          >
-            {/* Simulated map placeholder */}
-            <div className="absolute inset-0 overflow-hidden">
-              {/* Fake streets */}
-              <div className="absolute top-1/3 left-0 right-0 h-2 bg-gray-300/50" />
-              <div className="absolute top-2/3 left-0 right-0 h-1 bg-gray-300/30" />
-              <div className="absolute left-1/4 top-0 bottom-0 w-1 bg-gray-300/30" />
-              <div className="absolute left-2/3 top-0 bottom-0 w-2 bg-gray-300/50" />
+          <div className="absolute inset-0 top-14">
+            {mappableRestaurants.length > 0 ? (
+              <MapContainer
+                center={initialCenter}
+                zoom={13}
+                scrollWheelZoom
+                className="h-full w-full"
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
 
-              {/* Loading state */}
-              {!mapLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80">
-                  <div className="text-center">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1,
-                        repeat: Infinity,
-                        ease: "linear",
+                <FitBoundsController
+                  positions={positions}
+                  selectedPosition={selectedPosition}
+                />
+
+                {mappableRestaurants.map((restaurant) => {
+                  const selected = selectedRestaurant?.id === restaurant.id;
+
+                  return (
+                    <Marker
+                      key={String(restaurant.id)}
+                      position={[restaurant.coordinates.lat, restaurant.coordinates.lng]}
+                      icon={createMarkerIcon(restaurant.rating || 0, selected)}
+                      eventHandlers={{
+                        mouseover: () => {
+                          setHoveredRestaurant(restaurant);
+                          onRestaurantSelect(restaurant);
+                        },
+                        mouseout: () => {
+                          setHoveredRestaurant((current) =>
+                            current?.id === restaurant.id ? null : current,
+                          );
+                        },
+                        click: () => handleNavigateToRestaurant(restaurant),
                       }}
-                      className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"
-                    />
-                    <p className="text-sm text-gray-500">Loading map...</p>
-                  </div>
+                    >
+                      <Popup>
+                        <div className="min-w-[180px]">
+                          <p className="font-semibold text-gray-900">{restaurant.name}</p>
+                          <p className="text-sm text-gray-600 mt-1">{restaurant.address}</p>
+                          <p className="text-xs text-orange-600 mt-1">
+                            Rating {restaurant.rating.toFixed(1)}
+                          </p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+                {userLocation && (
+                  <Marker position={userLocation} icon={createUserLocationIcon()}>
+                    <Popup>
+                      <p className="text-sm font-medium text-gray-800">You are here</p>
+                    </Popup>
+                  </Marker>
+                )}
+              </MapContainer>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-white">
+                <div className="text-center px-6">
+                  <Map className="w-10 h-10 text-orange-400 mx-auto mb-3" />
+                  <p className="text-gray-700 font-medium">No restaurant coordinates available</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Restaurant locations will appear here once coordinates are provided.
+                  </p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Restaurant pins */}
-              {mapLoaded &&
-                restaurants.map((restaurant) => (
-                  <MapPin_
-                    key={restaurant.id}
-                    restaurant={restaurant}
-                    isSelected={selectedRestaurant?.id === restaurant.id}
-                    onClick={() => handlePinClick(restaurant)}
-                    style={getPinPosition(restaurant)}
-                  />
-                ))}
-
-              {/* Current location indicator */}
-              {mapLoaded && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30"
-                >
-                  <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg" />
-                  <div className="absolute inset-0 bg-blue-500/30 rounded-full animate-ping" />
-                </motion.div>
-              )}
-            </div>
-
-            {/* Selected restaurant info card */}
             <AnimatePresence>
-              {selectedRestaurant && (
+              {activeRestaurant && (
                 <RestaurantInfoCard
-                  restaurant={selectedRestaurant}
+                  restaurant={activeRestaurant}
                   onBook={handleBookClick}
-                  onClose={handleInfoClose}
+                  onClose={() => {
+                    setHoveredRestaurant(null);
+                    onRestaurantSelect(null);
+                  }}
                 />
               )}
             </AnimatePresence>
-          </div>
 
-          {/* Map integration note */}
-          <div className="absolute bottom-20 left-4 right-4 text-center">
-            <p className="text-xs text-gray-400 bg-white/80 rounded-full px-3 py-1 inline-block">
-              🗺️ Integrate with Google Maps, Mapbox, or Leaflet for full
-              functionality
-            </p>
+            {activeRestaurant && (
+              <button
+                type="button"
+                onClick={() => handleNavigateToRestaurant(activeRestaurant)}
+                className="absolute bottom-36 left-1/2 -translate-x-1/2 z-[1000] bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-full shadow-md"
+              >
+                Open details page
+              </button>
+            )}
           </div>
         </motion.div>
       )}
