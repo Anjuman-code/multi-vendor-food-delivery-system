@@ -15,6 +15,13 @@ import { Link } from "react-router-dom";
 import vendorService from "@/services/vendorService";
 import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  LineChart,
+  Line,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  XAxis,
+} from "recharts";
 import type {
   VendorDashboardStats,
   VendorAnalytics,
@@ -217,52 +224,54 @@ const KpiCard: React.FC<KpiCardProps> = ({
   );
 };
 
-// ── 7-Day Revenue Sparkline (CSS bars since Recharts not available) ──
+// ── 7-Day Revenue Sparkline (Converted to Line Chart) ──
 
 interface SparklineProps {
   data: RevenueDataPoint[];
 }
 
 const RevenueSparkline: React.FC<SparklineProps> = ({ data }) => {
-  const normalized = data.map((point) => ({
-    ...point,
+  const chartData = data.map((point) => ({
+    date: new Date(point.date).toLocaleDateString("en-US", {
+      weekday: "short",
+    }),
     revenue: Number.isFinite(point.revenue)
       ? point.revenue
       : toSafeNumber(point.revenue),
   }));
-  const maxRevenue = Math.max(...normalized.map((d) => d.revenue), 1);
 
   return (
-    <div className="flex items-end gap-1.5 h-28">
-      {normalized.map((point) => {
-        const heightPct = Math.max((point.revenue / maxRevenue) * 100, 3);
-        const dayLabel = new Date(point.date).toLocaleDateString("en-US", {
-          weekday: "short",
-        });
-        return (
-          <div
-            key={point.date}
-            className="flex-1 flex flex-col items-center gap-1 group h-full"
-          >
-            <div className="relative flex-1 w-full flex items-end">
-              {/* Bar */}
-              <div
-                className="w-full rounded-t-sm transition-all duration-300 cursor-pointer"
-                style={{
-                  height: `${heightPct}%`,
-                  background: "linear-gradient(to top, #ea580c, #fb923c)",
-                }}
-              />
-              {/* Hover tooltip */}
-              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-2xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-card-md">
-                {formatCurrency(point.revenue)}
-              </div>
-            </div>
-            {/* Day label */}
-            <span className="text-2xs text-gray-400 mt-0.5">{dayLabel}</span>
-          </div>
-        );
-      })}
+    <div className="h-28 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData}>
+          <RechartsTooltip
+            formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+            labelStyle={{ display: "none" }}
+            contentStyle={{
+              borderRadius: 8,
+              border: "none",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+              fontSize: 12,
+              padding: "8px 12px",
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="revenue"
+            stroke="#ea580c"
+            strokeWidth={3}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0, fill: "#ea580c" }}
+          />
+          <XAxis
+            dataKey="date"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 10, fill: "#9ca3af" }}
+            dy={8}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 };

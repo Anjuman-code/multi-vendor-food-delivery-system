@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
+  LineChart,
+  Line,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
+import {
   TrendingUp,
   DollarSign,
   ShoppingBag,
@@ -443,32 +452,50 @@ const VendorAnalyticsPage: React.FC = () => {
             No revenue data available for this period.
           </p>
         ) : (
-          <div className="flex items-end gap-1 h-48">
-            {revenueOverTime.map((d, idx) => {
-              const pct = (d.revenue / maxRevenue) * 100;
-              return (
-                <div
-                  key={idx}
-                  className="flex-1 flex flex-col items-center gap-1 group h-full"
-                >
-                  <div className="relative flex-1 w-full flex items-end">
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                      {d.date}: {formatCurrency(d.revenue)}
-                    </div>
-                    {/* Bar — brand orange gradient */}
-                    <div
-                      className="w-full max-w-[32px] bg-gradient-to-t from-orange-500 to-red-400 rounded-t transition-all duration-200 hover:from-orange-600 hover:to-red-500 cursor-pointer"
-                      style={{ height: `${Math.max(pct, 2)}%` }}
-                    />
-                  </div>
-                  {/* Date label */}
-                  <span className="text-[10px] text-gray-400 -rotate-45 origin-top-left mt-1 whitespace-nowrap">
-                    {d.date}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="h-48 w-full mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueOverTime}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#E5E7EB"
+                />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  tickFormatter={(val) => `৳${val}`}
+                />
+                <RechartsTooltip
+                  formatter={(value: number) => [
+                    formatCurrency(value),
+                    "Revenue",
+                  ]}
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    fontSize: 12,
+                    padding: "8px 12px",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#f97316"
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: "#f97316", strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: "#ea580c" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
       </motion.div>
@@ -490,62 +517,56 @@ const VendorAnalyticsPage: React.FC = () => {
             </p>
           ) : (
             <div className="space-y-4">
-              {/* Stacked bar */}
-              <div className="flex h-6 rounded-full overflow-hidden">
-                {(() => {
-                  const barColors: Record<string, string> = {
-                    delivered: "bg-green-400",
-                    cancelled: "bg-red-400",
-                    in_progress: "bg-orange-400",
-                  };
-                  return statusBreakdown.map((s) => {
-                    const pct =
-                      totalOrders > 0 ? (s.count / totalOrders) * 100 : 0;
-                    return (
-                      <div
-                        key={s.status}
-                        className={`${barColors[s.status] || "bg-gray-300"} transition-all`}
-                        style={{ width: `${pct}%` }}
-                        title={`${STATUS_LABELS[s.status] || "In Progress"}: ${s.count}`}
-                      />
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Legend */}
-              <div className="space-y-2">
-                {statusBreakdown.map((s) => {
-                  const pct =
-                    totalOrders > 0 ? (s.count / totalOrders) * 100 : 0;
-                  const label =
-                    s.status === "in_progress"
-                      ? "In Progress"
-                      : STATUS_LABELS[s.status] || s.status;
-                  const legendColors: Record<string, string> = {
-                    delivered: "bg-green-400",
-                    cancelled: "bg-red-400",
-                    in_progress: "bg-orange-400",
-                  };
-                  return (
-                    <div key={s.status} className="flex items-center gap-3">
-                      <div
-                        className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                          legendColors[s.status] || "bg-gray-300"
-                        }`}
-                      />
-                      <span className="text-sm text-gray-600 flex-1">
-                        {label}
-                      </span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {s.count}
-                      </span>
-                      <span className="text-xs text-gray-400 w-12 text-right">
-                        {pct.toFixed(1)}%
-                      </span>
-                    </div>
-                  );
-                })}
+              {/* Stacked bar converted to Line Graph */}
+              <div className="h-40 w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={statusBreakdown}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#E5E7EB"
+                    />
+                    <XAxis
+                      dataKey="status"
+                      tickFormatter={(status: string) =>
+                        STATUS_LABELS[status] ||
+                        (status === "in_progress" ? "In Progress" : status)
+                      }
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: "#9ca3af" }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: "#9ca3af" }}
+                      allowDecimals={false}
+                    />
+                    <RechartsTooltip
+                      formatter={(value: number) => [value, "Orders"]}
+                      labelFormatter={(label) =>
+                        STATUS_LABELS[label as string] ||
+                        (label === "in_progress" ? "In Progress" : label)
+                      }
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "none",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        fontSize: 12,
+                        padding: "8px 12px",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#8b5cf6"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: "#8b5cf6", strokeWidth: 0 }}
+                      activeDot={{ r: 6, fill: "#7c3aed" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
           )}

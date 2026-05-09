@@ -1,14 +1,18 @@
 import { useToast } from "@/hooks/use-toast";
-import riderService, { type EarningsData, type RiderOrder } from "@/services/riderService";
+import riderService, {
+  type EarningsData,
+  type RiderOrder,
+} from "@/services/riderService";
 import { motion } from "framer-motion";
-import {
-    DollarSign,
-    MapPin,
-    Star,
-    TrendingUp,
-    Truck,
-} from "lucide-react";
+import { DollarSign, MapPin, Star, TrendingUp, Truck } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import {
+  LineChart,
+  Line,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  XAxis,
+} from "recharts";
 
 const fmt = (n: number) => `৳${n.toLocaleString("en-BD")}`;
 const fmtDate = (d: string) =>
@@ -28,22 +32,38 @@ const PeriodCard: React.FC<{
   fees: number;
   tips: number;
   accent?: string;
-}> = ({ label, earnings, deliveries, fees, tips, accent = "bg-orange-500" }) => (
+}> = ({
+  label,
+  earnings,
+  deliveries,
+  fees,
+  tips,
+  accent = "bg-orange-500",
+}) => (
   <motion.div
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
   >
-    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">{label}</p>
+    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+      {label}
+    </p>
     <p className="text-3xl font-bold text-gray-900">{fmt(earnings)}</p>
     <p className="text-sm text-gray-500 mt-1">{deliveries} deliveries</p>
     <div className="mt-3 pt-3 border-t border-gray-50 flex gap-4 text-xs text-gray-500">
-      <span>Fees: <strong className="text-gray-700">{fmt(fees)}</strong></span>
-      <span>Tips: <strong className="text-gray-700">{fmt(tips)}</strong></span>
+      <span>
+        Fees: <strong className="text-gray-700">{fmt(fees)}</strong>
+      </span>
+      <span>
+        Tips: <strong className="text-gray-700">{fmt(tips)}</strong>
+      </span>
     </div>
     {/* Progress bar — visual only */}
     <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-      <div className={`h-full ${accent} rounded-full`} style={{ width: `${Math.min(100, (earnings / 5000) * 100)}%` }} />
+      <div
+        className={`h-full ${accent} rounded-full`}
+        style={{ width: `${Math.min(100, (earnings / 5000) * 100)}%` }}
+      />
     </div>
   </motion.div>
 );
@@ -70,20 +90,32 @@ const RiderEarningsPage: React.FC = () => {
     }
   }, [toast]);
 
-  const loadHistory = useCallback(async (page: number) => {
-    setHistoryLoading(true);
-    try {
-      const res = await riderService.getDeliveryHistory({ page, limit: 20 });
-      const d = (res as { data: { data: { deliveries: RiderOrder[]; pagination: { total: number } } } }).data;
-      setHistory(d.data?.deliveries ?? []);
-      setHistoryTotal(d.data?.pagination?.total ?? 0);
-      setHistoryPage(page);
-    } catch {
-      toast({ variant: "destructive", title: "Failed to load delivery history" });
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [toast]);
+  const loadHistory = useCallback(
+    async (page: number) => {
+      setHistoryLoading(true);
+      try {
+        const res = await riderService.getDeliveryHistory({ page, limit: 20 });
+        const d = (
+          res as {
+            data: {
+              data: { deliveries: RiderOrder[]; pagination: { total: number } };
+            };
+          }
+        ).data;
+        setHistory(d.data?.deliveries ?? []);
+        setHistoryTotal(d.data?.pagination?.total ?? 0);
+        setHistoryPage(page);
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Failed to load delivery history",
+        });
+      } finally {
+        setHistoryLoading(false);
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     void loadEarnings();
@@ -101,7 +133,10 @@ const RiderEarningsPage: React.FC = () => {
   }
 
   // Weekly chart — bar chart using raw divs
-  const maxDayEarnings = Math.max(...(earnings?.weeklyBreakdown ?? []).map((d) => d.earnings), 1);
+  const maxDayEarnings = Math.max(
+    ...(earnings?.weeklyBreakdown ?? []).map((d) => d.earnings),
+    1,
+  );
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -111,9 +146,21 @@ const RiderEarningsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {earnings && (
           <>
-            <PeriodCard label="Today" accent="bg-blue-500" {...earnings.today} />
-            <PeriodCard label="This Week" accent="bg-orange-500" {...earnings.thisWeek} />
-            <PeriodCard label="This Month" accent="bg-purple-500" {...earnings.thisMonth} />
+            <PeriodCard
+              label="Today"
+              accent="bg-blue-500"
+              {...earnings.today}
+            />
+            <PeriodCard
+              label="This Week"
+              accent="bg-orange-500"
+              {...earnings.thisWeek}
+            />
+            <PeriodCard
+              label="This Month"
+              accent="bg-purple-500"
+              {...earnings.thisMonth}
+            />
           </>
         )}
       </div>
@@ -122,8 +169,18 @@ const RiderEarningsPage: React.FC = () => {
       {earnings && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Earned", value: fmt(earnings.allTime.earnings), icon: DollarSign, color: "text-green-600 bg-green-50" },
-            { label: "Total Deliveries", value: String(earnings.allTime.deliveries), icon: Truck, color: "text-blue-600 bg-blue-50" },
+            {
+              label: "Total Earned",
+              value: fmt(earnings.allTime.earnings),
+              icon: DollarSign,
+              color: "text-green-600 bg-green-50",
+            },
+            {
+              label: "Total Deliveries",
+              value: String(earnings.allTime.deliveries),
+              icon: Truck,
+              color: "text-blue-600 bg-blue-50",
+            },
           ].map((stat) => (
             <motion.div
               key={stat.label}
@@ -131,7 +188,9 @@ const RiderEarningsPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3"
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}
+              >
                 <stat.icon className="w-5 h-5" />
               </div>
               <div>
@@ -143,38 +202,51 @@ const RiderEarningsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Weekly bar chart */}
+      {/* Weekly line chart */}
       {earnings && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-orange-500" />
             This Week
           </h3>
-          <div className="flex items-end gap-2 h-24">
-            {earnings.weeklyBreakdown.map((day) => {
-              const heightPct = maxDayEarnings > 0 ? (day.earnings / maxDayEarnings) * 100 : 0;
-              return (
-                <div key={day.date} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div
-                    className="w-full bg-orange-100 rounded-t-md relative group"
-                    style={{ height: `${Math.max(4, heightPct)}%` }}
-                  >
-                    {day.earnings > 0 && (
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                        {fmt(day.earnings)}
-                      </div>
-                    )}
-                    <div
-                      className="absolute inset-0 bg-orange-400 rounded-t-md"
-                      style={{ height: "100%" }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(day.date).toLocaleDateString("en-BD", { weekday: "short" })}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="h-32 w-full mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={earnings.weeklyBreakdown.map((d) => ({
+                  ...d,
+                  day: new Date(d.date).toLocaleDateString("en-BD", {
+                    weekday: "short",
+                  }),
+                }))}
+              >
+                <XAxis
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  dy={10}
+                />
+                <RechartsTooltip
+                  formatter={(value: number) => [fmt(value), "Earnings"]}
+                  labelStyle={{ display: "none" }}
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    fontSize: 12,
+                    padding: "8px 12px",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="earnings"
+                  stroke="#ea580c"
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: "#ea580c", strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: "#c2410c" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
@@ -183,13 +255,18 @@ const RiderEarningsPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-100">
           <h3 className="font-semibold text-gray-900">Delivery History</h3>
-          <p className="text-sm text-gray-500 mt-0.5">{historyTotal} completed deliveries</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {historyTotal} completed deliveries
+          </p>
         </div>
 
         {historyLoading ? (
           <div className="p-5 space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              <div
+                key={i}
+                className="h-12 bg-gray-100 rounded-lg animate-pulse"
+              />
             ))}
           </div>
         ) : history.length === 0 ? (
@@ -201,9 +278,14 @@ const RiderEarningsPage: React.FC = () => {
           <ul className="divide-y divide-gray-50">
             {history.map((order) => {
               const restaurant =
-                typeof order.restaurantId === "object" ? order.restaurantId : null;
+                typeof order.restaurantId === "object"
+                  ? order.restaurantId
+                  : null;
               return (
-                <li key={order._id} className="flex items-center gap-4 px-5 py-3.5">
+                <li
+                  key={order._id}
+                  className="flex items-center gap-4 px-5 py-3.5"
+                >
                   <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
                     <MapPin className="w-4 h-4 text-gray-400" />
                   </div>
@@ -213,8 +295,12 @@ const RiderEarningsPage: React.FC = () => {
                     </p>
                     <p className="text-xs text-gray-500 truncate">
                       {restaurant?.name ?? ""}
-                      {order.deliveryAddress?.area ? ` → ${order.deliveryAddress.area}` : ""}
-                      {order.actualDeliveryTime ? ` • ${fmtDateTime(order.actualDeliveryTime)}` : ""}
+                      {order.deliveryAddress?.area
+                        ? ` → ${order.deliveryAddress.area}`
+                        : ""}
+                      {order.actualDeliveryTime
+                        ? ` • ${fmtDateTime(order.actualDeliveryTime)}`
+                        : ""}
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-green-600 shrink-0">
@@ -240,7 +326,9 @@ const RiderEarningsPage: React.FC = () => {
               Page {historyPage} of {Math.ceil(historyTotal / 20)}
             </span>
             <button
-              disabled={historyPage >= Math.ceil(historyTotal / 20) || historyLoading}
+              disabled={
+                historyPage >= Math.ceil(historyTotal / 20) || historyLoading
+              }
               onClick={() => void loadHistory(historyPage + 1)}
               className="px-4 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
             >

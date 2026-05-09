@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
+  LineChart,
+  Line,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
+import {
   Star,
   MessageSquare,
   Send,
@@ -43,18 +52,14 @@ const LABELS: Record<string, { title: string; subtitle: string }> = {
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function getCustomerName(
-  customerId: VendorReview["customerId"],
-): string {
+function getCustomerName(customerId: VendorReview["customerId"]): string {
   if (typeof customerId === "object") {
     return `${customerId.firstName} ${customerId.lastName}`;
   }
   return "Customer";
 }
 
-function getCustomerInitial(
-  customerId: VendorReview["customerId"],
-): string {
+function getCustomerInitial(customerId: VendorReview["customerId"]): string {
   if (typeof customerId === "object") {
     return customerId.firstName?.charAt(0)?.toUpperCase() || "U";
   }
@@ -68,9 +73,7 @@ function StarRating({ rating }: { rating: number }) {
         <Star
           key={s}
           className={`w-4 h-4 ${
-            s <= rating
-              ? "text-yellow-500 fill-yellow-500"
-              : "text-gray-200"
+            s <= rating ? "text-yellow-500 fill-yellow-500" : "text-gray-200"
           }`}
         />
       ))}
@@ -237,36 +240,52 @@ const VendorReviewsPage: React.FC = () => {
       {reviews.length > 0 && (
         <div className="kpi-card">
           <h3 className="kpi-card-label mb-4">Rating Breakdown</h3>
-          <div className="space-y-2.5">
-            {([5, 4, 3, 2, 1] as const).map((star) => {
-              const count = ratingBreakdown.counts[star];
-              const pct =
-                ratingBreakdown.maxCount > 0
-                  ? (count / ratingBreakdown.maxCount) * 100
-                  : 0;
-
-              return (
-                <div key={star} className="flex items-center gap-3">
-                  {/* Label */}
-                  <span className="text-sm font-medium text-gray-700 w-12 shrink-0">
-                    {star} {star === 1 ? "Star" : "Stars"}
-                  </span>
-
-                  {/* Bar track */}
-                  <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-orange-500 rounded-full transition-all duration-500 ease-out"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-
-                  {/* Count */}
-                  <span className="text-sm font-semibold text-gray-800 w-8 text-right tabular-nums shrink-0">
-                    {count}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="h-40 w-full mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={([5, 4, 3, 2, 1] as const).map((star) => ({
+                  star: `${star} Star${star > 1 ? "s" : ""}`,
+                  count: ratingBreakdown.counts[star],
+                }))}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#E5E7EB"
+                />
+                <XAxis
+                  dataKey="star"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  allowDecimals={false}
+                />
+                <RechartsTooltip
+                  formatter={(value: number) => [value, "Reviews"]}
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    fontSize: 12,
+                    padding: "8px 12px",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#f97316"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: "#f97316", strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: "#ea580c" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
@@ -315,9 +334,7 @@ const VendorReviewsPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             {LABELS[activeTab]?.title || "No reviews"}
           </h3>
-          <p className="text-gray-500">
-            {LABELS[activeTab]?.subtitle || ""}
-          </p>
+          <p className="text-gray-500">{LABELS[activeTab]?.subtitle || ""}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -396,13 +413,14 @@ const VendorReviewsPage: React.FC = () => {
                           {review.reply.text}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {new Date(
-                            review.reply.repliedAt,
-                          ).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
+                          {new Date(review.reply.repliedAt).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
                         </p>
                       </div>
                     )}
