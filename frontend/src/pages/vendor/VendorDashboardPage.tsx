@@ -212,11 +212,17 @@ interface SparklineProps {
 }
 
 const RevenueSparkline: React.FC<SparklineProps> = ({ data }) => {
-  const maxRevenue = Math.max(...data.map((d) => d.revenue), 1);
+  const normalized = data.map((point) => ({
+    ...point,
+    revenue: Number.isFinite(point.revenue)
+      ? point.revenue
+      : toSafeNumber(point.revenue),
+  }));
+  const maxRevenue = Math.max(...normalized.map((d) => d.revenue), 1);
 
   return (
     <div className="flex items-end gap-1.5 h-28">
-      {data.map((point) => {
+      {normalized.map((point) => {
         const heightPct = Math.max((point.revenue / maxRevenue) * 100, 3);
         const dayLabel = new Date(point.date).toLocaleDateString("en-US", {
           weekday: "short",
@@ -224,19 +230,21 @@ const RevenueSparkline: React.FC<SparklineProps> = ({ data }) => {
         return (
           <div
             key={point.date}
-            className="flex-1 flex flex-col items-center gap-1 group relative"
+            className="flex-1 flex flex-col items-center gap-1 group h-full"
           >
-            {/* Bar */}
-            <div
-              className="w-full rounded-t-sm transition-all duration-300 cursor-pointer"
-              style={{
-                height: `${heightPct}%`,
-                background: "linear-gradient(to top, #ea580c, #fb923c)",
-              }}
-            />
-            {/* Hover tooltip */}
-            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-2xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-card-md">
-              {formatCurrency(point.revenue)}
+            <div className="relative flex-1 w-full flex items-end">
+              {/* Bar */}
+              <div
+                className="w-full rounded-t-sm transition-all duration-300 cursor-pointer"
+                style={{
+                  height: `${heightPct}%`,
+                  background: "linear-gradient(to top, #ea580c, #fb923c)",
+                }}
+              />
+              {/* Hover tooltip */}
+              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-2xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-card-md">
+                {formatCurrency(point.revenue)}
+              </div>
             </div>
             {/* Day label */}
             <span className="text-2xs text-gray-400 mt-0.5">{dayLabel}</span>

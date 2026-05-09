@@ -82,9 +82,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
     </div>
     <p className="kpi-card-value">{value}</p>
     <p className="kpi-card-label">{title}</p>
-    {subtitle && (
-      <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>
-    )}
+    {subtitle && <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>}
   </motion.div>
 );
 
@@ -124,7 +122,11 @@ const AnalyticsSkeleton: React.FC = () => (
       <div className="h-5 w-40 bg-gray-200 rounded mb-6" />
       <div className="flex items-end gap-1 h-48">
         {Array.from({ length: 14 }).map((_, i) => (
-          <div key={i} className="flex-1 bg-gray-100 rounded-t" style={{ height: `${20 + Math.random() * 80}%` }} />
+          <div
+            key={i}
+            className="flex-1 bg-gray-100 rounded-t"
+            style={{ height: `${20 + Math.random() * 80}%` }}
+          />
         ))}
       </div>
     </div>
@@ -134,8 +136,18 @@ const AnalyticsSkeleton: React.FC = () => (
 // ── Helpers ────────────────────────────────────────────────────────
 
 const toSafeNumber = (value: unknown): number => {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (value && typeof value === "object" && "$numberDecimal" in value) {
+    const parsed = Number(
+      (value as { $numberDecimal?: string }).$numberDecimal,
+    );
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 };
 
 const formatCurrency = (amount: unknown): string =>
@@ -199,8 +211,16 @@ const VendorAnalyticsPage: React.FC = () => {
         completionRate: 0,
         deliveredOrders: 0,
         cancelledOrders: 0,
-        revenueOverTime: [] as { date: string; revenue: number; orders: number }[],
-        topSellingItems: [] as { name: string; quantity: number; revenue: number }[],
+        revenueOverTime: [] as {
+          date: string;
+          revenue: number;
+          orders: number;
+        }[],
+        topSellingItems: [] as {
+          name: string;
+          quantity: number;
+          revenue: number;
+        }[],
       };
     }
     return {
@@ -237,7 +257,10 @@ const VendorAnalyticsPage: React.FC = () => {
   // ── Status Breakdown (derived from delivered/cancelled counts) ──
 
   const statusBreakdown = useMemo(() => {
-    const inProgress = Math.max(0, totalOrders - deliveredOrders - cancelledOrders);
+    const inProgress = Math.max(
+      0,
+      totalOrders - deliveredOrders - cancelledOrders,
+    );
     const groups = [
       { status: "delivered", count: deliveredOrders },
       { status: "cancelled", count: cancelledOrders },
@@ -251,17 +274,25 @@ const VendorAnalyticsPage: React.FC = () => {
   // ── Top Items (sorted by revenue / by quantity) ─────────────────
 
   const itemsSortedByRevenue = useMemo(
-    () => [...topSellingItems].sort((a, b) => b.revenue - a.revenue).slice(0, 10),
+    () =>
+      [...topSellingItems].sort((a, b) => b.revenue - a.revenue).slice(0, 10),
     [topSellingItems],
   );
 
   const itemsSortedByQuantity = useMemo(
-    () => [...topSellingItems].sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+    () =>
+      [...topSellingItems].sort((a, b) => b.quantity - a.quantity).slice(0, 10),
     [topSellingItems],
   );
 
-  const maxItemRevenue = Math.max(...itemsSortedByRevenue.map((i) => i.revenue), 1);
-  const maxItemQuantity = Math.max(...itemsSortedByQuantity.map((i) => i.quantity), 1);
+  const maxItemRevenue = Math.max(
+    ...itemsSortedByRevenue.map((i) => i.revenue),
+    1,
+  );
+  const maxItemQuantity = Math.max(
+    ...itemsSortedByQuantity.map((i) => i.quantity),
+    1,
+  );
 
   // ── Coupon Stats ────────────────────────────────────────────────
 
@@ -279,7 +310,9 @@ const VendorAnalyticsPage: React.FC = () => {
           if (c.type === "fixed") {
             avgDiscount = toSafeNumber(c.value);
           } else if (c.type === "percentage") {
-            const minOrder = toSafeNumber(c.minOrderAmount ?? c.minimumOrderAmount ?? 0);
+            const minOrder = toSafeNumber(
+              c.minOrderAmount ?? c.minimumOrderAmount ?? 0,
+            );
             const maxDisc = toSafeNumber(c.maxDiscount ?? 0);
             const pctValue = toSafeNumber(c.value);
             if (maxDisc > 0) {
@@ -291,7 +324,8 @@ const VendorAnalyticsPage: React.FC = () => {
 
           // Estimated revenue attributed: assume that each coupon use drives
           // an order roughly 2x the average discount
-          const estimatedRevenueAttributed = used > 0 ? used * avgDiscount * 2 : 0;
+          const estimatedRevenueAttributed =
+            used > 0 ? used * avgDiscount * 2 : 0;
 
           return {
             _id: c._id,
@@ -303,7 +337,9 @@ const VendorAnalyticsPage: React.FC = () => {
             redemptionRate,
             avgDiscount,
             estimatedRevenueAttributed,
-            minOrder: toSafeNumber(c.minOrderAmount ?? c.minimumOrderAmount ?? 0),
+            minOrder: toSafeNumber(
+              c.minOrderAmount ?? c.minimumOrderAmount ?? 0,
+            ),
             maxDisc,
           };
         })
@@ -460,7 +496,8 @@ const VendorAnalyticsPage: React.FC = () => {
                     in_progress: "bg-orange-400",
                   };
                   return statusBreakdown.map((s) => {
-                    const pct = totalOrders > 0 ? (s.count / totalOrders) * 100 : 0;
+                    const pct =
+                      totalOrders > 0 ? (s.count / totalOrders) * 100 : 0;
                     return (
                       <div
                         key={s.status}
@@ -476,7 +513,8 @@ const VendorAnalyticsPage: React.FC = () => {
               {/* Legend */}
               <div className="space-y-2">
                 {statusBreakdown.map((s) => {
-                  const pct = totalOrders > 0 ? (s.count / totalOrders) * 100 : 0;
+                  const pct =
+                    totalOrders > 0 ? (s.count / totalOrders) * 100 : 0;
                   const label =
                     s.status === "in_progress"
                       ? "In Progress"
@@ -493,8 +531,12 @@ const VendorAnalyticsPage: React.FC = () => {
                           legendColors[s.status] || "bg-gray-300"
                         }`}
                       />
-                      <span className="text-sm text-gray-600 flex-1">{label}</span>
-                      <span className="text-sm font-medium text-gray-900">{s.count}</span>
+                      <span className="text-sm text-gray-600 flex-1">
+                        {label}
+                      </span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {s.count}
+                      </span>
                       <span className="text-xs text-gray-400 w-12 text-right">
                         {pct.toFixed(1)}%
                       </span>
@@ -681,7 +723,10 @@ const VendorAnalyticsPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {activeCouponsWithUsage.map((c) => (
-                  <tr key={c._id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={c._id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="py-3 pr-4">
                       <span className="font-mono text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
                         {c.code}
