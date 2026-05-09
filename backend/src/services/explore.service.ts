@@ -365,3 +365,108 @@ export const fetchPopularRestaurants = async (
     menuHighlights: highlightsByRestaurant.get(restaurant._id.toString()) || [],
   }));
 };
+
+export interface MenuItemByCategory {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  image?: string;
+  categoryId: string;
+  categoryName: string;
+  restaurantId: string;
+  restaurantName: string;
+  isAvailable: boolean;
+  dietaryTags: string[];
+  preparationTime: number;
+  rating?: number;
+  reviewCount?: number;
+  isPopular: boolean;
+}
+
+export const fetchMenuItemsByCategory = async (
+  categoryName: string,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<MenuItemByCategory[]> => {
+  const safeLimit = clampLimit(limit);
+
+  const items = await MenuItem.aggregate([
+    {
+      $lookup: {
+        from: "menucategories",
+        localField: "categoryId",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+    {
+      $match: {
+        isAvailable: true,
+        $or: [
+          { "category.name": { $regex: new RegExp(`^${categoryName}$`, "i") } },
+          { "category.name": { $regex: new RegExp(`^${categoryName}`, "i") } },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "restaurants",
+        localField: "restaurantId",
+        foreignField: "_id",
+        as: "restaurant",
+      },
+    },
+    { $unwind: "$restaurant" },
+    {
+      $match: {
+        "restaurant.isActive": true,
+        "restaurant.approvalStatus": "approved",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        description: 1,
+        price: 1,
+        originalPrice: 1,
+        image: 1,
+        categoryId: "$category._id",
+        categoryName: "$category.name",
+        restaurantId: "$restaurant._id",
+        restaurantName: "$restaurant.name",
+        isAvailable: 1,
+        dietaryTags: 1,
+        preparationTime: 1,
+        rating: "$restaurant.rating.average",
+        reviewCount: "$restaurant.rating.count",
+        isPopular: 1,
+      },
+    },
+    { $sort: { isPopular: -1, name: 1 } },
+    { $skip: offset },
+    { $limit: safeLimit },
+  ]);
+
+  return items.map((item) => ({
+    _id: item._id.toString(),
+    name: item.name,
+    description: item.description || "",
+    price: item.price,
+    originalPrice: item.originalPrice,
+    image: item.image,
+    categoryId: item.categoryId?.toString() || "",
+    categoryName: item.categoryName || "",
+    restaurantId: item.restaurantId?.toString() || "",
+    restaurantName: item.restaurantName || "",
+    isAvailable: item.isAvailable,
+    dietaryTags: item.dietaryTags || [],
+    preparationTime: item.preparationTime || 30,
+    rating: item.rating || 0,
+    reviewCount: item.reviewCount || 0,
+    isPopular: item.isPopular || false,
+  }));
+};

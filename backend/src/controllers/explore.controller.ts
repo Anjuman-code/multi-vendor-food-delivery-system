@@ -7,6 +7,7 @@ import {
   fetchTopCategories,
   fetchTrendingItems,
   fetchPopularRestaurants,
+  fetchMenuItemsByCategory,
 } from "../services/explore.service";
 
 const resolveLimit = (value: unknown, fallback: number) => {
@@ -55,6 +56,32 @@ export const getPopularRestaurants = async (
     const limit = resolveLimit(req.query.limit, 6);
     const restaurants = await fetchPopularRestaurants(limit);
     successResponse(res, { restaurants });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/explore/menu-items/:category */
+export const getMenuItemsByCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const category = req.params.category as string;
+    const limit = resolveLimit(req.query.limit, 50);
+    const offset = Number(req.query.offset) || 0;
+
+    if (!category) {
+      successResponse(res, { items: [], categories: [] });
+      return;
+    }
+
+    const items = await fetchMenuItemsByCategory(category, limit, offset);
+    
+    const categories = await fetchTopCategories(20);
+
+    successResponse(res, { items, categories });
   } catch (error) {
     next(error);
   }
