@@ -23,6 +23,25 @@ const extractError = (error: unknown): ApiResponse => {
   return { success: false, message: "An unexpected error occurred." };
 };
 
+export interface MenuItemByCategory {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  image?: string;
+  categoryId: string;
+  categoryName: string;
+  restaurantId: string;
+  restaurantName: string;
+  isAvailable: boolean;
+  dietaryTags: string[];
+  preparationTime: number;
+  rating?: number;
+  reviewCount?: number;
+  isPopular: boolean;
+}
+
 const homeService = {
   async getTopCategories(
     limit = 8,
@@ -61,6 +80,24 @@ const homeService = {
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{
         restaurants: PopularRestaurant[];
+      }>;
+    }
+  },
+
+  async getMenuItemsByCategory(
+    category: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<ApiResponse<{ items: MenuItemByCategory[]; categories: TopCategory[] }>> {
+    try {
+      const response = await httpClient.get<
+        ApiResponse<{ items: MenuItemByCategory[]; categories: TopCategory[] }>
+      >(`/api/explore/menu-items/${encodeURIComponent(category)}?limit=${limit}&offset=${offset}`);
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        items: MenuItemByCategory[];
+        categories: TopCategory[];
       }>;
     }
   },
