@@ -667,6 +667,11 @@ const RestaurantsPage: React.FC = () => {
     setGalleryModalOpen(true);
   }, []);
 
+  const handleViewInMapClick = useCallback((restaurant: Restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setIsMapView(true);
+  }, []);
+
   const handleRestaurantSelect = useCallback((restaurant: Restaurant | null) => {
     setSelectedRestaurant(restaurant);
   }, []);
@@ -698,7 +703,7 @@ const RestaurantsPage: React.FC = () => {
         <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-gradient-to-tl from-red-100/30 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 pt-28 pb-16 relative z-10">
+      <div className="container mx-auto px-4 pt-4 pb-16 relative z-10">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Filters Panel (Desktop sidebar + Mobile sheet) */}
           <FiltersPanel
@@ -797,7 +802,7 @@ const RestaurantsPage: React.FC = () => {
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="space-y-4"
+                        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 justify-items-start"
                       >
                         {recommendedRestaurants.map((restaurant) => (
                           <RestaurantCard
@@ -805,6 +810,7 @@ const RestaurantsPage: React.FC = () => {
                             restaurant={restaurant}
                             onFavoriteToggle={handleFavoriteToggle}
                             onBookClick={handleBookClick}
+                            onViewMapClick={handleViewInMapClick}
                             onCardClick={handleCardClick}
                             onImageClick={handleImageClick}
                             isSelected={
@@ -846,7 +852,7 @@ const RestaurantsPage: React.FC = () => {
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="space-y-4"
+                        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 justify-items-start"
                       >
                         {regularRestaurants.map((restaurant) => (
                           <RestaurantCard
@@ -854,6 +860,7 @@ const RestaurantsPage: React.FC = () => {
                             restaurant={restaurant}
                             onFavoriteToggle={handleFavoriteToggle}
                             onBookClick={handleBookClick}
+                            onViewMapClick={handleViewInMapClick}
                             onCardClick={handleCardClick}
                             onImageClick={handleImageClick}
                             isSelected={

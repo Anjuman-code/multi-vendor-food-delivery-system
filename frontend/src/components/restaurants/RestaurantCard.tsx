@@ -1,22 +1,22 @@
-import React, { useState, useCallback, useRef, useEffect, memo } from "react";
-import { motion } from "framer-motion";
-import { Star, MapPin, Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger,
   TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
-import { restaurantFallbackSVG } from "@/utils/fallbackImages";
 import type { Restaurant } from "@/types/restaurant";
+import { cn } from "@/utils/cn";
+import { motion } from "framer-motion";
+import { Heart, Map, MapPin, Star } from "lucide-react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
   onFavoriteToggle: (id: string | number) => void;
   onBookClick: (restaurant: Restaurant) => void;
+  onViewMapClick: (restaurant: Restaurant) => void;
   onCardClick: (restaurant: Restaurant) => void;
   onImageClick: (restaurant: Restaurant) => void;
   isSelected?: boolean;
@@ -28,6 +28,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
     restaurant,
     onFavoriteToggle,
     onBookClick,
+    onViewMapClick,
     onCardClick,
     onImageClick,
     isSelected = false,
@@ -45,6 +46,17 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
     // Format cuisine label
     const cuisineLabel =
       restaurant.cuisine.charAt(0).toUpperCase() + restaurant.cuisine.slice(1);
+
+    const distanceLabel =
+      restaurant.distance === undefined
+        ? null
+        : restaurant.distance < 1
+          ? `${Math.round(restaurant.distance * 1000)}m`
+          : `${restaurant.distance.toFixed(1)}km`;
+
+    const imageSrc = imageError || !restaurant.image
+      ? "/table.png"
+      : restaurant.image;
 
     // Handle image lazy loading
     useEffect(() => {
@@ -90,6 +102,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
       onCardClick(restaurant);
     }, [restaurant, onCardClick]);
 
+    const handleViewMapClick = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onViewMapClick(restaurant);
+      },
+      [restaurant, onViewMapClick],
+    );
+
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -104,44 +124,26 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
       <TooltipProvider>
         <motion.article
           layout
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          whileHover={{ y: -4, boxShadow: "0 12px 40px rgba(0,0,0,0.12)" }}
+          exit={{ opacity: 0, y: -12 }}
+          whileHover={{ y: -3, boxShadow: "0 14px 32px rgba(15,23,42,0.12)" }}
           onClick={handleCardClick}
           onKeyDown={handleKeyDown}
           tabIndex={0}
           role="article"
           aria-label={`${restaurant.name} - ${typeLabel}, ${cuisineLabel}. Rating: ${restaurant.rating} out of 5 with ${restaurant.reviewCount} reviews. Located at ${restaurant.address}`}
           className={cn(
-            "bg-white rounded-xl overflow-hidden shadow-sm border flex flex-col md:flex-row transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
+            "bg-white rounded-2xl overflow-hidden shadow-sm border flex flex-col w-full max-w-[430px] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
             isSelected
-              ? "border-orange-500 ring-2 ring-orange-200"
-              : "border-gray-100",
-            restaurant.isRecommended && "relative",
+              ? "border-orange-400 ring-2 ring-orange-100"
+              : "border-gray-200/80",
           )}
         >
-          {/* Recommended Ribbon */}
-          {restaurant.isRecommended && (
-            <div className="absolute top-0 left-0 z-20">
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-br-lg shadow-lg">
-                <div className="flex items-center gap-1">
-                  <Star className="w-3 h-3 fill-current" />
-                  <span>Recommended</span>
-                </div>
-              </div>
-              {restaurant.recommendedReason && (
-                <div className="bg-orange-50 text-orange-700 text-xs px-3 py-1 mt-0.5 rounded-r shadow-sm max-w-[200px] truncate">
-                  {restaurant.recommendedReason}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Image Section */}
           <button
             onClick={handleImageClick}
-            className="relative w-full md:w-72 h-48 flex-shrink-0 overflow-hidden bg-gray-100 group focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500"
+            className="relative w-full h-44 flex-shrink-0 overflow-hidden bg-gray-100 group focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500"
             aria-label={`View photos of ${restaurant.name}`}
             type="button"
           >
@@ -150,91 +152,118 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
               <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
             )}
 
-            {/* Main image with lazy loading */}
-            {!imageError ? (
-              <img
-                ref={imgRef}
-                src={restaurant.image}
-                alt={`${restaurant.name} restaurant interior`}
-                className={cn(
-                  "w-full h-full object-cover transition-all duration-500",
-                  imageLoaded ? "opacity-100" : "opacity-0",
-                  "group-hover:scale-105",
-                )}
-                loading="lazy"
-                decoding="async"
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-              />
-             ) : (
-               <img
-                 src={restaurantFallbackSVG}
-                 alt="Restaurant placeholder"
-                 className="w-full h-full object-cover"
-               />
-             )}
-
-            {/* View gallery overlay */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-full">
-                View Photos
-              </span>
-            </div>
-
-            {/* Rating Badge - repositioned for recommended cards */}
-            <div
+            <img
+              ref={imgRef}
+              src={imageSrc}
+              alt={`${restaurant.name} restaurant interior`}
               className={cn(
-                "absolute bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1 shadow-sm",
-                restaurant.isRecommended ? "bottom-3 left-3" : "top-3 left-3",
+                "w-full h-full object-cover transition-all duration-500",
+                imageLoaded || imageSrc === "/table.png"
+                  ? "opacity-100"
+                  : "opacity-0",
+                "group-hover:scale-105",
               )}
-            >
-              <Star
-                className="w-3.5 h-3.5 text-orange-500 fill-orange-500"
-                aria-hidden="true"
-              />
-              <span className="text-sm font-bold text-gray-900">
-                {restaurant.rating}/5
-              </span>
-              <span
-                className="text-xs text-gray-500"
-                aria-label={`${restaurant.reviewCount} reviews`}
-              >
-                ({restaurant.reviewCount})
-              </span>
+              loading="lazy"
+              decoding="async"
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            />
+
+            <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-2">
+              <div className="bg-white/95 backdrop-blur rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm border border-white/80">
+                <Star
+                  className="w-3.5 h-3.5 text-orange-500 fill-orange-500"
+                  aria-hidden="true"
+                />
+                <span className="text-xs font-bold text-gray-900">
+                  {restaurant.rating.toFixed(1)}
+                </span>
+                <span
+                  className="text-[11px] text-gray-500"
+                  aria-label={`${restaurant.reviewCount} reviews`}
+                >
+                  ({restaurant.reviewCount})
+                </span>
+              </div>
+
+              {distanceLabel && (
+                <div className="bg-white/95 backdrop-blur rounded-full px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm border border-white/80">
+                  {distanceLabel}
+                </div>
+              )}
             </div>
 
-            {/* Distance badge */}
-            {restaurant.distance !== undefined && (
-              <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 text-xs text-gray-600 shadow-sm">
-                {restaurant.distance < 1
-                  ? `${Math.round(restaurant.distance * 1000)}m`
-                  : `${restaurant.distance.toFixed(1)}km`}
+            {restaurant.isRecommended && (
+              <div className="absolute left-2 bottom-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                <Star className="w-3 h-3 fill-current" />
+                Recommended
               </div>
             )}
+
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
           </button>
 
           {/* Content Section */}
-          <div className="flex-1 p-5 flex flex-col justify-between min-w-0">
-            <div>
-              {/* Header */}
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <h3 className="text-lg font-bold text-gray-900 hover:text-orange-600 transition-colors truncate flex-1">
-                  {restaurant.name}
-                </h3>
-                {restaurant.priceRange && (
-                  <Badge variant="outline" className="text-xs shrink-0">
-                    {restaurant.priceRange}
-                  </Badge>
-                )}
+          <div className="flex-1 px-4 py-3 flex flex-col justify-between min-w-0 gap-3">
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 hover:text-orange-600 transition-colors truncate">
+                    {restaurant.name}
+                  </h3>
+                  <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
+                    <span>{typeLabel}</span>
+                    <span className="text-gray-300">•</span>
+                    <span>{cuisineLabel}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {restaurant.priceRange && (
+                    <Badge variant="outline" className="text-xs font-medium px-2 py-0.5">
+                      {restaurant.priceRange}
+                    </Badge>
+                  )}
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <motion.button
+                        onClick={handleFavoriteClick}
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.94 }}
+                        type="button"
+                        aria-label={
+                          restaurant.isFavorite
+                            ? `Remove ${restaurant.name} from favorites`
+                            : `Add ${restaurant.name} to favorites`
+                        }
+                        aria-pressed={restaurant.isFavorite}
+                        className={cn(
+                          "p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
+                          restaurant.isFavorite
+                            ? "text-red-500 bg-red-50"
+                            : "text-gray-400 hover:text-red-500 hover:bg-red-50",
+                        )}
+                      >
+                        <Heart
+                          className={cn(
+                            "w-4.5 h-4.5",
+                            restaurant.isFavorite && "fill-current",
+                          )}
+                          aria-hidden="true"
+                        />
+                      </motion.button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {restaurant.isFavorite
+                        ? "Remove from favorites"
+                        : "Add to favorites"}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
 
-              {/* Type and cuisine */}
-              <p className="text-sm text-gray-500 mb-3">
-                {typeLabel} • {cuisineLabel}
-              </p>
-
-              {/* Location */}
-              <div className="flex items-center gap-1.5 text-gray-600 mb-3">
+              <div className="flex items-center gap-1.5 text-gray-600">
                 <MapPin
                   className="w-4 h-4 text-orange-500 flex-shrink-0"
                   aria-hidden="true"
@@ -242,73 +271,51 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                 <span className="text-sm truncate">{restaurant.address}</span>
               </div>
 
-              {/* Amenities */}
+              {restaurant.recommendedReason && restaurant.isRecommended && (
+                <p className="text-xs text-orange-700 bg-orange-50/70 border border-orange-100 px-2.5 py-1 rounded-lg inline-flex max-w-full truncate">
+                  {restaurant.recommendedReason}
+                </p>
+              )}
+
               {restaurant.amenities.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {restaurant.amenities.slice(0, 4).map((amenity) => (
+                  {restaurant.amenities.slice(0, 3).map((amenity) => (
                     <Badge
                       key={amenity}
                       variant="secondary"
-                      className="text-xs capitalize"
+                      className="text-[11px] capitalize px-2 py-0.5"
                     >
                       {amenity.replace("-", " ")}
                     </Badge>
                   ))}
-                  {restaurant.amenities.length > 4 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{restaurant.amenities.length - 4} more
+                  {restaurant.amenities.length > 3 && (
+                    <Badge variant="outline" className="text-[11px] px-2 py-0.5">
+                      +{restaurant.amenities.length - 3}
                     </Badge>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between mt-4 gap-3">
+            <div className="flex items-center gap-2">
               <Button
                 onClick={handleBookClick}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-medium px-6 rounded-lg transition-colors flex-1 md:flex-none"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-medium px-5 rounded-lg transition-colors h-9"
                 size="sm"
                 aria-label={`Book a table at ${restaurant.name}`}
               >
                 Book a table
               </Button>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <motion.button
-                    onClick={handleFavoriteClick}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    type="button"
-                    aria-label={
-                      restaurant.isFavorite
-                        ? `Remove ${restaurant.name} from favorites`
-                        : `Add ${restaurant.name} to favorites`
-                    }
-                    aria-pressed={restaurant.isFavorite}
-                    className={cn(
-                      "p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
-                      restaurant.isFavorite
-                        ? "text-red-500 bg-red-50"
-                        : "text-gray-400 hover:text-red-500 hover:bg-red-50",
-                    )}
-                  >
-                    <Heart
-                      className={cn(
-                        "w-5 h-5",
-                        restaurant.isFavorite && "fill-current",
-                      )}
-                      aria-hidden="true"
-                    />
-                  </motion.button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {restaurant.isFavorite
-                    ? "Remove from favorites"
-                    : "Add to favorites"}
-                </TooltipContent>
-              </Tooltip>
+              <Button
+                onClick={handleViewMapClick}
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 border-gray-300 hover:border-orange-300 hover:text-orange-600"
+                aria-label={`View ${restaurant.name} on map`}
+              >
+                <Map className="w-4 h-4 mr-1" />
+                View in map
+              </Button>
             </div>
           </div>
         </motion.article>
