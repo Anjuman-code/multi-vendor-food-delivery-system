@@ -1,5 +1,6 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageLoader } from "@/components/PageLoader";
+import { RouteProgressBar } from "@/components/RouteProgressBar";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -88,6 +89,7 @@ const AdminPlatformSettingsPage = lazy(() => import("./pages/admin/settings/Plat
 function App(): React.ReactElement {
   return (
     <Router>
+      <RouteProgressBar />
       <AuthProvider>
         <CartProvider>
           <ConfirmProvider>
