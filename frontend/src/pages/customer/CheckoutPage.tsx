@@ -47,6 +47,8 @@ const CheckoutPage: React.FC = () => {
     tax,
     deliveryFee,
     total,
+    promoCode,
+    setPromoCode,
     clearCart,
   } = useCart();
 
@@ -55,7 +57,6 @@ const CheckoutPage: React.FC = () => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
-  const [couponCode, setCouponCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
 
@@ -166,7 +167,7 @@ const CheckoutPage: React.FC = () => {
         coordinates: selectedAddr.coordinates,
       },
       paymentMethod: `${selectedPm.type} - ${selectedPm.provider} ****${selectedPm.last4}`,
-      couponCode: couponCode || undefined,
+      couponCode: promoCode || undefined,
     });
     setPlacing(false);
 
@@ -189,7 +190,7 @@ const CheckoutPage: React.FC = () => {
     selectedPm,
     restaurantId,
     items,
-    couponCode,
+    promoCode,
     clearCart,
     navigate,
     toast,
@@ -365,9 +366,9 @@ const CheckoutPage: React.FC = () => {
                   </h3>
                   <div className="flex gap-2">
                     <Input
-                      value={couponCode}
+                      value={promoCode}
                       onChange={(e) =>
-                        setCouponCode(e.target.value.toUpperCase())
+                        setPromoCode(e.target.value.toUpperCase())
                       }
                       placeholder="Enter code"
                       className="flex-1"
@@ -442,10 +443,10 @@ const CheckoutPage: React.FC = () => {
                   </div>
                 </Card>
 
-                {couponCode && (
+                {promoCode && (
                   <p className="text-sm text-green-600 flex items-center gap-1">
                     <Tag className="h-3 w-3" /> Coupon applied:{" "}
-                    <span className="font-medium">{couponCode}</span>
+                    <span className="font-medium">{promoCode}</span>
                   </p>
                 )}
               </motion.div>

@@ -6,19 +6,20 @@ import { Card } from "@/components/ui/card";
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ArrowRight,
-    ChevronLeft,
-    Plus,
-    ShoppingBag,
-    ShoppingCart,
-    Store,
-    Tag,
-    Trash2,
-    Truck
+  ArrowRight,
+  ChevronLeft,
+  Plus,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  Tag,
+  Trash2,
+  Truck,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const FREE_DELIVERY_THRESHOLD = 500;
@@ -33,14 +34,42 @@ const CartPage: React.FC = () => {
     tax,
     deliveryFee,
     total,
+    promoCode,
+    setPromoCode,
+    clearPromoCode,
     updateQuantity,
     removeItem,
     clearCart,
   } = useCart();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [promoCode, setPromoCode] = useState("");
+  const [promoDraft, setPromoDraft] = useState(promoCode);
+
+  useEffect(() => {
+    setPromoDraft(promoCode);
+  }, [promoCode]);
+
+  const canApplyPromo =
+    promoDraft.trim().length > 0 &&
+    promoDraft.trim().toUpperCase() !== promoCode;
+
+  const handleApplyPromo = () => {
+    if (!canApplyPromo) return;
+    const normalized = promoDraft.trim().toUpperCase();
+    setPromoCode(normalized);
+    toast({
+      title: "Promo code saved",
+      description: `We'll apply ${normalized} at checkout.`,
+    });
+  };
+
+  const handleClearPromo = () => {
+    clearPromoCode();
+    setPromoDraft("");
+    toast({ title: "Promo code removed" });
+  };
 
   const handleRemove = (itemKey: string) => {
     setRemovingId(itemKey);
@@ -51,7 +80,10 @@ const CartPage: React.FC = () => {
   };
 
   const amountToFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
-  const freeDeliveryProgress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100);
+  const freeDeliveryProgress = Math.min(
+    100,
+    (subtotal / FREE_DELIVERY_THRESHOLD) * 100,
+  );
   const qualifiesForFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
 
   /* ── Empty State ────────────────────────────────────────────── */
@@ -74,7 +106,8 @@ const CartPage: React.FC = () => {
             Your cart is empty
           </h2>
           <p className="text-gray-500 mb-8 leading-relaxed">
-            Looks like you haven't added anything yet. Explore our restaurants and find something delicious!
+            Looks like you haven't added anything yet. Explore our restaurants
+            and find something delicious!
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/restaurants">
@@ -138,14 +171,18 @@ const CartPage: React.FC = () => {
               className="mb-5"
             >
               <Link
-                to={restaurantId ? `/restaurants/${restaurantId}` : "/restaurants"}
+                to={
+                  restaurantId ? `/restaurants/${restaurantId}` : "/restaurants"
+                }
                 className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm hover:shadow-md hover:border-orange-200 transition-all group w-fit"
               >
                 <div className="bg-orange-100 rounded-lg p-1.5">
                   <Store className="h-4 w-4 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Ordering from</p>
+                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+                    Ordering from
+                  </p>
                   <p className="text-sm font-semibold text-gray-800 group-hover:text-orange-600 transition-colors">
                     {restaurantName}
                   </p>
@@ -190,7 +227,9 @@ const CartPage: React.FC = () => {
                             itemKey: itemKey,
                             lineTotal: lineTotal,
                           }}
-                          onUpdateQuantity={(_, qty) => updateQuantity(itemKey, qty)}
+                          onUpdateQuantity={(_, qty) =>
+                            updateQuantity(itemKey, qty)
+                          }
                           onRemove={(key) => handleRemove(key as string)}
                         />
                       </Card>
@@ -201,7 +240,9 @@ const CartPage: React.FC = () => {
 
               {/* Add More Items */}
               <Link
-                to={restaurantId ? `/restaurants/${restaurantId}` : "/restaurants"}
+                to={
+                  restaurantId ? `/restaurants/${restaurantId}` : "/restaurants"
+                }
                 className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium px-1 py-2 transition-colors"
               >
                 <Plus className="h-4 w-4" />
@@ -215,7 +256,9 @@ const CartPage: React.FC = () => {
                 {/* Free Delivery Progress */}
                 <Card className="p-4 bg-white border-gray-100">
                   <div className="flex items-center gap-2 mb-2">
-                    <Truck className={`h-4 w-4 ${qualifiesForFreeDelivery ? "text-green-500" : "text-orange-500"}`} />
+                    <Truck
+                      className={`h-4 w-4 ${qualifiesForFreeDelivery ? "text-green-500" : "text-orange-500"}`}
+                    />
                     {qualifiesForFreeDelivery ? (
                       <p className="text-sm font-medium text-green-700">
                         🎉 You've unlocked free delivery!
@@ -249,8 +292,13 @@ const CartPage: React.FC = () => {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      value={promoDraft}
+                      onChange={(e) =>
+                        setPromoDraft(e.target.value.toUpperCase())
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleApplyPromo();
+                      }}
                       placeholder="Enter code"
                       className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 placeholder:text-gray-300 font-mono tracking-widest"
                     />
@@ -258,11 +306,37 @@ const CartPage: React.FC = () => {
                       variant="outline"
                       size="sm"
                       className="border-orange-200 text-orange-600 hover:bg-orange-50 font-medium"
-                      disabled={!promoCode}
+                      disabled={!canApplyPromo}
+                      onClick={handleApplyPromo}
                     >
                       Apply
                     </Button>
                   </div>
+                  {promoCode ? (
+                    <>
+                      <div className="mt-2 flex items-center justify-between text-xs text-green-700">
+                        <span>
+                          Applied:{" "}
+                          <span className="font-semibold">{promoCode}</span>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+                          onClick={handleClearPromo}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Discount is calculated at checkout.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-400">
+                      Discount is calculated at checkout.
+                    </p>
+                  )}
                 </Card>
 
                 {/* Order Summary */}
@@ -273,29 +347,44 @@ const CartPage: React.FC = () => {
 
                   <div className="space-y-2.5 text-sm">
                     <div className="flex justify-between text-gray-500">
-                      <span>Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})</span>
-                      <span className="font-medium text-gray-800">৳{subtotal.toFixed(2)}</span>
+                      <span>
+                        Subtotal ({itemCount}{" "}
+                        {itemCount === 1 ? "item" : "items"})
+                      </span>
+                      <span className="font-medium text-gray-800">
+                        ৳{subtotal.toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Tax (5%)</span>
-                      <span className="font-medium text-gray-800">৳{tax.toFixed(2)}</span>
+                      <span className="font-medium text-gray-800">
+                        ৳{tax.toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Delivery Fee</span>
                       {qualifiesForFreeDelivery ? (
                         <span className="font-medium text-green-600 flex items-center gap-1">
-                          <span className="line-through text-gray-400 text-xs">৳{deliveryFee.toFixed(0)}</span>
+                          <span className="line-through text-gray-400 text-xs">
+                            ৳{deliveryFee.toFixed(0)}
+                          </span>
                           Free
                         </span>
                       ) : (
-                        <span className="font-medium text-gray-800">৳{deliveryFee.toFixed(2)}</span>
+                        <span className="font-medium text-gray-800">
+                          ৳{deliveryFee.toFixed(2)}
+                        </span>
                       )}
                     </div>
 
                     <div className="border-t border-dashed border-gray-200 pt-3 mt-1 flex justify-between">
                       <span className="font-bold text-gray-900">Total</span>
                       <span className="font-bold text-lg text-orange-600">
-                        ৳{(qualifiesForFreeDelivery ? total - deliveryFee : total).toFixed(2)}
+                        ৳
+                        {(qualifiesForFreeDelivery
+                          ? total - deliveryFee
+                          : total
+                        ).toFixed(2)}
                       </span>
                     </div>
                   </div>

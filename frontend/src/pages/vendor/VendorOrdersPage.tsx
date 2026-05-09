@@ -6,15 +6,15 @@ import vendorService from "@/services/vendorService";
 import type { VendorOrder, VendorOrderStatus } from "@/types/vendor";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    Bell,
-    BellOff,
-    ChevronDown,
-    ChevronRight,
-    ClipboardList,
-    Clock,
-    Loader2,
-    Package,
-    Timer,
+  Bell,
+  BellOff,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  Clock,
+  Loader2,
+  Package,
+  Timer,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -23,14 +23,41 @@ import { Link } from "react-router-dom";
 
 type TabId = "live" | "incoming" | "history";
 
-const TABS: { id: TabId; label: string; statuses: VendorOrderStatus[]; color: string }[] = [
-  { id: "live", label: "Live", statuses: ["preparing", "ready"], color: "border-orange-500 text-orange-600" },
-  { id: "incoming", label: "Incoming", statuses: ["pending"], color: "border-blue-500 text-blue-600" },
-  { id: "history", label: "History", statuses: ["confirmed", "picked_up", "delivered", "cancelled"], color: "border-gray-400 text-gray-600" },
+const UPCOMING_STATUSES: VendorOrderStatus[] = [
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+  "picked_up",
 ];
 
-const LIVE_STATUSES: VendorOrderStatus[] = ["preparing", "ready"];
-const INCOMING_STATUSES: VendorOrderStatus[] = ["pending"];
+const TABS: {
+  id: TabId;
+  label: string;
+  statuses: VendorOrderStatus[];
+  color: string;
+}[] = [
+  {
+    id: "live",
+    label: "Live",
+    statuses: UPCOMING_STATUSES,
+    color: "border-orange-500 text-orange-600",
+  },
+  {
+    id: "incoming",
+    label: "Incoming",
+    statuses: ["pending"],
+    color: "border-blue-500 text-blue-600",
+  },
+  {
+    id: "history",
+    label: "History",
+    statuses: ["delivered", "cancelled"],
+    color: "border-gray-400 text-gray-600",
+  },
+];
+
+const LIVE_STATUSES: VendorOrderStatus[] = UPCOMING_STATUSES;
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -111,7 +138,9 @@ const ElapsedTimer: React.FC<{ createdAt: string }> = ({ createdAt }) => {
   const isUrgent = mins >= 15;
 
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-mono ${isUrgent ? "text-red-600" : "text-gray-500"}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-mono ${isUrgent ? "text-red-600" : "text-gray-500"}`}
+    >
       <Timer className="w-3 h-3" />
       {mins}:{secs.toString().padStart(2, "0")}
     </span>
@@ -161,14 +190,19 @@ const OrderCard: React.FC<{
             )}
           </div>
           <p className="text-sm text-gray-500">
-            {customerName} · {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? "s" : ""} · ৳{order.total.toLocaleString("en-BD")}
+            {customerName} · {order.items?.length || 0} item
+            {(order.items?.length || 0) !== 1 ? "s" : ""} · ৳
+            {order.total.toLocaleString("en-BD")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {action && (
             <Button
               size="sm"
-              onClick={(e) => { e.stopPropagation(); onStatusUpdate(order._id, action.status); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusUpdate(order._id, action.status);
+              }}
               className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs h-8 px-3"
             >
               {order.status === "pending" ? (
@@ -198,16 +232,23 @@ const OrderCard: React.FC<{
           >
             <div className="border-t border-gray-100 px-5 py-3 space-y-2 bg-gray-50/50">
               {order.items.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-sm">
+                <div
+                  key={i}
+                  className="flex items-center justify-between text-sm"
+                >
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium text-gray-800">{item.quantity}x {item.name}</span>
+                    <span className="font-medium text-gray-800">
+                      {item.quantity}x {item.name}
+                    </span>
                     {item.variants && item.variants.length > 0 && (
                       <span className="text-gray-400 ml-1">
                         ({item.variants.map((v) => v.name).join(", ")})
                       </span>
                     )}
                     {item.specialInstructions && (
-                      <p className="text-xs text-gray-400 mt-0.5">{item.specialInstructions}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {item.specialInstructions}
+                      </p>
                     )}
                   </div>
                   <span className="text-gray-600 ml-4">৳{item.itemTotal}</span>
@@ -236,12 +277,21 @@ const VendorOrdersPage: React.FC = () => {
   const { restaurants } = useVendor();
   const { toast } = useToast();
   const { newOrderCount } = useSocketContext();
-  const { audioEnabled, toggle: toggleAudio, playChime } = useAudioNotification();
+  const {
+    audioEnabled,
+    toggle: toggleAudio,
+    playChime,
+  } = useAudioNotification();
   const [activeTab, setActiveTab] = useState<TabId>("live");
   const [orders, setOrders] = useState<VendorOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-  const [pagination, setPagination] = useState({ page: 1, limit: 30, total: 0, pages: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 30,
+    total: 0,
+    pages: 0,
+  });
 
   const activeStatuses = TABS.find((t) => t.id === activeTab)?.statuses || [];
 
@@ -255,7 +305,11 @@ const VendorOrdersPage: React.FC = () => {
       if (res.success && res.data) {
         const newOrders = res.data.orders;
         // Play chime for new incoming orders
-        if (activeTab === "incoming" && orders.length > 0 && newOrders.length > orders.length) {
+        if (
+          activeTab === "incoming" &&
+          orders.length > 0 &&
+          newOrders.length > orders.length
+        ) {
           playChime();
         }
         setOrders(newOrders);
@@ -284,12 +338,20 @@ const VendorOrdersPage: React.FC = () => {
       // Remove from current list if status changed away from current tab's filter
       setOrders((prev) =>
         activeStatuses.includes(newStatus as VendorOrderStatus)
-          ? prev.map((o) => (o._id === orderId ? { ...o, status: newStatus as VendorOrderStatus } : o))
+          ? prev.map((o) =>
+              o._id === orderId
+                ? { ...o, status: newStatus as VendorOrderStatus }
+                : o,
+            )
           : prev.filter((o) => o._id !== orderId),
       );
       toast({ title: "Success", description: `Order status updated` });
     } else {
-      toast({ title: "Error", description: res.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: res.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -334,7 +396,11 @@ const VendorOrdersPage: React.FC = () => {
               : "bg-gray-50 border-gray-200 text-gray-500"
           }`}
         >
-          {audioEnabled ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
+          {audioEnabled ? (
+            <Bell className="w-3.5 h-3.5" />
+          ) : (
+            <BellOff className="w-3.5 h-3.5" />
+          )}
           {audioEnabled ? "Alert On" : "Alert Off"}
         </button>
       </div>
@@ -347,11 +413,15 @@ const VendorOrdersPage: React.FC = () => {
       ) : orders.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
           <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No {activeTab} orders</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            No {activeTab} orders
+          </h3>
           <p className="text-gray-500">
-            {activeTab === "live" ? "No orders currently being prepared." :
-             activeTab === "incoming" ? "No new orders waiting." :
-             "No completed orders yet."}
+            {activeTab === "live"
+              ? "No upcoming orders right now."
+              : activeTab === "incoming"
+                ? "No new orders waiting."
+                : "No completed orders yet."}
           </p>
         </div>
       ) : (
@@ -370,7 +440,8 @@ const VendorOrdersPage: React.FC = () => {
           {pagination.pages > 1 && (
             <div className="flex items-center justify-between pt-2">
               <p className="text-sm text-gray-500">
-                Page {pagination.page} of {pagination.pages} · {pagination.total} total
+                Page {pagination.page} of {pagination.pages} ·{" "}
+                {pagination.total} total
               </p>
               <div className="flex gap-2">
                 <Button
