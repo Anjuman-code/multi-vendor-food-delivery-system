@@ -1,39 +1,39 @@
-import React, { useState, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Search,
-  ChevronDown,
-  X,
-  Star,
-  Filter as FilterIcon,
-  RotateCcw,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet";
+import { Slider } from "@/components/ui/slider";
 import type {
-  FilterCategory,
-  FilterState,
-  SortOption,
+    FilterCategory,
+    FilterState,
+    SortOption,
 } from "@/types/restaurant";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ChevronDown,
+    Filter as FilterIcon,
+    RotateCcw,
+    Search,
+    Star,
+    X,
+} from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
 
 // Animation variants
 const collapseVariants = {
@@ -178,6 +178,11 @@ interface RatingFilterProps {
 
 const RatingFilter: React.FC<RatingFilterProps> = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const normalizedRating = Number.isFinite(value) ? Math.max(0, Math.min(5, value)) : 0;
+  const isAnyRating = normalizedRating === 0;
+  const ratingLabel = isAnyRating
+    ? "Any rating"
+    : `${normalizedRating.toFixed(1).replace(/\.0$/, "")}+ stars`;
 
   return (
     <motion.div variants={itemVariants} className="mb-4">
@@ -217,17 +222,19 @@ const RatingFilter: React.FC<RatingFilterProps> = ({ value, onChange }) => {
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-orange-500 fill-orange-500" />
                   <span className="text-sm font-medium text-gray-900">
-                    {value}
+                    {ratingLabel}
                   </span>
                 </div>
-                <span className="text-xs text-gray-500">& above</span>
+                <span className="text-xs text-gray-500">
+                  {isAnyRating ? "All restaurants" : "and above"}
+                </span>
               </div>
               <Slider
-                value={[value]}
+                value={[normalizedRating]}
                 min={0}
                 max={5}
                 step={0.5}
-                onValueChange={(vals) => onChange(vals[0])}
+                onValueChange={(vals) => onChange(vals[0] ?? 0)}
                 aria-label="Minimum rating filter"
               />
               <div className="flex justify-between mt-1">
