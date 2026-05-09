@@ -4,13 +4,13 @@
  */
 import { cartService } from "@/services/cartService";
 import React, {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import { useAuth } from "./AuthContext";
 
@@ -44,12 +44,14 @@ interface CartState {
   restaurantId: string | null;
   restaurantName: string | null;
   items: CartItem[];
+  promoCode: string;
 }
 
 interface CartContextType {
   items: CartItem[];
   restaurantId: string | null;
   restaurantName: string | null;
+  promoCode: string;
   itemCount: number;
   subtotal: number;
   tax: number;
@@ -60,6 +62,8 @@ interface CartContextType {
     restaurantName: string,
     item: CartItem,
   ) => boolean;
+  setPromoCode: (code: string) => void;
+  clearPromoCode: () => void;
   updateQuantity: (menuItemId: string, quantity: number) => void;
   removeItem: (menuItemId: string) => void;
   clearCart: () => void;
@@ -78,13 +82,21 @@ const loadCart = (): CartState => {
   try {
     const raw = localStorage.getItem(CART_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as CartState;
-      if (parsed && Array.isArray(parsed.items)) return parsed;
+      const parsed = JSON.parse(raw) as Partial<CartState>;
+      if (parsed && Array.isArray(parsed.items)) {
+        return {
+          restaurantId: parsed.restaurantId ?? null,
+          restaurantName: parsed.restaurantName ?? null,
+          items: parsed.items,
+          promoCode:
+            typeof parsed.promoCode === "string" ? parsed.promoCode : "",
+        };
+      }
     }
   } catch {
     // Corrupt data – ignore
   }
-  return { restaurantId: null, restaurantName: null, items: [] };
+  return { restaurantId: null, restaurantName: null, items: [], promoCode: "" };
 };
 
 const saveCart = (state: CartState) => {
@@ -120,36 +132,38 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthenticated && !initialSyncDone.current) {
       initialSyncDone.current = true;
-      cartService.getCart().then((serverCart) => {
-        if (serverCart && serverCart.items.length > 0) {
-          const localCart = loadCart();
-          if (localCart.items.length === 0) {
-            // Server has items, local doesn't — use server
-            setCart({
-              restaurantId: serverCart.restaurantId,
-              restaurantName: serverCart.restaurantName,
-              items: serverCart.items.map((i) => ({
-                menuItemId: i.menuItemId,
-                name: i.name,
-                price: i.price,
-                image: i.image,
-                quantity: i.quantity,
-                variants: i.variants,
-                addons: i.addons,
-                specialInstructions: i.specialInstructions,
-              })),
-            });
-          } else if (
-            localCart.restaurantId === serverCart.restaurantId
-          ) {
-            // Same restaurant — merge (server wins on quantity for matching items)
-            // For now, keep local if both exist
+      cartService
+        .getCart()
+        .then((serverCart) => {
+          if (serverCart && serverCart.items.length > 0) {
+            const localCart = loadCart();
+            if (localCart.items.length === 0) {
+              // Server has items, local doesn't — use server
+              setCart({
+                restaurantId: serverCart.restaurantId,
+                restaurantName: serverCart.restaurantName,
+                items: serverCart.items.map((i) => ({
+                  menuItemId: i.menuItemId,
+                  name: i.name,
+                  price: i.price,
+                  image: i.image,
+                  quantity: i.quantity,
+                  variants: i.variants,
+                  addons: i.addons,
+                  specialInstructions: i.specialInstructions,
+                })),
+                promoCode: localCart.promoCode || "",
+              });
+            } else if (localCart.restaurantId === serverCart.restaurantId) {
+              // Same restaurant — merge (server wins on quantity for matching items)
+              // For now, keep local if both exist
+            }
+            // Different restaurant — keep local, server cart is stale
           }
-          // Different restaurant — keep local, server cart is stale
-        }
-      }).catch(() => {
-        // Server unreachable — continue with local cart
-      });
+        })
+        .catch(() => {
+          // Server unreachable — continue with local cart
+        });
     }
   }, [isAuthenticated]);
 
@@ -162,20 +176,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
       if (state.restaurantId && state.restaurantName) {
-        cartService.syncCart({
-          restaurantId: state.restaurantId,
-          restaurantName: state.restaurantName,
-          items: state.items.map((i) => ({
-            menuItemId: i.menuItemId,
-            name: i.name,
-            price: i.price,
-            image: i.image,
-            quantity: i.quantity,
-            variants: i.variants,
-            addons: i.addons,
-            specialInstructions: i.specialInstructions,
-          })),
-        }).catch(() => {});
+        cartService
+          .syncCart({
+            restaurantId: state.restaurantId,
+            restaurantName: state.restaurantName,
+            items: state.items.map((i) => ({
+              menuItemId: i.menuItemId,
+              name: i.name,
+              price: i.price,
+              image: i.image,
+              quantity: i.quantity,
+              variants: i.variants,
+              addons: i.addons,
+              specialInstructions: i.specialInstructions,
+            })),
+          })
+          .catch(() => {});
       }
     },
     [isAuthenticated],
@@ -215,6 +231,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           restaurantId,
           restaurantName,
           items: newItems,
+          promoCode: prev.promoCode,
         };
       });
       return true;
@@ -222,22 +239,43 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     [cart.restaurantId],
   );
 
+  const setPromoCode = useCallback((code: string) => {
+    setCart((prev) => ({
+      ...prev,
+      promoCode: code.trim().toUpperCase(),
+    }));
+  }, []);
+
+  const clearPromoCode = useCallback(() => {
+    setCart((prev) => ({
+      ...prev,
+      promoCode: "",
+    }));
+  }, []);
+
   const updateQuantity = useCallback((itemKey: string, quantity: number) => {
     setCart((prev) => {
       if (quantity <= 0) {
         const newItems = prev.items.filter(
           (i) =>
-            (i.itemKey || buildCartItemKey(i)) !== itemKey && i.menuItemId !== itemKey,
+            (i.itemKey || buildCartItemKey(i)) !== itemKey &&
+            i.menuItemId !== itemKey,
         );
         if (newItems.length === 0) {
-          return { restaurantId: null, restaurantName: null, items: [] };
+          return {
+            restaurantId: null,
+            restaurantName: null,
+            items: [],
+            promoCode: "",
+          };
         }
         return { ...prev, items: newItems };
       }
       return {
         ...prev,
         items: prev.items.map((i) =>
-          (i.itemKey || buildCartItemKey(i)) === itemKey || i.menuItemId === itemKey
+          (i.itemKey || buildCartItemKey(i)) === itemKey ||
+          i.menuItemId === itemKey
             ? { ...i, quantity }
             : i,
         ),
@@ -249,17 +287,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     setCart((prev) => {
       const newItems = prev.items.filter(
         (i) =>
-          (i.itemKey || buildCartItemKey(i)) !== itemKey && i.menuItemId !== itemKey,
+          (i.itemKey || buildCartItemKey(i)) !== itemKey &&
+          i.menuItemId !== itemKey,
       );
       if (newItems.length === 0) {
-        return { restaurantId: null, restaurantName: null, items: [] };
+        return {
+          restaurantId: null,
+          restaurantName: null,
+          items: [],
+          promoCode: "",
+        };
       }
       return { ...prev, items: newItems };
     });
   }, []);
 
   const clearCart = useCallback(() => {
-    setCart({ restaurantId: null, restaurantName: null, items: [] });
+    setCart({
+      restaurantId: null,
+      restaurantName: null,
+      items: [],
+      promoCode: "",
+    });
   }, []);
 
   const isRestaurantMismatch = useCallback(
@@ -287,12 +336,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       items: cart.items,
       restaurantId: cart.restaurantId,
       restaurantName: cart.restaurantName,
+      promoCode: cart.promoCode,
       itemCount: cart.items.reduce((sum, i) => sum + i.quantity, 0),
       subtotal,
       tax,
       deliveryFee,
       total,
       addItem,
+      setPromoCode,
+      clearPromoCode,
       updateQuantity,
       removeItem,
       clearCart,
@@ -305,6 +357,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       deliveryFee,
       total,
       addItem,
+      setPromoCode,
+      clearPromoCode,
       updateQuantity,
       removeItem,
       clearCart,
