@@ -307,13 +307,14 @@ const VendorAnalyticsPage: React.FC = () => {
 
           // Compute estimated average discount per use
           let avgDiscount = 0;
+          let maxDisc = 0;
           if (c.type === "fixed") {
             avgDiscount = toSafeNumber(c.value);
           } else if (c.type === "percentage") {
             const minOrder = toSafeNumber(
               c.minOrderAmount ?? c.minimumOrderAmount ?? 0,
             );
-            const maxDisc = toSafeNumber(c.maxDiscount ?? 0);
+            maxDisc = toSafeNumber(c.maxDiscount ?? 0);
             const pctValue = toSafeNumber(c.value);
             if (maxDisc > 0) {
               avgDiscount = Math.min(minOrder * (pctValue / 100), maxDisc);
@@ -448,17 +449,19 @@ const VendorAnalyticsPage: React.FC = () => {
               return (
                 <div
                   key={idx}
-                  className="flex-1 flex flex-col items-center gap-1 group relative"
+                  className="flex-1 flex flex-col items-center gap-1 group h-full"
                 >
-                  {/* Tooltip */}
-                  <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                    {d.date}: {formatCurrency(d.revenue)}
+                  <div className="relative flex-1 w-full flex items-end">
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                      {d.date}: {formatCurrency(d.revenue)}
+                    </div>
+                    {/* Bar — brand orange gradient */}
+                    <div
+                      className="w-full max-w-[32px] bg-gradient-to-t from-orange-500 to-red-400 rounded-t transition-all duration-200 hover:from-orange-600 hover:to-red-500 cursor-pointer"
+                      style={{ height: `${Math.max(pct, 2)}%` }}
+                    />
                   </div>
-                  {/* Bar — brand orange gradient */}
-                  <div
-                    className="w-full max-w-[32px] bg-gradient-to-t from-orange-500 to-red-400 rounded-t transition-all duration-200 hover:from-orange-600 hover:to-red-500 cursor-pointer"
-                    style={{ height: `${Math.max(pct, 2)}%` }}
-                  />
                   {/* Date label */}
                   <span className="text-[10px] text-gray-400 -rotate-45 origin-top-left mt-1 whitespace-nowrap">
                     {d.date}
