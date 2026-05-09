@@ -165,6 +165,7 @@ interface KpiCardProps {
   trend?: number | null;
   iconColor: string;
   subtitle?: string;
+  to?: string;
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({
@@ -174,36 +175,47 @@ const KpiCard: React.FC<KpiCardProps> = ({
   trend,
   iconColor,
   subtitle,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="kpi-card"
-  >
-    <div className="flex items-center justify-between mb-3">
-      <div className={`p-3 rounded-xl ${iconColor}`}>
-        <Icon className="w-5 h-5 text-white" />
+  to,
+}) => {
+  const content = (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`kpi-card ${to ? "cursor-pointer hover:shadow-md" : ""}`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className={`p-3 rounded-xl ${iconColor}`}>
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        {trend !== null && trend !== undefined && (
+          <span
+            className={`kpi-card-delta ${
+              trend >= 0 ? "text-green-600" : "text-red-500"
+            }`}
+          >
+            {trend >= 0 ? (
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            ) : (
+              <ArrowDownRight className="w-3.5 h-3.5" />
+            )}
+            {Math.abs(trend)}%
+          </span>
+        )}
       </div>
-      {trend !== null && trend !== undefined && (
-        <span
-          className={`kpi-card-delta ${
-            trend >= 0 ? "text-green-600" : "text-red-500"
-          }`}
-        >
-          {trend >= 0 ? (
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          ) : (
-            <ArrowDownRight className="w-3.5 h-3.5" />
-          )}
-          {Math.abs(trend)}%
-        </span>
-      )}
-    </div>
-    <p className="kpi-card-value">{value}</p>
-    <p className="kpi-card-label">{title}</p>
-    {subtitle && <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>}
-  </motion.div>
-);
+      <p className="kpi-card-value">{value}</p>
+      <p className="kpi-card-label">{title}</p>
+      {subtitle && <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>}
+    </motion.div>
+  );
+
+  if (!to) return content;
+
+  return (
+    <Link to={to} className="block" aria-label={`${title} details`}>
+      {content}
+    </Link>
+  );
+};
 
 // ── 7-Day Revenue Sparkline (CSS bars since Recharts not available) ──
 
@@ -563,6 +575,7 @@ const VendorDashboardPage: React.FC = () => {
           icon={DollarSign}
           trend={kpis.todayRevenueTrend}
           iconColor="bg-gradient-to-r from-green-500 to-emerald-500"
+          to="/vendor/analytics"
         />
         <KpiCard
           title="Active Orders"
@@ -570,12 +583,14 @@ const VendorDashboardPage: React.FC = () => {
           icon={ShoppingBag}
           iconColor="bg-gradient-to-r from-blue-500 to-indigo-500"
           subtitle="Preparing &amp; Ready"
+          to="/vendor/orders"
         />
         <KpiCard
           title="Pending Orders"
           value={kpis.pendingOrders}
           icon={Clock}
           iconColor="bg-gradient-to-r from-orange-500 to-red-500"
+          to="/vendor/orders"
         />
         <KpiCard
           title="Avg. Order Value"
@@ -583,6 +598,7 @@ const VendorDashboardPage: React.FC = () => {
           icon={TrendingUp}
           trend={kpis.avgOrderValueTrend}
           iconColor="bg-gradient-to-r from-purple-500 to-pink-500"
+          to="/vendor/analytics"
         />
       </div>
 
