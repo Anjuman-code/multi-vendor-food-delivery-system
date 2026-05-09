@@ -61,7 +61,7 @@ const Breadcrumb: React.FC<{ category: string }> = ({ category }) => (
 );
 
 const CategoriesPage: React.FC = () => {
-  const [activeCategory, setActiveCategory] = useState<string>("burger");
+  const [activeCategory, setActiveCategory] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemByCategory[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -71,19 +71,30 @@ const CategoriesPage: React.FC = () => {
 
   const loadCategories = useCallback(async () => {
     setIsLoading(true);
-    const categoryToLoad = activeCategory || "burger";
     try {
-      const response = await homeService.getMenuItemsByCategory(categoryToLoad, 50, 0);
+      const response = await homeService.getTopCategories(20);
+      if (response.success && response.data?.categories) {
+        const cats = response.data.categories.map((c: TopCategory) => ({
+          id: c.name.toLowerCase(),
+          name: c.name,
+        }));
+        setCategories(cats);
+        
+        if (cats.length > 0) {
+          setActiveCategory(cats[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading categories:", error);
+    }
+  }, []);
+
+  const loadMenuItems = useCallback(async (category: string) => {
+    setIsLoading(true);
+    try {
+      const response = await homeService.getMenuItemsByCategory(category, 50, 0);
       if (response.success && response.data) {
         setMenuItems(response.data.items || []);
-        if (response.data.categories && categories.length === 0) {
-          setCategories(
-            response.data.categories.map((c: TopCategory) => ({
-              id: c.name.toLowerCase(),
-              name: c.name,
-            }))
-          );
-        }
       } else {
         setMenuItems([]);
       }
@@ -92,11 +103,17 @@ const CategoriesPage: React.FC = () => {
       setMenuItems([]);
     }
     setIsLoading(false);
-  }, [activeCategory, categories.length]);
+  }, []);
 
   useEffect(() => {
     loadCategories();
-  }, [loadCategories]);
+  }, []);
+
+  useEffect(() => {
+    if (activeCategory) {
+      loadMenuItems(activeCategory);
+    }
+  }, [activeCategory]);
 
   const filteredAndSortedItems = useMemo(() => {
     let filtered = menuItems;
@@ -147,8 +164,8 @@ const CategoriesPage: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 capitalize mb-1">
-              {activeCategory}
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">
+              {categories.find(c => c.id === activeCategory)?.name || activeCategory}
             </h1>
             <p className="text-gray-600">
               {filteredAndSortedItems.length} items available
