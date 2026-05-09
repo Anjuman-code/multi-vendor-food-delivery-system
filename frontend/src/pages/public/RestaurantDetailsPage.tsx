@@ -30,7 +30,14 @@ import type { MenuCategory, MenuItem } from "@/types/menu";
 import type { Order } from "@/types/order";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
-import { Clock, Loader2, MapPin, Phone, Star, UtensilsCrossed } from "lucide-react";
+import {
+  Clock,
+  Loader2,
+  MapPin,
+  Phone,
+  Star,
+  UtensilsCrossed,
+} from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useParams } from "react-router-dom";
@@ -101,9 +108,12 @@ const reviewSchema = z.object({
 
 type ReviewFormData = z.infer<typeof reviewSchema>;
 
-function formatDeliveryTime(deliveryTime?: string | { min: number; max: number }): string {
+function formatDeliveryTime(
+  deliveryTime?: string | { min: number; max: number },
+): string {
   if (!deliveryTime) return "30-45 min";
-  if (typeof deliveryTime === "object") return `${deliveryTime.min}-${deliveryTime.max} min`;
+  if (typeof deliveryTime === "object")
+    return `${deliveryTime.min}-${deliveryTime.max} min`;
   return deliveryTime;
 }
 
@@ -154,7 +164,9 @@ const RestaurantDetailsPage: React.FC = () => {
   const isCustomer = user?.role === "customer";
 
   const [restaurant, setRestaurant] = useState<ApiRestaurant | null>(null);
-  const [resolvedRestaurantId, setResolvedRestaurantId] = useState<string | null>(null);
+  const [resolvedRestaurantId, setResolvedRestaurantId] = useState<
+    string | null
+  >(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -267,7 +279,9 @@ const RestaurantDetailsPage: React.FC = () => {
         const pagination = response.data.pagination;
         setReviewPage(pagination?.page || page);
         setReviewTotalPages(pagination?.pages || 1);
-        setReviews((prev) => (replace ? nextReviews : [...prev, ...nextReviews]));
+        setReviews((prev) =>
+          replace ? nextReviews : [...prev, ...nextReviews],
+        );
       } else {
         if (replace) setReviews([]);
         setReviewPage(1);
@@ -319,11 +333,9 @@ const RestaurantDetailsPage: React.FC = () => {
     );
 
     setEligibleOrders(availableOrders);
-    reviewForm.setValue(
-      "orderId",
-      availableOrders[0]?._id || "",
-      { shouldValidate: true },
-    );
+    reviewForm.setValue("orderId", availableOrders[0]?._id || "", {
+      shouldValidate: true,
+    });
     setOrdersLoading(false);
   }, [isAuthenticated, isCustomer, resolvedRestaurantId, reviewForm]);
 
@@ -365,9 +377,7 @@ const RestaurantDetailsPage: React.FC = () => {
 
   const getItemQuantity = useCallback(
     (menuItemId: string): number => {
-      const found = items.find(
-        (i) => i.menuItemId === menuItemId,
-      );
+      const found = items.find((i) => i.menuItemId === menuItemId);
       return found?.quantity || 0;
     },
     [items],
@@ -398,7 +408,8 @@ const RestaurantDetailsPage: React.FC = () => {
 
       const shouldReplace = await confirm({
         title: "Different restaurant",
-        description: "Your cart has items from another restaurant. Clear cart and add this item?",
+        description:
+          "Your cart has items from another restaurant. Clear cart and add this item?",
         confirmLabel: "Clear & add",
       });
       if (!shouldReplace) return;
@@ -596,7 +607,9 @@ const RestaurantDetailsPage: React.FC = () => {
                                 }}
                                 cartQuantity={getItemQuantity(item._id)}
                                 onAddToCart={() => handleAddToCart(item)}
-                                onUpdateQuantity={(_, qty) => updateQuantity(item._id, qty)}
+                                onUpdateQuantity={(_, qty) =>
+                                  updateQuantity(item._id, qty)
+                                }
                               />
                             ))}
                           </div>
@@ -755,7 +768,10 @@ const RestaurantDetailsPage: React.FC = () => {
                   {!isAuthenticated ? (
                     <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-4 text-sm text-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <span>Log in to leave a review.</span>
-                      <Button asChild className="bg-orange-500 hover:bg-orange-600">
+                      <Button
+                        asChild
+                        className="bg-orange-500 hover:bg-orange-600"
+                      >
                         <Link to="/login">Log in</Link>
                       </Button>
                     </div>
@@ -802,8 +818,12 @@ const RestaurantDetailsPage: React.FC = () => {
                                 </FormControl>
                                 <SelectContent>
                                   {eligibleOrders.map((order) => (
-                                    <SelectItem key={order._id} value={order._id}>
-                                      #{order.orderNumber} · {formatReviewDate(order.createdAt)}
+                                    <SelectItem
+                                      key={order._id}
+                                      value={order._id}
+                                    >
+                                      #{order.orderNumber} ·{" "}
+                                      {formatReviewDate(order.createdAt)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -827,7 +847,9 @@ const RestaurantDetailsPage: React.FC = () => {
                                       <button
                                         key={starValue}
                                         type="button"
-                                        onClick={() => field.onChange(starValue)}
+                                        onClick={() =>
+                                          field.onChange(starValue)
+                                        }
                                         className="p-1"
                                         aria-label={`Rate ${starValue} stars`}
                                       >
