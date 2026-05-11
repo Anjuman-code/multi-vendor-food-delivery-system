@@ -1,25 +1,25 @@
 /**
  * Order Mongoose model – customer orders from restaurants.
  */
-import mongoose, { Model, Schema, Types } from "mongoose";
+import mongoose, { Model, Schema, Types } from 'mongoose';
 
 // ── Enums ──────────────────────────────────────────────────────
 
 export enum OrderStatus {
-  PENDING = "pending",
-  CONFIRMED = "confirmed",
-  PREPARING = "preparing",
-  READY = "ready",
-  PICKED_UP = "picked_up",
-  DELIVERED = "delivered",
-  CANCELLED = "cancelled",
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  PREPARING = 'preparing',
+  READY = 'ready',
+  PICKED_UP = 'picked_up',
+  DELIVERED = 'delivered',
+  CANCELLED = 'cancelled',
 }
 
 export enum PaymentStatus {
-  PENDING = "pending",
-  PAID = "paid",
-  FAILED = "failed",
-  REFUNDED = "refunded",
+  PENDING = 'pending',
+  PAID = 'paid',
+  FAILED = 'failed',
+  REFUNDED = 'refunded',
 }
 
 // ── Types ──────────────────────────────────────────────────────
@@ -65,6 +65,13 @@ export interface IRefundLineItem {
   reason: string;
 }
 
+export enum PaymentMethod {
+  CASH_ON_DELIVERY = 'cash_on_delivery',
+  CARD = 'card',
+  WALLET = 'wallet',
+  UPI = 'upi',
+}
+
 export interface IOrder {
   orderNumber: string;
   customerId: Types.ObjectId;
@@ -76,6 +83,7 @@ export interface IOrder {
   statusHistory: IStatusHistoryEntry[];
   paymentMethod: string;
   paymentStatus: PaymentStatus;
+  codCollected?: boolean;
   subtotal: number;
   tax: number;
   deliveryFee: number;
@@ -103,7 +111,7 @@ const orderItemSchema = new Schema<IOrderItem>(
   {
     menuItemId: {
       type: Schema.Types.ObjectId,
-      ref: "MenuItem",
+      ref: 'MenuItem',
       required: true,
     },
     name: { type: String, required: true },
@@ -151,7 +159,7 @@ const statusHistorySchema = new Schema<IStatusHistoryEntry>(
       required: true,
     },
     timestamp: { type: Date, default: Date.now },
-    actorId: { type: Schema.Types.ObjectId, ref: "User" },
+    actorId: { type: Schema.Types.ObjectId, ref: 'User' },
     actorRole: { type: String },
     note: { type: String },
   },
@@ -169,7 +177,11 @@ const deliveryProofSchema = new Schema<IDeliveryProof>(
 
 const refundLineItemSchema = new Schema<IRefundLineItem>(
   {
-    menuItemId: { type: Schema.Types.ObjectId, ref: "MenuItem", required: true },
+    menuItemId: {
+      type: Schema.Types.ObjectId,
+      ref: 'MenuItem',
+      required: true,
+    },
     itemName: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     refundAmount: { type: Number, required: true, min: 0 },
@@ -189,26 +201,26 @@ const orderSchema = new Schema<IOrder>(
     },
     customerId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
       index: true,
     },
     restaurantId: {
       type: Schema.Types.ObjectId,
-      ref: "Restaurant",
+      ref: 'Restaurant',
       required: true,
       index: true,
     },
     driverId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
     items: {
       type: [orderItemSchema],
       required: true,
       validate: {
         validator: (v: IOrderItem[]) => v.length > 0,
-        message: "Order must have at least one item",
+        message: 'Order must have at least one item',
       },
     },
     deliveryAddress: {
@@ -230,6 +242,7 @@ const orderSchema = new Schema<IOrder>(
       enum: Object.values(PaymentStatus),
       default: PaymentStatus.PENDING,
     },
+    codCollected: { type: Boolean, default: false },
     subtotal: { type: Number, required: true, min: 0 },
     tax: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, required: true, min: 0 },
@@ -252,6 +265,6 @@ const orderSchema = new Schema<IOrder>(
 orderSchema.index({ customerId: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, status: 1 });
 
-const Order: Model<IOrder> = mongoose.model<IOrder>("Order", orderSchema);
+const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
 
 export default Order;
