@@ -1,42 +1,55 @@
 /**
  * CheckoutPage – multi-step checkout: address → payment → review → place order.
+ * Step state is synced to the URL via ?step= query param.
  */
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AddressDialog } from '@/components/AddressDialog';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
+import orderService from '@/services/orderService';
+import type { PaymentMethod, UserAddress } from '@/services/userService';
+import userService from '@/services/userService';
+import { motion } from 'framer-motion';
 import {
-  MapPin,
-  CreditCard,
-  CheckCircle,
   ArrowLeft,
   ArrowRight,
-  Tag,
+  Banknote,
+  CheckCircle,
+  CreditCard,
   Loader2,
-} from "lucide-react";
-import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import userService from "@/services/userService";
-import orderService from "@/services/orderService";
-import type { UserAddress, PaymentMethod } from "@/services/userService";
+  MapPin,
+  Navigation,
+  Plus,
+  Tag,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-type Step = "address" | "payment" | "review";
+type Step = 'delivery-address' | 'payment' | 'review';
 
 const STEPS: { key: Step; label: string; icon: React.ReactNode }[] = [
-  { key: "address", label: "Address", icon: <MapPin className="h-4 w-4" /> },
   {
-    key: "payment",
-    label: "Payment",
+    key: 'delivery-address',
+    label: 'Address',
+    icon: <MapPin className="h-4 w-4" />,
+  },
+  {
+    key: 'payment',
+    label: 'Payment',
     icon: <CreditCard className="h-4 w-4" />,
   },
-  { key: "review", label: "Review", icon: <CheckCircle className="h-4 w-4" /> },
+  { key: 'review', label: 'Review', icon: <CheckCircle className="h-4 w-4" /> },
 ];
+
+const VALID_STEPS: Step[] = ['delivery-address', 'payment', 'review'];
+const COD_PAYMENT_ID = '__cod__';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const {
@@ -52,24 +65,50 @@ const CheckoutPage: React.FC = () => {
     clearCart,
   } = useCart();
 
-  const [step, setStep] = useState<Step>("address");
+  // Step from URL — default to first step
+  const rawStep = searchParams.get('step') as Step | null;
+  const step: Step =
+    rawStep && VALID_STEPS.includes(rawStep) ? rawStep : 'delivery-address';
+
+  const setStep = useCallback(
+    (s: Step) => {
+      setSearchParams({ step: s }, { replace: false });
+    },
+    [setSearchParams],
+  );
+
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
 
   // Redirect if cart is empty or not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login");
+      navigate('/login');
       return;
     }
     if (items.length === 0) {
-      navigate("/cart");
+      navigate('/cart');
     }
   }, [isAuthenticated, items.length, navigate]);
+
+  const loadAddresses = useCallback(async () => {
+    const profileRes = await userService.getProfile();
+    if (profileRes.success && profileRes.data) {
+      const addrs = profileRes.data.user.addresses;
+      setAddresses(addrs);
+      // Auto-select the most recently added address (last in array) or default
+      setSelectedAddress((prev) => {
+        if (prev) return prev;
+        const latest = addrs[addrs.length - 1];
+        return latest ? latest._id : null;
+      });
+    }
+  }, []);
 
   // Load user data
   useEffect(() => {
@@ -98,56 +137,76 @@ const CheckoutPage: React.FC = () => {
     loadData();
   }, [isAuthenticated]);
 
+  // Guard: if arriving directly at payment/review step without completing prerequisites, redirect
+  useEffect(() => {
+    if (step === 'payment' && !selectedAddress) {
+      setSearchParams({ step: 'delivery-address' }, { replace: true });
+    } else if (step === 'review' && (!selectedAddress || !selectedPayment)) {
+      setSearchParams(
+        { step: selectedAddress ? 'payment' : 'delivery-address' },
+        { replace: true },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   const selectedAddr = addresses.find((a) => a._id === selectedAddress);
-  const selectedPm = paymentMethods.find((p) => p._id === selectedPayment);
+  const isCOD = selectedPayment === COD_PAYMENT_ID;
+  const selectedPm = isCOD
+    ? null
+    : paymentMethods.find((p) => p._id === selectedPayment);
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
   const goNext = () => {
-    if (step === "address") {
+    if (step === 'delivery-address') {
       if (!selectedAddress) {
         toast({
-          title: "Select Address",
-          description: "Please select a delivery address.",
-          variant: "destructive",
+          title: 'Select Address',
+          description: 'Please select a delivery address.',
+          variant: 'destructive',
         });
         return;
       }
-      setStep("payment");
-    } else if (step === "payment") {
+      setStep('payment');
+    } else if (step === 'payment') {
       if (!selectedPayment) {
         toast({
-          title: "Select Payment",
-          description: "Please select a payment method.",
-          variant: "destructive",
+          title: 'Select Payment',
+          description: 'Please select a payment method.',
+          variant: 'destructive',
         });
         return;
       }
-      setStep("review");
+      setStep('review');
     }
   };
 
   const goBack = () => {
-    if (step === "payment") setStep("address");
-    else if (step === "review") setStep("payment");
+    if (step === 'payment') setStep('delivery-address');
+    else if (step === 'review') setStep('payment');
   };
 
   const placeOrder = useCallback(async () => {
-    if (!selectedAddr || !selectedPm || !restaurantId) return;
+    if (!selectedAddr || !selectedPayment || !restaurantId) return;
 
     const hasInvalidMenuIds = items.some(
       (item) => !/^[0-9a-fA-F]{24}$/.test(item.menuItemId),
     );
     if (hasInvalidMenuIds) {
       toast({
-        title: "Demo item in cart",
+        title: 'Demo item in cart',
         description:
-          "Some cart items are from demo data and cannot be ordered. Please add items from a live restaurant menu.",
-        variant: "destructive",
+          'Some cart items are from demo data and cannot be ordered. Please add items from a live restaurant menu.',
+        variant: 'destructive',
       });
-      navigate("/restaurants");
+      navigate('/restaurants');
       return;
     }
+
+    const paymentMethodValue = isCOD
+      ? 'cash_on_delivery'
+      : `${selectedPm!.type} - ${selectedPm!.provider} ****${selectedPm!.last4}`;
 
     setPlacing(true);
     const res = await orderService.createOrder({
@@ -166,7 +225,7 @@ const CheckoutPage: React.FC = () => {
         district: selectedAddr.district,
         coordinates: selectedAddr.coordinates,
       },
-      paymentMethod: `${selectedPm.type} - ${selectedPm.provider} ****${selectedPm.last4}`,
+      paymentMethod: paymentMethodValue,
       couponCode: promoCode || undefined,
     });
     setPlacing(false);
@@ -174,19 +233,21 @@ const CheckoutPage: React.FC = () => {
     if (res.success && res.data) {
       clearCart();
       toast({
-        title: "Order Placed!",
+        title: 'Order Placed!',
         description: `Order ${res.data.order.orderNumber} confirmed.`,
       });
       navigate(`/orders/${res.data.order._id}`);
     } else {
       toast({
-        title: "Order Failed",
-        description: res.message || "Something went wrong.",
-        variant: "destructive",
+        title: 'Order Failed',
+        description: res.message || 'Something went wrong.',
+        variant: 'destructive',
       });
     }
   }, [
     selectedAddr,
+    selectedPayment,
+    isCOD,
     selectedPm,
     restaurantId,
     items,
@@ -213,7 +274,7 @@ const CheckoutPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout</h1>
         {restaurantName && (
           <p className="text-sm text-gray-500 mb-6">
-            Ordering from{" "}
+            Ordering from{' '}
             <span className="font-medium text-orange-600">
               {restaurantName}
             </span>
@@ -227,8 +288,8 @@ const CheckoutPage: React.FC = () => {
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   idx <= stepIndex
-                    ? "bg-orange-100 text-orange-700"
-                    : "bg-gray-100 text-gray-400"
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'bg-gray-100 text-gray-400'
                 }`}
               >
                 {s.icon}
@@ -237,7 +298,7 @@ const CheckoutPage: React.FC = () => {
               {idx < STEPS.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 ${
-                    idx < stepIndex ? "bg-orange-400" : "bg-gray-200"
+                    idx < stepIndex ? 'bg-orange-400' : 'bg-gray-200'
                   }`}
                 />
               )}
@@ -248,23 +309,41 @@ const CheckoutPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main content */}
           <div className="lg:col-span-2">
-            {step === "address" && (
+            {step === 'delivery-address' && (
               <motion.div
-                key="address"
+                key="delivery-address"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="space-y-3"
               >
-                <h2 className="text-lg font-semibold mb-3">
-                  Select Delivery Address
-                </h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-semibold">
+                    Select Delivery Address
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                    onClick={() => setAddressDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add new
+                  </Button>
+                </div>
                 {addresses.length === 0 ? (
                   <Card className="p-6 text-center">
-                    <p className="text-gray-500 mb-3">No addresses saved.</p>
+                    <Navigation className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500 mb-1 font-medium">
+                      No addresses saved
+                    </p>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Add an address to continue, or use your current location.
+                    </p>
                     <Button
-                      variant="outline"
-                      onClick={() => navigate("/profile")}
+                      className="bg-orange-500 hover:bg-orange-600"
+                      onClick={() => setAddressDialogOpen(true)}
                     >
+                      <Plus className="h-4 w-4 mr-2" />
                       Add Address
                     </Button>
                   </Card>
@@ -274,8 +353,8 @@ const CheckoutPage: React.FC = () => {
                       key={addr._id}
                       className={`p-4 cursor-pointer border-2 transition-colors ${
                         selectedAddress === addr._id
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-transparent hover:border-gray-200"
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-transparent hover:border-gray-200'
                       }`}
                       onClick={() => setSelectedAddress(addr._id)}
                     >
@@ -292,7 +371,7 @@ const CheckoutPage: React.FC = () => {
                           </p>
                           <p className="text-sm text-gray-600">
                             {addr.street}
-                            {addr.apartment && `, ${addr.apartment}`},{" "}
+                            {addr.apartment && `, ${addr.apartment}`},{' '}
                             {addr.area}, {addr.district}
                           </p>
                         </div>
@@ -300,10 +379,21 @@ const CheckoutPage: React.FC = () => {
                     </Card>
                   ))
                 )}
+
+                {/* AddressDialog for adding new address (includes GPS / map) */}
+                <AddressDialog
+                  open={addressDialogOpen}
+                  onOpenChange={setAddressDialogOpen}
+                  address={null}
+                  onSuccess={async () => {
+                    setAddressDialogOpen(false);
+                    await loadAddresses();
+                  }}
+                />
               </motion.div>
             )}
 
-            {step === "payment" && (
+            {step === 'payment' && (
               <motion.div
                 key="payment"
                 initial={{ opacity: 0, x: -10 }}
@@ -313,26 +403,56 @@ const CheckoutPage: React.FC = () => {
                 <h2 className="text-lg font-semibold mb-3">
                   Select Payment Method
                 </h2>
+
+                {/* Cash on Delivery — always shown */}
+                <Card
+                  className={`p-4 cursor-pointer border-2 transition-colors ${
+                    selectedPayment === COD_PAYMENT_ID
+                      ? 'border-orange-500 bg-orange-50'
+                      : 'border-transparent hover:border-gray-200'
+                  }`}
+                  onClick={() => setSelectedPayment(COD_PAYMENT_ID)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Banknote className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Cash on Delivery</p>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        Pay in cash when your order arrives. Please have the
+                        exact amount ready.
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Saved digital payment methods */}
+                <div className="flex items-center justify-between mt-4 mb-1">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    Saved cards &amp; wallets
+                  </p>
+                  <a
+                    href="/profile?tab=payment"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add payment method
+                  </a>
+                </div>
                 {paymentMethods.length === 0 ? (
-                  <Card className="p-6 text-center">
-                    <p className="text-gray-500 mb-3">
-                      No payment methods saved.
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate("/profile")}
-                    >
-                      Add Payment Method
-                    </Button>
-                  </Card>
+                  <p className="text-sm text-gray-400 py-2">
+                    No saved cards or wallets. You can add one via the link
+                    above or pay cash on delivery.
+                  </p>
                 ) : (
                   paymentMethods.map((pm) => (
                     <Card
                       key={pm._id}
                       className={`p-4 cursor-pointer border-2 transition-colors ${
                         selectedPayment === pm._id
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-transparent hover:border-gray-200"
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-transparent hover:border-gray-200'
                       }`}
                       onClick={() => setSelectedPayment(pm._id)}
                     >
@@ -350,8 +470,8 @@ const CheckoutPage: React.FC = () => {
                           <p className="text-sm text-gray-600">
                             ****{pm.last4}
                             {pm.expiryMonth && pm.expiryYear
-                              ? ` · Exp ${String(pm.expiryMonth).padStart(2, "0")}/${pm.expiryYear}`
-                              : ""}
+                              ? ` · Exp ${String(pm.expiryMonth).padStart(2, '0')}/${pm.expiryYear}`
+                              : ''}
                           </p>
                         </div>
                       </div>
@@ -378,7 +498,7 @@ const CheckoutPage: React.FC = () => {
               </motion.div>
             )}
 
-            {step === "review" && (
+            {step === 'review' && (
               <motion.div
                 key="review"
                 initial={{ opacity: 0, x: -10 }}
@@ -396,23 +516,43 @@ const CheckoutPage: React.FC = () => {
                     <p className="text-sm text-gray-800">
                       {selectedAddr.street}
                       {selectedAddr.apartment &&
-                        `, ${selectedAddr.apartment}`}, {selectedAddr.area},{" "}
+                        `, ${selectedAddr.apartment}`}, {selectedAddr.area},{' '}
                       {selectedAddr.district}
                     </p>
                   </Card>
                 )}
 
                 {/* Payment summary */}
-                {selectedPm && (
+                {selectedPayment && (
                   <Card className="p-4">
                     <p className="text-xs font-medium text-gray-400 uppercase mb-1">
                       Payment
                     </p>
-                    <p className="text-sm text-gray-800 capitalize">
-                      {selectedPm.type} – {selectedPm.provider} ****
-                      {selectedPm.last4}
-                    </p>
+                    {isCOD ? (
+                      <div className="flex items-center gap-2">
+                        <Banknote className="h-4 w-4 text-orange-500" />
+                        <p className="text-sm text-gray-800 font-medium">
+                          Cash on Delivery
+                        </p>
+                      </div>
+                    ) : selectedPm ? (
+                      <p className="text-sm text-gray-800 capitalize">
+                        {selectedPm.type} – {selectedPm.provider} ****
+                        {selectedPm.last4}
+                      </p>
+                    ) : null}
                   </Card>
+                )}
+
+                {/* COD reminder */}
+                {isCOD && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <Banknote className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      Please have <strong>৳{total.toFixed(2)}</strong> in cash
+                      ready for your rider.
+                    </p>
+                  </div>
                 )}
 
                 {/* Items */}
@@ -445,7 +585,7 @@ const CheckoutPage: React.FC = () => {
 
                 {promoCode && (
                   <p className="text-sm text-green-600 flex items-center gap-1">
-                    <Tag className="h-3 w-3" /> Coupon applied:{" "}
+                    <Tag className="h-3 w-3" /> Coupon applied:{' '}
                     <span className="font-medium">{promoCode}</span>
                   </p>
                 )}
@@ -456,12 +596,14 @@ const CheckoutPage: React.FC = () => {
             <div className="flex justify-between mt-6">
               <Button
                 variant="ghost"
-                onClick={step === "address" ? () => navigate("/cart") : goBack}
+                onClick={
+                  step === 'delivery-address' ? () => navigate('/cart') : goBack
+                }
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                {step === "address" ? "Back to Cart" : "Back"}
+                {step === 'delivery-address' ? 'Back to Cart' : 'Back'}
               </Button>
-              {step !== "review" ? (
+              {step !== 'review' ? (
                 <Button
                   className="bg-orange-500 hover:bg-orange-600"
                   onClick={goNext}

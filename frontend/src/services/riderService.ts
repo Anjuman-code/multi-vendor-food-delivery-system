@@ -1,7 +1,7 @@
 /**
  * Rider service — wraps all /api/driver/* endpoints.
  */
-import httpClient from "@/lib/httpClient";
+import httpClient from '@/lib/httpClient';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -11,7 +11,7 @@ export interface DriverProfile {
   licenseNumber: string;
   vehicleType: string;
   vehicleNumber: string;
-  applicationStatus: "pending" | "approved" | "rejected";
+  applicationStatus: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
   isAvailable: boolean;
   currentLocation?: { latitude: number; longitude: number };
@@ -36,8 +36,17 @@ export interface DriverProfile {
 export interface RiderOrder {
   _id: string;
   orderNumber: string;
-  restaurantId: { _id: string; name: string; address?: Record<string, unknown> };
-  customerId: { _id: string; firstName: string; lastName: string; phoneNumber?: string };
+  restaurantId: {
+    _id: string;
+    name: string;
+    address?: Record<string, unknown>;
+  };
+  customerId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber?: string;
+  };
   deliveryAddress: {
     area?: string;
     district?: string;
@@ -49,6 +58,9 @@ export interface RiderOrder {
   tipAmount?: number;
   total: number;
   status: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  codCollected?: boolean;
   driverId?: string;
   actualDeliveryTime?: string;
   createdAt: string;
@@ -74,25 +86,39 @@ export interface EarningsData {
 
 const riderService = {
   // Profile
-  getProfile: () => httpClient.get<{ profile: DriverProfile }>("/api/driver/profile"),
+  getProfile: () =>
+    httpClient.get<{ profile: DriverProfile }>('/api/driver/profile'),
   updateProfile: (data: Partial<DriverProfile>) =>
-    httpClient.patch<{ profile: DriverProfile }>("/api/driver/profile", data),
+    httpClient.patch<{ profile: DriverProfile }>('/api/driver/profile', data),
   setAvailability: (isAvailable: boolean) =>
-    httpClient.patch<{ isAvailable: boolean }>("/api/driver/availability", { isAvailable }),
+    httpClient.patch<{ isAvailable: boolean }>('/api/driver/availability', {
+      isAvailable,
+    }),
   completeOnboarding: () =>
-    httpClient.patch<{ profile: DriverProfile }>("/api/driver/onboarding", {}),
+    httpClient.patch<{ profile: DriverProfile }>('/api/driver/onboarding', {}),
 
   // Orders
   getAvailableOrders: () =>
-    httpClient.get<{ orders: RiderOrder[] }>("/api/driver/orders/available"),
+    httpClient.get<{ orders: RiderOrder[] }>('/api/driver/orders/available'),
   acceptOrder: (orderId: string) =>
-    httpClient.post<{ order: RiderOrder }>(`/api/driver/orders/${orderId}/accept`, {}),
+    httpClient.post<{ order: RiderOrder }>(
+      `/api/driver/orders/${orderId}/accept`,
+      {},
+    ),
   getActiveDelivery: () =>
-    httpClient.get<{ order: RiderOrder | null }>("/api/driver/orders/active"),
+    httpClient.get<{ order: RiderOrder | null }>('/api/driver/orders/active'),
   updateDeliveryStatus: (
     orderId: string,
-    data: { status: string; deliveryProof?: { photoUrl: string; note?: string } },
-  ) => httpClient.patch<{ order: RiderOrder }>(`/api/driver/orders/${orderId}/status`, data),
+    data: {
+      status: string;
+      deliveryProof?: { photoUrl: string; note?: string };
+      codCollected?: boolean;
+    },
+  ) =>
+    httpClient.patch<{ order: RiderOrder }>(
+      `/api/driver/orders/${orderId}/status`,
+      data,
+    ),
 
   // Location
   sendLocation: (data: {
@@ -103,16 +129,19 @@ const riderService = {
     speed?: number;
     accuracy?: number;
     batteryLevel?: number;
-  }) => httpClient.post("/api/driver/location", data),
+  }) => httpClient.post('/api/driver/location', data),
 
   // Earnings & history
-  getEarnings: () => httpClient.get<EarningsData>("/api/driver/earnings"),
+  getEarnings: () => httpClient.get<EarningsData>('/api/driver/earnings'),
   getDeliveryHistory: (params?: { page?: number; limit?: number }) =>
-    httpClient.get<{ deliveries: RiderOrder[]; pagination: unknown }>("/api/driver/deliveries", { params }),
+    httpClient.get<{ deliveries: RiderOrder[]; pagination: unknown }>(
+      '/api/driver/deliveries',
+      { params },
+    ),
 
   // Rating (customer submits)
   submitRating: (data: { orderId: string; rating: number; comment?: string }) =>
-    httpClient.post("/api/driver/ratings", data),
+    httpClient.post('/api/driver/ratings', data),
 };
 
 export default riderService;

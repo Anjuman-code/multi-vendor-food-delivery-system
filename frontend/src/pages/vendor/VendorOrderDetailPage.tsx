@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button";
-import { useConfirm } from "@/contexts/ConfirmContext";
-import { useToast } from "@/hooks/use-toast";
-import vendorService from "@/services/vendorService";
-import type { VendorOrder } from "@/types/vendor";
-import { motion } from "framer-motion";
+import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/contexts/ConfirmContext';
+import { useToast } from '@/hooks/use-toast';
+import vendorService from '@/services/vendorService';
+import type { VendorOrder } from '@/types/vendor';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Clock,
@@ -12,25 +12,25 @@ import {
   Package,
   Phone,
   User,
-} from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const STATUS_FLOW = [
-  "pending",
-  "confirmed",
-  "preparing",
-  "ready",
-  "picked_up",
-  "delivered",
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready',
+  'picked_up',
+  'delivered',
 ];
 
 const NEXT_STATUS: Record<string, string> = {
-  pending: "confirmed",
-  confirmed: "preparing",
-  preparing: "ready",
-  ready: "picked_up",
-  picked_up: "delivered",
+  pending: 'confirmed',
+  confirmed: 'preparing',
+  preparing: 'ready',
+  ready: 'picked_up',
+  picked_up: 'delivered',
 };
 
 const VendorOrderDetailPage: React.FC = () => {
@@ -61,14 +61,14 @@ const VendorOrderDetailPage: React.FC = () => {
     if (res.success && res.data) {
       setOrder(res.data.order);
       toast({
-        title: "Success",
-        description: `Order ${newStatus.replace(/_/g, " ")}`,
+        title: 'Success',
+        description: `Order ${newStatus.replace(/_/g, ' ')}`,
       });
     } else {
       toast({
-        title: "Error",
+        title: 'Error',
         description: res.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
     setUpdating(false);
@@ -77,28 +77,28 @@ const VendorOrderDetailPage: React.FC = () => {
   const handleCancel = async () => {
     if (!id) return;
     const ok = await confirm({
-      title: "Cancel order",
-      description: "Are you sure you want to cancel this order?",
-      confirmLabel: "Cancel order",
+      title: 'Cancel order',
+      description: 'Are you sure you want to cancel this order?',
+      confirmLabel: 'Cancel order',
     });
     if (!ok) return;
     setUpdating(true);
-    const res = await vendorService.updateOrderStatus(id, "cancelled");
+    const res = await vendorService.updateOrderStatus(id, 'cancelled');
     if (res.success && res.data) {
       setOrder(res.data.order);
-      toast({ title: "Order cancelled" });
+      toast({ title: 'Order cancelled' });
     } else {
       toast({
-        title: "Error",
+        title: 'Error',
         description: res.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
     setUpdating(false);
   };
 
   const formatCurrency = (amount: number) =>
-    `৳${amount.toLocaleString("en-BD")}`;
+    `৳${amount.toLocaleString('en-BD')}`;
 
   if (loading) {
     return (
@@ -115,12 +115,12 @@ const VendorOrderDetailPage: React.FC = () => {
   }
 
   const customerName =
-    typeof order.customerId === "object"
+    typeof order.customerId === 'object'
       ? `${order.customerId.firstName} ${order.customerId.lastName}`.trim()
-      : order.customer?.name || "—";
+      : order.customer?.name || '—';
 
   const customerPhone =
-    typeof order.customerId === "object"
+    typeof order.customerId === 'object'
       ? order.customerId.phoneNumber
       : order.customer?.phone;
 
@@ -155,13 +155,13 @@ const VendorOrderDetailPage: React.FC = () => {
               {updating ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : null}
-              Mark as{" "}
+              Mark as{' '}
               {NEXT_STATUS[order.status]
-                .replace(/_/g, " ")
+                .replace(/_/g, ' ')
                 .replace(/^\w/, (c) => c.toUpperCase())}
             </Button>
           )}
-          {order.status !== "cancelled" && order.status !== "delivered" && (
+          {order.status !== 'cancelled' && order.status !== 'delivered' && (
             <Button
               variant="outline"
               onClick={handleCancel}
@@ -183,7 +183,7 @@ const VendorOrderDetailPage: React.FC = () => {
         <h3 className="text-sm font-medium text-gray-500 mb-4">
           Order Progress
         </h3>
-        {order.status === "cancelled" ? (
+        {order.status === 'cancelled' ? (
           <div className="flex items-center gap-2 text-red-600">
             <div className="w-3 h-3 bg-red-500 rounded-full" />
             <span className="font-medium">Order Cancelled</span>
@@ -196,24 +196,24 @@ const VendorOrderDetailPage: React.FC = () => {
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                       idx <= currentIdx
-                        ? "bg-orange-500 text-white"
-                        : "bg-gray-100 text-gray-400"
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-100 text-gray-400'
                     }`}
                   >
                     {idx + 1}
                   </div>
                   <span
                     className={`text-xs mt-1 capitalize whitespace-nowrap ${
-                      idx <= currentIdx ? "text-orange-600" : "text-gray-400"
+                      idx <= currentIdx ? 'text-orange-600' : 'text-gray-400'
                     }`}
                   >
-                    {s.replace(/_/g, " ")}
+                    {s.replace(/_/g, ' ')}
                   </span>
                 </div>
                 {idx < STATUS_FLOW.length - 1 && (
                   <div
                     className={`flex-1 h-0.5 ${
-                      idx < currentIdx ? "bg-orange-500" : "bg-gray-200"
+                      idx < currentIdx ? 'bg-orange-500' : 'bg-gray-200'
                     }`}
                   />
                 )}
@@ -243,7 +243,7 @@ const VendorOrderDetailPage: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">
-                    {item.menuItem?.name || item.name || "Item"}
+                    {item.menuItem?.name || item.name || 'Item'}
                   </p>
                   {item.specialInstructions && (
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -295,7 +295,7 @@ const VendorOrderDetailPage: React.FC = () => {
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-700">{customerName || "—"}</span>
+                <span className="text-gray-700">{customerName || '—'}</span>
               </div>
               {customerPhone && (
                 <div className="flex items-center gap-3">
@@ -316,7 +316,7 @@ const VendorOrderDetailPage: React.FC = () => {
                 <div>
                   <p>{order.deliveryAddress.street}</p>
                   <p>
-                    {order.deliveryAddress.area},{" "}
+                    {order.deliveryAddress.area},{' '}
                     {order.deliveryAddress.district}
                   </p>
                   {order.deliveryAddress.instructions && (
@@ -334,9 +334,15 @@ const VendorOrderDetailPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-3">
                 Payment
               </h3>
-              <p className="text-sm text-gray-700 capitalize">
-                {order.paymentMethod.replace(/_/g, " ")}
-              </p>
+              {order.paymentMethod === 'cash_on_delivery' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">
+                  💵 Cash on Delivery
+                </span>
+              ) : (
+                <p className="text-sm text-gray-700 capitalize">
+                  {order.paymentMethod.replace(/_/g, ' ')}
+                </p>
+              )}
             </div>
           )}
         </motion.div>

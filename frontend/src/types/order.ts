@@ -21,15 +21,15 @@ export interface DeliveryAddress {
 }
 
 export type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "preparing"
-  | "ready"
-  | "picked_up"
-  | "delivered"
-  | "cancelled";
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'picked_up'
+  | 'delivered'
+  | 'cancelled';
 
-export type PaymentStatusType = "pending" | "paid" | "failed" | "refunded";
+export type PaymentStatusType = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface StatusHistoryEntry {
   status: OrderStatus;
@@ -58,6 +58,7 @@ export interface Order {
   statusHistory: StatusHistoryEntry[];
   paymentMethod: string;
   paymentStatus: PaymentStatusType;
+  codCollected?: boolean;
   subtotal: number;
   tax: number;
   deliveryFee: number;

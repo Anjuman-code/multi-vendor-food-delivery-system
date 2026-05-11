@@ -1,62 +1,73 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { riderRegisterSchema, type RiderRegisterFormData } from "@/lib/validation";
-import authService from "@/services/authService";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Truck } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import {
+  riderRegisterSchema,
+  type RiderRegisterFormData,
+} from '@/lib/validation';
+import authService from '@/services/authService';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Truck } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 const STEPS = [
-  { label: "Account", description: "Personal details & login" },
-  { label: "Vehicle", description: "Vehicle & license info" },
+  { label: 'Account', description: 'Personal details & login' },
+  { label: 'Vehicle', description: 'Vehicle & license info' },
 ];
 
 const VEHICLE_TYPES = [
-  { value: "bicycle", label: "Bicycle" },
-  { value: "motorcycle", label: "Motorcycle" },
-  { value: "car", label: "Car" },
-  { value: "van", label: "Van" },
-  { value: "truck", label: "Truck" },
+  { value: 'bicycle', label: 'Bicycle' },
+  { value: 'motorcycle', label: 'Motorcycle' },
+  { value: 'car', label: 'Car' },
+  { value: 'van', label: 'Van' },
+  { value: 'truck', label: 'Truck' },
 ];
 
 const STEP_0_FIELDS: (keyof RiderRegisterFormData)[] = [
-  "firstName",
-  "lastName",
-  "email",
-  "phoneNumber",
-  "password",
-  "confirmPassword",
+  'firstName',
+  'lastName',
+  'email',
+  'phoneNumber',
+  'password',
+  'confirmPassword',
 ];
 const STEP_1_FIELDS: (keyof RiderRegisterFormData)[] = [
-  "licenseNumber",
-  "vehicleType",
-  "vehicleNumber",
-  "agreedToTerms",
+  'licenseNumber',
+  'vehicleType',
+  'vehicleNumber',
+  'agreedToTerms',
 ];
 
 const RiderRegisterPage: React.FC = () => {
-  const [step, setStep] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawStep = searchParams.get('step');
+  const step = rawStep === 'vehicle' ? 1 : 0;
+  const setStep = (n: number) => {
+    setSearchParams(
+      { step: n === 0 ? 'account' : 'vehicle' },
+      { replace: true },
+    );
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,24 +76,28 @@ const RiderRegisterPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) navigate("/", { replace: true });
+    if (isAuthenticated) navigate('/', { replace: true });
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (!rawStep) setSearchParams({ step: 'account' }, { replace: true });
+  }, [rawStep, setSearchParams]);
 
   const form = useForm<RiderRegisterFormData>({
     resolver: zodResolver(riderRegisterSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phoneNumber: "",
-      password: "",
-      confirmPassword: "",
-      licenseNumber: "",
+      firstName: '',
+      lastName: '',
+      email: '',
+      phoneNumber: '',
+      password: '',
+      confirmPassword: '',
+      licenseNumber: '',
       vehicleType: undefined,
-      vehicleNumber: "",
+      vehicleNumber: '',
       agreedToTerms: false,
     },
-    mode: "onTouched",
+    mode: 'onTouched',
   });
 
   const { trigger } = form;
@@ -111,16 +126,19 @@ const RiderRegisterPage: React.FC = () => {
 
       if (result.success) {
         toast({
-          title: "Application submitted!",
+          title: 'Application submitted!',
           description:
-            "Please verify your email then wait for admin approval before you can start delivering.",
+            'Please verify your email then wait for admin approval before you can start delivering.',
         });
-        navigate("/login");
+        navigate('/login');
       } else {
-        toast({ variant: "destructive", title: result.message ?? "Registration failed" });
+        toast({
+          variant: 'destructive',
+          title: result.message ?? 'Registration failed',
+        });
       }
     } catch {
-      toast({ variant: "destructive", title: "An unexpected error occurred" });
+      toast({ variant: 'destructive', title: 'An unexpected error occurred' });
     } finally {
       setIsLoading(false);
     }
@@ -152,20 +170,24 @@ const RiderRegisterPage: React.FC = () => {
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                     i <= step
-                      ? "bg-orange-500 text-white"
-                      : "bg-gray-100 text-gray-400"
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 text-gray-400'
                   }`}
                 >
                   {i + 1}
                 </div>
                 <div className="hidden sm:block">
-                  <p className={`text-xs font-medium ${i === step ? "text-gray-900" : "text-gray-400"}`}>
+                  <p
+                    className={`text-xs font-medium ${i === step ? 'text-gray-900' : 'text-gray-400'}`}
+                  >
                     {s.label}
                   </p>
                 </div>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 ${i < step ? "bg-orange-400" : "bg-gray-200"}`} />
+                <div
+                  className={`flex-1 h-0.5 ${i < step ? 'bg-orange-400' : 'bg-gray-200'}`}
+                />
               )}
             </React.Fragment>
           ))}
@@ -219,7 +241,11 @@ const RiderRegisterPage: React.FC = () => {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="you@example.com" {...field} />
+                            <Input
+                              type="email"
+                              placeholder="you@example.com"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -232,7 +258,11 @@ const RiderRegisterPage: React.FC = () => {
                         <FormItem>
                           <FormLabel>Phone Number</FormLabel>
                           <FormControl>
-                            <Input type="tel" placeholder="+880 1X XX XXX XXX" {...field} />
+                            <Input
+                              type="tel"
+                              placeholder="+880 1X XX XXX XXX"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -247,7 +277,7 @@ const RiderRegisterPage: React.FC = () => {
                           <FormControl>
                             <div className="relative">
                               <Input
-                                type={showPassword ? "text" : "password"}
+                                type={showPassword ? 'text' : 'password'}
                                 placeholder="Min. 8 characters"
                                 {...field}
                               />
@@ -256,7 +286,11 @@ const RiderRegisterPage: React.FC = () => {
                                 onClick={() => setShowPassword((p) => !p)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                               >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                {showPassword ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
                               </button>
                             </div>
                           </FormControl>
@@ -273,16 +307,22 @@ const RiderRegisterPage: React.FC = () => {
                           <FormControl>
                             <div className="relative">
                               <Input
-                                type={showConfirmPassword ? "text" : "password"}
+                                type={showConfirmPassword ? 'text' : 'password'}
                                 placeholder="Repeat password"
                                 {...field}
                               />
                               <button
                                 type="button"
-                                onClick={() => setShowConfirmPassword((p) => !p)}
+                                onClick={() =>
+                                  setShowConfirmPassword((p) => !p)
+                                }
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                               >
-                                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                {showConfirmPassword ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
                               </button>
                             </div>
                           </FormControl>
@@ -327,7 +367,10 @@ const RiderRegisterPage: React.FC = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Vehicle Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select vehicle type" />
@@ -371,13 +414,22 @@ const RiderRegisterPage: React.FC = () => {
                                 id="terms"
                               />
                             </FormControl>
-                            <label htmlFor="terms" className="text-sm text-gray-600 cursor-pointer">
-                              I agree to the{" "}
-                              <Link to="/terms" className="text-orange-500 hover:underline">
+                            <label
+                              htmlFor="terms"
+                              className="text-sm text-gray-600 cursor-pointer"
+                            >
+                              I agree to the{' '}
+                              <Link
+                                to="/terms"
+                                className="text-orange-500 hover:underline"
+                              >
                                 Terms of Service
-                              </Link>{" "}
-                              and{" "}
-                              <Link to="/privacy" className="text-orange-500 hover:underline">
+                              </Link>{' '}
+                              and{' '}
+                              <Link
+                                to="/privacy"
+                                className="text-orange-500 hover:underline"
+                              >
                                 Privacy Policy
                               </Link>
                             </label>
@@ -400,7 +452,7 @@ const RiderRegisterPage: React.FC = () => {
                         disabled={isLoading}
                         className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
                       >
-                        {isLoading ? "Submitting…" : "Submit Application"}
+                        {isLoading ? 'Submitting…' : 'Submit Application'}
                       </Button>
                     </div>
                   </motion.div>
@@ -412,8 +464,11 @@ const RiderRegisterPage: React.FC = () => {
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{" "}
-          <Link to="/login" className="text-orange-500 font-medium hover:underline">
+          Already have an account?{' '}
+          <Link
+            to="/login"
+            className="text-orange-500 font-medium hover:underline"
+          >
             Sign in
           </Link>
         </p>

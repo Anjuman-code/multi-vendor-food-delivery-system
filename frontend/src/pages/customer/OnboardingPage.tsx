@@ -1,17 +1,8 @@
-import { DISTRICT_DATA, getAreasByDistrict, reverseGeocodeCoordinates } from '@/components/locationUtils';
-import { AnimatePresence, motion } from 'framer-motion';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import 'leaflet/dist/leaflet.css';
-import { CheckCircle2, CreditCard, Home, Loader2, MapPin, Navigation, Wallet } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  MapContainer,
-  Marker,
-  TileLayer,
-  useMapEvents,
-} from 'react-leaflet';
-import { useNavigate } from 'react-router-dom';
+  DISTRICT_DATA,
+  getAreasByDistrict,
+  reverseGeocodeCoordinates,
+} from '@/components/locationUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +12,22 @@ import { useToast } from '@/hooks/use-toast';
 import authService from '@/services/authService';
 import type { AddAddressPayload } from '@/services/userService';
 import userService from '@/services/userService';
+import { AnimatePresence, motion } from 'framer-motion';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import 'leaflet/dist/leaflet.css';
+import {
+  CheckCircle2,
+  CreditCard,
+  Home,
+  Loader2,
+  MapPin,
+  Navigation,
+  Wallet,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,
@@ -30,8 +37,6 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const STEPS = 3;
-const STORAGE_KEY = 'onboarding_step';
 const ADDRESS_LABELS = ['Home', 'Work', 'Other'] as const;
 
 type AddressLabel = (typeof ADDRESS_LABELS)[number];
@@ -39,7 +44,7 @@ type AddressLabel = (typeof ADDRESS_LABELS)[number];
 // ── Progress Bar ───────────────────────────────────────────────
 
 const ProgressBar = ({ step }: { step: number }) => {
-  const percent = (step / STEPS) * 100;
+  const percent = (step / 3) * 100; // 3 steps before completion
   return (
     <div className="fixed top-0 left-0 w-full h-[3px] bg-gray-100 z-50">
       <motion.div
@@ -125,7 +130,9 @@ const WelcomeStep = ({
             <MapPin className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-800">Delivery address</p>
+            <p className="text-sm font-semibold text-gray-800">
+              Delivery address
+            </p>
             <p className="text-xs text-gray-500">Where to bring your food</p>
           </div>
         </div>
@@ -134,7 +141,9 @@ const WelcomeStep = ({
             <CreditCard className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-800">Payment method</p>
+            <p className="text-sm font-semibold text-gray-800">
+              Payment method
+            </p>
             <p className="text-xs text-gray-500">Cash on delivery by default</p>
           </div>
         </div>
@@ -188,7 +197,10 @@ const AddressStep = ({
       setIsDetecting(true);
 
       try {
-        const resolvedAddress = await reverseGeocodeCoordinates(latitude, longitude);
+        const resolvedAddress = await reverseGeocodeCoordinates(
+          latitude,
+          longitude,
+        );
 
         if (resolvedAddress.street) setHouseNumber(resolvedAddress.street);
 
@@ -215,11 +227,17 @@ const AddressStep = ({
         if (districtValue) setDistrict(districtValue);
         if (areaValue) setArea(areaValue);
 
-        toast({ title: 'Location detected', description: 'Address fields filled from GPS.' });
+        toast({
+          title: 'Location detected',
+          description: 'Address fields filled from GPS.',
+        });
       } catch {
         setDistrict('Sylhet');
         setArea('Sylhet Sadar');
-        toast({ title: 'Location set', description: 'Coordinates saved. Defaulting to Sylhet.' });
+        toast({
+          title: 'Location set',
+          description: 'Coordinates saved. Defaulting to Sylhet.',
+        });
       } finally {
         setIsDetecting(false);
       }
@@ -229,7 +247,11 @@ const AddressStep = ({
 
   const handleUseLocation = () => {
     if (!navigator.geolocation) {
-      toast({ title: 'Not supported', description: 'Geolocation is not supported by your browser.', variant: 'destructive' });
+      toast({
+        title: 'Not supported',
+        description: 'Geolocation is not supported by your browser.',
+        variant: 'destructive',
+      });
       return;
     }
     setIsDetecting(true);
@@ -243,9 +265,10 @@ const AddressStep = ({
         setIsDetecting(false);
         toast({
           title: 'Location error',
-          description: err.code === 1
-            ? 'Location permission denied. Please allow access and try again.'
-            : 'Could not detect your location. Please try again.',
+          description:
+            err.code === 1
+              ? 'Location permission denied. Please allow access and try again.'
+              : 'Could not detect your location. Please try again.',
           variant: 'destructive',
         });
       },
@@ -256,11 +279,19 @@ const AddressStep = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!houseNumber) {
-      toast({ title: 'Required', description: 'Please enter your house/apartment number.', variant: 'destructive' });
+      toast({
+        title: 'Required',
+        description: 'Please enter your house/apartment number.',
+        variant: 'destructive',
+      });
       return;
     }
     if (!district || !area) {
-      toast({ title: 'Required', description: 'Please select a district and area.', variant: 'destructive' });
+      toast({
+        title: 'Required',
+        description: 'Please select a district and area.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -280,12 +311,18 @@ const AddressStep = ({
       };
       const res = await userService.addAddress(payload);
       if (!res.success) throw new Error(res.message);
-      toast({ title: 'Address saved!', description: 'Your delivery address has been added.' });
+      toast({
+        title: 'Address saved!',
+        description: 'Your delivery address has been added.',
+      });
       onNext();
     } catch (err) {
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to save address. Please try again.',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Failed to save address. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -298,11 +335,18 @@ const AddressStep = ({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-2xl font-bold text-gray-900">Delivery Address</h2>
-          <Button variant="ghost" size="sm" onClick={onSkip} className="text-gray-400 hover:text-gray-600 text-sm">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSkip}
+            className="text-gray-400 hover:text-gray-600 text-sm"
+          >
             Skip
           </Button>
         </div>
-        <p className="text-gray-500 text-sm">Where should we deliver your orders?</p>
+        <p className="text-gray-500 text-sm">
+          Where should we deliver your orders?
+        </p>
       </div>
 
       {/* GPS auto-fill */}
@@ -312,8 +356,12 @@ const AddressStep = ({
             <Navigation className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">Use GPS location</p>
-            <p className="text-xs text-gray-500">Auto-fill address from coordinates</p>
+            <p className="text-sm font-medium text-gray-900">
+              Use GPS location
+            </p>
+            <p className="text-xs text-gray-500">
+              Auto-fill address from coordinates
+            </p>
           </div>
         </div>
         <Button
@@ -324,7 +372,11 @@ const AddressStep = ({
           className="rounded-xl border-orange-200 hover:bg-orange-100 flex-shrink-0 gap-1.5"
           onClick={handleUseLocation}
         >
-          {isDetecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+          {isDetecting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Navigation className="w-3.5 h-3.5" />
+          )}
           {isDetecting ? 'Detecting…' : 'Auto-fill'}
         </Button>
       </div>
@@ -340,7 +392,11 @@ const AddressStep = ({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <LocationPickerMap lat={lat} lng={lng} onChange={handleCoordinatesUpdate} />
+          <LocationPickerMap
+            lat={lat}
+            lng={lng}
+            onChange={handleCoordinatesUpdate}
+          />
         </MapContainer>
         <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-xs text-gray-500 pointer-events-none">
           Tap the map to pin your location
@@ -360,7 +416,10 @@ const AddressStep = ({
             />
           </div>
           <div>
-            <Label htmlFor="floor">Floor <span className="text-gray-400 font-normal">(optional)</span></Label>
+            <Label htmlFor="floor">
+              Floor{' '}
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </Label>
             <Input
               id="floor"
               value={floor}
@@ -377,12 +436,17 @@ const AddressStep = ({
             <select
               id="district"
               value={district}
-              onChange={(e) => { setDistrict(e.target.value); setArea(''); }}
+              onChange={(e) => {
+                setDistrict(e.target.value);
+                setArea('');
+              }}
               className="mt-1 w-full h-10 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
             >
               <option value="">Select district</option>
               {DISTRICT_DATA.map((d) => (
-                <option key={d.district} value={d.district}>{d.district}</option>
+                <option key={d.district} value={d.district}>
+                  {d.district}
+                </option>
               ))}
             </select>
           </div>
@@ -397,14 +461,19 @@ const AddressStep = ({
             >
               <option value="">Select area</option>
               {getAreasByDistrict(district).map((a) => (
-                <option key={a.value} value={a.value}>{a.label}</option>
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
               ))}
             </select>
           </div>
         </div>
 
         <div>
-          <Label htmlFor="instructions">Rider Instructions <span className="text-gray-400 font-normal">(optional)</span></Label>
+          <Label htmlFor="instructions">
+            Rider Instructions{' '}
+            <span className="text-gray-400 font-normal">(optional)</span>
+          </Label>
           <Textarea
             id="instructions"
             value={instructions}
@@ -425,9 +494,19 @@ const AddressStep = ({
                 variant={label === l ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setLabel(l)}
-                className={label === l ? 'bg-orange-500 hover:bg-orange-600 border-orange-500' : 'border-gray-200'}
+                className={
+                  label === l
+                    ? 'bg-orange-500 hover:bg-orange-600 border-orange-500'
+                    : 'border-gray-200'
+                }
               >
-                {l === 'Home' ? <Home className="w-3.5 h-3.5 mr-1" /> : l === 'Work' ? <Wallet className="w-3.5 h-3.5 mr-1" /> : <MapPin className="w-3.5 h-3.5 mr-1" />}
+                {l === 'Home' ? (
+                  <Home className="w-3.5 h-3.5 mr-1" />
+                ) : l === 'Work' ? (
+                  <Wallet className="w-3.5 h-3.5 mr-1" />
+                ) : (
+                  <MapPin className="w-3.5 h-3.5 mr-1" />
+                )}
                 {l}
               </Button>
             ))}
@@ -440,7 +519,14 @@ const AddressStep = ({
           className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white mt-2"
           size="lg"
         >
-          {isLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving…</> : 'Save & Continue'}
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Saving…
+            </>
+          ) : (
+            'Save & Continue'
+          )}
         </Button>
       </form>
     </div>
@@ -465,7 +551,11 @@ const PaymentStep = ({
   const { toast } = useToast();
 
   const formatCardNumber = (val: string) =>
-    val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+    val
+      .replace(/\D/g, '')
+      .slice(0, 16)
+      .replace(/(.{4})/g, '$1 ')
+      .trim();
 
   const formatExpiry = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 4);
@@ -484,7 +574,11 @@ const PaymentStep = ({
 
     const rawCard = cardNumber.replace(/\s/g, '');
     if (!rawCard || rawCard.length < 13 || !expiry || !cvv || !cardholderName) {
-      toast({ title: 'Incomplete', description: 'Please fill in all card details.', variant: 'destructive' });
+      toast({
+        title: 'Incomplete',
+        description: 'Please fill in all card details.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -492,15 +586,31 @@ const PaymentStep = ({
     const expiryMonth = parseInt(monthStr, 10);
     const expiryYear = parseInt(`20${yearStr}`, 10);
 
-    if (isNaN(expiryMonth) || isNaN(expiryYear) || expiryMonth < 1 || expiryMonth > 12) {
-      toast({ title: 'Invalid expiry', description: 'Enter a valid MM/YY expiry date.', variant: 'destructive' });
+    if (
+      isNaN(expiryMonth) ||
+      isNaN(expiryYear) ||
+      expiryMonth < 1 ||
+      expiryMonth > 12
+    ) {
+      toast({
+        title: 'Invalid expiry',
+        description: 'Enter a valid MM/YY expiry date.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setIsLoading(true);
     try {
       const firstDigit = rawCard[0];
-      const provider = firstDigit === '4' ? 'visa' : firstDigit === '5' ? 'mastercard' : firstDigit === '3' ? 'amex' : 'card';
+      const provider =
+        firstDigit === '4'
+          ? 'visa'
+          : firstDigit === '5'
+            ? 'mastercard'
+            : firstDigit === '3'
+              ? 'amex'
+              : 'card';
       const res = await userService.addPaymentMethod({
         type: 'card',
         provider,
@@ -511,12 +621,18 @@ const PaymentStep = ({
         expiryYear,
       });
       if (!res.success) throw new Error(res.message);
-      toast({ title: 'Card saved!', description: 'Your payment method has been added.' });
+      toast({
+        title: 'Card saved!',
+        description: 'Your payment method has been added.',
+      });
       onNext();
     } catch (err) {
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to save card. Please try again.',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Failed to save card. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -529,11 +645,18 @@ const PaymentStep = ({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-2xl font-bold text-gray-900">Payment Method</h2>
-          <Button variant="ghost" size="sm" onClick={onSkip} className="text-gray-400 hover:text-gray-600 text-sm">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSkip}
+            className="text-gray-400 hover:text-gray-600 text-sm"
+          >
             Skip
           </Button>
         </div>
-        <p className="text-gray-500 text-sm">Choose how you'd like to pay for orders.</p>
+        <p className="text-gray-500 text-sm">
+          Choose how you'd like to pay for orders.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -551,25 +674,40 @@ const PaymentStep = ({
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  paymentType === method ? 'bg-gradient-to-br from-orange-500 to-orange-400' : 'bg-gray-100'
-                }`}>
-                  {method === 'cod'
-                    ? <Wallet className={`w-5 h-5 ${paymentType === method ? 'text-white' : 'text-gray-400'}`} />
-                    : <CreditCard className={`w-5 h-5 ${paymentType === method ? 'text-white' : 'text-gray-400'}`} />
-                  }
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    paymentType === method
+                      ? 'bg-gradient-to-br from-orange-500 to-orange-400'
+                      : 'bg-gray-100'
+                  }`}
+                >
+                  {method === 'cod' ? (
+                    <Wallet
+                      className={`w-5 h-5 ${paymentType === method ? 'text-white' : 'text-gray-400'}`}
+                    />
+                  ) : (
+                    <CreditCard
+                      className={`w-5 h-5 ${paymentType === method ? 'text-white' : 'text-gray-400'}`}
+                    />
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-gray-900">
-                      {method === 'cod' ? 'Cash on Delivery' : 'Credit / Debit Card'}
+                      {method === 'cod'
+                        ? 'Cash on Delivery'
+                        : 'Credit / Debit Card'}
                     </span>
                     {method === 'cod' && (
-                      <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Default</span>
+                      <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                        Default
+                      </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {method === 'cod' ? 'Pay with cash when your order arrives' : 'Visa, Mastercard, Amex accepted'}
+                    {method === 'cod'
+                      ? 'Pay with cash when your order arrives'
+                      : 'Visa, Mastercard, Amex accepted'}
                   </p>
                 </div>
               </div>
@@ -603,7 +741,9 @@ const PaymentStep = ({
                   <Input
                     id="cardNumber"
                     value={cardNumber}
-                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                    onChange={(e) =>
+                      setCardNumber(formatCardNumber(e.target.value))
+                    }
                     placeholder="1234 5678 9012 3456"
                     maxLength={19}
                     inputMode="numeric"
@@ -628,7 +768,9 @@ const PaymentStep = ({
                     <Input
                       id="cvv"
                       value={cvv}
-                      onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      onChange={(e) =>
+                        setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))
+                      }
                       placeholder="•••"
                       maxLength={4}
                       type="password"
@@ -648,7 +790,16 @@ const PaymentStep = ({
           className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white mt-2"
           size="lg"
         >
-          {isLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving…</> : paymentType === 'cod' ? 'Continue with Cash on Delivery' : 'Save Card & Continue'}
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Saving…
+            </>
+          ) : paymentType === 'cod' ? (
+            'Continue with Cash on Delivery'
+          ) : (
+            'Save Card & Continue'
+          )}
         </Button>
       </form>
     </div>
@@ -679,8 +830,22 @@ const CompletionStep = ({
   }, [onComplete, navigate]);
 
   const items = [
-    ...(addressAdded ? [{ icon: <MapPin className="w-4 h-4" />, text: 'Delivery address added' }] : []),
-    ...(paymentAdded ? [{ icon: <CreditCard className="w-4 h-4" />, text: 'Payment method configured' }] : []),
+    ...(addressAdded
+      ? [
+          {
+            icon: <MapPin className="w-4 h-4" />,
+            text: 'Delivery address added',
+          },
+        ]
+      : []),
+    ...(paymentAdded
+      ? [
+          {
+            icon: <CreditCard className="w-4 h-4" />,
+            text: 'Payment method configured',
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -694,8 +859,14 @@ const CompletionStep = ({
         <CheckCircle2 className="w-12 h-12 text-white" />
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <h1 className="text-3xl font-bold mb-3 text-gray-900">You're all set!</h1>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h1 className="text-3xl font-bold mb-3 text-gray-900">
+          You're all set!
+        </h1>
         <p className="text-gray-500 mb-8 max-w-xs mx-auto text-sm">
           Redirecting you to home in a moment…
         </p>
@@ -703,14 +874,21 @@ const CompletionStep = ({
         {items.length > 0 ? (
           <div className="flex flex-col gap-2 mb-8 max-w-xs mx-auto">
             {items.map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl">
+              <div
+                key={text}
+                className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl"
+              >
                 <div className="text-green-600">{icon}</div>
-                <span className="text-sm font-medium text-gray-700">{text}</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {text}
+                </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 mb-8">You can set up address and payment later in your profile.</p>
+          <p className="text-sm text-gray-400 mb-8">
+            You can set up address and payment later in your profile.
+          </p>
         )}
 
         <Button
@@ -727,43 +905,76 @@ const CompletionStep = ({
 
 // ── Main Page ─────────────────────────────────────────────────
 
+const STEP_PARAM_MAP: Record<string, number> = {
+  welcome: 1,
+  'delivery-address': 2,
+  payment: 3,
+  complete: 4,
+};
+
+const STEP_NUM_MAP: Record<number, string> = {
+  1: 'welcome',
+  2: 'delivery-address',
+  3: 'payment',
+  4: 'complete',
+};
+
 const OnboardingPage = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? parseInt(saved, 10) : 1;
-    return isNaN(parsed) || parsed < 1 || parsed > 4 ? 1 : parsed;
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
   const [addressAdded, setAddressAdded] = useState(false);
   const [paymentAdded, setPaymentAdded] = useState(false);
 
+  const rawStep = searchParams.get('step');
+  const step = rawStep && STEP_PARAM_MAP[rawStep] ? STEP_PARAM_MAP[rawStep] : 1;
+
+  const setStep = useCallback(
+    (n: number) => {
+      setSearchParams(
+        { step: STEP_NUM_MAP[n] ?? 'welcome' },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   useEffect(() => {
-    if (!user) { navigate('/login', { replace: true }); return; }
-    if (user.onboardingCompleted) { navigate('/', { replace: true }); }
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (user.onboardingCompleted) {
+      navigate('/', { replace: true });
+    }
   }, [user, navigate]);
 
+  // Set default step param if missing
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, step.toString());
-  }, [step]);
-
-  const handleCompleteOnboarding = useCallback(async (redirect = true) => {
-    try {
-      await authService.completeOnboarding();
-    } catch {
-      // best-effort
-    } finally {
-      updateUser({ onboardingCompleted: true });
-      localStorage.removeItem(STORAGE_KEY);
-      if (redirect) navigate('/', { replace: true });
+    if (!rawStep) {
+      setSearchParams({ step: 'welcome' }, { replace: true });
     }
-  }, [navigate, updateUser]);
+  }, [rawStep, setSearchParams]);
+
+  const handleCompleteOnboarding = useCallback(
+    async (redirect = true) => {
+      try {
+        await authService.completeOnboarding();
+      } catch {
+        // best-effort
+      } finally {
+        updateUser({ onboardingCompleted: true });
+        if (redirect) navigate('/', { replace: true });
+      }
+    },
+    [navigate, updateUser],
+  );
 
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-rose-50">
-      {step <= STEPS && <ProgressBar step={step} />}
+      {step <= 3 && <ProgressBar step={step} />}
 
       {/* Brand header */}
       <div className="pt-8 pb-2 flex justify-center">
@@ -794,13 +1005,19 @@ const OnboardingPage = () => {
             )}
             {step === 2 && (
               <AddressStep
-                onNext={() => { setAddressAdded(true); setStep(3); }}
+                onNext={() => {
+                  setAddressAdded(true);
+                  setStep(3);
+                }}
                 onSkip={() => setStep(3)}
               />
             )}
             {step === 3 && (
               <PaymentStep
-                onNext={() => { setPaymentAdded(true); setStep(4); }}
+                onNext={() => {
+                  setPaymentAdded(true);
+                  setStep(4);
+                }}
                 onSkip={() => setStep(4)}
               />
             )}

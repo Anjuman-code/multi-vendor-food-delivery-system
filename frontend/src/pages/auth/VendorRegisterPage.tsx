@@ -1,12 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Store, ChevronRight, ChevronLeft } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -14,22 +7,38 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   vendorRegisterSchema,
   type VendorRegisterFormData,
-} from "@/lib/validation";
-import authService from "@/services/authService";
+} from '@/lib/validation';
+import authService from '@/services/authService';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Store } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 const STEPS = [
-  { label: "Account", description: "Personal details & login" },
-  { label: "Business", description: "Your restaurant business info" },
+  { label: 'Account', description: 'Personal details & login' },
+  { label: 'Business', description: 'Your restaurant business info' },
 ];
 
 const VendorRegisterPage: React.FC = () => {
-  const [step, setStep] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawStep = searchParams.get('step');
+  const stepParam = rawStep === 'business' ? 1 : 0;
+  const step = stepParam;
+  const setStep = (n: number) => {
+    setSearchParams(
+      { step: n === 0 ? 'account' : 'business' },
+      { replace: true },
+    );
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,25 +48,32 @@ const VendorRegisterPage: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
+
+  // Set default step param if missing
+  useEffect(() => {
+    if (!rawStep) {
+      setSearchParams({ step: 'account' }, { replace: true });
+    }
+  }, [rawStep, setSearchParams]);
 
   const form = useForm<VendorRegisterFormData>({
     resolver: zodResolver(vendorRegisterSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phoneNumber: "",
-      password: "",
-      confirmPassword: "",
-      businessName: "",
-      businessLicense: "",
-      taxId: "",
+      firstName: '',
+      lastName: '',
+      email: '',
+      phoneNumber: '',
+      password: '',
+      confirmPassword: '',
+      businessName: '',
+      businessLicense: '',
+      taxId: '',
       agreedToTerms: false,
     },
-    mode: "onTouched",
+    mode: 'onTouched',
   });
 
   const {
@@ -67,12 +83,12 @@ const VendorRegisterPage: React.FC = () => {
 
   const handleNext = async () => {
     const step0Fields: (keyof VendorRegisterFormData)[] = [
-      "firstName",
-      "lastName",
-      "email",
-      "phoneNumber",
-      "password",
-      "confirmPassword",
+      'firstName',
+      'lastName',
+      'email',
+      'phoneNumber',
+      'password',
+      'confirmPassword',
     ];
     const valid = await trigger(step0Fields);
     if (valid) setStep(1);
@@ -94,23 +110,23 @@ const VendorRegisterPage: React.FC = () => {
 
       if (response.success) {
         toast({
-          title: "Application submitted!",
-          description: "Please check your email to verify your account.",
+          title: 'Application submitted!',
+          description: 'Please check your email to verify your account.',
         });
-        navigate("/verify-email", { state: { email: data.email } });
+        navigate('/verify-email', { state: { email: data.email } });
       } else {
         toast({
-          title: "Registration failed",
+          title: 'Registration failed',
           description:
-            response.message || "Please check your details and try again.",
-          variant: "destructive",
+            response.message || 'Please check your details and try again.',
+          variant: 'destructive',
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -144,26 +160,26 @@ const VendorRegisterPage: React.FC = () => {
             <button
               type="button"
               onClick={() => i < step && setStep(i)}
-              className={`flex items-center gap-2 ${i < step ? "cursor-pointer" : "cursor-default"}`}
+              className={`flex items-center gap-2 ${i < step ? 'cursor-pointer' : 'cursor-default'}`}
             >
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                   i === step
-                    ? "bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-sm"
+                    ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-sm'
                     : i < step
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-200 text-gray-400"
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-200 text-gray-400'
                 }`}
               >
-                {i < step ? "✓" : i + 1}
+                {i < step ? '✓' : i + 1}
               </div>
               <span
                 className={`text-sm font-medium hidden sm:block ${
                   i === step
-                    ? "text-gray-900"
+                    ? 'text-gray-900'
                     : i < step
-                      ? "text-green-600"
-                      : "text-gray-400"
+                      ? 'text-green-600'
+                      : 'text-gray-400'
                 }`}
               >
                 {s.label}
@@ -171,7 +187,7 @@ const VendorRegisterPage: React.FC = () => {
             </button>
             {i < STEPS.length - 1 && (
               <div
-                className={`flex-1 h-px ${i < step ? "bg-green-400" : "bg-gray-200"}`}
+                className={`flex-1 h-px ${i < step ? 'bg-green-400' : 'bg-gray-200'}`}
               />
             )}
           </React.Fragment>
@@ -201,7 +217,7 @@ const VendorRegisterPage: React.FC = () => {
                           <Input
                             placeholder="First name"
                             {...field}
-                            className={errors.firstName ? "border-red-500" : ""}
+                            className={errors.firstName ? 'border-red-500' : ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -218,7 +234,7 @@ const VendorRegisterPage: React.FC = () => {
                           <Input
                             placeholder="Last name"
                             {...field}
-                            className={errors.lastName ? "border-red-500" : ""}
+                            className={errors.lastName ? 'border-red-500' : ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -238,7 +254,7 @@ const VendorRegisterPage: React.FC = () => {
                           type="email"
                           placeholder="your@email.com"
                           {...field}
-                          className={errors.email ? "border-red-500" : ""}
+                          className={errors.email ? 'border-red-500' : ''}
                         />
                       </FormControl>
                       <FormMessage />
@@ -257,7 +273,7 @@ const VendorRegisterPage: React.FC = () => {
                           type="tel"
                           placeholder="+8801XXXXXXXXX"
                           {...field}
-                          className={errors.phoneNumber ? "border-red-500" : ""}
+                          className={errors.phoneNumber ? 'border-red-500' : ''}
                         />
                       </FormControl>
                       <FormMessage />
@@ -274,9 +290,9 @@ const VendorRegisterPage: React.FC = () => {
                       <FormControl>
                         <div className="relative">
                           <Input
-                            type={showPassword ? "text" : "password"}
+                            type={showPassword ? 'text' : 'password'}
                             placeholder="Create a strong password"
-                            className={`${errors.password ? "border-red-500" : ""} pr-10`}
+                            className={`${errors.password ? 'border-red-500' : ''} pr-10`}
                             {...field}
                           />
                           <button
@@ -306,9 +322,9 @@ const VendorRegisterPage: React.FC = () => {
                       <FormControl>
                         <div className="relative">
                           <Input
-                            type={showConfirmPassword ? "text" : "password"}
+                            type={showConfirmPassword ? 'text' : 'password'}
                             placeholder="Confirm your password"
-                            className={`${errors.confirmPassword ? "border-red-500" : ""} pr-10`}
+                            className={`${errors.confirmPassword ? 'border-red-500' : ''} pr-10`}
                             {...field}
                           />
                           <button
@@ -362,7 +378,7 @@ const VendorRegisterPage: React.FC = () => {
                           placeholder="e.g. Sylheti Kitchen"
                           {...field}
                           className={
-                            errors.businessName ? "border-red-500" : ""
+                            errors.businessName ? 'border-red-500' : ''
                           }
                         />
                       </FormControl>
@@ -382,7 +398,7 @@ const VendorRegisterPage: React.FC = () => {
                           placeholder="e.g. BL-2024-XXXXX"
                           {...field}
                           className={
-                            errors.businessLicense ? "border-red-500" : ""
+                            errors.businessLicense ? 'border-red-500' : ''
                           }
                         />
                       </FormControl>
@@ -401,7 +417,7 @@ const VendorRegisterPage: React.FC = () => {
                         <Input
                           placeholder="e.g. TIN-XXXXXXXXX"
                           {...field}
-                          className={errors.taxId ? "border-red-500" : ""}
+                          className={errors.taxId ? 'border-red-500' : ''}
                         />
                       </FormControl>
                       <FormMessage />
@@ -423,14 +439,14 @@ const VendorRegisterPage: React.FC = () => {
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel className="text-sm font-normal">
-                          I agree to the{" "}
+                          I agree to the{' '}
                           <Link
                             to="/terms"
                             className="text-orange-500 hover:text-orange-600"
                           >
                             Terms & Privacy Policy
-                          </Link>{" "}
-                          and the{" "}
+                          </Link>{' '}
+                          and the{' '}
                           <Link
                             to="/terms"
                             className="text-orange-500 hover:text-orange-600"
@@ -484,7 +500,7 @@ const VendorRegisterPage: React.FC = () => {
                         Submitting…
                       </span>
                     ) : (
-                      "Submit Application"
+                      'Submit Application'
                     )}
                   </Button>
                 </div>
@@ -496,7 +512,7 @@ const VendorRegisterPage: React.FC = () => {
 
       {/* Footer links */}
       <p className="text-center text-sm text-gray-500 mt-6">
-        Already have a vendor account?{" "}
+        Already have a vendor account?{' '}
         <Link
           to="/login"
           className="font-medium text-orange-500 hover:text-orange-600"
@@ -505,7 +521,7 @@ const VendorRegisterPage: React.FC = () => {
         </Link>
       </p>
       <p className="text-center text-sm text-gray-500 mt-2">
-        Want to order food instead?{" "}
+        Want to order food instead?{' '}
         <Link
           to="/register"
           className="font-medium text-orange-500 hover:text-orange-600"

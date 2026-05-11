@@ -1,65 +1,66 @@
 /**
  * OrderDetailsPage – single order view with status timeline, items, and actions.
  */
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { useCart } from "@/contexts/CartContext";
-import { useSocketContext } from "@/contexts/SocketContext";
-import { useToast } from "@/hooks/use-toast";
-import orderService from "@/services/orderService";
-import riderService from "@/services/riderService";
-import type { Order, OrderStatus, StatusHistoryEntry } from "@/types/order";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
-import { motion } from "framer-motion";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { useCart } from '@/contexts/CartContext';
+import { useSocketContext } from '@/contexts/SocketContext';
+import { useToast } from '@/hooks/use-toast';
+import orderService from '@/services/orderService';
+import riderService from '@/services/riderService';
+import type { Order, OrderStatus, StatusHistoryEntry } from '@/types/order';
+import { foodFallbackSVG } from '@/utils/fallbackImages';
+import { motion } from 'framer-motion';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
-    ArrowLeft,
-    Bike,
-    CheckCircle2,
-    Clock,
-    CreditCard,
-    Download,
-    Loader2,
-    MapPin,
-    Package,
-    RefreshCw,
-    Star,
-    XCircle,
-} from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+  ArrowLeft,
+  Banknote,
+  Bike,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Download,
+  Loader2,
+  MapPin,
+  Package,
+  RefreshCw,
+  Star,
+  XCircle,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 const STATUS_STEPS: OrderStatus[] = [
-  "pending",
-  "confirmed",
-  "preparing",
-  "ready",
-  "picked_up",
-  "delivered",
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready',
+  'picked_up',
+  'delivered',
 ];
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  preparing: "Preparing",
-  ready: "Ready for Pickup",
-  picked_up: "On the Way",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  preparing: 'Preparing',
+  ready: 'Ready for Pickup',
+  picked_up: 'On the Way',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
 };
 
 const fmtDate = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   }).format(new Date(d));
 
 const buildReceiptFileName = (orderNumber: string): string => {
-  const safeOrderNumber = orderNumber.replace(/[^a-zA-Z0-9-_]+/g, "_");
+  const safeOrderNumber = orderNumber.replace(/[^a-zA-Z0-9-_]+/g, '_');
   return `receipt-${safeOrderNumber}.pdf`;
 };
 
@@ -79,7 +80,7 @@ const OrderDetailsPage: React.FC = () => {
   // Driver rating state
   const [ratingStars, setRatingStars] = useState(0);
   const [ratingHover, setRatingHover] = useState(0);
-  const [ratingComment, setRatingComment] = useState("");
+  const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
@@ -91,9 +92,9 @@ const OrderDetailsPage: React.FC = () => {
       setOrder(res.data.order);
     } else {
       toast({
-        title: "Error",
-        description: res.message || "Order not found.",
-        variant: "destructive",
+        title: 'Error',
+        description: res.message || 'Order not found.',
+        variant: 'destructive',
       });
     }
     setLoading(false);
@@ -108,19 +109,21 @@ const OrderDetailsPage: React.FC = () => {
     if (!socket || !id) return;
     const handler = (data: { _id: string; newStatus: OrderStatus }) => {
       if (data._id === id || data._id === order?._id) {
-        setOrder((prev) => prev ? { ...prev, status: data.newStatus } : prev);
-        if (data.newStatus === "picked_up" && order?._id) {
+        setOrder((prev) => (prev ? { ...prev, status: data.newStatus } : prev));
+        if (data.newStatus === 'picked_up' && order?._id) {
           watchOrderLocation(order._id);
         }
       }
     };
-    socket.on("orderStatusUpdate", handler);
-    return () => { socket.off("orderStatusUpdate", handler); };
+    socket.on('orderStatusUpdate', handler);
+    return () => {
+      socket.off('orderStatusUpdate', handler);
+    };
   }, [socket, id, order?._id, watchOrderLocation]);
 
   // Watch driver location when order is picked_up
   useEffect(() => {
-    if (order?.status === "picked_up" && order?._id) {
+    if (order?.status === 'picked_up' && order?._id) {
       watchOrderLocation(order._id);
     }
   }, [order?.status, order?._id, watchOrderLocation]);
@@ -132,12 +135,12 @@ const OrderDetailsPage: React.FC = () => {
     setCancelling(false);
     if (res.success && res.data) {
       setOrder(res.data.order);
-      toast({ title: "Order cancelled" });
+      toast({ title: 'Order cancelled' });
     } else {
       toast({
-        title: "Cannot cancel",
-        description: res.message || "Failed to cancel.",
-        variant: "destructive",
+        title: 'Cannot cancel',
+        description: res.message || 'Failed to cancel.',
+        variant: 'destructive',
       });
     }
   };
@@ -150,29 +153,29 @@ const OrderDetailsPage: React.FC = () => {
     if (res.success && res.data) {
       const reorderItems = res.data.items;
       const restId =
-        typeof order.restaurantId === "string"
+        typeof order.restaurantId === 'string'
           ? order.restaurantId
           : order.restaurantId._id;
       const restName =
-        typeof order.restaurantId === "string" ? "" : order.restaurantId.name;
+        typeof order.restaurantId === 'string' ? '' : order.restaurantId.name;
       const unavailableItems = reorderItems.filter((item) => !item.isAvailable);
 
       if (unavailableItems.length === reorderItems.length) {
         toast({
-          title: "Reorder unavailable",
+          title: 'Reorder unavailable',
           description:
             unavailableItems[0]?.unavailableReason ||
-            "All items from this order are currently unavailable.",
-          variant: "destructive",
+            'All items from this order are currently unavailable.',
+          variant: 'destructive',
         });
         return;
       }
 
       if (unavailableItems.length > 0) {
         toast({
-          title: "Some items were skipped",
+          title: 'Some items were skipped',
           description: `${unavailableItems.length} item(s) are unavailable and were not added to cart.`,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
 
@@ -186,7 +189,7 @@ const OrderDetailsPage: React.FC = () => {
           menuItemId: item.menuItemId,
           name: item.name,
           price: item.price,
-          image: item.image || "",
+          image: item.image || '',
           quantity: item.quantity,
           variants: item.variants || [],
           addons: item.addons || [],
@@ -194,15 +197,15 @@ const OrderDetailsPage: React.FC = () => {
       }
 
       toast({
-        title: "Items added to cart",
-        description: "You can review and checkout from your cart.",
+        title: 'Items added to cart',
+        description: 'You can review and checkout from your cart.',
       });
-      navigate("/cart");
+      navigate('/cart');
     } else {
       toast({
-        title: "Reorder failed",
-        description: res.message || "Could not reorder.",
-        variant: "destructive",
+        title: 'Reorder failed',
+        description: res.message || 'Could not reorder.',
+        variant: 'destructive',
       });
     }
   };
@@ -212,19 +215,19 @@ const OrderDetailsPage: React.FC = () => {
 
     try {
       toast({
-        title: "Preparing receipt",
-        description: "Generating your PDF receipt. Please wait...",
+        title: 'Preparing receipt',
+        description: 'Generating your PDF receipt. Please wait...',
       });
 
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: "#ffffff",
+        backgroundColor: '#ffffff',
         logging: false,
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 10;
@@ -237,13 +240,13 @@ const OrderDetailsPage: React.FC = () => {
 
       pdf.addImage(
         imgData,
-        "PNG",
+        'PNG',
         margin,
         position,
         usableWidth,
         imageHeight,
         undefined,
-        "FAST",
+        'FAST',
       );
 
       remainingHeight -= usableHeight;
@@ -253,13 +256,13 @@ const OrderDetailsPage: React.FC = () => {
         position = remainingHeight - imageHeight + margin;
         pdf.addImage(
           imgData,
-          "PNG",
+          'PNG',
           margin,
           position,
           usableWidth,
           imageHeight,
           undefined,
-          "FAST",
+          'FAST',
         );
         remainingHeight -= usableHeight;
       }
@@ -267,9 +270,9 @@ const OrderDetailsPage: React.FC = () => {
       pdf.save(buildReceiptFileName(order.orderNumber));
     } catch {
       toast({
-        title: "Download failed",
-        description: "Could not generate the receipt PDF.",
-        variant: "destructive",
+        title: 'Download failed',
+        description: 'Could not generate the receipt PDF.',
+        variant: 'destructive',
       });
     }
   }, [order, toast]);
@@ -285,22 +288,29 @@ const OrderDetailsPage: React.FC = () => {
     setRatingSubmitting(false);
     if (res.success) {
       setRatingSubmitted(true);
-      toast({ title: "Rating submitted", description: "Thank you for your feedback!" });
+      toast({
+        title: 'Rating submitted',
+        description: 'Thank you for your feedback!',
+      });
     } else {
-      toast({ title: "Failed to submit rating", description: res.message || "Please try again.", variant: "destructive" });
+      toast({
+        title: 'Failed to submit rating',
+        description: res.message || 'Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
   const canCancel =
-    order && (order.status === "pending" || order.status === "confirmed");
+    order && (order.status === 'pending' || order.status === 'confirmed');
 
   const restaurantId =
-    order && typeof order.restaurantId !== "string"
+    order && typeof order.restaurantId !== 'string'
       ? order.restaurantId._id
       : order?.restaurantId;
 
   const currentStepIdx = order
-    ? order.status === "cancelled"
+    ? order.status === 'cancelled'
       ? -1
       : STATUS_STEPS.indexOf(order.status)
     : -1;
@@ -320,7 +330,7 @@ const OrderDetailsPage: React.FC = () => {
         <h2 className="text-lg font-semibold text-gray-700 mb-2">
           Order not found
         </h2>
-        <Button variant="outline" onClick={() => navigate("/orders")}>
+        <Button variant="outline" onClick={() => navigate('/orders')}>
           Back to Orders
         </Button>
       </div>
@@ -336,7 +346,7 @@ const OrderDetailsPage: React.FC = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/orders")}
+          onClick={() => navigate('/orders')}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -370,7 +380,7 @@ const OrderDetailsPage: React.FC = () => {
                 Cancel
               </Button>
             )}
-            {order.status === "delivered" && (
+            {order.status === 'delivered' && (
               <Button
                 variant="outline"
                 size="sm"
@@ -397,7 +407,7 @@ const OrderDetailsPage: React.FC = () => {
           </div>
         </div>
         <div ref={receiptRef} className="space-y-6">
-          {order.status !== "cancelled" ? (
+          {order.status !== 'cancelled' ? (
             <Card className="p-5">
               <h3 className="text-sm font-medium text-gray-500 mb-4">
                 Order Progress
@@ -412,8 +422,8 @@ const OrderDetailsPage: React.FC = () => {
                       <div
                         className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
                           idx <= currentStepIdx
-                            ? "bg-orange-500 text-white"
-                            : "bg-gray-100 text-gray-400"
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-100 text-gray-400'
                         }`}
                       >
                         {idx <= currentStepIdx ? (
@@ -429,7 +439,7 @@ const OrderDetailsPage: React.FC = () => {
                     {idx < STATUS_STEPS.length - 1 && (
                       <div
                         className={`h-0.5 flex-1 mx-1 ${
-                          idx < currentStepIdx ? "bg-orange-400" : "bg-gray-200"
+                          idx < currentStepIdx ? 'bg-orange-400' : 'bg-gray-200'
                         }`}
                       />
                     )}
@@ -471,7 +481,7 @@ const OrderDetailsPage: React.FC = () => {
                       </p>
                       {item.variants && item.variants.length > 0 && (
                         <p className="text-xs text-gray-500">
-                          {item.variants.map((v) => v.name).join(", ")}
+                          {item.variants.map((v) => v.name).join(', ')}
                         </p>
                       )}
                     </div>
@@ -527,9 +537,22 @@ const OrderDetailsPage: React.FC = () => {
               <p className="text-xs font-medium text-gray-400 uppercase mb-2 flex items-center gap-1">
                 <CreditCard className="h-3 w-3" /> Payment
               </p>
-              <p className="text-sm text-gray-800">{order.paymentMethod}</p>
+              {order.paymentMethod === 'cash_on_delivery' ? (
+                <p className="text-sm text-gray-800 flex items-center gap-2">
+                  <Banknote className="h-4 w-4 text-orange-500" />
+                  Cash on Delivery
+                </p>
+              ) : (
+                <p className="text-sm text-gray-800 capitalize">
+                  {order.paymentMethod}
+                </p>
+              )}
               <p className="text-sm text-gray-600 capitalize">
-                Status: {order.paymentStatus}
+                Status:{' '}
+                {order.paymentMethod === 'cash_on_delivery' &&
+                order.paymentStatus === 'pending'
+                  ? 'Pay on delivery'
+                  : order.paymentStatus}
               </p>
             </Card>
           </div>
@@ -547,7 +570,7 @@ const OrderDetailsPage: React.FC = () => {
                         {fmtDate(entry.timestamp)}
                       </span>
                       <span className="font-medium text-gray-700 capitalize">
-                        {entry.status.replace("_", " ")}
+                        {entry.status.replace('_', ' ')}
                       </span>
                       {entry.note && (
                         <span className="text-gray-500 text-xs">
@@ -574,27 +597,49 @@ const OrderDetailsPage: React.FC = () => {
         </div>
 
         {/* Driver location card (only when picked_up) */}
-        {order.status === "picked_up" && (
+        {order.status === 'picked_up' && (
           <Card className="p-4 border-orange-200 bg-orange-50">
             <p className="text-sm font-medium text-orange-800 flex items-center gap-2 mb-1">
               <Bike className="h-4 w-4" /> Your order is on the way!
             </p>
             {driverLocation && driverLocation.orderId === order._id ? (
               <p className="text-xs text-orange-700">
-                Driver location updated · {new Date(driverLocation.timestamp).toLocaleTimeString()}
-                {driverLocation.speed != null && ` · ${Math.round(driverLocation.speed)} km/h`}
+                Driver location updated ·{' '}
+                {new Date(driverLocation.timestamp).toLocaleTimeString()}
+                {driverLocation.speed != null &&
+                  ` · ${Math.round(driverLocation.speed)} km/h`}
               </p>
             ) : (
-              <p className="text-xs text-orange-600">Waiting for driver location…</p>
+              <p className="text-xs text-orange-600">
+                Waiting for driver location…
+              </p>
             )}
           </Card>
         )}
 
+        {/* COD cash reminder when rider is on the way */}
+        {order.status === 'picked_up' &&
+          order.paymentMethod === 'cash_on_delivery' && (
+            <Card className="p-4 border-amber-200 bg-amber-50 flex items-start gap-3">
+              <Banknote className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Cash payment reminder
+                </p>
+                <p className="text-sm text-amber-700 mt-0.5">
+                  Please have <strong>৳{order.total.toFixed(2)}</strong> in cash
+                  ready for your rider.
+                </p>
+              </div>
+            </Card>
+          )}
+
         {/* Driver rating (only after delivered, not yet rated) */}
-        {order.status === "delivered" && !ratingSubmitted && (
+        {order.status === 'delivered' && !ratingSubmitted && (
           <Card className="p-5 mt-4 border-orange-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Star className="h-4 w-4 text-orange-400" /> Rate your delivery rider
+              <Star className="h-4 w-4 text-orange-400" /> Rate your delivery
+              rider
             </h3>
             <div className="flex gap-1 mb-3">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -607,7 +652,7 @@ const OrderDetailsPage: React.FC = () => {
                   className="p-0.5 focus:outline-none"
                 >
                   <Star
-                    className={`h-7 w-7 transition-colors ${star <= (ratingHover || ratingStars) ? "text-orange-400 fill-orange-400" : "text-gray-300"}`}
+                    className={`h-7 w-7 transition-colors ${star <= (ratingHover || ratingStars) ? 'text-orange-400 fill-orange-400' : 'text-gray-300'}`}
                   />
                 </button>
               ))}
@@ -626,25 +671,32 @@ const OrderDetailsPage: React.FC = () => {
                 onClick={handleRatingSubmit}
                 className="bg-orange-500 hover:bg-orange-600"
               >
-                {ratingSubmitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {ratingSubmitting && (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                )}
                 Submit Rating
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setRatingSubmitted(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setRatingSubmitted(true)}
+              >
                 Skip
               </Button>
             </div>
           </Card>
         )}
-        {order.status === "delivered" && ratingSubmitted && (
+        {order.status === 'delivered' && ratingSubmitted && (
           <p className="text-sm text-green-600 text-center mt-4 flex items-center justify-center gap-1">
-            <CheckCircle2 className="h-4 w-4" /> Thank you for rating your rider!
+            <CheckCircle2 className="h-4 w-4" /> Thank you for rating your
+            rider!
           </p>
         )}
 
         {/* Review CTA */}
-        {order.status === "delivered" && (
+        {order.status === 'delivered' && (
           <div className="mt-6 text-center">
-            <Link to={`/restaurants/${restaurantId || ""}`}>
+            <Link to={`/restaurants/${restaurantId || ''}`}>
               <Button className="bg-orange-500 hover:bg-orange-600">
                 Leave a Review
               </Button>
