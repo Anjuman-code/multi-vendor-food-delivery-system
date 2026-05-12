@@ -1,21 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Save, Loader2, ImagePlus } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import vendorService from "@/services/vendorService";
-import { useVendor } from "@/contexts/VendorContext";
-import type { CreateRestaurantPayload } from "@/types/vendor";
+import { DISTRICT_DATA, getAreasByDistrict } from '@/components/locationUtils';
+import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useVendor } from '@/contexts/VendorContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   createRestaurantSchema,
   type CreateRestaurantInput,
-} from "@/lib/vendorValidation";
-import { useToast } from "@/hooks/use-toast";
+} from '@/lib/vendorValidation';
+import vendorService from '@/services/vendorService';
+import type { CreateRestaurantPayload } from '@/types/vendor';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
+import { ArrowLeft, ImagePlus, Loader2, Save } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
 
 type SubmitErrorItem = {
   field?: string;
@@ -23,31 +25,31 @@ type SubmitErrorItem = {
 };
 
 const CUISINE_OPTIONS = [
-  "Bengali",
-  "Indian",
-  "Chinese",
-  "Thai",
-  "Italian",
-  "Mexican",
-  "Japanese",
-  "Korean",
-  "American",
-  "Middle Eastern",
-  "Mediterranean",
-  "Fast Food",
-  "Street Food",
-  "Desserts",
-  "Beverages",
+  'Bengali',
+  'Indian',
+  'Chinese',
+  'Thai',
+  'Italian',
+  'Mexican',
+  'Japanese',
+  'Korean',
+  'American',
+  'Middle Eastern',
+  'Mediterranean',
+  'Fast Food',
+  'Street Food',
+  'Desserts',
+  'Beverages',
 ];
 
 const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
 ];
 
 const MAX_IMAGE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
@@ -73,25 +75,30 @@ const RestaurantFormPage: React.FC = () => {
     resolver: zodResolver(createRestaurantSchema),
     defaultValues: {
       cuisineType: [],
-      website: "",
+      website: '',
       images: {
-        logo: "",
-        coverPhoto: "",
+        logo: '',
+        coverPhoto: '',
         gallery: [],
+      },
+      address: {
+        street: '',
+        area: '',
+        district: '',
       },
       openingHours: DAYS.map((day) => ({
         day,
-        open: "09:00",
-        close: "22:00",
+        open: '09:00',
+        close: '22:00',
         isClosed: false,
       })),
     },
   });
 
-  const selectedCuisines = watch("cuisineType") || [];
-  const openingHours = watch("openingHours") || [];
-  const logoPreview = watch("images.logo") || "";
-  const coverPreview = watch("images.coverPhoto") || "";
+  const selectedCuisines = watch('cuisineType') || [];
+  const openingHours = watch('openingHours') || [];
+  const logoPreview = watch('images.logo') || '';
+  const coverPreview = watch('images.coverPhoto') || '';
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -103,27 +110,30 @@ const RestaurantFormPage: React.FC = () => {
           name: r.name,
           description: r.description,
           cuisineType: r.cuisineType,
-          phone: r.phone || r.contactInfo?.phone || "",
-          email: r.email || r.contactInfo?.email || "",
-          website: r.contactInfo?.website || "",
+          phone: r.phone || r.contactInfo?.phone || '',
+          email: r.email || r.contactInfo?.email || '',
+          website: r.contactInfo?.website || '',
           images: {
-            logo: r.images?.logo || "",
-            coverPhoto: r.images?.coverPhoto || r.coverImage || "",
+            logo: r.images?.logo || '',
+            coverPhoto: r.images?.coverPhoto || r.coverImage || '',
             gallery: r.images?.gallery || [],
           },
-          address: r.address || {
-            street: "",
-            city: "",
-            state: "",
-            zipCode: "",
-            country: "",
+          address: {
+            street: r.address?.street || '',
+            area: r.address?.area || '',
+            district: r.address?.district || '',
           },
           openingHours:
-            r.openingHours ||
+            r.operatingHours?.map((h) => ({
+              day: h.day,
+              open: h.openTime,
+              close: h.closeTime,
+              isClosed: !h.isOpen,
+            })) ??
             DAYS.map((day) => ({
               day,
-              open: "09:00",
-              close: "22:00",
+              open: '09:00',
+              close: '22:00',
               isClosed: false,
             })),
           minimumOrder: r.minimumOrder,
@@ -138,41 +148,41 @@ const RestaurantFormPage: React.FC = () => {
 
   const handleImageUpload = (
     event: React.ChangeEvent<HTMLInputElement>,
-    field: "images.logo" | "images.coverPhoto",
+    field: 'images.logo' | 'images.coverPhoto',
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (!file.type.startsWith('image/')) {
       toast({
-        title: "Invalid file",
-        description: "Please select an image file.",
-        variant: "destructive",
+        title: 'Invalid file',
+        description: 'Please select an image file.',
+        variant: 'destructive',
       });
       return;
     }
 
     if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
       toast({
-        title: "Image too large",
-        description: "Please choose an image smaller than 2MB.",
-        variant: "destructive",
+        title: 'Image too large',
+        description: 'Please choose an image smaller than 2MB.',
+        variant: 'destructive',
       });
-      event.target.value = "";
+      event.target.value = '';
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") {
+      if (typeof reader.result === 'string') {
         setValue(field, reader.result, { shouldValidate: true });
       }
     };
     reader.onerror = () => {
       toast({
-        title: "Upload failed",
-        description: "Could not read the selected image. Please try again.",
-        variant: "destructive",
+        title: 'Upload failed',
+        description: 'Could not read the selected image. Please try again.',
+        variant: 'destructive',
       });
     };
     reader.readAsDataURL(file);
@@ -182,12 +192,12 @@ const RestaurantFormPage: React.FC = () => {
     const current: string[] = selectedCuisines;
     if (current.includes(cuisine)) {
       setValue(
-        "cuisineType",
+        'cuisineType',
         current.filter((c) => c !== cuisine),
         { shouldValidate: true },
       );
     } else {
-      setValue("cuisineType", [...current, cuisine], { shouldValidate: true });
+      setValue('cuisineType', [...current, cuisine], { shouldValidate: true });
     }
   };
 
@@ -209,17 +219,17 @@ const RestaurantFormPage: React.FC = () => {
 
     if (res.success) {
       toast({
-        title: "Success",
-        description: isEdit ? "Restaurant updated" : "Restaurant created",
+        title: 'Success',
+        description: isEdit ? 'Restaurant updated' : 'Restaurant created',
       });
       await refreshRestaurants();
-      navigate("/vendor/restaurants");
+      navigate('/vendor/restaurants');
     } else {
       const parsedErrors = Array.isArray(res.errors)
         ? res.errors
             .map((error) => {
-              if (typeof error === "string") return error;
-              if (typeof error === "object" && error !== null) {
+              if (typeof error === 'string') return error;
+              if (typeof error === 'object' && error !== null) {
                 const issue = error as SubmitErrorItem;
                 if (issue.field && issue.message) {
                   return `${issue.field}: ${issue.message}`;
@@ -236,9 +246,9 @@ const RestaurantFormPage: React.FC = () => {
       }
 
       toast({
-        title: "Error",
+        title: 'Error',
         description: parsedErrors[0] ?? res.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
 
@@ -265,12 +275,12 @@ const RestaurantFormPage: React.FC = () => {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {isEdit ? "Edit Restaurant" : "Create Restaurant"}
+            {isEdit ? 'Edit Restaurant' : 'Create Restaurant'}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {isEdit
-              ? "Update your restaurant details"
-              : "Fill in the details to create a new restaurant"}
+              ? 'Update your restaurant details'
+              : 'Fill in the details to create a new restaurant'}
           </p>
         </div>
       </div>
@@ -302,7 +312,7 @@ const RestaurantFormPage: React.FC = () => {
             <Label htmlFor="name">Restaurant Name</Label>
             <Input
               id="name"
-              {...register("name")}
+              {...register('name')}
               placeholder="e.g. The Golden Spoon"
               className="mt-1"
             />
@@ -314,7 +324,7 @@ const RestaurantFormPage: React.FC = () => {
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              {...register("description")}
+              {...register('description')}
               placeholder="Tell customers about your restaurant..."
               rows={3}
               className="mt-1"
@@ -337,8 +347,8 @@ const RestaurantFormPage: React.FC = () => {
                   onClick={() => toggleCuisine(cuisine)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                     selectedCuisines.includes(cuisine)
-                      ? "bg-orange-500 text-white border-orange-500"
-                      : "bg-white text-gray-600 border-gray-300 hover:border-orange-300"
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-orange-300'
                   }`}
                 >
                   {cuisine}
@@ -385,13 +395,13 @@ const RestaurantFormPage: React.FC = () => {
               </div>
               <Input
                 id="images.logo"
-                {...register("images.logo")}
+                {...register('images.logo')}
                 placeholder="https://example.com/logo.jpg"
               />
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleImageUpload(e, "images.logo")}
+                onChange={(e) => handleImageUpload(e, 'images.logo')}
               />
               {errors.images?.logo && (
                 <p className="text-sm text-red-500">
@@ -418,13 +428,13 @@ const RestaurantFormPage: React.FC = () => {
               </div>
               <Input
                 id="images.coverPhoto"
-                {...register("images.coverPhoto")}
+                {...register('images.coverPhoto')}
                 placeholder="https://example.com/cover.jpg"
               />
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleImageUpload(e, "images.coverPhoto")}
+                onChange={(e) => handleImageUpload(e, 'images.coverPhoto')}
               />
               {errors.images?.coverPhoto && (
                 <p className="text-sm text-red-500">
@@ -450,7 +460,7 @@ const RestaurantFormPage: React.FC = () => {
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
-                {...register("phone")}
+                {...register('phone')}
                 placeholder="+880 1XXX-XXXXXX"
                 className="mt-1"
               />
@@ -465,7 +475,7 @@ const RestaurantFormPage: React.FC = () => {
               <Input
                 id="email"
                 type="email"
-                {...register("email")}
+                {...register('email')}
                 placeholder="restaurant@example.com"
                 className="mt-1"
               />
@@ -479,7 +489,7 @@ const RestaurantFormPage: React.FC = () => {
               <Label htmlFor="website">Website (optional)</Label>
               <Input
                 id="website"
-                {...register("website")}
+                {...register('website')}
                 placeholder="https://restaurant.com"
                 className="mt-1"
               />
@@ -504,8 +514,8 @@ const RestaurantFormPage: React.FC = () => {
             <Label htmlFor="address.street">Street</Label>
             <Input
               id="address.street"
-              {...register("address.street")}
-              placeholder="123 Main Street"
+              {...register('address.street')}
+              placeholder="e.g. Zinda Bazar Road"
               className="mt-1"
             />
             {errors.address?.street && (
@@ -514,47 +524,49 @@ const RestaurantFormPage: React.FC = () => {
               </p>
             )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="address.city">City</Label>
-              <Input
-                id="address.city"
-                {...register("address.city")}
-                placeholder="Sylhet"
-                className="mt-1"
-              />
-              {errors.address?.city && (
+              <Label>District</Label>
+              <div className="mt-1">
+                <Combobox
+                  options={DISTRICT_DATA.map((d) => ({
+                    value: d.district,
+                    label: d.district,
+                  }))}
+                  value={watch('address.district') || ''}
+                  onValueChange={(val) => {
+                    setValue('address.district', val, {
+                      shouldValidate: true,
+                    });
+                    setValue('address.area', '', { shouldValidate: false });
+                  }}
+                  placeholder="Select district"
+                />
+              </div>
+              {errors.address?.district && (
                 <p className="text-sm text-red-500 mt-1">
-                  {errors.address.city.message}
+                  {errors.address.district.message}
                 </p>
               )}
             </div>
             <div>
-              <Label htmlFor="address.state">State</Label>
-              <Input
-                id="address.state"
-                {...register("address.state")}
-                placeholder="Sylhet"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="address.zipCode">Zip Code</Label>
-              <Input
-                id="address.zipCode"
-                {...register("address.zipCode")}
-                placeholder="3100"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="address.country">Country</Label>
-              <Input
-                id="address.country"
-                {...register("address.country")}
-                placeholder="Bangladesh"
-                className="mt-1"
-              />
+              <Label>Area</Label>
+              <div className="mt-1">
+                <Combobox
+                  options={getAreasByDistrict(watch('address.district') || '')}
+                  value={watch('address.area') || ''}
+                  onValueChange={(val) =>
+                    setValue('address.area', val, { shouldValidate: true })
+                  }
+                  placeholder="Select area"
+                  disabled={!watch('address.district')}
+                />
+              </div>
+              {errors.address?.area && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.address.area.message}
+                </p>
+              )}
             </div>
           </div>
         </motion.div>
@@ -629,9 +641,9 @@ const RestaurantFormPage: React.FC = () => {
               <Input
                 id="minimumOrder"
                 type="number"
-                {...register("minimumOrder", {
+                {...register('minimumOrder', {
                   setValueAs: (value) =>
-                    value === "" ? undefined : Number(value),
+                    value === '' ? undefined : Number(value),
                 })}
                 placeholder="0"
                 className="mt-1"
@@ -647,9 +659,9 @@ const RestaurantFormPage: React.FC = () => {
               <Input
                 id="deliveryFee"
                 type="number"
-                {...register("deliveryFee", {
+                {...register('deliveryFee', {
                   setValueAs: (value) =>
-                    value === "" ? undefined : Number(value),
+                    value === '' ? undefined : Number(value),
                 })}
                 placeholder="0"
                 className="mt-1"
@@ -667,9 +679,9 @@ const RestaurantFormPage: React.FC = () => {
               <Input
                 id="estimatedDeliveryTime"
                 type="number"
-                {...register("estimatedDeliveryTime", {
+                {...register('estimatedDeliveryTime', {
                   setValueAs: (value) =>
-                    value === "" ? undefined : Number(value),
+                    value === '' ? undefined : Number(value),
                 })}
                 placeholder="30"
                 className="mt-1"
@@ -706,11 +718,11 @@ const RestaurantFormPage: React.FC = () => {
             )}
             {submitting
               ? isEdit
-                ? "Updating..."
-                : "Creating..."
+                ? 'Updating...'
+                : 'Creating...'
               : isEdit
-                ? "Update Restaurant"
-                : "Create Restaurant"}
+                ? 'Update Restaurant'
+                : 'Create Restaurant'}
           </Button>
         </div>
       </form>

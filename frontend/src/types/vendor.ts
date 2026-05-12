@@ -1,7 +1,7 @@
 /**
  * Vendor-specific TypeScript type definitions.
  */
-import type { MenuItem, MenuCategory } from "@/types/menu";
+import type { MenuCategory, MenuItem } from '@/types/menu';
 
 // ── Vendor Profile ─────────────────────────────────────────────
 
@@ -52,10 +52,8 @@ export interface VendorProfileData {
 
 export interface RestaurantAddress {
   street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  area: string;
+  district: string;
   coordinates?: { lat: number; lng: number };
 }
 
@@ -95,7 +93,7 @@ export interface VendorRestaurant {
   isActive: boolean;
   isTemporarilyClosed: boolean;
   closureReason?: string;
-  approvalStatus: "pending" | "approved" | "rejected";
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
   rating: RestaurantRating;
   deliveryTime: string;
@@ -203,13 +201,13 @@ export interface VendorOrderItem {
 }
 
 export type VendorOrderStatus =
-  | "pending"
-  | "confirmed"
-  | "preparing"
-  | "ready"
-  | "picked_up"
-  | "delivered"
-  | "cancelled";
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'picked_up'
+  | 'delivered'
+  | 'cancelled';
 
 export interface VendorOrder {
   _id: string;
@@ -248,7 +246,7 @@ export interface VendorOrder {
 export interface VendorCoupon {
   _id: string;
   code: string;
-  type: "percentage" | "fixed";
+  type: 'percentage' | 'fixed';
   value: number;
   minOrderAmount: number;
   minimumOrderAmount?: number;
@@ -318,10 +316,8 @@ export interface CreateRestaurantPayload {
   website?: string;
   address: {
     street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
+    area: string;
+    district: string;
   };
   openingHours?: {
     day: string;
@@ -355,13 +351,13 @@ export interface CreateMenuItemPayload {
   variants?: { name: string; price: number }[];
   addons?: { name: string; price: number }[];
   isAvailable?: boolean;
-  stockStatus?: "available" | "out_of_stock" | "hidden";
+  stockStatus?: 'available' | 'out_of_stock' | 'hidden';
   preparationTime?: number;
 }
 
 export interface UpdateMenuItemPayload extends Omit<
   Partial<CreateMenuItemPayload>,
-  "categoryId"
+  'categoryId'
 > {
   categoryId?: string | null;
 }
@@ -378,7 +374,7 @@ export interface UpdateMenuCategoryPayload extends Partial<CreateMenuCategoryPay
 
 export interface CreateCouponPayload {
   code: string;
-  type: "percentage" | "fixed";
+  type: 'percentage' | 'fixed';
   value: number;
   minOrderAmount?: number;
   minimumOrderAmount?: number;
@@ -407,4 +403,4 @@ export interface VendorOrdersParams {
 }
 
 // Re-export menu types for convenience
-export type { MenuItem, MenuCategory };
+export type { MenuCategory, MenuItem };
