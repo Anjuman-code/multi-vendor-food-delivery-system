@@ -662,10 +662,17 @@ const RestaurantsPage: React.FC = () => {
     [navigate],
   );
 
-  const handleImageClick = useCallback((restaurant: Restaurant) => {
-    setGalleryRestaurant(restaurant);
-    setGalleryModalOpen(true);
-  }, []);
+  const handleImageClick = useCallback(
+    (restaurant: Restaurant) => {
+      if (!restaurant.images || restaurant.images.length === 0) {
+        navigate(`/restaurants/${restaurant.id}`);
+        return;
+      }
+      setGalleryRestaurant(restaurant);
+      setGalleryModalOpen(true);
+    },
+    [navigate],
+  );
 
   const handleViewInMapClick = useCallback((restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
