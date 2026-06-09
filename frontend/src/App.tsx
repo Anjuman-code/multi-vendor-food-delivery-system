@@ -14,6 +14,7 @@ import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 const NewHomePage = lazy(() => import("@/pages/public/NewHomePage"));
 const AboutPage = lazy(() => import("@/pages/public/AboutPage"));
 const CategoriesPage = lazy(() => import("@/pages/public/CategoriesPage"));
+const MenuItemDetailPage = lazy(() => import("@/pages/public/MenuItemDetailPage"));
 const ContactPage = lazy(() => import("@/pages/public/ContactPage"));
 const FAQPage = lazy(() => import("./pages/public/FAQPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/public/PrivacyPolicyPage"));
@@ -112,6 +113,7 @@ function App(): React.ReactElement {
                       <Route path="/restaurants" element={<RestaurantsPage />} />
                       <Route path="/restaurants/:id" element={<RestaurantDetailsPage />} />
                       <Route path="/categories" element={<CategoriesPage />} />
+                      <Route path="/menu/:restaurantId/:itemId" element={<MenuItemDetailPage />} />
 
                       {/* Customer (authenticated) */}
                       <Route path="/profile" element={<ProfilePage />} />

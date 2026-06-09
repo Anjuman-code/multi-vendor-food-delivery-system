@@ -107,6 +107,7 @@ export interface FoodItemCardProps {
   /** Current quantity already in cart (for grid/list variants) */
   cartQuantity?: number;
   // ── Customer callbacks ────────────────────────────────────────
+  onClick?: (item: FoodItemData) => void;
   onAddToCart?: (item: FoodItemData) => void;
   /** qty=0 means remove */
   onUpdateQuantity?: (id: string | number, qty: number) => void;
@@ -336,6 +337,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
   item,
   variant = "grid",
   cartQuantity = 0,
+  onClick,
   onAddToCart,
   onUpdateQuantity,
   onToggleAvailability,
@@ -673,8 +675,10 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
+        onClick={onClick ? () => onClick(item) : undefined}
         className={cn(
           "flex gap-4 p-3 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-300 group",
+          onClick && "cursor-pointer",
           className,
         )}
       >
@@ -781,11 +785,13 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      onClick={onClick ? () => onClick(item) : undefined}
       className={cn(
         // On xs/mobile → horizontal list layout; on sm+ → vertical card
         "bg-white border border-gray-100 hover:shadow-xl transition-all duration-300 group overflow-hidden",
         "flex flex-row sm:flex-col", // mobile: horizontal; desktop: vertical
         "rounded-2xl",
+        onClick && "cursor-pointer",
         className,
       )}
     >

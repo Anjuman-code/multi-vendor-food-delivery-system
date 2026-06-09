@@ -1,55 +1,54 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { motion } from "framer-motion";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { motion } from 'framer-motion';
 import {
-    ArrowRight,
-    Code,
-    Facebook,
-    Heart,
-    Instagram,
-    Mail,
-    MapPin,
-    Phone,
-    Twitter,
-    Youtube,
-} from "lucide-react";
-import React, { memo } from "react";
-import { Link } from "react-router-dom";
+  ArrowRight,
+  Code,
+  Facebook,
+  Instagram,
+  Mail,
+  MapPin,
+  Phone,
+  Twitter,
+  Youtube,
+} from 'lucide-react';
+import React, { memo } from 'react';
+import { Link } from 'react-router-dom';
 
 const Footer: React.FC = memo(() => {
   const currentYear = new Date().getFullYear();
 
   const footerLinks = {
     company: [
-      { name: "About Us", href: "/about" },
-      { name: "Contact Us", href: "/contact" },
-      { name: "Careers", href: "/careers" },
-      { name: "Blog", href: "/blog" },
+      { name: 'About Us', href: '/about' },
+      { name: 'Contact Us', href: '/contact' },
+      { name: 'Careers', href: '/careers' },
+      { name: 'Blog', href: '/blog' },
     ],
     support: [
-      { name: "Help Center / FAQ", href: "/faq" },
-      { name: "Partner with Us", href: "/partner" },
-      { name: "Become a Rider", href: "/rider" },
-      { name: "Safety", href: "/safety" },
+      { name: 'Help Center / FAQ', href: '/faq' },
+      { name: 'Partner with Us', href: '/partner' },
+      { name: 'Become a Rider', href: '/rider' },
+      { name: 'Safety', href: '/safety' },
     ],
     legal: [
-      { name: "Terms of Service", href: "/terms" },
-      { name: "Privacy Policy", href: "/privacy" },
-      { name: "Cookie Policy", href: "/cookies" },
-      { name: "Refund Policy", href: "/refund" },
+      { name: 'Terms of Service', href: '/terms' },
+      { name: 'Privacy Policy', href: '/privacy' },
+      { name: 'Cookie Policy', href: '/cookies' },
+      { name: 'Refund Policy', href: '/refund' },
     ],
   };
 
   const socialLinks = [
-    { name: "Facebook", icon: Facebook, href: "#", color: "hover:bg-blue-500" },
-    { name: "Twitter", icon: Twitter, href: "#", color: "hover:bg-sky-500" },
+    { name: 'Facebook', icon: Facebook, href: '#', color: 'hover:bg-blue-500' },
+    { name: 'Twitter', icon: Twitter, href: '#', color: 'hover:bg-sky-500' },
     {
-      name: "Instagram",
+      name: 'Instagram',
       icon: Instagram,
-      href: "#",
-      color: "hover:bg-pink-500",
+      href: '#',
+      color: 'hover:bg-pink-500',
     },
-    { name: "Youtube", icon: Youtube, href: "#", color: "hover:bg-red-500" },
+    { name: 'Youtube', icon: Youtube, href: '#', color: 'hover:bg-red-500' },
   ];
 
   return (
@@ -226,17 +225,13 @@ const Footer: React.FC = memo(() => {
               © {currentYear} Food Rush Food Delivery. All rights reserved.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-              <p className="text-gray-500 text-sm flex items-center gap-1">
-                Made with{" "}
-                <Heart className="w-4 h-4 text-red-500 fill-red-500 inline" />{" "}
-                in Sylhet, Bangladesh
-              </p>
               <div className="flex items-center gap-1 text-gray-500 text-sm">
                 <Code className="w-4 h-4" />
                 <span>
-                  Developed by{" "}
-                  <span className="text-orange-400 font-medium">Anjuman</span> &{" "}
-                  <span className="text-orange-400 font-medium">Shafi</span>
+                  Developed by{' '}
+                  <span className="text-orange-400 font-medium">Anjuman</span>,{' '}
+                  <span className="text-orange-400 font-medium">Shafi</span> &{' '}
+                  <span className="text-orange-400 font-medium">Tabassum</span>
                 </span>
               </div>
             </div>

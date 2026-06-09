@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
 type ApiRestaurant = {
@@ -156,6 +156,7 @@ const getOrderRestaurantId = (order: Order): string =>
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
 const RestaurantDetailsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -606,6 +607,12 @@ const RestaurantDetailsPage: React.FC = () => {
                                   isAvailable: true,
                                 }}
                                 cartQuantity={getItemQuantity(item._id)}
+                                onClick={() =>
+                                  restaurant &&
+                                  navigate(
+                                    `/menu/${restaurant._id}/${item._id}`,
+                                  )
+                                }
                                 onAddToCart={() => handleAddToCart(item)}
                                 onUpdateQuantity={(_, qty) =>
                                   updateQuantity(item._id, qty)

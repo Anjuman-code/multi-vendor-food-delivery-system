@@ -127,6 +127,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const [cart, setCart] = useState<CartState>(loadCart);
   const { isAuthenticated } = useAuth();
   const initialSyncDone = useRef(false);
+  const prevAuth = useRef(isAuthenticated);
+
+  // Clear cart when user logs out
+  useEffect(() => {
+    if (prevAuth.current && !isAuthenticated) {
+      initialSyncDone.current = false;
+      setCart({
+        restaurantId: null,
+        restaurantName: null,
+        items: [],
+        promoCode: "",
+      });
+      cartService.clearCart().catch(() => {});
+    }
+    prevAuth.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   // Sync server cart on first authentication
   useEffect(() => {

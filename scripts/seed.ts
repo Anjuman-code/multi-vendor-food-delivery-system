@@ -1,6 +1,10 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { AdminTier, UserRole, VehicleType } from '../backend/src/config/constants';
+import {
+  AdminTier,
+  UserRole,
+  VehicleType,
+} from '../backend/src/config/constants';
 import CustomerProfile from '../backend/src/models/CustomerProfile';
 import DriverProfile from '../backend/src/models/DriverProfile';
 import MenuCategory from '../backend/src/models/MenuCategory';
@@ -26,8 +30,6 @@ const backendRequire = createRequire(
 
 backendRequire('dotenv/config');
 const mongoose = backendRequire('mongoose') as typeof import('mongoose');
-
-// ─── Seed users ───────────────────────────────────────────────────────────────
 
 const ADMIN_USER = {
   email: 'admin@seed.com',
@@ -110,11 +112,6 @@ const DRIVER_USER = {
   isActive: true,
 } as const;
 
-// ─── Panshi Restaurant ────────────────────────────────────────────────────────
-// Source: https://www-st.foodpanda.com.bd/restaurant/s1tt/panshi-restaurant
-// A beloved traditional Sylheti restaurant known for authentic biryanis and
-// home-style dal-rice set meals. Located in the heart of Sylhet city.
-
 const PANSHI_RESTAURANT = {
   name: 'Panshi Restaurant',
   slug: 'panshi-restaurant-sylhet',
@@ -135,13 +132,20 @@ const PANSHI_RESTAURANT = {
     email: 'panshi.sylhet@gmail.com',
   },
   cuisineType: ['Bangladeshi', 'Sylheti', 'Bengali'],
-  tags: ['halal', 'family-friendly', 'traditional', 'budget-friendly', 'set-meals'],
+  tags: [
+    'halal',
+    'family-friendly',
+    'traditional',
+    'budget-friendly',
+    'set-meals',
+  ],
   images: {
-    logo: 'https://images.foodpanda.com/restaurant/s1tt/logo.jpg',
-    coverPhoto: 'https://images.foodpanda.com/restaurant/s1tt/cover.jpg',
+    logo: 'https://scontent.fdac138-2.fna.fbcdn.net/v/t39.30808-6/347816587_960978335144348_2945366852348668936_n.jpg?stp=dst-jpg_tt6&cstp=mx864x864&ctp=s864x864&_nc_cat=102&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=jS_82YDXidIQ7kNvwFV-UUg&_nc_oc=AdqbLlPdZ5fvQBltbqzqyOj_uRZHF1MotYoYINozH_Kfq54__F0W-cIhqSpXSdasUGQ&_nc_zt=23&_nc_ht=scontent.fdac138-2.fna&_nc_gid=15aSTCho__xr8-gXwT74nw&_nc_ss=7b289&oh=00_Af-bQL4emUciZjnrvfQjqUYPTEJErdgHFHC82-5GoxFCVQ&oe=6A2DECB3',
+    coverPhoto:
+      'https://sylhettouristplaces.com/wp-content/uploads/2020/03/Panshi-Restaurant-Sylhet-6-1024x768.jpg',
     gallery: [
-      'https://images.foodpanda.com/restaurant/s1tt/gallery-1.jpg',
-      'https://images.foodpanda.com/restaurant/s1tt/gallery-2.jpg',
+      'https://sylhettouristplaces.com/wp-content/uploads/2020/03/Panshi-Restaurant-Sylhet-6-1024x768.jpg',
+      'https://media-cdn.tripadvisor.com/media/photo-m/1280/1a/f3/7f/99/dinner.jpg',
     ],
   },
   operatingHours: [
@@ -159,22 +163,21 @@ const PANSHI_RESTAURANT = {
   deliveryTime: { min: 25, max: 40 },
   deliveryFee: 30,
   minimumOrder: 100,
-  serviceOptions: ['delivery', 'dine-in', 'takeaway'] as ('delivery' | 'dine-in' | 'takeaway')[],
+  serviceOptions: ['delivery', 'dine-in', 'takeaway'] as (
+    | 'delivery'
+    | 'dine-in'
+    | 'takeaway'
+  )[],
   paymentMethods: ['cash', 'bkash', 'nagad'],
   averagePreparationTime: 20,
   rating: { average: 4.1, count: 3842 },
 };
 
-// ─── Pach Bhai Restaurant ─────────────────────────────────────────────────────
-// Source: https://skip.menu/at/35772-pach-bhai-restaurant
-// Rating: 4.3 (16,209 reviews) — one of Sylhet's most popular local eateries.
-// Famous for beef khichuri, shatkora beef curry, and fresh prawn dishes.
-
 const PACH_BHAI_RESTAURANT = {
   name: 'Pach Bhai Restaurant',
   slug: 'pach-bhai-restaurant-sylhet',
   description:
-    'With over 16,000 reviews and a 4.3-star rating, Pach Bhai is one of Sylhet\'s most-loved eateries. Renowned for its signature Beef Khichuri loaded with fried onions and ghee, the iconic Beef Curry with Shatkora (a Sylheti citrus), and some of the juiciest prawn curries in the city. A true showcase of Sylheti street-food culture.',
+    "With over 16,000 reviews and a 4.3-star rating, Pach Bhai is one of Sylhet's most-loved eateries. Renowned for its signature Beef Khichuri loaded with fried onions and ghee, the iconic Beef Curry with Shatkora (a Sylheti citrus), and some of the juiciest prawn curries in the city. A true showcase of Sylheti street-food culture.",
   address: {
     street: 'Bandar Bazar',
     area: 'Bandar Bazar',
@@ -190,13 +193,20 @@ const PACH_BHAI_RESTAURANT = {
     email: 'pachbhai.sylhet@gmail.com',
   },
   cuisineType: ['Bangladeshi', 'Sylheti', 'Bengali'],
-  tags: ['halal', 'family-friendly', 'popular', 'sylheti-specialty', 'khichuri'],
+  tags: [
+    'halal',
+    'family-friendly',
+    'popular',
+    'sylheti-specialty',
+    'khichuri',
+  ],
   images: {
-    logo: 'https://images.skip.menu/restaurant/35772/logo.jpg',
-    coverPhoto: 'https://images.skip.menu/restaurant/35772/cover.jpg',
+    logo: 'https://pachbhairestaurant.com/wp-content/uploads/2023/09/logo2.png',
+    coverPhoto:
+      'https://media-cdn.tripadvisor.com/media/photo-m/1280/1a/a4/e0/9a/photo0jpg.jpg',
     gallery: [
-      'https://images.skip.menu/restaurant/35772/gallery-1.jpg',
-      'https://images.skip.menu/restaurant/35772/gallery-2.jpg',
+      'https://media-cdn.tripadvisor.com/media/photo-m/1280/1a/a4/e0/9a/photo0jpg.jpg',
+      'https://pachbhairestaurant.com/wp-content/uploads/2023/09/5-iamge.jpg',
     ],
   },
   operatingHours: [
@@ -214,13 +224,15 @@ const PACH_BHAI_RESTAURANT = {
   deliveryTime: { min: 20, max: 35 },
   deliveryFee: 30,
   minimumOrder: 80,
-  serviceOptions: ['delivery', 'dine-in', 'takeaway'] as ('delivery' | 'dine-in' | 'takeaway')[],
+  serviceOptions: ['delivery', 'dine-in', 'takeaway'] as (
+    | 'delivery'
+    | 'dine-in'
+    | 'takeaway'
+  )[],
   paymentMethods: ['cash', 'bkash', 'nagad'],
   averagePreparationTime: 15,
   rating: { average: 4.3, count: 16209 },
 };
-
-// ─── Seed function ────────────────────────────────────────────────────────────
 
 const seedDatabase = async (): Promise<void> => {
   const mongoDbUri = process.env.MONGODB_URI;
@@ -240,18 +252,17 @@ const seedDatabase = async (): Promise<void> => {
     await db.dropDatabase();
     console.log(c(ANSI.yellow, 'Database dropped. Seeding...\n'));
 
-    // ── Admin users ─────────────────────────────────────────────
     await User.create(ADMIN_USER);
     await User.create(ADMIN_USER_2);
     await User.create(SUPPORT_USER);
-    console.log(c(ANSI.green, '✓ Admin users created (super_admin, admin, support)'));
+    console.log(
+      c(ANSI.green, '✓ Admin users created (super_admin, admin, support)'),
+    );
 
-    // ── Customer user ───────────────────────────────────────────
     const regularUser = await User.create(REGULAR_USER);
     await CustomerProfile.create({ userId: regularUser._id });
     console.log(c(ANSI.green, '✓ Customer user created'));
 
-    // ── Driver user ─────────────────────────────────────────────
     const driverUser = await User.create(DRIVER_USER);
     await DriverProfile.create({
       userId: driverUser._id,
@@ -267,7 +278,6 @@ const seedDatabase = async (): Promise<void> => {
     });
     console.log(c(ANSI.green, '✓ Driver user created (approved, motorcycle)'));
 
-    // ── Panshi Restaurant ───────────────────────────────────────
     const panshiVendorUser = await User.create(PANSHI_VENDOR_USER);
     const panshiRestaurant = await Restaurant.create(PANSHI_RESTAURANT);
 
@@ -281,7 +291,6 @@ const seedDatabase = async (): Promise<void> => {
       autoAcceptOrders: false,
     });
 
-    // Panshi: categories
     const panshiCatLunchDinner = await MenuCategory.create({
       restaurantId: panshiRestaurant._id,
       name: 'Lunch & Dinner',
@@ -304,14 +313,13 @@ const seedDatabase = async (): Promise<void> => {
       displayOrder: 3,
     });
 
-    // Panshi: menu items (15 items from Foodpanda listing)
     await MenuItem.insertMany([
-      // ── Lunch & Dinner ───────────────────────────────────────
       {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatLunchDinner._id,
         name: 'Kachchi Biryani',
-        description: 'Slow-cooked mutton layered with fragrant basmati rice and whole potato, marinated overnight in yoghurt and spices — the crown jewel of Panshi\'s kitchen.',
+        description:
+          "Slow-cooked mutton layered with fragrant basmati rice and whole potato, marinated overnight in yoghurt and spices — the crown jewel of Panshi's kitchen.",
         price: 160,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -325,7 +333,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatLunchDinner._id,
         name: 'Chicken Biryani',
-        description: 'Mixed rice dish made with aromatic spices and tender chicken pieces, slow-cooked in the dum style.',
+        description:
+          'Mixed rice dish made with aromatic spices and tender chicken pieces, slow-cooked in the dum style.',
         price: 120,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -338,7 +347,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatLunchDinner._id,
         name: 'Mutton Biryani',
-        description: 'Tender mutton pieces cooked with rice and a blend of whole spices, served with raita.',
+        description:
+          'Tender mutton pieces cooked with rice and a blend of whole spices, served with raita.',
         price: 160,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -346,12 +356,13 @@ const seedDatabase = async (): Promise<void> => {
         spiceLevel: 'medium',
         displayOrder: 3,
       },
-      // ── Mains ────────────────────────────────────────────────
+
       {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Beef, Daal & Rice',
-        description: 'A wholesome set meal of slow-cooked beef curry served alongside creamy masoor daal and steamed white rice.',
+        description:
+          'A wholesome set meal of slow-cooked beef curry served alongside creamy masoor daal and steamed white rice.',
         price: 90,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -365,7 +376,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Jhalfry, Daal & Rice',
-        description: 'Set meal of spicy chicken jhalfry (dry-fried gravy dish) with daal and rice — a lunchtime staple.',
+        description:
+          'Set meal of spicy chicken jhalfry (dry-fried gravy dish) with daal and rice — a lunchtime staple.',
         price: 75,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -378,7 +390,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Chicken Roast, Daal & Rice',
-        description: 'Set meal of golden roasted chicken with a rich gravy, paired with daal and steamed rice.',
+        description:
+          'Set meal of golden roasted chicken with a rich gravy, paired with daal and steamed rice.',
         price: 110,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -391,7 +404,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Mutton, Daal & Rice',
-        description: 'Set meal of tender mutton curry with aromatic spices, creamy daal, and white rice.',
+        description:
+          'Set meal of tender mutton curry with aromatic spices, creamy daal, and white rice.',
         price: 150,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -404,7 +418,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Koel Bird, Daal & Rice',
-        description: 'A rare Sylheti delicacy — set meal of quail (koel) bird cooked in a dark, rich masala with daal and rice.',
+        description:
+          'A rare Sylheti delicacy — set meal of quail (koel) bird cooked in a dark, rich masala with daal and rice.',
         price: 110,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -417,7 +432,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Pigeon, Daal & Rice',
-        description: 'Traditional set meal of pigeon cooked in a fragrant spice blend, served with daal and steamed rice.',
+        description:
+          'Traditional set meal of pigeon cooked in a fragrant spice blend, served with daal and steamed rice.',
         price: 140,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -430,7 +446,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatMains._id,
         name: 'Beef Bhuna',
-        description: 'Slow-cooked dry beef bhuna with caramelised onions and reduced masala — pairs perfectly with any rice dish.',
+        description:
+          'Slow-cooked dry beef bhuna with caramelised onions and reduced masala — pairs perfectly with any rice dish.',
         price: 90,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -438,12 +455,13 @@ const seedDatabase = async (): Promise<void> => {
         spiceLevel: 'medium',
         displayOrder: 7,
       },
-      // ── Vegetable & Bhorta ───────────────────────────────────
+
       {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatBhorta._id,
         name: 'Shutki Bhorta',
-        description: 'Mashed dried fish (shutki) mixed with mustard oil, green chillies, and fresh coriander — an acquired Sylheti classic.',
+        description:
+          'Mashed dried fish (shutki) mixed with mustard oil, green chillies, and fresh coriander — an acquired Sylheti classic.',
         price: 10,
         dietaryTags: [],
         isAvailable: true,
@@ -456,7 +474,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatBhorta._id,
         name: 'Shutki Bhuna',
-        description: 'Deep-fried dried fish tossed with onion, garlic, and dried chilli — intensely savoury and aromatic.',
+        description:
+          'Deep-fried dried fish tossed with onion, garlic, and dried chilli — intensely savoury and aromatic.',
         price: 40,
         dietaryTags: [],
         isAvailable: true,
@@ -468,7 +487,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatBhorta._id,
         name: 'Taaki Fish Bhorta',
-        description: 'Mashed taaki (climbing perch) fish blended with spices, herbs, and a dash of mustard oil.',
+        description:
+          'Mashed taaki (climbing perch) fish blended with spices, herbs, and a dash of mustard oil.',
         price: 20,
         dietaryTags: [],
         isAvailable: true,
@@ -480,7 +500,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatBhorta._id,
         name: 'Chingree Bhorta',
-        description: 'Mashed small shrimp (chingri) with mustard oil, green chillies, and garlic — a Sylheti favourite side.',
+        description:
+          'Mashed small shrimp (chingri) with mustard oil, green chillies, and garlic — a Sylheti favourite side.',
         price: 10,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -492,7 +513,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: panshiRestaurant._id,
         categoryId: panshiCatBhorta._id,
         name: 'Aloo Bhorta',
-        description: 'Smashed boiled potato with minced onion, green chillies, mustard oil, and fresh coriander.',
+        description:
+          'Smashed boiled potato with minced onion, green chillies, mustard oil, and fresh coriander.',
         price: 10,
         dietaryTags: ['vegetarian', 'vegan'],
         isAvailable: true,
@@ -502,9 +524,13 @@ const seedDatabase = async (): Promise<void> => {
       },
     ]);
 
-    console.log(c(ANSI.green, '✓ Panshi Restaurant created with 3 categories and 15 menu items'));
+    console.log(
+      c(
+        ANSI.green,
+        '✓ Panshi Restaurant created with 3 categories and 15 menu items',
+      ),
+    );
 
-    // ── Pach Bhai Restaurant ────────────────────────────────────
     const pachBhaiVendorUser = await User.create(PACH_BHAI_VENDOR_USER);
     const pachBhaiRestaurant = await Restaurant.create(PACH_BHAI_RESTAURANT);
 
@@ -520,18 +546,19 @@ const seedDatabase = async (): Promise<void> => {
       averageRating: 4.3,
     });
 
-    // Pach Bhai: categories
     const pbCatKhichuri = await MenuCategory.create({
       restaurantId: pachBhaiRestaurant._id,
       name: 'Khichuri & Rice',
-      description: 'The dishes that made Pach Bhai famous — khichuri, tehari, and rice meals',
+      description:
+        'The dishes that made Pach Bhai famous — khichuri, tehari, and rice meals',
       icon: '🍲',
       displayOrder: 1,
     });
     const pbCatCurries = await MenuCategory.create({
       restaurantId: pachBhaiRestaurant._id,
       name: 'Curries',
-      description: 'Rich, slow-cooked meat and seafood curries with Sylheti flair',
+      description:
+        'Rich, slow-cooked meat and seafood curries with Sylheti flair',
       icon: '🥘',
       displayOrder: 2,
     });
@@ -550,14 +577,13 @@ const seedDatabase = async (): Promise<void> => {
       displayOrder: 4,
     });
 
-    // Pach Bhai: menu items (13 items from skip.menu review data)
     await MenuItem.insertMany([
-      // ── Khichuri & Rice ──────────────────────────────────────
       {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatKhichuri._id,
         name: 'Beef Khichuri',
-        description: 'The dish that defines Pach Bhai — fragrant khichuri cooked with tender beef, crowned with crispy fried onions, pickles, and a drizzle of pure ghee. Comforting, hearty, and utterly soul-satisfying.',
+        description:
+          'The dish that defines Pach Bhai — fragrant khichuri cooked with tender beef, crowned with crispy fried onions, pickles, and a drizzle of pure ghee. Comforting, hearty, and utterly soul-satisfying.',
         price: 120,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -572,7 +598,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatKhichuri._id,
         name: 'Buna Khichuri',
-        description: 'A special morning favourite — thick, hearty khichuri cooked with chicken pieces in an amazing dark gravy. Best enjoyed for breakfast.',
+        description:
+          'A special morning favourite — thick, hearty khichuri cooked with chicken pieces in an amazing dark gravy. Best enjoyed for breakfast.',
         price: 90,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -588,7 +615,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatKhichuri._id,
         name: 'Tehari',
-        description: 'Highly recommended by regulars — rice cooked with soft, melt-in-your-mouth beef pieces and aromatic spices. Great value for the price.',
+        description:
+          'Highly recommended by regulars — rice cooked with soft, melt-in-your-mouth beef pieces and aromatic spices. Great value for the price.',
         price: 130,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -598,12 +626,13 @@ const seedDatabase = async (): Promise<void> => {
         servingSize: '1 plate',
         displayOrder: 3,
       },
-      // ── Curries ──────────────────────────────────────────────
+
       {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatCurries._id,
         name: 'Chingri (Prawn) Curry',
-        description: 'The star of the menu — big, juicy river prawns cooked in a light, flavourful gravy with mustard and turmeric. Widely considered one of the best prawn curries in all of Sylhet.',
+        description:
+          'The star of the menu — big, juicy river prawns cooked in a light, flavourful gravy with mustard and turmeric. Widely considered one of the best prawn curries in all of Sylhet.',
         price: 250,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -617,7 +646,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatCurries._id,
         name: 'Beef Curry with Shatkora',
-        description: 'The signature Sylheti classic — slow-braised beef in a thick, dark, well-spiced gravy infused with shatkora (wild Sylheti citrus). Rated 10/10 by countless guests. A must-try.',
+        description:
+          'The signature Sylheti classic — slow-braised beef in a thick, dark, well-spiced gravy infused with shatkora (wild Sylheti citrus). Rated 10/10 by countless guests. A must-try.',
         price: 180,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -631,7 +661,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatCurries._id,
         name: 'Rui Fish Curry',
-        description: 'Mouthwatering rui (rohu) fish cooked in a vibrant turmeric and mustard-based gravy. Celebrated for its generous portions and exceptional taste — rated 10/10 by guests.',
+        description:
+          'Mouthwatering rui (rohu) fish cooked in a vibrant turmeric and mustard-based gravy. Celebrated for its generous portions and exceptional taste — rated 10/10 by guests.',
         price: 160,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -644,7 +675,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatCurries._id,
         name: 'Beef Bhuna',
-        description: 'Traditional Bangladeshi dry beef bhuna with caramelised onions and a thick, deeply flavoured masala. Mouthwatering, satisfying, and highly recommended.',
+        description:
+          'Traditional Bangladeshi dry beef bhuna with caramelised onions and a thick, deeply flavoured masala. Mouthwatering, satisfying, and highly recommended.',
         price: 150,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -657,7 +689,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatCurries._id,
         name: 'Boti Kebab',
-        description: 'Charcoal-grilled beef boti kebab — tender chunks marinated in spiced yoghurt, skewered and slow-grilled to perfection. A crowd-pleaser for every table.',
+        description:
+          'Charcoal-grilled beef boti kebab — tender chunks marinated in spiced yoghurt, skewered and slow-grilled to perfection. A crowd-pleaser for every table.',
         price: 200,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -666,12 +699,13 @@ const seedDatabase = async (): Promise<void> => {
         servingSize: '6 pieces',
         displayOrder: 5,
       },
-      // ── Bhorta & Bhaji ───────────────────────────────────────
+
       {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatBhortaBhaji._id,
         name: 'Begun Fry',
-        description: 'One of Pach Bhai\'s signature side dishes — golden-fried aubergine slices with a crispy outer and soft, smoky interior. Outstanding on its own.',
+        description:
+          "One of Pach Bhai's signature side dishes — golden-fried aubergine slices with a crispy outer and soft, smoky interior. Outstanding on its own.",
         price: 60,
         dietaryTags: ['vegetarian', 'vegan', 'halal'],
         isAvailable: true,
@@ -684,7 +718,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatBhortaBhaji._id,
         name: 'Fish Bhorta',
-        description: 'Very tasty mashed fish bhorta with mustard oil, green chillies, and fresh herbs — an ideal accompaniment to plain rice.',
+        description:
+          'Very tasty mashed fish bhorta with mustard oil, green chillies, and fresh herbs — an ideal accompaniment to plain rice.',
         price: 40,
         dietaryTags: ['halal'],
         isAvailable: true,
@@ -696,7 +731,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatBhortaBhaji._id,
         name: 'Coriander Bhorta',
-        description: 'Freshly ground coriander bhorta with garlic, green chillies, and mustard oil. Bright, herby, and deeply refreshing alongside rice.',
+        description:
+          'Freshly ground coriander bhorta with garlic, green chillies, and mustard oil. Bright, herby, and deeply refreshing alongside rice.',
         price: 30,
         dietaryTags: ['vegetarian', 'vegan'],
         isAvailable: true,
@@ -704,12 +740,13 @@ const seedDatabase = async (): Promise<void> => {
         spiceLevel: 'mild',
         displayOrder: 3,
       },
-      // ── Desserts ─────────────────────────────────────────────
+
       {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatDesserts._id,
         name: 'Faluda',
-        description: 'A beloved cold dessert layered with rose syrup, vermicelli noodles, basil seeds, and chilled milk. Loved by regulars young and old.',
+        description:
+          'A beloved cold dessert layered with rose syrup, vermicelli noodles, basil seeds, and chilled milk. Loved by regulars young and old.',
         price: 60,
         dietaryTags: ['vegetarian'],
         isAvailable: true,
@@ -722,7 +759,8 @@ const seedDatabase = async (): Promise<void> => {
         restaurantId: pachBhaiRestaurant._id,
         categoryId: pbCatDesserts._id,
         name: 'Firni & Doi',
-        description: 'Traditional sweet endings — creamy firni (rice pudding) paired with thick set doi (yoghurt). The perfect finish to a full Sylheti meal.',
+        description:
+          'Traditional sweet endings — creamy firni (rice pudding) paired with thick set doi (yoghurt). The perfect finish to a full Sylheti meal.',
         price: 50,
         dietaryTags: ['vegetarian'],
         isAvailable: true,
@@ -732,9 +770,13 @@ const seedDatabase = async (): Promise<void> => {
       },
     ]);
 
-    console.log(c(ANSI.green, '✓ Pach Bhai Restaurant created with 4 categories and 13 menu items'));
+    console.log(
+      c(
+        ANSI.green,
+        '✓ Pach Bhai Restaurant created with 4 categories and 13 menu items',
+      ),
+    );
 
-    // ── Verification ────────────────────────────────────────────
     const [
       adminCount,
       vendorCount,
@@ -759,25 +801,47 @@ const seedDatabase = async (): Promise<void> => {
       User.countDocuments({}),
     ]);
 
-    if (adminCount !== 3) throw new Error(`Expected 3 admin users, got ${adminCount}.`);
-    if (vendorCount !== 2) throw new Error(`Expected 2 vendor users, got ${vendorCount}.`);
-    if (vendorProfileCount !== 2) throw new Error(`Expected 2 vendor profiles, got ${vendorProfileCount}.`);
-    if (restaurantCount !== 2) throw new Error(`Expected 2 restaurants, got ${restaurantCount}.`);
-    if (categoryCount !== 7) throw new Error(`Expected 7 menu categories, got ${categoryCount}.`);
-    if (menuItemCount !== 28) throw new Error(`Expected 28 menu items, got ${menuItemCount}.`);
-    if (regularUserCount !== 1) throw new Error(`Expected 1 regular user, got ${regularUserCount}.`);
-    if (driverCount !== 1) throw new Error(`Expected 1 driver user, got ${driverCount}.`);
-    if (driverProfileCount !== 1) throw new Error(`Expected 1 driver profile, got ${driverProfileCount}.`);
-    if (totalUserCount !== 7) throw new Error(`Expected 7 total users, got ${totalUserCount}.`);
+    if (adminCount !== 3)
+      throw new Error(`Expected 3 admin users, got ${adminCount}.`);
+    if (vendorCount !== 2)
+      throw new Error(`Expected 2 vendor users, got ${vendorCount}.`);
+    if (vendorProfileCount !== 2)
+      throw new Error(`Expected 2 vendor profiles, got ${vendorProfileCount}.`);
+    if (restaurantCount !== 2)
+      throw new Error(`Expected 2 restaurants, got ${restaurantCount}.`);
+    if (categoryCount !== 7)
+      throw new Error(`Expected 7 menu categories, got ${categoryCount}.`);
+    if (menuItemCount !== 28)
+      throw new Error(`Expected 28 menu items, got ${menuItemCount}.`);
+    if (regularUserCount !== 1)
+      throw new Error(`Expected 1 regular user, got ${regularUserCount}.`);
+    if (driverCount !== 1)
+      throw new Error(`Expected 1 driver user, got ${driverCount}.`);
+    if (driverProfileCount !== 1)
+      throw new Error(`Expected 1 driver profile, got ${driverProfileCount}.`);
+    if (totalUserCount !== 7)
+      throw new Error(`Expected 7 total users, got ${totalUserCount}.`);
 
     console.log(c(ANSI.bold, '\n✅ Seed completed successfully.'));
     console.log(c(ANSI.dim, '────────────────────────────────────────────'));
-    console.log(`  Users       : ${totalUserCount} (3 admins, 2 vendors, 1 customer, 1 driver)`);
-    console.log(c(ANSI.dim, `    admin@seed.com    — super_admin  / Admin@123456`));
-    console.log(c(ANSI.dim, `    ops@seed.com      — admin        / Admin@123456`));
-    console.log(c(ANSI.dim, `    support@seed.com  — support      / Admin@123456`));
-    console.log(c(ANSI.dim, `    customer@seed.com — customer     / Customer@123456`));
-    console.log(c(ANSI.dim, `    driver@seed.com   — driver       / Driver@123456`));
+    console.log(
+      `  Users       : ${totalUserCount} (3 admins, 2 vendors, 1 customer, 1 driver)`,
+    );
+    console.log(
+      c(ANSI.dim, `    admin@seed.com    — super_admin  / Admin@123456`),
+    );
+    console.log(
+      c(ANSI.dim, `    ops@seed.com      — admin        / Admin@123456`),
+    );
+    console.log(
+      c(ANSI.dim, `    support@seed.com  — support      / Admin@123456`),
+    );
+    console.log(
+      c(ANSI.dim, `    customer@seed.com — customer     / Customer@123456`),
+    );
+    console.log(
+      c(ANSI.dim, `    driver@seed.com   — driver       / Driver@123456`),
+    );
     console.log(`  Restaurants : ${restaurantCount} (Panshi, Pach Bhai)`);
     console.log(`  Categories  : ${categoryCount}`);
     console.log(`  Menu items  : ${menuItemCount} (15 Panshi + 13 Pach Bhai)`);

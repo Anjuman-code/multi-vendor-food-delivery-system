@@ -102,6 +102,7 @@ httpClient.interceptors.response.use(
         localStorage.removeItem('user');
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('Food Rush_cart');
 
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

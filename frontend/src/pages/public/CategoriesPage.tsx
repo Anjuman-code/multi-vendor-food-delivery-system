@@ -1,5 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import FoodItemCard from "@/components/ui/FoodItemCard";
+import { useCart } from "@/contexts/CartContext";
+import type { CartItem } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronRight,
@@ -9,7 +12,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import homeService, { MenuItemByCategory } from "@/services/homeService";
 import type { TopCategory } from "@/types/home";
 
@@ -61,6 +64,10 @@ const Breadcrumb: React.FC<{ category: string }> = ({ category }) => (
 );
 
 const CategoriesPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { addItem, items, updateQuantity, isRestaurantMismatch, clearCart } = useCart();
+  const { toast } = useToast();
+
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemByCategory[]>([]);
@@ -68,6 +75,69 @@ const CategoriesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [showVegOnly, setShowVegOnly] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingAdd, setPendingAdd] = useState<{
+    restaurantId: string;
+    restaurantName: string;
+    cartItem: CartItem;
+  } | null>(null);
+
+  // Handle pending add after cart is cleared (restaurant switch)
+  useEffect(() => {
+    if (pendingAdd) {
+      addItem(pendingAdd.restaurantId, pendingAdd.restaurantName, pendingAdd.cartItem);
+      toast({
+        title: "Cart updated",
+        description: `${pendingAdd.cartItem.name} has been added to your cart.`,
+      });
+      setPendingAdd(null);
+    }
+  }, [pendingAdd, addItem, toast]);
+
+  const getItemQuantity = useCallback(
+    (menuItemId: string) => {
+      const found = items.find((i) => i.menuItemId === menuItemId);
+      return found?.quantity || 0;
+    },
+    [items],
+  );
+
+  const handleAddToCart = useCallback(
+    (menuItem: MenuItemByCategory) => {
+      const cartItem: CartItem = {
+        menuItemId: menuItem._id,
+        name: menuItem.name,
+        price: menuItem.price,
+        image: menuItem.image,
+        quantity: 1,
+        variants: [],
+        addons: [],
+      };
+
+      if (isRestaurantMismatch(menuItem.restaurantId)) {
+        clearCart();
+        setPendingAdd({
+          restaurantId: menuItem.restaurantId,
+          restaurantName: menuItem.restaurantName,
+          cartItem,
+        });
+        return;
+      }
+
+      addItem(menuItem.restaurantId, menuItem.restaurantName, cartItem);
+      toast({
+        title: "Added to cart",
+        description: `${menuItem.name} has been added to your cart.`,
+      });
+    },
+    [addItem, isRestaurantMismatch, toast],
+  );
+
+  const handleUpdateQuantity = useCallback(
+    (id: string | number, qty: number) => {
+      updateQuantity(String(id), qty);
+    },
+    [updateQuantity],
+  );
 
   const loadCategories = useCallback(async () => {
     setIsLoading(true);
@@ -313,9 +383,10 @@ const CategoriesPage: React.FC = () => {
                       reviewCount: item.reviewCount,
                       isPopular: item.isPopular,
                     }}
-                    cartQuantity={0}
-                    onAddToCart={() => {}}
-                    onUpdateQuantity={() => {}}
+                    cartQuantity={getItemQuantity(item._id)}
+                    onClick={() => navigate(`/menu/${item.restaurantId}/${item._id}`)}
+                    onAddToCart={() => handleAddToCart(item)}
+                    onUpdateQuantity={handleUpdateQuantity}
                   />
                 </motion.div>
               ))
