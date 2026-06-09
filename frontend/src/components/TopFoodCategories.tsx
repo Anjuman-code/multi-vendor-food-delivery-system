@@ -58,7 +58,7 @@ const TopFoodCategories: React.FC = () => {
 
   return (
     <section className="py-16 overflow-hidden">
-      <div className="container mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-1">Categories</p>

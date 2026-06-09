@@ -347,7 +347,7 @@ const ReviewsAndRatings: React.FC = () => {
 
   return (
     <section className="py-20">
-      <div className="container mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

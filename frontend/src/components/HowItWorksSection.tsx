@@ -32,7 +32,7 @@ const HowItWorksSection: React.FC = () => {
 
   return (
     <section className="py-16" ref={ref}>
-      <div className="container mx-auto px-4 max-w-4xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
         <motion.div
           className="text-center mb-12"
           initial={{ opacity: 0, y: 12 }}

@@ -27,7 +27,7 @@ const BannerSearchSection: React.FC = () => {
 
   return (
     <section className="py-12">
-      <div className="container mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase text-center mb-2">
             Find food
