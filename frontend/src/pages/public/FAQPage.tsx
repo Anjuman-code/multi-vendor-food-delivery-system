@@ -293,7 +293,7 @@ const FAQPage: React.FC = () => {
           <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-red-200/30 to-transparent rounded-full blur-3xl" />
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -350,7 +350,7 @@ const FAQPage: React.FC = () => {
       {/* Category Navigation */}
       {searchQuery.length === 0 && (
         <section className="py-8 bg-white/50 border-y border-gray-100">
-          <div className="container mx-auto px-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-wrap justify-center gap-3">
               {faqCategories.map((category) => (
                 <button
@@ -373,7 +373,7 @@ const FAQPage: React.FC = () => {
 
       {/* FAQ Content */}
       <section className="py-16">
-        <div className="container mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             {searchQuery.length > 0 && filteredCategories.length === 0 && (
               <div className="text-center py-12">
@@ -470,7 +470,7 @@ const FAQPage: React.FC = () => {
 
       {/* Still Need Help Section */}
       <section className="py-16 bg-orange-50">
-        <div className="container mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}

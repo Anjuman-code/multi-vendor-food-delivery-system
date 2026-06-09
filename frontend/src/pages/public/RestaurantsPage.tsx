@@ -703,7 +703,7 @@ const RestaurantsPage: React.FC = () => {
         <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-gradient-to-tl from-red-100/30 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 pt-4 pb-16 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-16 relative z-10">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Filters Panel (Desktop sidebar + Mobile sheet) */}
           <FiltersPanel
