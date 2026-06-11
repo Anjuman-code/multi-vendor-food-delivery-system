@@ -1,6 +1,3 @@
-/**
- * Cart controller — server-side cart with add/remove/update/sync/merge.
- */
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import Cart from "../models/Cart";
@@ -16,7 +13,38 @@ import type {
 
 const CART_TTL_DAYS = 7;
 
-/** Map incoming variant/addon from string IDs to ObjectIds for the model */
+/**
+ * Migrate legacy cart items that lack restaurantId (old single-restaurant schema).
+ * Returns true if any items were migrated.
+ */
+export const migrateLegacyCartItems = (cart: any): boolean => {
+  const legacyRestId = cart.restaurantId;
+  const legacyRestName = cart.restaurantName || "";
+  if (!legacyRestId) return false;
+
+  let migrated = false;
+  for (const ci of cart.items) {
+    if (!ci.restaurantId) {
+      ci.restaurantId = legacyRestId;
+      ci.restaurantName = legacyRestName;
+      migrated = true;
+    }
+  }
+  if (migrated) {
+    const rid = legacyRestId.toString();
+    for (const ci of cart.items) {
+      ci.key = buildCartItemKey({
+        restaurantId: rid,
+        menuItemId: ci.menuItemId.toString(),
+        variants: ci.variants.map((v: any) => ({ variantId: v.variantId?.toString(), name: v.name })),
+        addons: ci.addons.map((a: any) => ({ addonId: a.addonId?.toString(), name: a.name })),
+        specialInstructions: ci.specialInstructions,
+      });
+    }
+  }
+  return migrated;
+};
+
 const mapOption = (
   opt: {
     optionId?: string;
@@ -34,8 +62,8 @@ const mapOption = (
   return { addonId: id ? new mongoose.Types.ObjectId(id) : undefined, name: opt.name, price: opt.price };
 };
 
-/** Build a deterministic item key matching the frontend algorithm */
 const buildCartItemKey = (item: {
+  restaurantId?: string;
   menuItemId: string;
   variants?: Array<{ optionId?: string; variantId?: string; name: string }>;
   addons?: Array<{ optionId?: string; addonId?: string; name: string }>;
@@ -50,7 +78,8 @@ const buildCartItemKey = (item: {
     .sort()
     .join("|");
   const notesKey = item.specialInstructions?.trim() || "";
-  return `${item.menuItemId}::v=${variantKey}::a=${addonKey}::n=${notesKey}`;
+  const restKey = item.restaurantId || "";
+  return `${restKey}::${item.menuItemId}::v=${variantKey}::a=${addonKey}::n=${notesKey}`;
 };
 
 /** GET /api/cart — Get the authenticated user's cart */
@@ -67,6 +96,10 @@ export const getCart = async (
     if (!cart) {
       successResponse(res, { cart: null });
       return;
+    }
+
+    if (migrateLegacyCartItems(cart)) {
+      await cart.save();
     }
 
     successResponse(res, { cart });
@@ -89,26 +122,19 @@ export const addToCart = async (
 
     let cart = await Cart.findOne({ userId: authReq.user._id });
 
-    // If cart exists for a different restaurant, clear it
-    if (cart && cart.restaurantId.toString() !== restaurantId) {
-      cart.restaurantId = new mongoose.Types.ObjectId(restaurantId);
-      cart.restaurantName = restaurantName;
-      cart.items = [];
-    }
-
     if (!cart) {
       cart = new Cart({
         userId: authReq.user._id,
-        restaurantId: new mongoose.Types.ObjectId(restaurantId),
-        restaurantName,
         items: [],
         expiresAt: new Date(Date.now() + CART_TTL_DAYS * 24 * 60 * 60 * 1000),
       });
+    } else {
+      migrateLegacyCartItems(cart);
     }
 
-    const key = buildCartItemKey(item);
+    const itemWithRestaurant = { ...item, restaurantId, restaurantName };
+    const key = buildCartItemKey(itemWithRestaurant);
 
-    // Merge with existing item by key
     const existingIdx = cart.items.findIndex((existing) => existing.key === key);
 
     if (existingIdx >= 0) {
@@ -116,6 +142,8 @@ export const addToCart = async (
     } else {
       cart.items.push({
         key,
+        restaurantId: new mongoose.Types.ObjectId(restaurantId),
+        restaurantName,
         menuItemId: new mongoose.Types.ObjectId(item.menuItemId),
         name: item.name,
         price: item.price,
@@ -127,7 +155,6 @@ export const addToCart = async (
       });
     }
 
-    // Refresh TTL
     cart.expiresAt = new Date(Date.now() + CART_TTL_DAYS * 24 * 60 * 60 * 1000);
     await cart.save();
 
@@ -152,6 +179,8 @@ export const updateCartItem = async (
 
     const cart = await Cart.findOne({ userId: authReq.user._id });
     if (!cart) throw new NotFoundError("Cart not found");
+
+    migrateLegacyCartItems(cart);
 
     const item = cart.items.find((i) => i.key === itemKey);
     if (!item) throw new NotFoundError("Item not found in cart");
@@ -191,6 +220,8 @@ export const removeCartItem = async (
 
     const cart = await Cart.findOne({ userId: authReq.user._id });
     if (!cart) throw new NotFoundError("Cart not found");
+
+    migrateLegacyCartItems(cart);
 
     const existed = cart.items.some((i) => i.key === itemKey);
     if (!existed) throw new NotFoundError("Item not found in cart");
@@ -239,7 +270,7 @@ export const syncCart = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const { restaurantId, restaurantName, items } = req.body as SyncCartInput;
+    const { items } = req.body as SyncCartInput;
 
     if (!items || items.length === 0) {
       await Cart.deleteOne({ userId: authReq.user._id });
@@ -251,10 +282,10 @@ export const syncCart = async (
       { userId: authReq.user._id },
       {
         userId: authReq.user._id,
-        restaurantId: new mongoose.Types.ObjectId(restaurantId),
-        restaurantName,
         items: items.map((item) => ({
           key: buildCartItemKey(item),
+          restaurantId: new mongoose.Types.ObjectId(item.restaurantId || ""),
+          restaurantName: item.restaurantName || "",
           menuItemId: new mongoose.Types.ObjectId(item.menuItemId),
           name: item.name,
           price: item.price,
@@ -285,10 +316,9 @@ export const mergeCart = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const { restaurantId, restaurantName, items } = req.body as MergeCartInput;
+    const { items } = req.body as MergeCartInput;
 
     if (!items || items.length === 0) {
-      // No local items — keep server cart as-is
       const cart = await Cart.findOne({ userId: authReq.user._id });
       successResponse(res, { cart: cart || null });
       return;
@@ -296,14 +326,17 @@ export const mergeCart = async (
 
     let cart = await Cart.findOne({ userId: authReq.user._id });
 
-    // If no server cart, create from local items
+    if (cart) {
+      migrateLegacyCartItems(cart);
+    }
+
     if (!cart) {
       cart = new Cart({
         userId: authReq.user._id,
-        restaurantId: new mongoose.Types.ObjectId(restaurantId),
-        restaurantName,
         items: items.map((item) => ({
           key: buildCartItemKey(item),
+          restaurantId: new mongoose.Types.ObjectId(item.restaurantId || ""),
+          restaurantName: item.restaurantName || "",
           menuItemId: new mongoose.Types.ObjectId(item.menuItemId),
           name: item.name,
           price: item.price,
@@ -320,13 +353,15 @@ export const mergeCart = async (
       return;
     }
 
-    // Merge: server items keep their quantities, local items absent on server get added
     for (const localItem of items) {
-      const localKey = buildCartItemKey(localItem);
+      const itemWithRest = { ...localItem, restaurantId: localItem.restaurantId, restaurantName: localItem.restaurantName };
+      const localKey = buildCartItemKey(itemWithRest);
       const existing = cart.items.find((i) => i.key === localKey);
       if (!existing) {
         cart.items.push({
           key: localKey,
+          restaurantId: new mongoose.Types.ObjectId(localItem.restaurantId || ""),
+          restaurantName: localItem.restaurantName || "",
           menuItemId: new mongoose.Types.ObjectId(localItem.menuItemId),
           name: localItem.name,
           price: localItem.price,

@@ -1,8 +1,3 @@
-/**
- * CartContext – server-backed shopping cart.
- * Authenticated users have the server as the source of truth.
- * Guest users use an in-memory cart (no localStorage).
- */
 import { cartService } from "@/services/cartService";
 import React, {
   createContext,
@@ -14,8 +9,6 @@ import React, {
   useState,
 } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-
-// ── Types ──────────────────────────────────────────────────────
 
 export interface CartItemVariant {
   optionId?: string;
@@ -33,6 +26,8 @@ export interface CartItemAddon {
 
 export interface CartItem {
   itemKey?: string;
+  restaurantId: string;
+  restaurantName: string;
   menuItemId: string;
   name: string;
   price: number;
@@ -43,17 +38,21 @@ export interface CartItem {
   specialInstructions?: string;
 }
 
+export interface RestaurantCartGroup {
+  restaurantId: string;
+  restaurantName: string;
+  items: CartItem[];
+  subtotal: number;
+  deliveryFee: number;
+}
+
 interface CartState {
-  restaurantId: string | null;
-  restaurantName: string | null;
   items: CartItem[];
   promoCode: string;
 }
 
 interface CartContextType {
   items: CartItem[];
-  restaurantId: string | null;
-  restaurantName: string | null;
   promoCode: string;
   itemCount: number;
   subtotal: number;
@@ -62,26 +61,21 @@ interface CartContextType {
   total: number;
   isLoading: boolean;
   isMutating: boolean;
+  itemsByRestaurant: RestaurantCartGroup[];
   addItem: (
     restaurantId: string,
     restaurantName: string,
-    item: CartItem,
-    force?: boolean,
-  ) => Promise<boolean>;
+    item: Omit<CartItem, "restaurantId" | "restaurantName">,
+  ) => Promise<void>;
   setPromoCode: (code: string) => void;
   clearPromoCode: () => void;
   updateQuantity: (itemKey: string, quantity: number) => Promise<void>;
   removeItem: (itemKey: string) => Promise<void>;
   clearCart: () => Promise<void>;
-  isRestaurantMismatch: (restaurantId: string) => boolean;
 }
-
-// ── Constants ──────────────────────────────────────────────────
 
 const TAX_RATE = 0.05;
 const DEFAULT_DELIVERY_FEE = 50;
-
-// ── Helpers ────────────────────────────────────────────────────
 
 const buildCartItemKey = (item: CartItem): string => {
   const variantKey = (item.variants || [])
@@ -94,11 +88,13 @@ const buildCartItemKey = (item: CartItem): string => {
     .join("|");
   const notesKey = item.specialInstructions?.trim() || "";
 
-  return `${item.menuItemId}::v=${variantKey}::a=${addonKey}::n=${notesKey}`;
+  return `${item.restaurantId}::${item.menuItemId}::v=${variantKey}::a=${addonKey}::n=${notesKey}`;
 };
 
 const serverItemToCartItem = (i: {
   key?: string;
+  restaurantId: string;
+  restaurantName: string;
   menuItemId: string;
   name: string;
   price: number;
@@ -109,6 +105,8 @@ const serverItemToCartItem = (i: {
   specialInstructions?: string;
 }): CartItem => ({
   itemKey: i.key,
+  restaurantId: i.restaurantId,
+  restaurantName: i.restaurantName,
   menuItemId: i.menuItemId,
   name: i.name,
   price: i.price,
@@ -130,13 +128,9 @@ const serverItemToCartItem = (i: {
 });
 
 const EMPTY_CART: CartState = {
-  restaurantId: null,
-  restaurantName: null,
   items: [],
   promoCode: "",
 };
-
-// ── Context ────────────────────────────────────────────────────
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -152,21 +146,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const cartRef = useRef(cart);
   cartRef.current = cart;
 
-  // On mount / auth change: merge guest cart, then fetch server cart
   useEffect(() => {
     if (isAuthenticated && !initialFetchDone.current) {
       initialFetchDone.current = true;
       setIsLoading(true);
 
       const doLoginSync = async () => {
-        // Merge guest cart (if any) into server
         const guestCart = cartRef.current;
-        if (guestCart.restaurantId && guestCart.items.length > 0) {
+        if (guestCart.items.length > 0) {
           try {
             await cartService.mergeCart({
-              restaurantId: guestCart.restaurantId,
-              restaurantName: guestCart.restaurantName || "",
               items: guestCart.items.map((i) => ({
+                restaurantId: i.restaurantId,
+                restaurantName: i.restaurantName,
                 menuItemId: i.menuItemId,
                 name: i.name,
                 price: i.price,
@@ -190,19 +182,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
-        // Fetch server cart
         try {
           const serverCart = await cartService.getCart();
           if (serverCart && serverCart.items.length > 0) {
             setCart({
-              restaurantId: serverCart.restaurantId,
-              restaurantName: serverCart.restaurantName,
               items: serverCart.items.map(serverItemToCartItem),
               promoCode: "",
             });
           }
         } catch {
-          // Server unreachable — keep guest cart (optimistic state)
+          // Server unreachable — keep guest cart
         } finally {
           setIsLoading(false);
         }
@@ -216,7 +205,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isAuthenticated]);
 
-  // Clear cart when user logs out
   useEffect(() => {
     if (prevAuth.current && !isAuthenticated) {
       initialFetchDone.current = false;
@@ -226,14 +214,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     prevAuth.current = isAuthenticated;
   }, [isAuthenticated]);
 
-  const setCartFromServer = useCallback((serverCart: { restaurantId: string; restaurantName: string; items: any[] } | null) => {
+  const setCartFromServer = useCallback((serverCart: { items: any[] } | null) => {
     if (!serverCart || serverCart.items.length === 0) {
       setCart(EMPTY_CART);
       return;
     }
     setCart({
-      restaurantId: serverCart.restaurantId,
-      restaurantName: serverCart.restaurantName,
       items: serverCart.items.map(serverItemToCartItem),
       promoCode: "",
     });
@@ -243,17 +229,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     async (
       restaurantId: string,
       restaurantName: string,
-      item: CartItem,
-      force?: boolean,
-    ): Promise<boolean> => {
-      // Different restaurant – caller should confirm clear
-      if (!force && cart.restaurantId && cart.restaurantId !== restaurantId) {
-        return false;
-      }
+      item: Omit<CartItem, "restaurantId" | "restaurantName">,
+    ): Promise<void> => {
+      const itemWithRestaurant: CartItem = { ...item, restaurantId, restaurantName };
+      const incomingKey = item.itemKey || buildCartItemKey(itemWithRestaurant);
 
-      const incomingKey = item.itemKey || buildCartItemKey(item);
-
-      // Optimistic update (both guest and authenticated)
       setCart((prev) => {
         const existing = prev.items.findIndex(
           (i) => (i.itemKey || buildCartItemKey(i)) === incomingKey,
@@ -266,12 +246,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
               : i,
           );
         } else {
-          newItems = [...prev.items, { ...item, itemKey: incomingKey }];
+          newItems = [...prev.items, { ...itemWithRestaurant, itemKey: incomingKey }];
         }
-        return { restaurantId, restaurantName, items: newItems, promoCode: prev.promoCode };
+        return { items: newItems, promoCode: prev.promoCode };
       });
 
-      // Background server sync (authenticated only)
       if (isAuthenticated) {
         setIsMutating(true);
         try {
@@ -304,10 +283,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsMutating(false);
         }
       }
-
-      return true;
     },
-    [cart.restaurantId, isAuthenticated, setCartFromServer],
+    [isAuthenticated, setCartFromServer],
   );
 
   const setPromoCode = useCallback((code: string) => {
@@ -323,7 +300,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateQuantity = useCallback(
     async (itemKey: string, quantity: number) => {
-      // Optimistic update (both guest and authenticated)
       setCart((prev) => {
         if (quantity <= 0) {
           const newItems = prev.items.filter(
@@ -342,7 +318,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         };
       });
 
-      // Background server sync (authenticated only)
       if (isAuthenticated) {
         setIsMutating(true);
         try {
@@ -360,7 +335,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const removeItem = useCallback(
     async (itemKey: string) => {
-      // Optimistic update (both guest and authenticated)
       setCart((prev) => {
         const newItems = prev.items.filter(
           (i) => (i.itemKey || buildCartItemKey(i)) !== itemKey,
@@ -369,7 +343,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         return { ...prev, items: newItems };
       });
 
-      // Background server sync (authenticated only)
       if (isAuthenticated) {
         setIsMutating(true);
         try {
@@ -386,10 +359,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const clearCart = useCallback(async () => {
-    // Optimistic update (both guest and authenticated)
     setCart(EMPTY_CART);
 
-    // Background server sync (authenticated only)
     if (isAuthenticated) {
       setIsMutating(true);
       try {
@@ -402,12 +373,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isAuthenticated]);
 
-  const isRestaurantMismatch = useCallback(
-    (restaurantId: string) =>
-      !!cart.restaurantId && cart.restaurantId !== restaurantId,
-    [cart.restaurantId],
-  );
-
   const subtotal = useMemo(
     () =>
       cart.items.reduce((sum, item) => {
@@ -419,14 +384,39 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-  const deliveryFee = cart.items.length > 0 ? DEFAULT_DELIVERY_FEE : 0;
+
+  const itemsByRestaurant = useMemo(() => {
+    const groups: Record<string, { restaurantId: string; restaurantName: string; items: CartItem[] }> = {};
+    for (const item of cart.items) {
+      const key = item.restaurantId;
+      if (!groups[key]) {
+        groups[key] = { restaurantId: item.restaurantId, restaurantName: item.restaurantName, items: [] };
+      }
+      groups[key].items.push(item);
+    }
+    return Object.values(groups).map((group) => {
+      const groupSubtotal = group.items.reduce((sum, item) => {
+        const variantExtra = item.variants.reduce((s, v) => s + v.price, 0);
+        const addonExtra = item.addons.reduce((s, a) => s + a.price, 0);
+        return sum + (item.price + variantExtra + addonExtra) * item.quantity;
+      }, 0);
+      return {
+        ...group,
+        subtotal: groupSubtotal,
+        deliveryFee: DEFAULT_DELIVERY_FEE,
+      };
+    });
+  }, [cart.items]);
+
+  const deliveryFee = cart.items.length > 0
+    ? itemsByRestaurant.length * DEFAULT_DELIVERY_FEE
+    : 0;
+
   const total = subtotal + tax + deliveryFee;
 
   const value = useMemo<CartContextType>(
     () => ({
       items: cart.items,
-      restaurantId: cart.restaurantId,
-      restaurantName: cart.restaurantName,
       promoCode: cart.promoCode,
       itemCount: cart.items.reduce((sum, i) => sum + i.quantity, 0),
       subtotal,
@@ -435,13 +425,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       total,
       isLoading,
       isMutating,
+      itemsByRestaurant,
       addItem,
       setPromoCode,
       clearPromoCode,
       updateQuantity,
       removeItem,
       clearCart,
-      isRestaurantMismatch,
     }),
     [
       cart,
@@ -451,13 +441,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       total,
       isLoading,
       isMutating,
+      itemsByRestaurant,
       addItem,
       setPromoCode,
       clearPromoCode,
       updateQuantity,
       removeItem,
       clearCart,
-      isRestaurantMismatch,
     ],
   );
 
@@ -470,19 +460,15 @@ export const useCart = (): CartContextType => {
   return ctx;
 };
 
-/**
- * Merge guest cart into server cart on login.
- * Call this from AuthContext after successful login.
- */
 export const mergeGuestCart = async (
-  guestCart: CartState,
+  guestCart: { items: CartItem[] },
 ): Promise<void> => {
-  if (!guestCart.restaurantId || guestCart.items.length === 0) return;
+  if (guestCart.items.length === 0) return;
   try {
     await cartService.mergeCart({
-      restaurantId: guestCart.restaurantId,
-      restaurantName: guestCart.restaurantName || "",
       items: guestCart.items.map((i) => ({
+        restaurantId: i.restaurantId,
+        restaurantName: i.restaurantName,
         menuItemId: i.menuItemId,
         name: i.name,
         price: i.price,

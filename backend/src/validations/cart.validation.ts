@@ -17,6 +17,8 @@ const cartItemSchema = z.object({
   variants: z.array(cartItemOptionSchema).optional().default([]),
   addons: z.array(cartItemOptionSchema).optional().default([]),
   specialInstructions: z.string().max(300).optional(),
+  restaurantId: z.string().optional(),
+  restaurantName: z.string().optional(),
 });
 
 export const addToCartSchema = z.object({
@@ -30,14 +32,10 @@ export const updateCartItemSchema = z.object({
 });
 
 export const syncCartSchema = z.object({
-  restaurantId: z.string().min(1),
-  restaurantName: z.string().min(1),
   items: z.array(cartItemSchema),
 });
 
 export const mergeCartSchema = z.object({
-  restaurantId: z.string().min(1),
-  restaurantName: z.string().min(1),
   items: z.array(cartItemSchema),
 });
 

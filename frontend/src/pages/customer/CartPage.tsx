@@ -1,6 +1,3 @@
-/**
- * CartPage – displays cart items with quantity controls and order summary.
- */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import FoodItemCard from "@/components/ui/FoodItemCard";
@@ -27,8 +24,6 @@ const FREE_DELIVERY_THRESHOLD = 500;
 const CartPage: React.FC = () => {
   const {
     items,
-    restaurantId,
-    restaurantName,
     itemCount,
     subtotal,
     tax,
@@ -40,6 +35,7 @@ const CartPage: React.FC = () => {
     updateQuantity,
     removeItem,
     clearCart,
+    itemsByRestaurant,
   } = useCart();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -85,6 +81,8 @@ const CartPage: React.FC = () => {
     (subtotal / FREE_DELIVERY_THRESHOLD) * 100,
   );
   const qualifiesForFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
+
+  const isMultiRestaurant = itemsByRestaurant.length > 1;
 
   /* ── Empty State ────────────────────────────────────────────── */
   if (items.length === 0) {
@@ -144,7 +142,6 @@ const CartPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <button
@@ -157,6 +154,11 @@ const CartPage: React.FC = () => {
                 <h1 className="text-2xl font-bold text-gray-900">Your Cart</h1>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {itemCount} {itemCount === 1 ? "item" : "items"}
+                  {isMultiRestaurant && (
+                    <span className="ml-1">
+                      from {itemsByRestaurant.length} restaurants
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -171,91 +173,107 @@ const CartPage: React.FC = () => {
             </Button>
           </div>
 
-          {/* Restaurant Banner */}
-          {restaurantName && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-5"
-            >
-              <Link
-                to={
-                  restaurantId ? `/restaurants/${restaurantId}` : "/restaurants"
-                }
-                className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm hover:shadow-md hover:border-orange-200 transition-all group w-fit"
-              >
-                <div className="bg-orange-100 rounded-lg p-1.5">
-                  <Store className="h-4 w-4 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
-                    Ordering from
-                  </p>
-                  <p className="text-sm font-semibold text-gray-800 group-hover:text-orange-600 transition-colors">
-                    {restaurantName}
-                  </p>
-                </div>
-                <ChevronLeft className="h-4 w-4 text-gray-400 ml-2 rotate-180 group-hover:text-orange-500 transition-colors" />
-              </Link>
-            </motion.div>
+          {/* Multi-restaurant header */}
+          {isMultiRestaurant && (
+            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <p className="text-sm text-amber-800 font-medium">
+                Your cart contains items from multiple restaurants. Each
+                restaurant will be processed as a separate order.
+              </p>
+            </div>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* ── Items Column ─────────────────────────────────── */}
-            <div className="lg:col-span-3 space-y-3">
-              <AnimatePresence mode="popLayout">
-                {items.map((item, idx) => {
-                  const itemKey = item.itemKey || item.menuItemId;
-                  const lineTotal = item.price * item.quantity;
-                  return (
-                    <motion.div
-                      key={itemKey}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{
-                        opacity: removingId === itemKey ? 0.3 : 1,
-                        y: 0,
-                        scale: removingId === itemKey ? 0.98 : 1,
-                      }}
-                      exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0 }}
-                      transition={{ duration: 0.22, delay: idx * 0.03 }}
-                    >
-                      <Card className="overflow-hidden bg-white border-gray-100 hover:shadow-md transition-shadow">
-                        <FoodItemCard
-                          variant="cart"
-                          item={{
-                            id: itemKey,
-                            name: item.name,
-                            image: item.image,
-                            price: item.price,
-                            quantity: item.quantity,
-                            variants: item.variants,
-                            addons: item.addons,
-                            specialInstructions: item.specialInstructions,
-                            itemKey: itemKey,
-                            lineTotal: lineTotal,
-                          }}
-                          onUpdateQuantity={(_, qty) =>
-                            updateQuantity(itemKey, qty)
-                          }
-                          onRemove={(key) => handleRemove(key as string)}
-                        />
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
+            <div className="lg:col-span-3 space-y-6">
+              {itemsByRestaurant.map((group) => (
+                <div key={group.restaurantId}>
+                  {/* Restaurant header */}
+                  <Link
+                    to={`/restaurants/${group.restaurantId}`}
+                    className="flex items-center gap-2 mb-3 group"
+                  >
+                    <div className="bg-orange-100 rounded-lg p-1.5">
+                      <Store className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 group-hover:text-orange-600 transition-colors">
+                      {group.restaurantName}
+                    </p>
+                    <ChevronLeft className="h-3 w-3 text-gray-400 rotate-180 group-hover:text-orange-500 transition-colors" />
+                  </Link>
 
-              {/* Add More Items */}
-              <Link
-                to={
-                  restaurantId ? `/restaurants/${restaurantId}` : "/restaurants"
-                }
-                className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium px-1 py-2 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Add more items
-              </Link>
+                  <div className="space-y-3">
+                    <AnimatePresence mode="popLayout">
+                      {group.items.map((item, idx) => {
+                        const itemKey = item.itemKey || item.menuItemId;
+                        return (
+                          <motion.div
+                            key={itemKey}
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{
+                              opacity: removingId === itemKey ? 0.3 : 1,
+                              y: 0,
+                              scale: removingId === itemKey ? 0.98 : 1,
+                            }}
+                            exit={{
+                              opacity: 0,
+                              x: -30,
+                              height: 0,
+                              marginBottom: 0,
+                            }}
+                            transition={{
+                              duration: 0.22,
+                              delay: idx * 0.03,
+                            }}
+                          >
+                            <Card className="overflow-hidden bg-white border-gray-100 hover:shadow-md transition-shadow">
+                              <FoodItemCard
+                                variant="cart"
+                                item={{
+                                  id: itemKey,
+                                  name: item.name,
+                                  image: item.image,
+                                  price: item.price,
+                                  quantity: item.quantity,
+                                  variants: item.variants,
+                                  addons: item.addons,
+                                  specialInstructions: item.specialInstructions,
+                                  itemKey: itemKey,
+                                  lineTotal:
+                                    (item.price +
+                                      item.variants.reduce(
+                                        (s, v) => s + v.price,
+                                        0,
+                                      ) +
+                                      item.addons.reduce(
+                                        (s, a) => s + a.price,
+                                        0,
+                                      )) *
+                                    item.quantity,
+                                }}
+                                onUpdateQuantity={(_, qty) =>
+                                  updateQuantity(itemKey, qty)
+                                }
+                                onRemove={(key) => handleRemove(key as string)}
+                              />
+                            </Card>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Add more items link per restaurant */}
+                  <Link
+                    to={`/restaurants/${group.restaurantId}`}
+                    className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium px-1 py-2 transition-colors mt-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add more from {group.restaurantName}
+                  </Link>
+                </div>
+              ))}
             </div>
 
             {/* ── Summary Column ───────────────────────────────── */}
@@ -269,7 +287,7 @@ const CartPage: React.FC = () => {
                     />
                     {qualifiesForFreeDelivery ? (
                       <p className="text-sm font-medium text-green-700">
-                        🎉 You've unlocked free delivery!
+                        You've unlocked free delivery!
                       </p>
                     ) : (
                       <p className="text-sm text-gray-600">
@@ -347,6 +365,28 @@ const CartPage: React.FC = () => {
                   )}
                 </Card>
 
+                {/* Per-restaurant delivery breakdown */}
+                {isMultiRestaurant && (
+                  <Card className="p-4 bg-white border-gray-100">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Delivery Fees
+                    </h4>
+                    <div className="space-y-1.5 text-sm">
+                      {itemsByRestaurant.map((group) => (
+                        <div
+                          key={group.restaurantId}
+                          className="flex justify-between text-gray-600"
+                        >
+                          <span className="truncate mr-2">
+                            {group.restaurantName}
+                          </span>
+                          <span>৳{group.deliveryFee.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
                 {/* Order Summary */}
                 <Card className="p-5 bg-white border-gray-100">
                   <h3 className="font-bold text-base text-gray-900 mb-4">
@@ -371,28 +411,20 @@ const CartPage: React.FC = () => {
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Delivery Fee</span>
-                      {qualifiesForFreeDelivery ? (
-                        <span className="font-medium text-green-600 flex items-center gap-1">
-                          <span className="line-through text-gray-400 text-xs">
-                            ৳{deliveryFee.toFixed(0)}
+                      <span className="font-medium text-gray-800">
+                        ৳{deliveryFee.toFixed(2)}
+                        {isMultiRestaurant && (
+                          <span className="text-xs text-gray-400 ml-1">
+                            ({itemsByRestaurant.length}×)
                           </span>
-                          Free
-                        </span>
-                      ) : (
-                        <span className="font-medium text-gray-800">
-                          ৳{deliveryFee.toFixed(2)}
-                        </span>
-                      )}
+                        )}
+                      </span>
                     </div>
 
                     <div className="border-t border-dashed border-gray-200 pt-3 mt-1 flex justify-between">
                       <span className="font-bold text-gray-900">Total</span>
                       <span className="font-bold text-lg text-orange-600">
-                        ৳
-                        {(qualifiesForFreeDelivery
-                          ? total - deliveryFee
-                          : total
-                        ).toFixed(2)}
+                        ৳{total.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -403,7 +435,9 @@ const CartPage: React.FC = () => {
                       navigate(isAuthenticated ? "/checkout" : "/login")
                     }
                   >
-                    {isAuthenticated ? "Proceed to Checkout" : "Login to Order"}
+                    {isAuthenticated
+                      ? `Proceed to Checkout`
+                      : "Login to Order"}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
 
@@ -412,14 +446,14 @@ const CartPage: React.FC = () => {
                   </p>
                 </Card>
 
-                  {isAuthenticated && (
-                    <Link
-                      to="/orders"
-                      className="block text-center text-xs text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
-                    >
-                      View Order History &rarr;
-                    </Link>
-                  )}
+                {isAuthenticated && (
+                  <Link
+                    to="/orders"
+                    className="block text-center text-xs text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
+                  >
+                    View Order History &rarr;
+                  </Link>
+                )}
               </div>
             </div>
           </div>

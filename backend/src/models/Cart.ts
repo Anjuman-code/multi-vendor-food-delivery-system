@@ -1,11 +1,9 @@
-/**
- * Cart — server-side persisted cart for cross-device access and
- * abandoned-cart recovery. TTL index auto-cleans after 7 days.
- */
 import mongoose, { Model, Schema, Types } from "mongoose";
 
 export interface ICartItem {
   key: string;
+  restaurantId: Types.ObjectId;
+  restaurantName: string;
   menuItemId: Types.ObjectId;
   name: string;
   price: number;
@@ -18,8 +16,6 @@ export interface ICartItem {
 
 export interface ICart {
   userId: Types.ObjectId;
-  restaurantId: Types.ObjectId;
-  restaurantName: string;
   items: ICartItem[];
   expiresAt: Date;
   createdAt: Date;
@@ -31,6 +27,12 @@ export type CartDocument = mongoose.HydratedDocument<ICart>;
 const cartItemSchema = new Schema<ICartItem>(
   {
     key: { type: String, required: true },
+    restaurantId: {
+      type: Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: true,
+    },
+    restaurantName: { type: String, required: true },
     menuItemId: {
       type: Schema.Types.ObjectId,
       ref: "MenuItem",
@@ -68,12 +70,6 @@ const cartSchema = new Schema<ICart>(
       unique: true,
       index: true,
     },
-    restaurantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Restaurant",
-      required: true,
-    },
-    restaurantName: { type: String, required: true },
     items: { type: [cartItemSchema], default: [] },
     expiresAt: { type: Date, required: true },
   },

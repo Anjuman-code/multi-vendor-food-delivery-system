@@ -1,7 +1,3 @@
-/**
- * CheckoutPage – multi-step checkout: address → payment → review → place order.
- * Step state is synced to the URL via ?step= query param.
- */
 import { AddressDialog } from '@/components/AddressDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,16 +10,20 @@ import type { PaymentMethod, UserAddress } from '@/services/userService';
 import userService from '@/services/userService';
 import { motion } from 'framer-motion';
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Banknote,
   CheckCircle,
+  Clock,
   CreditCard,
   Loader2,
   MapPin,
   Navigation,
   Plus,
+  Store,
   Tag,
+  Truck,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -54,8 +54,6 @@ const CheckoutPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const {
     items,
-    restaurantId,
-    restaurantName,
     subtotal,
     tax,
     deliveryFee,
@@ -63,9 +61,9 @@ const CheckoutPage: React.FC = () => {
     promoCode,
     setPromoCode,
     clearCart,
+    itemsByRestaurant,
   } = useCart();
 
-  // Step from URL — default to first step
   const rawStep = searchParams.get('step') as Step | null;
   const step: Step =
     rawStep && VALID_STEPS.includes(rawStep) ? rawStep : 'delivery-address';
@@ -84,8 +82,8 @@ const CheckoutPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
-  // Redirect if cart is empty or not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -101,7 +99,6 @@ const CheckoutPage: React.FC = () => {
     if (profileRes.success && profileRes.data) {
       const addrs = profileRes.data.user.addresses;
       setAddresses(addrs);
-      // Auto-select the most recently added address (last in array) or default
       setSelectedAddress((prev) => {
         if (prev) return prev;
         const latest = addrs[addrs.length - 1];
@@ -110,7 +107,6 @@ const CheckoutPage: React.FC = () => {
     }
   }, []);
 
-  // Load user data
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -137,7 +133,6 @@ const CheckoutPage: React.FC = () => {
     loadData();
   }, [isAuthenticated]);
 
-  // Guard: if arriving directly at payment/review step without completing prerequisites, redirect
   useEffect(() => {
     if (step === 'payment' && !selectedAddress) {
       setSearchParams({ step: 'delivery-address' }, { replace: true });
@@ -188,7 +183,7 @@ const CheckoutPage: React.FC = () => {
   };
 
   const placeOrder = useCallback(async () => {
-    if (!selectedAddr || !selectedPayment || !restaurantId) return;
+    if (!selectedAddr || !selectedPayment) return;
 
     const paymentMethodValue = isCOD
       ? 'cash_on_delivery'
@@ -210,11 +205,22 @@ const CheckoutPage: React.FC = () => {
 
     if (res.success && res.data) {
       clearCart();
-      toast({
-        title: 'Order Placed!',
-        description: `Order ${res.data.order.orderNumber} confirmed.`,
-      });
-      navigate(`/orders/${res.data.order._id}`);
+      const firstOrder = res.data.orders[0];
+      const orderCount = res.data.orders.length;
+
+      if (orderCount > 1) {
+        toast({
+          title: 'Orders Placed!',
+          description: `${orderCount} orders confirmed across ${orderCount} restaurants.`,
+        });
+      } else {
+        toast({
+          title: 'Order Placed!',
+          description: `Order ${firstOrder.orderNumber} confirmed.`,
+        });
+      }
+
+      navigate(`/orders/${firstOrder._id}`);
     } else {
       toast({
         title: 'Order Failed',
@@ -227,7 +233,6 @@ const CheckoutPage: React.FC = () => {
     selectedPayment,
     isCOD,
     selectedPm,
-    restaurantId,
     promoCode,
     clearCart,
     navigate,
@@ -242,6 +247,8 @@ const CheckoutPage: React.FC = () => {
     );
   }
 
+  const isMultiRestaurant = itemsByRestaurant.length > 1;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <motion.div
@@ -249,16 +256,22 @@ const CheckoutPage: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout</h1>
-        {restaurantName && (
+        {isMultiRestaurant ? (
           <p className="text-sm text-gray-500 mb-6">
             Ordering from{' '}
             <span className="font-medium text-orange-600">
-              {restaurantName}
+              {itemsByRestaurant.length} restaurants
             </span>
           </p>
-        )}
+        ) : itemsByRestaurant.length === 1 ? (
+          <p className="text-sm text-gray-500 mb-6">
+            Ordering from{' '}
+            <span className="font-medium text-orange-600">
+              {itemsByRestaurant[0].restaurantName}
+            </span>
+          </p>
+        ) : null}
 
-        {/* Step indicator */}
         <div className="flex items-center gap-2 mb-8">
           {STEPS.map((s, idx) => (
             <React.Fragment key={s.key}>
@@ -284,7 +297,6 @@ const CheckoutPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main content */}
           <div className="lg:col-span-2">
             {step === 'delivery-address' && (
               <motion.div
@@ -357,7 +369,6 @@ const CheckoutPage: React.FC = () => {
                   ))
                 )}
 
-                {/* AddressDialog for adding new address (includes GPS / map) */}
                 <AddressDialog
                   open={addressDialogOpen}
                   onOpenChange={setAddressDialogOpen}
@@ -381,7 +392,6 @@ const CheckoutPage: React.FC = () => {
                   Select Payment Method
                 </h2>
 
-                {/* Cash on Delivery — always shown */}
                 <Card
                   className={`p-4 cursor-pointer border-2 transition-colors ${
                     selectedPayment === COD_PAYMENT_ID
@@ -402,7 +412,6 @@ const CheckoutPage: React.FC = () => {
                   </div>
                 </Card>
 
-                {/* Saved digital payment methods */}
                 <div className="flex items-center justify-between mt-4 mb-1">
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
                     Saved cards &amp; wallets
@@ -456,7 +465,6 @@ const CheckoutPage: React.FC = () => {
                   ))
                 )}
 
-                {/* Coupon */}
                 <div className="mt-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                     <Tag className="h-4 w-4" /> Promo Code
@@ -484,7 +492,6 @@ const CheckoutPage: React.FC = () => {
               >
                 <h2 className="text-lg font-semibold mb-3">Review Order</h2>
 
-                {/* Delivery address summary */}
                 {selectedAddr && (
                   <Card className="p-4">
                     <p className="text-xs font-medium text-gray-400 uppercase mb-1">
@@ -499,7 +506,6 @@ const CheckoutPage: React.FC = () => {
                   </Card>
                 )}
 
-                {/* Payment summary */}
                 {selectedPayment && (
                   <Card className="p-4">
                     <p className="text-xs font-medium text-gray-400 uppercase mb-1">
@@ -521,44 +527,100 @@ const CheckoutPage: React.FC = () => {
                   </Card>
                 )}
 
-                {/* COD reminder */}
+                {/* Items grouped by restaurant */}
+                {itemsByRestaurant.map((group) => (
+                  <Card key={group.restaurantId} className="p-4">
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                      <Store className="h-4 w-4 text-orange-500" />
+                      <p className="font-semibold text-sm text-gray-800">
+                        {group.restaurantName}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.itemKey || item.menuItemId}
+                          className="flex justify-between text-sm"
+                        >
+                          <span className="text-gray-700">
+                            {item.quantity}× {item.name}
+                          </span>
+                          <span className="font-medium">
+                            ৳
+                            {(
+                              (item.price +
+                                item.variants.reduce((s, v) => s + v.price, 0) +
+                                item.addons.reduce((s, a) => s + a.price, 0)) *
+                              item.quantity
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-dashed border-gray-100 text-xs text-gray-500 flex justify-between">
+                      <span>Delivery fee</span>
+                      <span>৳{group.deliveryFee.toFixed(2)}</span>
+                    </div>
+                  </Card>
+                ))}
+
+                {/* Multi-restaurant disclaimers */}
+                {isMultiRestaurant && (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                      <Truck className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-amber-800">
+                        <strong>Multiple delivery fees:</strong> Each restaurant
+                        has its own delivery fee (৳50 each). You will pay{' '}
+                        <strong>৳{deliveryFee.toFixed(2)}</strong> in delivery
+                        fees total.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                      <Clock className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-amber-800">
+                        <strong>Different ETAs:</strong> Each restaurant has its
+                        own preparation time. Items may arrive at different
+                        times.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-amber-800">
+                        <strong>Food quality:</strong> Food picked up first may
+                        get cold while waiting for other restaurants. We
+                        recommend ordering from restaurants with similar prep
+                        times.
+                      </p>
+                    </div>
+                    <label className="flex items-start gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={disclaimerAccepted}
+                        onChange={(e) =>
+                          setDisclaimerAccepted(e.target.checked)
+                        }
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-orange-900">
+                        I understand that ordering from multiple restaurants may
+                        result in separate delivery fees, different arrival
+                        times, and that the first-picked-up food may not be at
+                        optimal temperature.
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 {isCOD && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
                     <Banknote className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-amber-800">
                       Please have <strong>৳{total.toFixed(2)}</strong> in cash
-                      ready for your rider.
+                      ready for your rider{isMultiRestaurant ? 's' : ''}.
                     </p>
                   </div>
                 )}
-
-                {/* Items */}
-                <Card className="p-4">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-2">
-                    Items
-                  </p>
-                  <div className="space-y-2">
-                    {items.map((item) => (
-                      <div
-                        key={item.menuItemId}
-                        className="flex justify-between text-sm"
-                      >
-                        <span className="text-gray-700">
-                          {item.quantity}× {item.name}
-                        </span>
-                        <span className="font-medium">
-                          ৳
-                          {(
-                            (item.price +
-                              item.variants.reduce((s, v) => s + v.price, 0) +
-                              item.addons.reduce((s, a) => s + a.price, 0)) *
-                            item.quantity
-                          ).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
 
                 {promoCode && (
                   <p className="text-sm text-green-600 flex items-center gap-1">
@@ -569,7 +631,6 @@ const CheckoutPage: React.FC = () => {
               </motion.div>
             )}
 
-            {/* Navigation */}
             <div className="flex justify-between mt-6">
               <Button
                 variant="ghost"
@@ -592,7 +653,7 @@ const CheckoutPage: React.FC = () => {
                 <Button
                   className="bg-orange-500 hover:bg-orange-600"
                   onClick={placeOrder}
-                  disabled={placing}
+                  disabled={placing || (isMultiRestaurant && !disclaimerAccepted)}
                 >
                   {placing ? (
                     <>
@@ -601,7 +662,8 @@ const CheckoutPage: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      Place Order · ৳{total.toFixed(2)}
+                      Place Order{isMultiRestaurant ? 's' : ''} · ৳
+                      {total.toFixed(2)}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -610,7 +672,6 @@ const CheckoutPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Summary sidebar */}
           <div className="lg:col-span-1">
             <Card className="p-5 sticky top-24">
               <h3 className="font-bold text-lg text-gray-900 mb-4">Summary</h3>
@@ -625,7 +686,14 @@ const CheckoutPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Delivery</span>
-                  <span>৳{deliveryFee.toFixed(2)}</span>
+                  <span>
+                    ৳{deliveryFee.toFixed(2)}
+                    {isMultiRestaurant && (
+                      <span className="text-xs text-gray-400 ml-1">
+                        ({itemsByRestaurant.length}×)
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="border-t pt-2 mt-2 flex justify-between font-bold text-gray-900">
                   <span>Total</span>
