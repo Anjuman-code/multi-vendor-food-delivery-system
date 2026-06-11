@@ -134,9 +134,11 @@ const CategoriesPage: React.FC = () => {
 
   const handleUpdateQuantity = useCallback(
     async (id: string | number, qty: number) => {
-      await updateQuantity(String(id), qty);
+      const menuItemId = String(id);
+      const cartItem = items.find((i) => i.menuItemId === menuItemId);
+      await updateQuantity(cartItem?.itemKey || menuItemId, qty);
     },
-    [updateQuantity],
+    [items, updateQuantity],
   );
 
   const loadCategories = useCallback(async () => {

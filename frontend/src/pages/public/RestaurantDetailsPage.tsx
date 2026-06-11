@@ -161,7 +161,7 @@ const RestaurantDetailsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const confirm = useConfirm();
-  const { addItem, clearCart, items, updateQuantity } = useCart();
+  const { addItem, clearCart, items: cartItems, updateQuantity } = useCart();
   const isCustomer = user?.role === "customer";
 
   const [restaurant, setRestaurant] = useState<ApiRestaurant | null>(null);
@@ -378,10 +378,10 @@ const RestaurantDetailsPage: React.FC = () => {
 
   const getItemQuantity = useCallback(
     (menuItemId: string): number => {
-      const found = items.find((i) => i.menuItemId === menuItemId);
+      const found = cartItems.find((i) => i.menuItemId === menuItemId);
       return found?.quantity || 0;
     },
-    [items],
+    [cartItems],
   );
 
   const handleAddToCart = useCallback(
@@ -428,21 +428,23 @@ const RestaurantDetailsPage: React.FC = () => {
   const handleIncreaseQuantity = useCallback(
     async (item: MenuItem) => {
       const current = getItemQuantity(item._id);
-      await updateQuantity(item._id, current + 1);
+      const cartItem = cartItems.find((i) => i.menuItemId === item._id);
+      await updateQuantity(cartItem?.itemKey || item._id, current + 1);
     },
-    [getItemQuantity, updateQuantity],
+    [getItemQuantity, cartItems, updateQuantity],
   );
 
   const handleDecreaseQuantity = useCallback(
     async (item: MenuItem) => {
       const current = getItemQuantity(item._id);
+      const cartItem = cartItems.find((i) => i.menuItemId === item._id);
       if (current <= 1) {
-        await updateQuantity(item._id, 0);
+        await updateQuantity(cartItem?.itemKey || item._id, 0);
         return;
       }
-      await updateQuantity(item._id, current - 1);
+      await updateQuantity(cartItem?.itemKey || item._id, current - 1);
     },
-    [getItemQuantity, updateQuantity],
+    [getItemQuantity, cartItems, updateQuantity],
   );
 
   const handleReviewSubmit = useCallback(
@@ -614,9 +616,15 @@ const RestaurantDetailsPage: React.FC = () => {
                                   )
                                 }
                                 onAddToCart={() => handleAddToCart(item)}
-                                onUpdateQuantity={(_, qty) =>
-                                  updateQuantity(item._id, qty)
-                                }
+                                onUpdateQuantity={(_, qty) => {
+                                  const cartItem = cartItems.find(
+                                    (i) => i.menuItemId === item._id,
+                                  );
+                                  updateQuantity(
+                                    cartItem?.itemKey || item._id,
+                                    qty,
+                                  );
+                                }}
                               />
                             ))}
                           </div>
