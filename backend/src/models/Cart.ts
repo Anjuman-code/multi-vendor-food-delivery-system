@@ -5,6 +5,7 @@
 import mongoose, { Model, Schema, Types } from "mongoose";
 
 export interface ICartItem {
+  key: string;
   menuItemId: Types.ObjectId;
   name: string;
   price: number;
@@ -29,6 +30,7 @@ export type CartDocument = mongoose.HydratedDocument<ICart>;
 
 const cartItemSchema = new Schema<ICartItem>(
   {
+    key: { type: String, required: true },
     menuItemId: {
       type: Schema.Types.ObjectId,
       ref: "MenuItem",

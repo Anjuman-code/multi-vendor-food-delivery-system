@@ -102,7 +102,7 @@ const CategoriesPage: React.FC = () => {
   );
 
   const handleAddToCart = useCallback(
-    (menuItem: MenuItemByCategory) => {
+    async (menuItem: MenuItemByCategory) => {
       const cartItem: CartItem = {
         menuItemId: menuItem._id,
         name: menuItem.name,
@@ -114,7 +114,7 @@ const CategoriesPage: React.FC = () => {
       };
 
       if (isRestaurantMismatch(menuItem.restaurantId)) {
-        clearCart();
+        await clearCart();
         setPendingAdd({
           restaurantId: menuItem.restaurantId,
           restaurantName: menuItem.restaurantName,
@@ -123,18 +123,18 @@ const CategoriesPage: React.FC = () => {
         return;
       }
 
-      addItem(menuItem.restaurantId, menuItem.restaurantName, cartItem);
+      await addItem(menuItem.restaurantId, menuItem.restaurantName, cartItem);
       toast({
         title: "Added to cart",
         description: `${menuItem.name} has been added to your cart.`,
       });
     },
-    [addItem, isRestaurantMismatch, toast],
+    [addItem, isRestaurantMismatch, clearCart, toast],
   );
 
   const handleUpdateQuantity = useCallback(
-    (id: string | number, qty: number) => {
-      updateQuantity(String(id), qty);
+    async (id: string | number, qty: number) => {
+      await updateQuantity(String(id), qty);
     },
     [updateQuantity],
   );

@@ -190,34 +190,12 @@ const CheckoutPage: React.FC = () => {
   const placeOrder = useCallback(async () => {
     if (!selectedAddr || !selectedPayment || !restaurantId) return;
 
-    const hasInvalidMenuIds = items.some(
-      (item) => !/^[0-9a-fA-F]{24}$/.test(item.menuItemId),
-    );
-    if (hasInvalidMenuIds) {
-      toast({
-        title: 'Demo item in cart',
-        description:
-          'Some cart items are from demo data and cannot be ordered. Please add items from a live restaurant menu.',
-        variant: 'destructive',
-      });
-      navigate('/restaurants');
-      return;
-    }
-
     const paymentMethodValue = isCOD
       ? 'cash_on_delivery'
       : `${selectedPm!.type} - ${selectedPm!.provider} ****${selectedPm!.last4}`;
 
     setPlacing(true);
-    const res = await orderService.createOrder({
-      restaurantId,
-      items: items.map((i) => ({
-        menuItemId: i.menuItemId,
-        quantity: i.quantity,
-        variants: i.variants,
-        addons: i.addons,
-        specialInstructions: i.specialInstructions,
-      })),
+    const res = await orderService.createOrderFromCart({
       deliveryAddress: {
         street: selectedAddr.street,
         apartment: selectedAddr.apartment,
@@ -250,7 +228,6 @@ const CheckoutPage: React.FC = () => {
     isCOD,
     selectedPm,
     restaurantId,
-    items,
     promoCode,
     clearCart,
     navigate,

@@ -99,7 +99,7 @@ const MenuItemDetailPage: React.FC = () => {
     return (base + variantDelta + addonTotal) * quantity;
   }, [item, selectedVariant, selectedAddons, quantity]);
 
-  const handleAddToCart = useCallback(() => {
+  const handleAddToCart = useCallback(async () => {
     if (!item || !restaurantId) return;
 
     const cartItem = {
@@ -125,12 +125,10 @@ const MenuItemDetailPage: React.FC = () => {
     };
 
     if (isRestaurantMismatch(restaurantId)) {
-      clearCart();
-      setTimeout(() => {
-        addItem(restaurantId, "", cartItem);
-      }, 0);
+      await clearCart();
+      await addItem(restaurantId, "", cartItem, true);
     } else {
-      addItem(restaurantId, "", cartItem);
+      await addItem(restaurantId, "", cartItem);
     }
 
     toast({

@@ -29,6 +29,21 @@ const extractError = (error: unknown): ApiResponse => {
   return { success: false, message: "An unexpected error occurred." };
 };
 
+/** Payload for createOrderFromCart — no items, server reads from cart */
+export interface CreateOrderFromCartPayload {
+  deliveryAddress: {
+    street: string;
+    apartment?: string;
+    area: string;
+    district: string;
+    coordinates: { latitude: number; longitude: number };
+  };
+  paymentMethod: string;
+  couponCode?: string;
+  specialInstructions?: string;
+  tipAmount?: number;
+}
+
 const orderService = {
   /** POST /api/orders – Place a new order */
   async createOrder(
@@ -37,6 +52,21 @@ const orderService = {
     try {
       const response = await httpClient.post<ApiResponse<{ order: Order }>>(
         "/api/orders",
+        payload,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{ order: Order }>;
+    }
+  },
+
+  /** POST /api/orders/from-cart – Place an order from the server cart */
+  async createOrderFromCart(
+    payload: CreateOrderFromCartPayload,
+  ): Promise<ApiResponse<{ order: Order }>> {
+    try {
+      const response = await httpClient.post<ApiResponse<{ order: Order }>>(
+        "/api/orders/from-cart",
         payload,
       );
       return response.data;

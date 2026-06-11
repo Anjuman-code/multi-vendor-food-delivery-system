@@ -4,6 +4,7 @@
 import { Router } from "express";
 import {
   createOrder,
+  createOrderFromCart,
   getOrders,
   getOrderById,
   cancelOrder,
@@ -14,6 +15,7 @@ import { validate } from "../middleware/validation.middleware";
 import { UserRole } from "../config/constants";
 import {
   createOrderSchema,
+  createOrderFromCartSchema,
   cancelOrderSchema,
 } from "../validations/order.validation";
 
@@ -23,6 +25,7 @@ router.use(authenticate);
 router.use(authorize(UserRole.CUSTOMER));
 
 router.post("/", validate(createOrderSchema), createOrder);
+router.post("/from-cart", validate(createOrderFromCartSchema), createOrderFromCart);
 router.get("/", getOrders);
 router.get("/:orderId", getOrderById);
 router.patch("/:orderId/cancel", validate(cancelOrderSchema), cancelOrder);

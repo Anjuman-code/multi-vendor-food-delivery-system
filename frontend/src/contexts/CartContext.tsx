@@ -1,6 +1,7 @@
 /**
- * CartContext – persistent shopping cart state with localStorage backing.
- * Enforces single-restaurant cart (standard for food delivery).
+ * CartContext – server-backed shopping cart.
+ * Authenticated users have the server as the source of truth.
+ * Guest users use an in-memory cart (no localStorage).
  */
 import { cartService } from "@/services/cartService";
 import React, {
@@ -12,18 +13,20 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ── Types ──────────────────────────────────────────────────────
 
 export interface CartItemVariant {
   optionId?: string;
+  variantId?: string;
   name: string;
   price: number;
 }
 
 export interface CartItemAddon {
   optionId?: string;
+  addonId?: string;
   name: string;
   price: number;
 }
@@ -57,64 +60,80 @@ interface CartContextType {
   tax: number;
   deliveryFee: number;
   total: number;
+  isLoading: boolean;
+  isMutating: boolean;
   addItem: (
     restaurantId: string,
     restaurantName: string,
     item: CartItem,
-  ) => boolean;
+    force?: boolean,
+  ) => Promise<boolean>;
   setPromoCode: (code: string) => void;
   clearPromoCode: () => void;
-  updateQuantity: (menuItemId: string, quantity: number) => void;
-  removeItem: (menuItemId: string) => void;
-  clearCart: () => void;
+  updateQuantity: (itemKey: string, quantity: number) => Promise<void>;
+  removeItem: (itemKey: string) => Promise<void>;
+  clearCart: () => Promise<void>;
   isRestaurantMismatch: (restaurantId: string) => boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────
 
-const CART_KEY = "Food Rush_cart";
 const TAX_RATE = 0.05;
 const DEFAULT_DELIVERY_FEE = 50;
 
 // ── Helpers ────────────────────────────────────────────────────
 
-const loadCart = (): CartState => {
-  try {
-    const raw = localStorage.getItem(CART_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<CartState>;
-      if (parsed && Array.isArray(parsed.items)) {
-        return {
-          restaurantId: parsed.restaurantId ?? null,
-          restaurantName: parsed.restaurantName ?? null,
-          items: parsed.items,
-          promoCode:
-            typeof parsed.promoCode === "string" ? parsed.promoCode : "",
-        };
-      }
-    }
-  } catch {
-    // Corrupt data – ignore
-  }
-  return { restaurantId: null, restaurantName: null, items: [], promoCode: "" };
-};
-
-const saveCart = (state: CartState) => {
-  localStorage.setItem(CART_KEY, JSON.stringify(state));
-};
-
 const buildCartItemKey = (item: CartItem): string => {
   const variantKey = (item.variants || [])
-    .map((option) => option.optionId || option.name)
+    .map((option) => option.optionId || option.variantId || option.name)
     .sort()
     .join("|");
   const addonKey = (item.addons || [])
-    .map((option) => option.optionId || option.name)
+    .map((option) => option.optionId || option.addonId || option.name)
     .sort()
     .join("|");
   const notesKey = item.specialInstructions?.trim() || "";
 
   return `${item.menuItemId}::v=${variantKey}::a=${addonKey}::n=${notesKey}`;
+};
+
+const serverItemToCartItem = (i: {
+  key?: string;
+  menuItemId: string;
+  name: string;
+  price: number;
+  image?: string;
+  quantity: number;
+  variants?: Array<{ variantId?: string; optionId?: string; name: string; price: number }>;
+  addons?: Array<{ addonId?: string; optionId?: string; name: string; price: number }>;
+  specialInstructions?: string;
+}): CartItem => ({
+  itemKey: i.key,
+  menuItemId: i.menuItemId,
+  name: i.name,
+  price: i.price,
+  image: i.image,
+  quantity: i.quantity,
+  variants: (i.variants || []).map((v) => ({
+    optionId: v.optionId || v.variantId,
+    variantId: v.variantId,
+    name: v.name,
+    price: v.price,
+  })),
+  addons: (i.addons || []).map((a) => ({
+    optionId: a.optionId || a.addonId,
+    addonId: a.addonId,
+    name: a.name,
+    price: a.price,
+  })),
+  specialInstructions: i.specialInstructions,
+});
+
+const EMPTY_CART: CartState = {
+  restaurantId: null,
+  restaurantName: null,
+  items: [],
+  promoCode: "",
 };
 
 // ── Context ────────────────────────────────────────────────────
@@ -124,115 +143,122 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [cart, setCart] = useState<CartState>(loadCart);
+  const [cart, setCart] = useState<CartState>(EMPTY_CART);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState(false);
   const { isAuthenticated } = useAuth();
-  const initialSyncDone = useRef(false);
   const prevAuth = useRef(isAuthenticated);
+  const initialFetchDone = useRef(false);
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
+
+  // On mount / auth change: merge guest cart, then fetch server cart
+  useEffect(() => {
+    if (isAuthenticated && !initialFetchDone.current) {
+      initialFetchDone.current = true;
+      setIsLoading(true);
+
+      const doLoginSync = async () => {
+        // Merge guest cart (if any) into server
+        const guestCart = cartRef.current;
+        if (guestCart.restaurantId && guestCart.items.length > 0) {
+          try {
+            await cartService.mergeCart({
+              restaurantId: guestCart.restaurantId,
+              restaurantName: guestCart.restaurantName || "",
+              items: guestCart.items.map((i) => ({
+                menuItemId: i.menuItemId,
+                name: i.name,
+                price: i.price,
+                image: i.image,
+                quantity: i.quantity,
+                variants: i.variants.map((v) => ({
+                  optionId: v.optionId || v.variantId,
+                  name: v.name,
+                  price: v.price,
+                })),
+                addons: i.addons.map((a) => ({
+                  optionId: a.optionId || a.addonId,
+                  name: a.name,
+                  price: a.price,
+                })),
+                specialInstructions: i.specialInstructions,
+              })),
+            });
+          } catch {
+            // Non-critical
+          }
+        }
+
+        // Fetch server cart
+        try {
+          const serverCart = await cartService.getCart();
+          if (serverCart && serverCart.items.length > 0) {
+            setCart({
+              restaurantId: serverCart.restaurantId,
+              restaurantName: serverCart.restaurantName,
+              items: serverCart.items.map(serverItemToCartItem),
+              promoCode: "",
+            });
+          }
+        } catch {
+          // Server unreachable — keep guest cart (optimistic state)
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      doLoginSync();
+    } else if (!isAuthenticated) {
+      initialFetchDone.current = false;
+      setCart(EMPTY_CART);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
 
   // Clear cart when user logs out
   useEffect(() => {
     if (prevAuth.current && !isAuthenticated) {
-      initialSyncDone.current = false;
-      setCart({
-        restaurantId: null,
-        restaurantName: null,
-        items: [],
-        promoCode: "",
-      });
+      initialFetchDone.current = false;
+      setCart(EMPTY_CART);
       cartService.clearCart().catch(() => {});
     }
     prevAuth.current = isAuthenticated;
   }, [isAuthenticated]);
 
-  // Sync server cart on first authentication
-  useEffect(() => {
-    if (isAuthenticated && !initialSyncDone.current) {
-      initialSyncDone.current = true;
-      cartService
-        .getCart()
-        .then((serverCart) => {
-          if (serverCart && serverCart.items.length > 0) {
-            const localCart = loadCart();
-            if (localCart.items.length === 0) {
-              // Server has items, local doesn't — use server
-              setCart({
-                restaurantId: serverCart.restaurantId,
-                restaurantName: serverCart.restaurantName,
-                items: serverCart.items.map((i) => ({
-                  menuItemId: i.menuItemId,
-                  name: i.name,
-                  price: i.price,
-                  image: i.image,
-                  quantity: i.quantity,
-                  variants: i.variants,
-                  addons: i.addons,
-                  specialInstructions: i.specialInstructions,
-                })),
-                promoCode: localCart.promoCode || "",
-              });
-            } else if (localCart.restaurantId === serverCart.restaurantId) {
-              // Same restaurant — merge (server wins on quantity for matching items)
-              // For now, keep local if both exist
-            }
-            // Different restaurant — keep local, server cart is stale
-          }
-        })
-        .catch(() => {
-          // Server unreachable — continue with local cart
-        });
+  const setCartFromServer = useCallback((serverCart: { restaurantId: string; restaurantName: string; items: any[] } | null) => {
+    if (!serverCart || serverCart.items.length === 0) {
+      setCart(EMPTY_CART);
+      return;
     }
-  }, [isAuthenticated]);
-
-  // Fire-and-forget server sync helper
-  const syncToServer = useCallback(
-    (state: CartState) => {
-      if (!isAuthenticated) return;
-      if (state.items.length === 0) {
-        cartService.clearCart().catch(() => {});
-        return;
-      }
-      if (state.restaurantId && state.restaurantName) {
-        cartService
-          .syncCart({
-            restaurantId: state.restaurantId,
-            restaurantName: state.restaurantName,
-            items: state.items.map((i) => ({
-              menuItemId: i.menuItemId,
-              name: i.name,
-              price: i.price,
-              image: i.image,
-              quantity: i.quantity,
-              variants: i.variants,
-              addons: i.addons,
-              specialInstructions: i.specialInstructions,
-            })),
-          })
-          .catch(() => {});
-      }
-    },
-    [isAuthenticated],
-  );
-
-  // Persist on change (localStorage + server)
-  useEffect(() => {
-    saveCart(cart);
-    syncToServer(cart);
-  }, [cart, syncToServer]);
+    setCart({
+      restaurantId: serverCart.restaurantId,
+      restaurantName: serverCart.restaurantName,
+      items: serverCart.items.map(serverItemToCartItem),
+      promoCode: "",
+    });
+  }, []);
 
   const addItem = useCallback(
-    (restaurantId: string, restaurantName: string, item: CartItem): boolean => {
+    async (
+      restaurantId: string,
+      restaurantName: string,
+      item: CartItem,
+      force?: boolean,
+    ): Promise<boolean> => {
       // Different restaurant – caller should confirm clear
-      if (cart.restaurantId && cart.restaurantId !== restaurantId) {
+      if (!force && cart.restaurantId && cart.restaurantId !== restaurantId) {
         return false;
       }
 
+      const incomingKey = item.itemKey || buildCartItemKey(item);
+
+      // Optimistic update (both guest and authenticated)
       setCart((prev) => {
-        const incomingKey = item.itemKey || buildCartItemKey(item);
         const existing = prev.items.findIndex(
           (i) => (i.itemKey || buildCartItemKey(i)) === incomingKey,
         );
         let newItems: CartItem[];
-
         if (existing >= 0) {
           newItems = prev.items.map((i, idx) =>
             idx === existing
@@ -242,17 +268,46 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           newItems = [...prev.items, { ...item, itemKey: incomingKey }];
         }
-
-        return {
-          restaurantId,
-          restaurantName,
-          items: newItems,
-          promoCode: prev.promoCode,
-        };
+        return { restaurantId, restaurantName, items: newItems, promoCode: prev.promoCode };
       });
+
+      // Background server sync (authenticated only)
+      if (isAuthenticated) {
+        setIsMutating(true);
+        try {
+          const serverCart = await cartService.addToCart({
+            restaurantId,
+            restaurantName,
+            item: {
+              menuItemId: item.menuItemId,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+              quantity: item.quantity,
+              variants: item.variants.map((v) => ({
+                optionId: v.optionId || v.variantId,
+                name: v.name,
+                price: v.price,
+              })),
+              addons: item.addons.map((a) => ({
+                optionId: a.optionId || a.addonId,
+                name: a.name,
+                price: a.price,
+              })),
+              specialInstructions: item.specialInstructions,
+            },
+          });
+          setCartFromServer(serverCart);
+        } catch {
+          // Server failure — optimistic state stays
+        } finally {
+          setIsMutating(false);
+        }
+      }
+
       return true;
     },
-    [cart.restaurantId],
+    [cart.restaurantId, isAuthenticated, setCartFromServer],
   );
 
   const setPromoCode = useCallback((code: string) => {
@@ -263,69 +318,89 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const clearPromoCode = useCallback(() => {
-    setCart((prev) => ({
-      ...prev,
-      promoCode: "",
-    }));
+    setCart((prev) => ({ ...prev, promoCode: "" }));
   }, []);
 
-  const updateQuantity = useCallback((itemKey: string, quantity: number) => {
-    setCart((prev) => {
-      if (quantity <= 0) {
-        const newItems = prev.items.filter(
-          (i) =>
-            (i.itemKey || buildCartItemKey(i)) !== itemKey &&
-            i.menuItemId !== itemKey,
-        );
-        if (newItems.length === 0) {
-          return {
-            restaurantId: null,
-            restaurantName: null,
-            items: [],
-            promoCode: "",
-          };
+  const updateQuantity = useCallback(
+    async (itemKey: string, quantity: number) => {
+      // Optimistic update (both guest and authenticated)
+      setCart((prev) => {
+        if (quantity <= 0) {
+          const newItems = prev.items.filter(
+            (i) => (i.itemKey || buildCartItemKey(i)) !== itemKey,
+          );
+          if (newItems.length === 0) return EMPTY_CART;
+          return { ...prev, items: newItems };
         }
-        return { ...prev, items: newItems };
-      }
-      return {
-        ...prev,
-        items: prev.items.map((i) =>
-          (i.itemKey || buildCartItemKey(i)) === itemKey ||
-          i.menuItemId === itemKey
-            ? { ...i, quantity }
-            : i,
-        ),
-      };
-    });
-  }, []);
-
-  const removeItem = useCallback((itemKey: string) => {
-    setCart((prev) => {
-      const newItems = prev.items.filter(
-        (i) =>
-          (i.itemKey || buildCartItemKey(i)) !== itemKey &&
-          i.menuItemId !== itemKey,
-      );
-      if (newItems.length === 0) {
         return {
-          restaurantId: null,
-          restaurantName: null,
-          items: [],
-          promoCode: "",
+          ...prev,
+          items: prev.items.map((i) =>
+            (i.itemKey || buildCartItemKey(i)) === itemKey
+              ? { ...i, quantity }
+              : i,
+          ),
         };
-      }
-      return { ...prev, items: newItems };
-    });
-  }, []);
+      });
 
-  const clearCart = useCallback(() => {
-    setCart({
-      restaurantId: null,
-      restaurantName: null,
-      items: [],
-      promoCode: "",
-    });
-  }, []);
+      // Background server sync (authenticated only)
+      if (isAuthenticated) {
+        setIsMutating(true);
+        try {
+          const serverCart = await cartService.updateCartItem(itemKey, quantity);
+          setCartFromServer(serverCart);
+        } catch {
+          // Server failure — optimistic state stays
+        } finally {
+          setIsMutating(false);
+        }
+      }
+    },
+    [isAuthenticated, setCartFromServer],
+  );
+
+  const removeItem = useCallback(
+    async (itemKey: string) => {
+      // Optimistic update (both guest and authenticated)
+      setCart((prev) => {
+        const newItems = prev.items.filter(
+          (i) => (i.itemKey || buildCartItemKey(i)) !== itemKey,
+        );
+        if (newItems.length === 0) return EMPTY_CART;
+        return { ...prev, items: newItems };
+      });
+
+      // Background server sync (authenticated only)
+      if (isAuthenticated) {
+        setIsMutating(true);
+        try {
+          const serverCart = await cartService.removeCartItem(itemKey);
+          setCartFromServer(serverCart);
+        } catch {
+          // Server failure — optimistic state stays
+        } finally {
+          setIsMutating(false);
+        }
+      }
+    },
+    [isAuthenticated, setCartFromServer],
+  );
+
+  const clearCart = useCallback(async () => {
+    // Optimistic update (both guest and authenticated)
+    setCart(EMPTY_CART);
+
+    // Background server sync (authenticated only)
+    if (isAuthenticated) {
+      setIsMutating(true);
+      try {
+        await cartService.clearCart();
+      } catch {
+        // Server failure — optimistic state stays
+      } finally {
+        setIsMutating(false);
+      }
+    }
+  }, [isAuthenticated]);
 
   const isRestaurantMismatch = useCallback(
     (restaurantId: string) =>
@@ -358,6 +433,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       tax,
       deliveryFee,
       total,
+      isLoading,
+      isMutating,
       addItem,
       setPromoCode,
       clearPromoCode,
@@ -372,6 +449,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       tax,
       deliveryFee,
       total,
+      isLoading,
+      isMutating,
       addItem,
       setPromoCode,
       clearPromoCode,
@@ -389,4 +468,40 @@ export const useCart = (): CartContextType => {
   const ctx = useContext(CartContext);
   if (!ctx) throw new Error("useCart must be used within a CartProvider");
   return ctx;
+};
+
+/**
+ * Merge guest cart into server cart on login.
+ * Call this from AuthContext after successful login.
+ */
+export const mergeGuestCart = async (
+  guestCart: CartState,
+): Promise<void> => {
+  if (!guestCart.restaurantId || guestCart.items.length === 0) return;
+  try {
+    await cartService.mergeCart({
+      restaurantId: guestCart.restaurantId,
+      restaurantName: guestCart.restaurantName || "",
+      items: guestCart.items.map((i) => ({
+        menuItemId: i.menuItemId,
+        name: i.name,
+        price: i.price,
+        image: i.image,
+        quantity: i.quantity,
+        variants: i.variants.map((v) => ({
+          optionId: v.optionId || v.variantId,
+          name: v.name,
+          price: v.price,
+        })),
+        addons: i.addons.map((a) => ({
+          optionId: a.optionId || a.addonId,
+          name: a.name,
+          price: a.price,
+        })),
+        specialInstructions: i.specialInstructions,
+      })),
+    });
+  } catch {
+    // Merge failure is non-critical
+  }
 };

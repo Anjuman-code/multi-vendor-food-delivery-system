@@ -1,13 +1,14 @@
 import httpClient from "@/lib/httpClient";
 
 export interface ServerCartItem {
+  key?: string;
   menuItemId: string;
   name: string;
   price: number;
   image?: string;
   quantity: number;
-  variants: { variantId?: string; name: string; price: number }[];
-  addons: { addonId?: string; name: string; price: number }[];
+  variants: { variantId?: string; optionId?: string; name: string; price: number }[];
+  addons: { addonId?: string; optionId?: string; name: string; price: number }[];
   specialInstructions?: string;
 }
 
@@ -39,12 +40,20 @@ export const cartService = {
 
   /** Update item quantity (0 removes) */
   updateCartItem: async (
-    menuItemId: string,
+    itemKey: string,
     quantity: number,
   ): Promise<ServerCart | null> => {
     const res = await httpClient.patch(
-      `/api/cart/item/${menuItemId}`,
+      `/api/cart/item/${encodeURIComponent(itemKey)}`,
       { quantity },
+    );
+    return res.data?.data?.cart || null;
+  },
+
+  /** Remove a single item from the cart */
+  removeCartItem: async (itemKey: string): Promise<ServerCart | null> => {
+    const res = await httpClient.delete(
+      `/api/cart/item/${encodeURIComponent(itemKey)}`,
     );
     return res.data?.data?.cart || null;
   },
@@ -61,6 +70,16 @@ export const cartService = {
     items: ServerCartItem[];
   }): Promise<ServerCart> => {
     const res = await httpClient.post("/api/cart/sync", payload);
+    return res.data.data.cart;
+  },
+
+  /** Merge local guest cart into server cart (used on login) */
+  mergeCart: async (payload: {
+    restaurantId: string;
+    restaurantName: string;
+    items: ServerCartItem[];
+  }): Promise<ServerCart> => {
+    const res = await httpClient.post("/api/cart/merge", payload);
     return res.data.data.cart;
   },
 };

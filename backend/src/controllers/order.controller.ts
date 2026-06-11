@@ -414,6 +414,296 @@ export const createOrder = async (
 };
 
 /**
+ * POST /api/orders/from-cart
+ * Create an order from the authenticated user's server-side cart.
+ */
+export const createOrderFromCart = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const {
+      deliveryAddress,
+      paymentMethod,
+      couponCode,
+      specialInstructions,
+      tipAmount = 0,
+      scheduledFor,
+    } = req.body;
+
+    // Fetch server cart
+    const Cart = (await import("../models/Cart")).default;
+    const cart = await Cart.findOne({ userId: authReq.user._id });
+    if (!cart || cart.items.length === 0) {
+      throw new ValidationError("Your cart is empty");
+    }
+
+    const restaurantObjectId = cart.restaurantId;
+
+    // Verify menu items and compute totals
+    let subtotal = 0;
+    const orderItems: Array<{
+      menuItemId: Types.ObjectId;
+      name: string;
+      price: number;
+      quantity: number;
+      variants: TrustedItemOption[];
+      addons: TrustedItemOption[];
+      specialInstructions?: string;
+      itemTotal: number;
+    }> = [];
+
+    for (const item of cart.items) {
+      const menuItem = await MenuItem.findOne({
+        _id: item.menuItemId,
+        restaurantId: restaurantObjectId,
+      });
+      if (!menuItem) {
+        throw new ValidationError(
+          `Menu item ${item.menuItemId} is not available for this restaurant`,
+        );
+      }
+      if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
+        throw new ValidationError(`${menuItem.name} is currently unavailable`);
+      }
+      if (menuItem.stockStatus === "out_of_stock") {
+        throw new ValidationError(`${menuItem.name} is currently out of stock`);
+      }
+
+      const quantity = item.quantity;
+
+      const variants = resolveRequestedOptions(
+        item.variants || [],
+        menuItem.variants,
+        "variant",
+        menuItem.name,
+      );
+      const addons = resolveRequestedOptions(
+        item.addons || [],
+        menuItem.addons,
+        "addon",
+        menuItem.name,
+      );
+
+      const itemPrice =
+        menuItem.price +
+        variants.reduce((sum, option) => sum + option.price, 0) +
+        addons.reduce((sum, option) => sum + option.price, 0);
+
+      const itemTotal = itemPrice * quantity;
+      subtotal += itemTotal;
+
+      orderItems.push({
+        menuItemId: menuItem._id,
+        name: menuItem.name,
+        price: menuItem.price,
+        quantity,
+        variants,
+        addons,
+        specialInstructions: item.specialInstructions,
+        itemTotal,
+      });
+    }
+
+    // Coupon validation
+    let discount = 0;
+    let appliedCoupon: Awaited<ReturnType<typeof Coupon.findOne>> = null;
+
+    if (couponCode) {
+      const coupon = await Coupon.findOne({
+        code: couponCode.toUpperCase(),
+        isActive: true,
+        validFrom: { $lte: new Date() },
+        validTo: { $gte: new Date() },
+      });
+
+      if (!coupon) {
+        throw new ValidationError("Invalid or expired coupon code");
+      }
+
+      if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+        throw new ValidationError("Coupon usage limit reached");
+      }
+      if (
+        coupon.perUserLimit > 0 &&
+        coupon.usedBy.filter(
+          (entry) => entry.userId.toString() === authReq.user._id.toString(),
+        ).length >= coupon.perUserLimit
+      ) {
+        throw new ValidationError("You have already used this coupon");
+      }
+      if (subtotal < coupon.minOrderAmount) {
+        throw new ValidationError(
+          `Minimum order amount for this coupon is ${coupon.minOrderAmount}`,
+        );
+      }
+      if (
+        coupon.applicableRestaurants.length > 0 &&
+        !coupon.applicableRestaurants.some((id) => id.toString() === restaurantObjectId.toString())
+      ) {
+        throw new ValidationError("Coupon is not valid for this restaurant");
+      }
+
+      discount =
+        coupon.type === CouponType.PERCENTAGE
+          ? Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
+          : Math.min(coupon.value, subtotal);
+      appliedCoupon = coupon;
+    }
+
+    // Auto-apply active campaigns
+    let campaignDiscount = 0;
+    try {
+      const profile = await CustomerProfile.findOne({ userId: authReq.user._id });
+      const campaignResult = await applyCampaigns(
+        authReq.user._id.toString(),
+        restaurantObjectId.toString(),
+        subtotal,
+        !profile || profile.totalOrders === 0,
+        profile?.tier || "bronze",
+      );
+      campaignDiscount = campaignResult.discount;
+    } catch {
+      // Non-blocking
+    }
+    discount += campaignDiscount;
+
+    const TAX_RATE = 0.05;
+
+    // Compute delivery fee from zone, falling back to restaurant default
+    const restaurant = await Restaurant.findById(restaurantObjectId).select("deliveryFee");
+    let deliveryFee = restaurant?.deliveryFee || 50;
+
+    if (deliveryAddress?.coordinates) {
+      try {
+        const zoneFee = await computeDeliveryFee(
+          restaurantObjectId.toString(),
+          deliveryAddress.coordinates.latitude,
+          deliveryAddress.coordinates.longitude,
+          subtotal,
+        );
+        if (zoneFee.fee >= 0) {
+          deliveryFee = zoneFee.fee;
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+    const total = subtotal + tax + deliveryFee - discount;
+
+    const order = await Order.create({
+      orderNumber: generateOrderNumber(),
+      customerId: authReq.user._id,
+      restaurantId: restaurantObjectId,
+      items: orderItems,
+      deliveryAddress,
+      paymentMethod,
+      paymentStatus: PaymentStatus.PENDING,
+      subtotal,
+      tax,
+      deliveryFee,
+      discount,
+      tipAmount,
+      total: Math.max(total + tipAmount, 0),
+      couponCode: couponCode?.toUpperCase(),
+      specialInstructions,
+      estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000),
+      scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
+      statusHistory: [{ status: OrderStatus.PENDING, timestamp: new Date(), actorId: authReq.user._id, actorRole: authReq.user.role }],
+    });
+
+    // Clear cart after successful order
+    await Cart.deleteOne({ userId: authReq.user._id });
+
+    if (appliedCoupon) {
+      appliedCoupon.usedCount += 1;
+      appliedCoupon.usedBy.push({ userId: authReq.user._id, usedAt: new Date() });
+      await appliedCoupon.save();
+    }
+
+    // Update customer stats
+    const profile = await CustomerProfile.findOne({
+      userId: authReq.user._id,
+    });
+    if (profile) {
+      profile.totalOrders += 1;
+      profile.totalSpent += order.total;
+      profile.averageOrderValue = profile.totalSpent / profile.totalOrders;
+      await profile.save();
+
+      const pointsEarned = Math.floor(order.total);
+      if (pointsEarned > 0) {
+        try {
+          const LoyaltyTransactionTypeModule = await import("../models/LoyaltyTransaction");
+          await CustomerProfile.addLoyaltyPoints(
+            authReq.user._id,
+            pointsEarned,
+            LoyaltyTransactionTypeModule.LoyaltyTransactionType.ORDER_EARNED,
+            `Points earned from order ${order.orderNumber}`,
+            order._id,
+          );
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      if (profile.totalOrders === 1) {
+        try {
+          await processReferralReward(authReq.user._id.toString());
+        } catch {
+          // Non-blocking
+        }
+      }
+    }
+
+    // Create notification
+    await Notification.create({
+      userId: authReq.user._id,
+      type: NotificationType.ORDER_UPDATE,
+      title: "Order Placed!",
+      message: `Your order ${order.orderNumber} has been placed successfully.`,
+      data: { orderId: order._id },
+    });
+
+    // Emit real-time newOrder event to the vendor
+    try {
+      const VendorProfile = (await import("../models/VendorProfile")).default;
+      const vendorProfile = await VendorProfile.findOne({
+        restaurantIds: restaurantObjectId,
+      });
+      if (vendorProfile) {
+        getIO()
+          .to(`vendor:${vendorProfile.userId.toString()}`)
+          .emit("newOrder", {
+            _id: order._id.toString(),
+            orderNumber: order.orderNumber,
+            customerName: `${authReq.user.firstName} ${authReq.user.lastName}`,
+            total: order.total,
+            items: order.items.map((i) => ({
+              name: i.name,
+              quantity: i.quantity,
+            })),
+            status: order.status,
+            createdAt: order.createdAt,
+          });
+      }
+    } catch {
+      // Non-blocking
+    }
+
+    successResponse(res, { order }, "Order placed successfully", 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/orders
  * List orders for the authenticated customer.
  */

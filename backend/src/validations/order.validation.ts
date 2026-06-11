@@ -45,9 +45,34 @@ export const createOrderSchema = z.object({
   specialInstructions: z.string().trim().max(500).optional(),
 });
 
+export const createOrderFromCartSchema = z.object({
+  deliveryAddress: z.object({
+    street: z.string().trim().min(1).max(200),
+    apartment: z.string().trim().max(200).optional(),
+    area: z.string().trim().min(1).max(100),
+    district: z.string().trim().min(1).max(100),
+    coordinates: z.object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+    }),
+  }),
+  paymentMethod: z.string().trim().min(1).max(120),
+  couponCode: z
+    .string()
+    .trim()
+    .min(3)
+    .max(20)
+    .transform((v) => v.toUpperCase())
+    .optional(),
+  specialInstructions: z.string().trim().max(500).optional(),
+  tipAmount: z.number().min(0).optional().default(0),
+  scheduledFor: z.string().datetime().optional(),
+});
+
 export const cancelOrderSchema = z.object({
   reason: z.string().trim().max(300).optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CreateOrderFromCartInput = z.infer<typeof createOrderFromCartSchema>;
 export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;

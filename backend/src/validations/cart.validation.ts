@@ -2,6 +2,8 @@ import { z } from "zod";
 
 const cartItemOptionSchema = z.object({
   optionId: z.string().optional(),
+  variantId: z.string().optional(),
+  addonId: z.string().optional(),
   name: z.string().min(1),
   price: z.number().min(0),
 });
@@ -33,6 +35,13 @@ export const syncCartSchema = z.object({
   items: z.array(cartItemSchema),
 });
 
+export const mergeCartSchema = z.object({
+  restaurantId: z.string().min(1),
+  restaurantName: z.string().min(1),
+  items: z.array(cartItemSchema),
+});
+
 export type AddToCartInput = z.infer<typeof addToCartSchema>;
 export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;
 export type SyncCartInput = z.infer<typeof syncCartSchema>;
+export type MergeCartInput = z.infer<typeof mergeCartSchema>;

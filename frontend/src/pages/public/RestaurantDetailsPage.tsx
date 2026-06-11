@@ -398,7 +398,7 @@ const RestaurantDetailsPage: React.FC = () => {
         addons: [],
       };
 
-      const added = addItem(restaurant._id, restaurant.name, cartItem);
+      const added = await addItem(restaurant._id, restaurant.name, cartItem);
       if (added) {
         toast({
           title: "Added to cart",
@@ -415,8 +415,8 @@ const RestaurantDetailsPage: React.FC = () => {
       });
       if (!shouldReplace) return;
 
-      clearCart();
-      addItem(restaurant._id, restaurant.name, cartItem);
+      await clearCart();
+      await addItem(restaurant._id, restaurant.name, cartItem, true);
       toast({
         title: "Cart updated",
         description: `${item.name} has been added to your cart.`,
@@ -426,21 +426,21 @@ const RestaurantDetailsPage: React.FC = () => {
   );
 
   const handleIncreaseQuantity = useCallback(
-    (item: MenuItem) => {
+    async (item: MenuItem) => {
       const current = getItemQuantity(item._id);
-      updateQuantity(item._id, current + 1);
+      await updateQuantity(item._id, current + 1);
     },
     [getItemQuantity, updateQuantity],
   );
 
   const handleDecreaseQuantity = useCallback(
-    (item: MenuItem) => {
+    async (item: MenuItem) => {
       const current = getItemQuantity(item._id);
       if (current <= 1) {
-        updateQuantity(item._id, 0);
+        await updateQuantity(item._id, 0);
         return;
       }
-      updateQuantity(item._id, current - 1);
+      await updateQuantity(item._id, current - 1);
     },
     [getItemQuantity, updateQuantity],
   );

@@ -180,11 +180,9 @@ const OrderDetailsPage: React.FC = () => {
       }
 
       for (const item of reorderItems) {
-        if (!item.isAvailable) {
-          continue;
-        }
+        if (!item.isAvailable) continue;
 
-        addToCart(restId, restName, {
+        await addToCart(restId, restName, {
           itemKey: `${item.menuItemId}::r`,
           menuItemId: item.menuItemId,
           name: item.name,
@@ -193,7 +191,7 @@ const OrderDetailsPage: React.FC = () => {
           quantity: item.quantity,
           variants: item.variants || [],
           addons: item.addons || [],
-        });
+        }, true);
       }
 
       toast({
