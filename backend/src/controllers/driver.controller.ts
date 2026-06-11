@@ -19,6 +19,7 @@ import {
   ValidationError,
 } from '../utils/errors';
 import { successResponse } from '../utils/response.util';
+import { removeLocalFile, uploadImageToCloud } from '../middleware/uploads/upload.middleware';
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -130,6 +131,107 @@ export const completeDriverOnboarding = async (
     );
     if (!profile) throw new NotFoundError('Driver profile not found');
     successResponse(res, { profile }, 'Onboarding completed');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/driver/documents/upload — upload a driver document (license, registration, insurance) */
+export const uploadDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { user } = driverOnly(req);
+    const { documentType } = req.body as { documentType: string };
+
+    const allowedTypes = ['licensePhoto', 'vehicleRegistrationPhoto', 'insurancePhoto'];
+    if (!allowedTypes.includes(documentType)) {
+      throw new ValidationError('documentType must be one of: licensePhoto, vehicleRegistrationPhoto, insurancePhoto');
+    }
+
+    const file = req.file;
+    if (!file) throw new ValidationError('Document file is required');
+
+    let fileUrl = `/uploads/driver-docs/${file.filename}`;
+
+    // Attempt Cloudinary upload (falls back to local on failure)
+    try {
+      const cloudUrl = await uploadImageToCloud(file.path, 'driver-docs', user._id.toString());
+      if (cloudUrl) {
+        fileUrl = cloudUrl;
+        removeLocalFile(file.path);
+      }
+    } catch {
+      // Keep local file
+    }
+
+    const profile = await DriverProfile.findOneAndUpdate(
+      { userId: user._id },
+      { $set: { [`documents.${documentType}`]: fileUrl } },
+      { new: true },
+    );
+    if (!profile) throw new NotFoundError('Driver profile not found');
+
+    successResponse(res, { documentUrl: fileUrl, documentType, profile }, `${documentType} uploaded`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/driver/onboarding/complete — complete onboarding with bank details */
+export const completeOnboardingWithDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { user } = driverOnly(req);
+    const {
+      bankName,
+      accountNumber,
+      accountHolderName,
+      mobileMoneyNumber,
+      mobileMoneyProvider,
+    } = req.body as {
+      bankName?: string;
+      accountNumber?: string;
+      accountHolderName?: string;
+      mobileMoneyNumber?: string;
+      mobileMoneyProvider?: string;
+    };
+
+    const updateData: Record<string, unknown> = {
+      onboardingCompleted: true,
+    };
+
+    if (bankName) updateData['bankDetails.bankName'] = bankName;
+    if (accountNumber) updateData['bankDetails.accountNumber'] = accountNumber;
+    if (accountHolderName) updateData['bankDetails.accountHolderName'] = accountHolderName;
+    if (mobileMoneyNumber) updateData['bankDetails.mobileMoneyNumber'] = mobileMoneyNumber;
+    if (mobileMoneyProvider) updateData['bankDetails.mobileMoneyProvider'] = mobileMoneyProvider;
+
+    const profile = await DriverProfile.findOneAndUpdate(
+      { userId: user._id },
+      { $set: updateData },
+      { new: true },
+    );
+    if (!profile) throw new NotFoundError('Driver profile not found');
+
+    // Also update User onboarding flag
+    const User = mongoose.model('User');
+    await User.updateOne({ _id: user._id }, { onboardingCompleted: true });
+
+    await createAuditLog({
+      actorId: user._id,
+      actorRole: user.role,
+      action: 'driver.onboarding_completed',
+      resourceType: 'DriverProfile',
+      resourceId: profile._id as mongoose.Types.ObjectId,
+    });
+
+    successResponse(res, { profile }, 'Onboarding completed successfully');
   } catch (error) {
     next(error);
   }

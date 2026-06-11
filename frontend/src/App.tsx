@@ -62,6 +62,8 @@ const RiderDashboardPage = lazy(() => import("./pages/rider/RiderDashboardPage")
 const AvailableDeliveriesPage = lazy(() => import("./pages/rider/AvailableDeliveriesPage"));
 const ActiveDeliveryPage = lazy(() => import("./pages/rider/ActiveDeliveryPage"));
 const RiderEarningsPage = lazy(() => import("./pages/rider/RiderEarningsPage"));
+const RiderProfilePage = lazy(() => import("./pages/rider/RiderProfilePage"));
+const RiderOnboardingPage = lazy(() => import("./pages/rider/RiderOnboardingPage"));
 
 // ── Admin pages ─────────────────────────────────────────────────
 const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
@@ -167,7 +169,11 @@ function App(): React.ReactElement {
                     <Route path="/rider/active" element={<ActiveDeliveryPage />} />
                     <Route path="/rider/earnings" element={<RiderEarningsPage />} />
                     <Route path="/rider/history" element={<RiderEarningsPage />} />
+                    <Route path="/rider/profile" element={<RiderProfilePage />} />
                   </Route>
+
+                  {/* Rider onboarding (no sidebar) */}
+                  <Route path="/rider/onboarding" element={<RiderOnboardingPage />} />
 
                   {/* ── Admin routes (own sidebar layout) ───── */}
                   <Route path="/admin" element={<AdminLayout />}>

@@ -8,6 +8,7 @@ import {
     Smartphone,
     Sparkles,
     Star,
+    Truck,
 } from "lucide-react";
 import React from "react";
 import { Link } from "react-router-dom";
@@ -140,7 +141,38 @@ const NewHeroSection: React.FC = () => {
               </Link>
             </motion.div>
 
-            {/* Trust Indicators */}
+            {/* Trust Indicators + Rider Highlight */}
+            <motion.div
+              variants={itemVariants}
+              className="flex items-center gap-4 flex-wrap"
+            >
+              {/* Existing trust indicators - rating */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className="w-4 h-4 fill-yellow-400 text-yellow-400"
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600 font-medium">
+                  4.8 <span className="text-gray-400">(5k+ reviews)</span>
+                </span>
+              </div>
+
+              <span className="w-1 h-1 rounded-full bg-gray-300" />
+
+              {/* Rider recruitment badge */}
+              <Link
+                to="/rider/register"
+                className="group inline-flex items-center gap-1.5 text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
+              >
+                <Truck className="w-4 h-4" />
+                <span>Become a Rider</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </motion.div>
           </motion.div>
 
           {/* Right Side - Image Collage */}

@@ -7,8 +7,9 @@ import { v2 as cloudinary } from "cloudinary";
 const UPLOAD_ROOT = path.resolve(__dirname, "../../../uploads");
 const PROFILE_DIR = path.join(UPLOAD_ROOT, "profiles");
 const COVER_DIR = path.join(UPLOAD_ROOT, "covers");
+const DRIVER_DOCS_DIR = path.join(UPLOAD_ROOT, "driver-docs");
 
-[PROFILE_DIR, COVER_DIR].forEach((dir) => {
+[PROFILE_DIR, COVER_DIR, DRIVER_DOCS_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -18,7 +19,10 @@ const storage = multer.diskStorage({
     file: Express.Multer.File,
     cb: (error: Error | null, destination: string) => void,
   ) => {
-    const dir = file.fieldname === "coverPhoto" ? COVER_DIR : PROFILE_DIR;
+    const dir = file.fieldname === "coverPhoto" ? COVER_DIR
+      : ["licensePhoto", "vehicleRegistrationPhoto", "insurancePhoto"].includes(file.fieldname)
+        ? DRIVER_DOCS_DIR
+        : PROFILE_DIR;
     cb(null, dir);
   },
   filename: (
@@ -28,7 +32,7 @@ const storage = multer.diskStorage({
   ) => {
     const userId = req.user?._id?.toString() ?? "unknown";
     const ext = path.extname(file.originalname).toLowerCase();
-    const prefix = file.fieldname === "coverPhoto" ? "cover" : "profile";
+    const prefix = file.fieldname === "coverPhoto" ? "cover" : file.fieldname === "profilePhoto" ? "profile" : file.fieldname;
     cb(null, `${prefix}-${userId}-${Date.now()}${ext}`);
   },
 });
@@ -76,9 +80,15 @@ export const uploadCoverPhoto: RequestHandler = multer({
   limits: { fileSize: MAX_FILE_SIZE },
 }).single("coverPhoto");
 
+export const uploadDriverDocument: RequestHandler = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+}).single("document");
+
 export const uploadImageToCloud = async (
   filePath: string,
-  type: "profiles" | "covers",
+  type: "profiles" | "covers" | "driver-docs",
   userId: string,
 ): Promise<string | null> => {
   if (!isCloudinaryConfigured()) {

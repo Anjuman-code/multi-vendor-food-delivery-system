@@ -96,6 +96,18 @@ const riderService = {
     }),
   completeOnboarding: () =>
     httpClient.patch<{ profile: DriverProfile }>('/api/driver/onboarding', {}),
+  completeOnboardingWithDetails: (data: {
+    bankName?: string;
+    accountNumber?: string;
+    accountHolderName?: string;
+    mobileMoneyNumber?: string;
+    mobileMoneyProvider?: string;
+  }) =>
+    httpClient.post<{ profile: DriverProfile }>('/api/driver/onboarding/complete', data),
+  uploadDocument: (formData: FormData) =>
+    httpClient.post('/api/driver/documents/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 
   // Orders
   getAvailableOrders: () =>

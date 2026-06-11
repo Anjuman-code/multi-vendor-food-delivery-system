@@ -21,7 +21,9 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(user?.role === 'vendor' ? '/vendor' : user?.role === 'admin' ? '/admin' : user?.role === 'driver' ? '/rider' : '/', { replace: true });
+      const basePath = user?.role === 'vendor' ? '/vendor' : user?.role === 'admin' ? '/admin' : user?.role === 'driver' ? '/rider' : '/';
+      const redirectPath = user?.onboardingCompleted ? basePath : user?.role === 'driver' ? '/rider/onboarding' : '/onboarding';
+      navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -56,9 +58,10 @@ const LoginPage: React.FC = () => {
           description: 'Welcome back! Redirecting...',
         });
 
+        const baseRedirect = response.data.user.role === 'vendor' ? '/vendor' : response.data.user.role === 'admin' ? '/admin' : response.data.user.role === 'driver' ? '/rider' : '/';
         const redirectPath = response.data.user.onboardingCompleted
-          ? (response.data.user.role === 'vendor' ? '/vendor' : response.data.user.role === 'admin' ? '/admin' : response.data.user.role === 'driver' ? '/rider' : '/')
-          : '/onboarding';
+          ? baseRedirect
+          : response.data.user.role === 'driver' ? '/rider/onboarding' : '/onboarding';
         navigate(redirectPath);
       } else {
         toast({
