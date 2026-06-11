@@ -52,7 +52,7 @@ const GoogleAuthCallbackPage: React.FC = () => {
       });
 
       const fallbackPath =
-        response.data.user.role === 'vendor' ? '/vendor' : '/';
+        response.data.user.role === 'vendor' ? '/vendor' : response.data.user.role === 'admin' ? '/admin' : response.data.user.role === 'driver' ? '/rider' : '/';
       const redirectPath = !response.data.user.onboardingCompleted
         ? '/onboarding'
         : nextPath.startsWith('/') ? nextPath : fallbackPath;

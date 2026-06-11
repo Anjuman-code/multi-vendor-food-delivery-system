@@ -129,7 +129,7 @@ const VendorLayoutInner: React.FC = () => {
       await authService.logout();
       logoutContext();
       toast({ title: "Success", description: "Logged out successfully" });
-      navigate("/");
+      navigate("/login");
     } catch {
       toast({ title: "Error", description: "Failed to logout", variant: "destructive" });
     }

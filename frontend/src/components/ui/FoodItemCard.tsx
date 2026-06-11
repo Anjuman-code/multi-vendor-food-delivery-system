@@ -728,7 +728,10 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
               {cartQuantity > 0 && onUpdateQuantity ? (
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => onUpdateQuantity(item.id, cartQuantity - 1)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateQuantity(item.id, cartQuantity - 1);
+                    }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors min-h-[44px] min-w-[44px]"
                     aria-label="Decrease"
                   >
@@ -736,7 +739,10 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
                   </button>
                   <span className="w-6 text-center font-medium text-sm text-gray-900">{cartQuantity}</span>
                   <button
-                    onClick={() => onUpdateQuantity(item.id, cartQuantity + 1)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateQuantity(item.id, cartQuantity + 1);
+                    }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors min-h-[44px] min-w-[44px]"
                     aria-label="Increase"
                   >
@@ -745,12 +751,17 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
                 </div>
               ) : onAddToCart ? (
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onAddToCart(item)}
+                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddToCart(item);
+                  }}
                   disabled={isOutOfStock}
-                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors min-h-[44px] min-w-[44px]"
+                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-sm hover:shadow-md transition-all min-h-[44px] min-w-[44px]"
+                  aria-label="Add to cart"
                 >
-                  Add
+                  <ShoppingBag className="w-4 h-4" />
                 </motion.button>
               ) : null}
             </div>

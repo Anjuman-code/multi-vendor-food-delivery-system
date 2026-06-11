@@ -85,7 +85,7 @@ const RiderLayout: React.FC = () => {
       /* ignore */
     }
     logoutContext();
-    navigate("/");
+    navigate("/login");
     toast({ title: "Logged out", description: "See you soon!" });
   };
 

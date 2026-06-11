@@ -129,7 +129,7 @@ const Navbar: React.FC = memo(() => {
         title: "Success",
         description: "Logged out successfully",
       });
-      navigate("/");
+      navigate("/login");
     } catch {
       toast({
         title: "Error",
