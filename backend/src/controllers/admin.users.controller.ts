@@ -81,7 +81,7 @@ export const listCustomers = async (
       User.countDocuments(filter),
     ]);
 
-    successResponse(res, { users, pagination: buildPagination(page, limit, total) });
+    successResponse(res, { customers: users, pagination: buildPagination(page, limit, total) });
   } catch (error) {
     next(error);
   }
@@ -448,10 +448,7 @@ export const getVendorDetail = async (
     );
     if (!user) throw new NotFoundError('Vendor not found');
 
-    const [vendorProfile, restaurants] = await Promise.all([
-      VendorProfile.findOne({ userId: user._id }),
-      Restaurant.find({ _id: { $in: [] } }).select('name approvalStatus isActive rating'),
-    ]);
+    const vendorProfile = await VendorProfile.findOne({ userId: user._id });
 
     const restaurantIds = vendorProfile?.restaurantIds ?? [];
     const ownedRestaurants = await Restaurant.find({ _id: { $in: restaurantIds } }).select(

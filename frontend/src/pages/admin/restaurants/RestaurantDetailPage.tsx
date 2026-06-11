@@ -10,20 +10,19 @@ interface RestaurantDetail {
   _id: string;
   name: string;
   description?: string;
-  address?: { street?: string; area?: string; city?: string };
-  cuisineTypes: string[];
+  address?: { street?: string; area?: string; district?: string };
+  cuisineType: string[];
   tags: string[];
   approvalStatus: "pending" | "approved" | "rejected";
   isOpen: boolean;
   isTemporarilyClosed: boolean;
   isFeatured: boolean;
   isActive: boolean;
-  rating?: number;
-  reviewCount?: number;
+  rating?: { average: number; count: number };
   totalOrders?: number;
   totalRevenue?: number;
-  coverImage?: string;
-  vendor: { firstName: string; lastName: string; email: string };
+  images?: { coverPhoto?: string };
+  vendor?: { firstName: string; lastName: string; email: string };
   menu?: { _id: string; name: string; price: number; isAvailable: boolean; category?: string }[];
 }
 
@@ -42,8 +41,35 @@ export default function RestaurantDetailPage() {
       adminService.getRestaurant(id),
       adminService.getRestaurantMenu(id),
     ]).then(([rRes, mRes]) => {
-      setRestaurant((rRes.data as { data: { restaurant: RestaurantDetail } }).data.restaurant);
-      setMenuItems((mRes.data as { data: { items: RestaurantDetail["menu"] } }).data.items);
+      const rData = (rRes.data as {
+        data: {
+          restaurant: Omit<RestaurantDetail, "vendor" | "totalOrders" | "totalRevenue"> & {
+            rating?: { average: number; count: number };
+            images?: { coverPhoto?: string };
+          };
+          orderStats: { totalOrders: number; totalRevenue: number };
+          vendor: { firstName: string; lastName: string; email: string } | null;
+        };
+      }).data;
+      const mData = (mRes.data as { data: { menuItems: { _id: string; name: string; price: number; isAvailable: boolean; categoryId?: { name: string } }[] } }).data;
+
+      setRestaurant({
+        ...rData.restaurant,
+        totalOrders: rData.orderStats.totalOrders,
+        totalRevenue: rData.orderStats.totalRevenue,
+        vendor: rData.vendor ?? undefined,
+      });
+      setMenuItems(
+        mData.menuItems.map((item) => ({
+          _id: item._id,
+          name: item.name,
+          price: item.price,
+          isAvailable: item.isAvailable,
+          category: item.categoryId?.name,
+        })),
+      );
+    }).catch(() => {
+      toast({ title: "Error", description: "Failed to load restaurant details.", variant: "destructive" });
     }).finally(() => setLoading(false));
   };
 
@@ -118,8 +144,8 @@ export default function RestaurantDetailPage() {
         </Link>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3">
-            {restaurant.coverImage ? (
-              <img src={restaurant.coverImage} alt="" className="w-14 h-14 rounded-xl object-cover border border-gray-100" />
+            {restaurant.images?.coverPhoto ? (
+              <img src={restaurant.images.coverPhoto} alt="" className="w-14 h-14 rounded-xl object-cover border border-gray-100" />
             ) : (
               <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
                 <Store className="w-6 h-6 text-gray-400" />
@@ -170,8 +196,8 @@ export default function RestaurantDetailPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Rating", value: restaurant.rating ? `${restaurant.rating.toFixed(1)} ★` : "—" },
-          { label: "Reviews", value: restaurant.reviewCount?.toLocaleString() ?? "—" },
+          { label: "Rating", value: restaurant.rating?.average ? `${restaurant.rating.average.toFixed(1)} ★` : "—" },
+          { label: "Reviews", value: restaurant.rating?.count?.toLocaleString() ?? "—" },
           { label: "Total Orders", value: restaurant.totalOrders?.toLocaleString() ?? "—" },
           { label: "Total Revenue", value: restaurant.totalRevenue ? `৳${restaurant.totalRevenue.toLocaleString()}` : "—" },
         ].map((s) => (
@@ -186,19 +212,21 @@ export default function RestaurantDetailPage() {
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <h2 className="text-sm font-bold text-gray-700 mb-3">Details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div>
-            <span className="text-gray-400">Owner</span>
-            <p className="text-gray-800 font-medium">{restaurant.vendor.firstName} {restaurant.vendor.lastName}</p>
-            <p className="text-xs text-gray-400">{restaurant.vendor.email}</p>
-          </div>
+          {restaurant.vendor && (
+            <div>
+              <span className="text-gray-400">Owner</span>
+              <p className="text-gray-800 font-medium">{restaurant.vendor.firstName} {restaurant.vendor.lastName}</p>
+              <p className="text-xs text-gray-400">{restaurant.vendor.email}</p>
+            </div>
+          )}
           <div>
             <span className="text-gray-400">Address</span>
-            <p className="text-gray-800">{restaurant.address?.street}, {restaurant.address?.area}, {restaurant.address?.city}</p>
+            <p className="text-gray-800">{restaurant.address?.street}, {restaurant.address?.area}, {restaurant.address?.district}</p>
           </div>
-          {restaurant.cuisineTypes.length > 0 && (
+          {restaurant.cuisineType.length > 0 && (
             <div>
               <span className="text-gray-400">Cuisines</span>
-              <p className="text-gray-800">{restaurant.cuisineTypes.join(", ")}</p>
+              <p className="text-gray-800">{restaurant.cuisineType.join(", ")}</p>
             </div>
           )}
           {restaurant.description && (

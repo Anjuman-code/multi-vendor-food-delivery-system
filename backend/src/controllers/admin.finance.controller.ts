@@ -165,15 +165,29 @@ export const getRevenueStats = async (
       { gmv: 0, orders: 0 },
     );
 
+    const timeSeries = revenue.map((d) => ({
+      date: d._id,
+      gmv: d.gmv,
+      orders: d.orders,
+      revenue: d.gmv * 0.15,
+      refunded: 0,
+    }));
+
+    const byPaymentMethodMapped = byPaymentMethod.map((pm) => ({
+      method: pm._id,
+      total: pm.total,
+      count: pm.count,
+    }));
+
     successResponse(res, {
-      timeSeries: revenue,
+      timeSeries,
       totals: {
         ...totals,
         platformRevenue: totals.gmv * 0.15,
         refunded: refunds[0]?.totalRefunded ?? 0,
         netRevenue: totals.gmv * 0.15 - (refunds[0]?.totalRefunded ?? 0),
       },
-      byPaymentMethod,
+      byPaymentMethod: byPaymentMethodMapped,
     });
   } catch (error) {
     next(error);

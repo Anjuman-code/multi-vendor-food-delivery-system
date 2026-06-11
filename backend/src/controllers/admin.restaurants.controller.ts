@@ -6,6 +6,8 @@ import { NextFunction, Request, Response } from 'express';
 import MenuItem from '../models/MenuItem';
 import Order from '../models/Order';
 import Restaurant from '../models/Restaurant';
+import User from '../models/User';
+import VendorProfile from '../models/VendorProfile';
 import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
 import { AuthenticationError, NotFoundError, ValidationError } from '../utils/errors';
@@ -92,7 +94,7 @@ export const getRestaurantDetail = async (
     const restaurant = await Restaurant.findOne({ _id: req.params.id, deletedAt: null });
     if (!restaurant) throw new NotFoundError('Restaurant not found');
 
-    const [orderStats, menuItemCount] = await Promise.all([
+    const [orderStats, menuItemCount, vendorProfile] = await Promise.all([
       Order.aggregate([
         { $match: { restaurantId: restaurant._id } },
         {
@@ -106,12 +108,21 @@ export const getRestaurantDetail = async (
         },
       ]),
       MenuItem.countDocuments({ restaurantId: restaurant._id, deletedAt: null }),
+      VendorProfile.findOne({ restaurantIds: restaurant._id }).populate(
+        'userId',
+        'firstName lastName email',
+      ),
     ]);
+
+    const vendor = vendorProfile?.userId
+      ? (vendorProfile.userId as unknown as { firstName: string; lastName: string; email: string })
+      : null;
 
     successResponse(res, {
       restaurant,
       orderStats: orderStats[0] ?? { totalOrders: 0, totalRevenue: 0, cancelled: 0, delivered: 0 },
       menuItemCount,
+      vendor,
     });
   } catch (error) {
     next(error);

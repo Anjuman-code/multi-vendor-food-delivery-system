@@ -28,7 +28,7 @@ interface OrderDetail {
   restaurant: { _id: string; name: string; address?: string };
   driver?: { _id: string; firstName: string; lastName: string; phone?: string };
   items: { name: string; quantity: number; price: number; totalPrice: number }[];
-  deliveryAddress?: { street?: string; city?: string; area?: string };
+  deliveryAddress?: { street?: string; area?: string; district?: string };
   statusHistory?: { status: string; timestamp: string; note?: string }[];
   refund?: { amount: number; reason: string; processedAt?: string };
   dispute?: { status: string; reason: string };
@@ -56,8 +56,68 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
     adminService.getOrder(id)
-      .then((res) => setOrder((res.data as { data: { order: OrderDetail } }).data.order))
+      .then((res) => {
+        const o = (res.data as { data: { order: Record<string, unknown> } }).data.order;
+        const c = o.customerId as Record<string, unknown> | undefined;
+        const r = o.restaurantId as Record<string, unknown> | undefined;
+        const d = o.driverId as Record<string, unknown> | undefined;
+        const addr = r?.address as Record<string, unknown> | undefined;
+
+        setOrder({
+          _id: o._id as string,
+          orderNumber: o.orderNumber as string,
+          status: o.status as string,
+          paymentStatus: o.paymentStatus as string,
+          paymentMethod: o.paymentMethod as string,
+          total: o.total as number,
+          subtotal: o.subtotal as number,
+          deliveryFee: o.deliveryFee as number,
+          discount: o.discount as number | undefined,
+          createdAt: o.createdAt as string,
+          updatedAt: o.updatedAt as string,
+          customer: c
+            ? {
+                _id: c._id as string,
+                firstName: c.firstName as string,
+                lastName: c.lastName as string,
+                email: c.email as string,
+                phone: c.phoneNumber as string | undefined,
+              }
+            : { _id: "", firstName: "Unknown", lastName: "", email: "" },
+          restaurant: r
+            ? {
+                _id: r._id as string,
+                name: r.name as string,
+                address: addr
+                  ? `${addr.street}, ${addr.area}, ${addr.district}`
+                  : undefined,
+              }
+            : { _id: "", name: "Unknown" },
+          driver: d
+            ? {
+                _id: d._id as string,
+                firstName: d.firstName as string,
+                lastName: d.lastName as string,
+                phone: d.phoneNumber as string | undefined,
+              }
+            : undefined,
+          items: (o.items as { name: string; quantity: number; price: number; itemTotal: number }[]).map((i) => ({
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            totalPrice: i.itemTotal,
+          })),
+          deliveryAddress: o.deliveryAddress as OrderDetail["deliveryAddress"],
+          statusHistory: o.statusHistory as OrderDetail["statusHistory"],
+          refund: o.refund as OrderDetail["refund"],
+          dispute: o.dispute as OrderDetail["dispute"],
+        });
+      })
+      .catch(() => {
+        toast({ title: "Error", description: "Failed to load order details.", variant: "destructive" });
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -173,7 +233,7 @@ export default function OrderDetailPage() {
           {order.deliveryAddress ? (
             <>
               {order.deliveryAddress.street && <p className="text-sm text-gray-700">{order.deliveryAddress.street}</p>}
-              {order.deliveryAddress.area && <p className="text-xs text-gray-400">{order.deliveryAddress.area}, {order.deliveryAddress.city}</p>}
+              {order.deliveryAddress.area && <p className="text-xs text-gray-400">{order.deliveryAddress.area}, {order.deliveryAddress.district}</p>}
             </>
           ) : (
             <p className="text-xs text-gray-400">—</p>

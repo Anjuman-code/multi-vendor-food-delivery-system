@@ -38,9 +38,53 @@ export default function VendorDetailPage() {
     setLoading(true);
     adminService.getVendor(id)
       .then((res) => {
-        const v = (res.data as { data: { vendor: VendorDetail } }).data.vendor;
+        const data = (res.data as {
+          data: {
+            user: {
+              _id: string;
+              firstName: string;
+              lastName: string;
+              email: string;
+              phone?: string;
+              isSuspended: boolean;
+              createdAt: string;
+            };
+            vendorProfile: {
+              businessName: string;
+              isVerified: boolean;
+              commissionRate?: number;
+              totalEarnings?: number;
+              pendingPayout?: number;
+              restaurantIds?: string[];
+            } | null;
+            restaurants: { _id: string; name: string; approvalStatus: string; totalOrders?: number }[];
+          };
+        }).data;
+        const v: VendorDetail = {
+          _id: data.user._id,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          email: data.user.email,
+          phone: data.user.phone,
+          isSuspended: data.user.isSuspended,
+          createdAt: data.user.createdAt,
+          vendorProfile: data.vendorProfile
+            ? {
+                businessName: data.vendorProfile.businessName,
+                isVerified: data.vendorProfile.isVerified,
+                commissionRate: data.vendorProfile.commissionRate,
+                totalRestaurants: data.vendorProfile.restaurantIds?.length ?? 0,
+                totalRevenue: data.vendorProfile.totalEarnings,
+                pendingPayout: data.vendorProfile.pendingPayout,
+              }
+            : undefined,
+          restaurants: data.restaurants,
+        };
         setVendor(v);
         setCommissionInput(String(v.vendorProfile?.commissionRate ?? 15));
+      })
+      .catch(() => {
+        toast({ title: "Error", description: "Failed to load vendor details.", variant: "destructive" });
       })
       .finally(() => setLoading(false));
   };

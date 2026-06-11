@@ -3,10 +3,10 @@ import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
 import { motion } from "framer-motion";
 import {
-    ArrowLeft, Ban, CheckCircle, Gift, Mail, Phone, Shield, ShoppingBag, Star, UserX,
+    ArrowLeft, Ban, CheckCircle, Gift, Mail, Package, Phone, Shield, ShoppingBag, Star, UserX,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 interface CustomerDetail {
   user: {
@@ -38,6 +38,7 @@ interface CustomerDetail {
     status: string;
     total: number;
     createdAt: string;
+    restaurantId?: { name: string };
   }>;
 }
 
@@ -251,30 +252,76 @@ export default function CustomerDetailPage() {
 
           {/* Recent orders */}
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-700 mb-4">Recent Orders</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-700">Recent Orders</h3>
+              {recentOrders && recentOrders.length > 0 && (
+                <Link
+                  to="/admin/orders"
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
+                  View all &rarr;
+                </Link>
+              )}
+            </div>
             {recentOrders && recentOrders.length > 0 ? (
-              <div className="space-y-2">
-                {recentOrders.map((o) => (
-                  <a
+              <div className="space-y-1.5">
+                {recentOrders.map((o, i) => (
+                  <motion.div
                     key={o._id}
-                    href={`/admin/orders/${o._id}`}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors text-sm border border-gray-100"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
                   >
-                    <span className="font-mono font-medium text-gray-700">#{o.orderNumber}</span>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                      o.status === "delivered" ? "bg-emerald-50 text-emerald-600" :
-                      o.status === "cancelled" ? "bg-red-50 text-red-600" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>
-                      {o.status}
-                    </span>
-                    <span className="text-gray-600">৳{o.total.toLocaleString()}</span>
-                    <span className="text-gray-400 text-xs">{new Date(o.createdAt).toLocaleDateString()}</span>
-                  </a>
+                    <Link
+                      to={`/admin/orders/${o._id}`}
+                      className="flex items-center gap-3 px-3.5 py-3 rounded-xl hover:bg-gray-50 transition-all text-sm border border-gray-100 group"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-semibold text-gray-800 text-xs">
+                            #{o.orderNumber}
+                          </span>
+                          {o.restaurantId?.name && (
+                            <span className="text-gray-400 text-xs truncate">
+                              {o.restaurantId.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {new Date(o.createdAt).toLocaleDateString(undefined, {
+                            month: "short", day: "numeric", year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded-full capitalize ${
+                        o.status === "delivered" ? "bg-emerald-50 text-emerald-600" :
+                        o.status === "cancelled" ? "bg-red-50 text-red-600" :
+                        o.status === "pending" ? "bg-yellow-50 text-yellow-600" :
+                        o.status === "confirmed" ? "bg-blue-50 text-blue-600" :
+                        o.status === "preparing" ? "bg-indigo-50 text-indigo-600" :
+                        o.status === "ready" || o.status === "ready_for_pickup" ? "bg-violet-50 text-violet-600" :
+                        o.status === "picked_up" || o.status === "on_the_way" ? "bg-purple-50 text-purple-600" :
+                        "bg-gray-100 text-gray-600"
+                      }`}>
+                        {o.status.replace(/_/g, " ")}
+                      </span>
+                      <span className="shrink-0 font-semibold text-gray-800 text-sm w-20 text-right">
+                        ৳{o.total.toLocaleString()}
+                      </span>
+                      <span className="shrink-0 text-gray-300 group-hover:text-indigo-400 transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
+                    </Link>
+                  </motion.div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-4">No orders yet</p>
+              <div className="flex flex-col items-center py-8 text-gray-400">
+                <Package className="w-8 h-8 mb-2" />
+                <p className="text-sm">No orders yet</p>
+              </div>
             )}
           </div>
         </motion.div>
