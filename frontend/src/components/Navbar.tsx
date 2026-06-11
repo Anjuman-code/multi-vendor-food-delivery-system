@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
 import userService from "@/services/userService";
@@ -45,6 +46,7 @@ const Navbar: React.FC = memo(() => {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout: logoutContext } = useAuth();
   const { itemCount } = useCart();
+  const confirm = useConfirm();
   const { toast } = useToast();
 
   const isVendor = user?.role === "vendor";
@@ -122,6 +124,12 @@ const Navbar: React.FC = memo(() => {
   const isActiveLink = (path: string) => location.pathname === path;
 
   const handleLogout = async () => {
+    const ok = await confirm({
+      title: "Log out",
+      description: "Are you sure you want to log out?",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await authService.logout();
       logoutContext();

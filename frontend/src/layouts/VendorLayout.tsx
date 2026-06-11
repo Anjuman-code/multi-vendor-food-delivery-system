@@ -1,5 +1,6 @@
 import NotificationPopover from "@/components/NotificationPopover";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import { useVendor, VendorProvider } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +98,7 @@ const VendorLayoutInner: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout: logoutContext } = useAuth();
+  const confirm = useConfirm();
   const { restaurants, selectedRestaurantId, setSelectedRestaurantId } = useVendor();
   const { toast } = useToast();
   const { newOrderCount, clearNewOrderCount } = useSocketContext();
@@ -125,6 +127,12 @@ const VendorLayoutInner: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    const ok = await confirm({
+      title: "Log out",
+      description: "Are you sure you want to log out?",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await authService.logout();
       logoutContext();

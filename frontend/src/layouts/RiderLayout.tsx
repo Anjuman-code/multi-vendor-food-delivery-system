@@ -1,5 +1,6 @@
 import NotificationPopover from "@/components/NotificationPopover";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
 import { AnimatePresence, motion } from "framer-motion";
@@ -59,6 +60,7 @@ const RiderLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout: logoutContext } = useAuth();
+  const confirm = useConfirm();
   const { toast } = useToast();
   const avatarRef = useRef<HTMLButtonElement>(null);
 
@@ -79,6 +81,12 @@ const RiderLayout: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    const ok = await confirm({
+      title: "Log out",
+      description: "Are you sure you want to log out?",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await authService.logout();
     } catch {
