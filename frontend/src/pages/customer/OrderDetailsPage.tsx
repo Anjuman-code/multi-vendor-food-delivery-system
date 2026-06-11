@@ -1,5 +1,6 @@
 /**
- * OrderDetailsPage – single order view with status timeline, items, and actions.
+ * OrderDetailsPage – single order view with status timeline, items,
+ * restaurant review, and driver rating.
  */
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useSocketContext } from '@/contexts/SocketContext';
 import { useToast } from '@/hooks/use-toast';
 import orderService from '@/services/orderService';
+import reviewService from '@/services/reviewService';
 import riderService from '@/services/riderService';
 import type { Order, OrderStatus, StatusHistoryEntry } from '@/types/order';
 import { foodFallbackSVG } from '@/utils/fallbackImages';
@@ -27,10 +29,11 @@ import {
   Package,
   RefreshCw,
   Star,
+  UtensilsCrossed,
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const STATUS_STEPS: OrderStatus[] = [
   'pending',
@@ -64,6 +67,52 @@ const buildReceiptFileName = (orderNumber: string): string => {
   return `receipt-${safeOrderNumber}.pdf`;
 };
 
+const StarRating = ({
+  value,
+  onChange,
+  hoverValue,
+  onHover,
+  size = 'md',
+  disabled = false,
+}: {
+  value: number;
+  onChange?: (v: number) => void;
+  hoverValue?: number;
+  onHover?: (v: number) => void;
+  size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
+}) => {
+  const sizeClasses = { sm: 'h-4 w-4', md: 'h-6 w-6', lg: 'h-8 w-8' };
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const active = (hoverValue || value) >= star;
+        return (
+          <button
+            key={star}
+            type="button"
+            disabled={disabled}
+            onMouseEnter={() => onHover?.(star)}
+            onMouseLeave={() => onHover?.(0)}
+            onClick={() => onChange?.(star)}
+            className={`p-0.5 focus:outline-none transition-transform ${
+              !disabled ? 'hover:scale-110' : ''
+            } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+          >
+            <Star
+              className={`${sizeClasses[size]} transition-colors ${
+                active
+                  ? 'text-orange-400 fill-orange-400'
+                  : 'text-gray-200 fill-gray-200'
+              }`}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const OrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -77,7 +126,18 @@ const OrderDetailsPage: React.FC = () => {
   const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
 
+  // Restaurant review state
+  const [existingReview, setExistingReview] = useState<Order['_id'] | null>(null);
+  const [reviewStars, setReviewStars] = useState(0);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
   // Driver rating state
+  const [existingDriverRating, setExistingDriverRating] =
+    useState<Order['_id'] | null>(null);
   const [ratingStars, setRatingStars] = useState(0);
   const [ratingHover, setRatingHover] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
@@ -90,6 +150,19 @@ const OrderDetailsPage: React.FC = () => {
     const res = await orderService.getOrderById(id);
     if (res.success && res.data) {
       setOrder(res.data.order);
+      if (res.data.review) {
+        setExistingReview(res.data.review as unknown as Order['_id']);
+        setReviewStars(res.data.review.rating);
+        setReviewComment(res.data.review.comment);
+        setReviewTitle(res.data.review.title || '');
+        setReviewSubmitted(true);
+      }
+      if (res.data.driverRating) {
+        setExistingDriverRating(res.data.driverRating as unknown as Order['_id']);
+        setRatingStars(res.data.driverRating.rating);
+        setRatingComment(res.data.driverRating.comment || '');
+        setRatingSubmitted(true);
+      }
     } else {
       toast({
         title: 'Error',
@@ -191,7 +264,7 @@ const OrderDetailsPage: React.FC = () => {
           quantity: item.quantity,
           variants: item.variants || [],
           addons: item.addons || [],
-        }, true);
+        });
       }
 
       toast({
@@ -275,6 +348,31 @@ const OrderDetailsPage: React.FC = () => {
     }
   }, [order, toast]);
 
+  const handleReviewSubmit = async () => {
+    if (!order || reviewStars === 0) return;
+    setReviewSubmitting(true);
+    const res = await reviewService.createReview({
+      orderId: order._id,
+      rating: reviewStars,
+      title: reviewTitle.trim() || undefined,
+      comment: reviewComment.trim(),
+    });
+    setReviewSubmitting(false);
+    if (res.success) {
+      setReviewSubmitted(true);
+      toast({
+        title: 'Review submitted',
+        description: 'Thank you for reviewing your meal!',
+      });
+    } else {
+      toast({
+        title: 'Failed to submit review',
+        description: res.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleRatingSubmit = async () => {
     if (!order || ratingStars === 0) return;
     setRatingSubmitting(true);
@@ -302,10 +400,10 @@ const OrderDetailsPage: React.FC = () => {
   const canCancel =
     order && (order.status === 'pending' || order.status === 'confirmed');
 
-  const restaurantId =
+  const restaurantName =
     order && typeof order.restaurantId !== 'string'
-      ? order.restaurantId._id
-      : order?.restaurantId;
+      ? order.restaurantId.name
+      : '';
 
   const currentStepIdx = order
     ? order.status === 'cancelled'
@@ -596,7 +694,7 @@ const OrderDetailsPage: React.FC = () => {
 
         {/* Driver location card (only when picked_up) */}
         {order.status === 'picked_up' && (
-          <Card className="p-4 border-orange-200 bg-orange-50">
+          <Card className="p-4 border-orange-200 bg-orange-50/60">
             <p className="text-sm font-medium text-orange-800 flex items-center gap-2 mb-1">
               <Bike className="h-4 w-4" /> Your order is on the way!
             </p>
@@ -618,7 +716,7 @@ const OrderDetailsPage: React.FC = () => {
         {/* COD cash reminder when rider is on the way */}
         {order.status === 'picked_up' &&
           order.paymentMethod === 'cash_on_delivery' && (
-            <Card className="p-4 border-amber-200 bg-amber-50 flex items-start gap-3">
+            <Card className="p-4 border-amber-200 bg-amber-50/60 flex items-start gap-3">
               <Banknote className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-800">
@@ -632,74 +730,200 @@ const OrderDetailsPage: React.FC = () => {
             </Card>
           )}
 
-        {/* Driver rating (only after delivered, not yet rated) */}
-        {order.status === 'delivered' && !ratingSubmitted && (
-          <Card className="p-5 mt-4 border-orange-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Star className="h-4 w-4 text-orange-400" /> Rate your delivery
-              rider
-            </h3>
-            <div className="flex gap-1 mb-3">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onMouseEnter={() => setRatingHover(star)}
-                  onMouseLeave={() => setRatingHover(0)}
-                  onClick={() => setRatingStars(star)}
-                  className="p-0.5 focus:outline-none"
-                >
-                  <Star
-                    className={`h-7 w-7 transition-colors ${star <= (ratingHover || ratingStars) ? 'text-orange-400 fill-orange-400' : 'text-gray-300'}`}
-                  />
-                </button>
-              ))}
-            </div>
-            <Textarea
-              placeholder="Leave a comment (optional)"
-              value={ratingComment}
-              onChange={(e) => setRatingComment(e.target.value)}
-              className="mb-3 text-sm resize-none"
-              rows={2}
-            />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                disabled={ratingStars === 0 || ratingSubmitting}
-                onClick={handleRatingSubmit}
-                className="bg-orange-500 hover:bg-orange-600"
-              >
-                {ratingSubmitting && (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                )}
-                Submit Rating
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setRatingSubmitted(true)}
-              >
-                Skip
-              </Button>
-            </div>
-          </Card>
-        )}
-        {order.status === 'delivered' && ratingSubmitted && (
-          <p className="text-sm text-green-600 text-center mt-4 flex items-center justify-center gap-1">
-            <CheckCircle2 className="h-4 w-4" /> Thank you for rating your
-            rider!
-          </p>
+        {/* ── Restaurant Review Section ── */}
+        {order.status === 'delivered' && (reviewSubmitted || existingReview) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="p-5 border-emerald-100 bg-emerald-50/40">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />{' '}
+                Your restaurant review
+              </h3>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-sm font-medium text-gray-600">
+                  {restaurantName}
+                </span>
+                <StarRating
+                  value={reviewStars}
+                  size="sm"
+                  disabled
+                />
+              </div>
+              {reviewTitle && (
+                <p className="text-sm font-medium text-gray-800 mb-1">
+                  {reviewTitle}
+                </p>
+              )}
+              <p className="text-sm text-gray-600 italic">
+                &ldquo;{reviewComment}&rdquo;
+              </p>
+            </Card>
+          </motion.div>
         )}
 
-        {/* Review CTA */}
-        {order.status === 'delivered' && (
-          <div className="mt-6 text-center">
-            <Link to={`/restaurants/${restaurantId || ''}`}>
-              <Button className="bg-orange-500 hover:bg-orange-600">
-                Leave a Review
+        {order.status === 'delivered' && !reviewSubmitted && !existingReview && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="p-5 border-orange-100">
+              <h3 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+                <UtensilsCrossed className="h-4 w-4 text-orange-400" />{' '}
+                Rate your meal
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                How was your experience at{' '}
+                <span className="font-medium">{restaurantName}</span>?
+              </p>
+
+              <div className="mb-4">
+                <p className="text-xs font-medium text-gray-500 mb-1.5">
+                  Overall rating
+                </p>
+                <StarRating
+                  value={reviewStars}
+                  onChange={setReviewStars}
+                  hoverValue={reviewHover}
+                  onHover={setReviewHover}
+                  size="lg"
+                />
+                {reviewStars > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {reviewStars === 1
+                      ? 'Poor'
+                      : reviewStars === 2
+                        ? 'Fair'
+                        : reviewStars === 3
+                          ? 'Good'
+                          : reviewStars === 4
+                            ? 'Very Good'
+                            : 'Excellent'}
+                  </p>
+                )}
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  Review title (optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Summarize your experience"
+                  value={reviewTitle}
+                  onChange={(e) => setReviewTitle(e.target.value)}
+                  maxLength={100}
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-colors"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  Your review <span className="text-red-500">*</span>
+                </label>
+                <Textarea
+                  placeholder="Tell us about your experience — what did you like or how can we improve?"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  className="text-sm resize-none min-h-[80px]"
+                  rows={3}
+                />
+                <p className="text-xs text-gray-400 mt-1 text-right">
+                  {reviewComment.length}/1000
+                </p>
+              </div>
+
+              <Button
+                size="sm"
+                disabled={reviewStars === 0 || !reviewComment.trim() || reviewSubmitting}
+                onClick={handleReviewSubmit}
+                className="bg-orange-500 hover:bg-orange-600 w-full sm:w-auto"
+              >
+                {reviewSubmitting && (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                )}
+                Submit Review
               </Button>
-            </Link>
-          </div>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* ── Driver Rating Section ── */}
+        {order.status === 'delivered' && (ratingSubmitted || existingDriverRating) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="p-5 border-emerald-100 bg-emerald-50/40">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />{' '}
+                Your rider rating
+              </h3>
+              <div className="flex items-center gap-3 mb-2">
+                <StarRating
+                  value={ratingStars}
+                  size="sm"
+                  disabled
+                />
+              </div>
+              {ratingComment && (
+                <p className="text-sm text-gray-600 italic">
+                  &ldquo;{ratingComment}&rdquo;
+                </p>
+              )}
+            </Card>
+          </motion.div>
+        )}
+
+        {order.status === 'delivered' && !ratingSubmitted && !existingDriverRating && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="p-5 border-orange-100">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Bike className="h-4 w-4 text-orange-400" /> Rate your delivery
+                rider
+              </h3>
+              <div className="mb-3">
+                <StarRating
+                  value={ratingStars}
+                  onChange={setRatingStars}
+                  hoverValue={ratingHover}
+                  onHover={setRatingHover}
+                  size="lg"
+                />
+              </div>
+              <Textarea
+                placeholder="Leave a comment (optional)"
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                className="mb-3 text-sm resize-none"
+                rows={2}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={ratingStars === 0 || ratingSubmitting}
+                  onClick={handleRatingSubmit}
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  {ratingSubmitting && (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  )}
+                  Submit Rating
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setRatingSubmitted(true)}
+                >
+                  Skip
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
         )}
       </motion.div>
     </div>

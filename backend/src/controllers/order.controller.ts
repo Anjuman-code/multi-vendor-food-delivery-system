@@ -9,6 +9,8 @@ import CustomerProfile from "../models/CustomerProfile";
 import { LoyaltyTransactionType } from "../models/LoyaltyTransaction";
 import MenuItem from "../models/MenuItem";
 import Restaurant from "../models/Restaurant";
+import DriverRating from "../models/DriverRating";
+import Review from "../models/Review";
 import { computeDeliveryFee } from "./delivery-zone.controller";
 import { applyCampaigns } from "./campaign.controller";
 import { processReferralReward } from "./referral.controller";
@@ -414,8 +416,136 @@ export const createOrder = async (
 };
 
 /**
+ * Build a single sub-order from a restaurant's items in the cart.
+ */
+const buildSubOrder = async (
+  params: {
+    restaurantId: Types.ObjectId;
+    items: Array<{
+      key: string;
+      restaurantId: Types.ObjectId;
+      restaurantName: string;
+      menuItemId: Types.ObjectId;
+      name: string;
+      price: number;
+      image?: string;
+      quantity: number;
+      variants: Array<{ variantId?: Types.ObjectId; name: string; price: number }>;
+      addons: Array<{ addonId?: Types.ObjectId; name: string; price: number }>;
+      specialInstructions?: string;
+    }>;
+    customerId: Types.ObjectId;
+    deliveryAddress: any;
+    paymentMethod: string;
+  },
+): Promise<{
+  order: any;
+  subtotal: number;
+  deliveryFee: number;
+  tax: number;
+  discount: number;
+  total: number;
+}> => {
+  let subtotal = 0;
+  const orderItems: Array<{
+    menuItemId: Types.ObjectId;
+    name: string;
+    price: number;
+    quantity: number;
+    variants: TrustedItemOption[];
+    addons: TrustedItemOption[];
+    specialInstructions?: string;
+    itemTotal: number;
+  }> = [];
+
+  for (const item of params.items) {
+    const menuItem = await MenuItem.findOne({
+      _id: item.menuItemId,
+      restaurantId: params.restaurantId,
+    });
+    if (!menuItem) {
+      throw new ValidationError(
+        `Menu item ${item.menuItemId} is not available for ${params.restaurantId}`,
+      );
+    }
+    if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
+      throw new ValidationError(`${menuItem.name} is currently unavailable`);
+    }
+    if (menuItem.stockStatus === "out_of_stock") {
+      throw new ValidationError(`${menuItem.name} is currently out of stock`);
+    }
+
+    const quantity = item.quantity;
+
+    const variants = resolveRequestedOptions(
+      item.variants || [],
+      menuItem.variants,
+      "variant",
+      menuItem.name,
+    );
+    const addons = resolveRequestedOptions(
+      item.addons || [],
+      menuItem.addons,
+      "addon",
+      menuItem.name,
+    );
+
+    const itemPrice =
+      menuItem.price +
+      variants.reduce((sum, opt) => sum + opt.price, 0) +
+      addons.reduce((sum, opt) => sum + opt.price, 0);
+
+    const itemTotal = itemPrice * quantity;
+    subtotal += itemTotal;
+
+    orderItems.push({
+      menuItemId: menuItem._id,
+      name: menuItem.name,
+      price: menuItem.price,
+      quantity,
+      variants,
+      addons,
+      specialInstructions: item.specialInstructions,
+      itemTotal,
+    });
+  }
+
+  const restaurant = await Restaurant.findById(params.restaurantId).select("deliveryFee");
+  let deliveryFee = restaurant?.deliveryFee || 50;
+
+  if (params.deliveryAddress?.coordinates) {
+    try {
+      const zoneFee = await computeDeliveryFee(
+        params.restaurantId.toString(),
+        params.deliveryAddress.coordinates.latitude,
+        params.deliveryAddress.coordinates.longitude,
+        subtotal,
+      );
+      if (zoneFee.fee >= 0) {
+        deliveryFee = zoneFee.fee;
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  const TAX_RATE = 0.05;
+  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+
+  return {
+    order: null,
+    subtotal,
+    deliveryFee,
+    tax,
+    discount: 0,
+    total: subtotal + tax + deliveryFee,
+  };
+};
+
+/**
  * POST /api/orders/from-cart
- * Create an order from the authenticated user's server-side cart.
+ * Create orders from the authenticated user's server-side cart.
+ * Supports multi-restaurant carts – one sub-order per restaurant.
  */
 export const createOrderFromCart = async (
   req: Request,
@@ -442,75 +572,58 @@ export const createOrderFromCart = async (
       throw new ValidationError("Your cart is empty");
     }
 
-    const restaurantObjectId = cart.restaurantId;
+    // Group cart items by restaurant
+    // Fallback for legacy carts where items lack restaurantId:
+    // use the old cart-level restaurantId (from toObject/get)
+    const legacyRestId = (cart as any).restaurantId?.toString();
+    const legacyRestName = (cart as any).restaurantName || "";
+    const restaurantGroups = new Map<string, typeof cart.items>();
+    for (const item of cart.items) {
+      const restId = item.restaurantId?.toString() || legacyRestId || "unknown";
+      const group = restaurantGroups.get(restId) || [];
+      if (!item.restaurantId && legacyRestId) {
+        (item as any).restaurantId = legacyRestId;
+        (item as any).restaurantName = legacyRestName;
+      }
+      group.push(item);
+      restaurantGroups.set(restId, group);
+    }
 
-    // Verify menu items and compute totals
-    let subtotal = 0;
-    const orderItems: Array<{
-      menuItemId: Types.ObjectId;
-      name: string;
-      price: number;
-      quantity: number;
-      variants: TrustedItemOption[];
-      addons: TrustedItemOption[];
-      specialInstructions?: string;
-      itemTotal: number;
+    if (restaurantGroups.size > 2) {
+      throw new ValidationError("Orders can include items from up to 2 restaurants only");
+    }
+
+    // Calculate combined subtotal for coupon validation
+    let combinedSubtotal = 0;
+    const groupData: Array<{
+      restaurantId: Types.ObjectId;
+      items: typeof cart.items;
+      subtotal: number;
+      deliveryFee: number;
+      tax: number;
     }> = [];
 
-    for (const item of cart.items) {
-      const menuItem = await MenuItem.findOne({
-        _id: item.menuItemId,
-        restaurantId: restaurantObjectId,
+    for (const [restIdStr, items] of restaurantGroups) {
+      const restId = new Types.ObjectId(restIdStr);
+      const result = await buildSubOrder({
+        restaurantId: restId,
+        items,
+        customerId: authReq.user._id,
+        deliveryAddress,
+        paymentMethod,
       });
-      if (!menuItem) {
-        throw new ValidationError(
-          `Menu item ${item.menuItemId} is not available for this restaurant`,
-        );
-      }
-      if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
-        throw new ValidationError(`${menuItem.name} is currently unavailable`);
-      }
-      if (menuItem.stockStatus === "out_of_stock") {
-        throw new ValidationError(`${menuItem.name} is currently out of stock`);
-      }
-
-      const quantity = item.quantity;
-
-      const variants = resolveRequestedOptions(
-        item.variants || [],
-        menuItem.variants,
-        "variant",
-        menuItem.name,
-      );
-      const addons = resolveRequestedOptions(
-        item.addons || [],
-        menuItem.addons,
-        "addon",
-        menuItem.name,
-      );
-
-      const itemPrice =
-        menuItem.price +
-        variants.reduce((sum, option) => sum + option.price, 0) +
-        addons.reduce((sum, option) => sum + option.price, 0);
-
-      const itemTotal = itemPrice * quantity;
-      subtotal += itemTotal;
-
-      orderItems.push({
-        menuItemId: menuItem._id,
-        name: menuItem.name,
-        price: menuItem.price,
-        quantity,
-        variants,
-        addons,
-        specialInstructions: item.specialInstructions,
-        itemTotal,
+      combinedSubtotal += result.subtotal;
+      groupData.push({
+        restaurantId: restId,
+        items,
+        subtotal: result.subtotal,
+        deliveryFee: result.deliveryFee,
+        tax: result.tax,
       });
     }
 
     // Coupon validation
-    let discount = 0;
+    let totalDiscount = 0;
     let appliedCoupon: Awaited<ReturnType<typeof Coupon.findOne>> = null;
 
     if (couponCode) {
@@ -536,22 +649,16 @@ export const createOrderFromCart = async (
       ) {
         throw new ValidationError("You have already used this coupon");
       }
-      if (subtotal < coupon.minOrderAmount) {
+      if (combinedSubtotal < coupon.minOrderAmount) {
         throw new ValidationError(
           `Minimum order amount for this coupon is ${coupon.minOrderAmount}`,
         );
       }
-      if (
-        coupon.applicableRestaurants.length > 0 &&
-        !coupon.applicableRestaurants.some((id) => id.toString() === restaurantObjectId.toString())
-      ) {
-        throw new ValidationError("Coupon is not valid for this restaurant");
-      }
 
-      discount =
+      totalDiscount =
         coupon.type === CouponType.PERCENTAGE
-          ? Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
-          : Math.min(coupon.value, subtotal);
+          ? Math.min((combinedSubtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
+          : Math.min(coupon.value, combinedSubtotal);
       appliedCoupon = coupon;
     }
 
@@ -561,8 +668,8 @@ export const createOrderFromCart = async (
       const profile = await CustomerProfile.findOne({ userId: authReq.user._id });
       const campaignResult = await applyCampaigns(
         authReq.user._id.toString(),
-        restaurantObjectId.toString(),
-        subtotal,
+        "", // campaigns applied at group level, discount distributed proportionally
+        combinedSubtotal,
         !profile || profile.totalOrders === 0,
         profile?.tier || "bronze",
       );
@@ -570,55 +677,120 @@ export const createOrderFromCart = async (
     } catch {
       // Non-blocking
     }
-    discount += campaignDiscount;
+    totalDiscount += campaignDiscount;
 
-    const TAX_RATE = 0.05;
+    // Distribute discount proportionally across restaurant groups
+    const groupDiscounts = groupData.map((g) =>
+      combinedSubtotal > 0
+        ? Math.round((g.subtotal / combinedSubtotal) * totalDiscount * 100) / 100
+        : 0,
+    );
 
-    // Compute delivery fee from zone, falling back to restaurant default
-    const restaurant = await Restaurant.findById(restaurantObjectId).select("deliveryFee");
-    let deliveryFee = restaurant?.deliveryFee || 50;
+    // Generate a common group order ID so sub-orders are linked
+    const groupOrderId = new Types.ObjectId();
 
-    if (deliveryAddress?.coordinates) {
-      try {
-        const zoneFee = await computeDeliveryFee(
-          restaurantObjectId.toString(),
-          deliveryAddress.coordinates.latitude,
-          deliveryAddress.coordinates.longitude,
-          subtotal,
-        );
-        if (zoneFee.fee >= 0) {
-          deliveryFee = zoneFee.fee;
+    const createdOrders: Array<any> = [];
+
+    for (let i = 0; i < groupData.length; i++) {
+      const g = groupData[i];
+      const discount = groupDiscounts[i];
+      const total = g.subtotal + g.tax + g.deliveryFee - discount;
+
+      // Re-validate items and create the order document
+      let subSubtotal = 0;
+      const orderItems: Array<{
+        menuItemId: Types.ObjectId;
+        name: string;
+        price: number;
+        quantity: number;
+        variants: TrustedItemOption[];
+        addons: TrustedItemOption[];
+        specialInstructions?: string;
+        itemTotal: number;
+      }> = [];
+
+      for (const item of g.items) {
+        const menuItem = await MenuItem.findOne({
+          _id: item.menuItemId,
+          restaurantId: g.restaurantId,
+        });
+        if (!menuItem) {
+          throw new ValidationError(
+            `Menu item ${item.menuItemId} is not available`,
+          );
         }
-      } catch {
-        // Non-blocking
+        if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
+          throw new ValidationError(`${menuItem.name} is currently unavailable`);
+        }
+        if (menuItem.stockStatus === "out_of_stock") {
+          throw new ValidationError(`${menuItem.name} is currently out of stock`);
+        }
+
+        const quantity = item.quantity;
+        const variants = resolveRequestedOptions(
+          item.variants || [],
+          menuItem.variants,
+          "variant",
+          menuItem.name,
+        );
+        const addons = resolveRequestedOptions(
+          item.addons || [],
+          menuItem.addons,
+          "addon",
+          menuItem.name,
+        );
+
+        const itemPrice =
+          menuItem.price +
+          variants.reduce((sum, opt) => sum + opt.price, 0) +
+          addons.reduce((sum, opt) => sum + opt.price, 0);
+
+        const itemTotal = itemPrice * quantity;
+        subSubtotal += itemTotal;
+
+        orderItems.push({
+          menuItemId: menuItem._id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity,
+          variants,
+          addons,
+          specialInstructions: item.specialInstructions,
+          itemTotal,
+        });
       }
+
+      const order = await Order.create({
+        orderNumber: generateOrderNumber(),
+        customerId: authReq.user._id,
+        restaurantId: g.restaurantId,
+        groupOrderId,
+        items: orderItems,
+        deliveryAddress,
+        paymentMethod,
+        paymentStatus: PaymentStatus.PENDING,
+        subtotal: subSubtotal,
+        tax: g.tax,
+        deliveryFee: g.deliveryFee,
+        discount,
+        tipAmount,
+        total: Math.max(total + tipAmount, 0),
+        couponCode: couponCode?.toUpperCase(),
+        specialInstructions,
+        estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000),
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
+        statusHistory: [{
+          status: OrderStatus.PENDING,
+          timestamp: new Date(),
+          actorId: authReq.user._id,
+          actorRole: authReq.user.role,
+        }],
+      });
+
+      createdOrders.push(order);
     }
 
-    const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-    const total = subtotal + tax + deliveryFee - discount;
-
-    const order = await Order.create({
-      orderNumber: generateOrderNumber(),
-      customerId: authReq.user._id,
-      restaurantId: restaurantObjectId,
-      items: orderItems,
-      deliveryAddress,
-      paymentMethod,
-      paymentStatus: PaymentStatus.PENDING,
-      subtotal,
-      tax,
-      deliveryFee,
-      discount,
-      tipAmount,
-      total: Math.max(total + tipAmount, 0),
-      couponCode: couponCode?.toUpperCase(),
-      specialInstructions,
-      estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000),
-      scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
-      statusHistory: [{ status: OrderStatus.PENDING, timestamp: new Date(), actorId: authReq.user._id, actorRole: authReq.user.role }],
-    });
-
-    // Clear cart after successful order
+    // Clear cart after all sub-orders created
     await Cart.deleteOne({ userId: authReq.user._id });
 
     if (appliedCoupon) {
@@ -627,17 +799,18 @@ export const createOrderFromCart = async (
       await appliedCoupon.save();
     }
 
-    // Update customer stats
+    // Update customer stats (once per group order)
     const profile = await CustomerProfile.findOne({
       userId: authReq.user._id,
     });
     if (profile) {
+      const groupTotal = createdOrders.reduce((s, o) => s + o.total, 0);
       profile.totalOrders += 1;
-      profile.totalSpent += order.total;
+      profile.totalSpent += groupTotal;
       profile.averageOrderValue = profile.totalSpent / profile.totalOrders;
       await profile.save();
 
-      const pointsEarned = Math.floor(order.total);
+      const pointsEarned = Math.floor(groupTotal);
       if (pointsEarned > 0) {
         try {
           const LoyaltyTransactionTypeModule = await import("../models/LoyaltyTransaction");
@@ -645,8 +818,8 @@ export const createOrderFromCart = async (
             authReq.user._id,
             pointsEarned,
             LoyaltyTransactionTypeModule.LoyaltyTransactionType.ORDER_EARNED,
-            `Points earned from order ${order.orderNumber}`,
-            order._id,
+            `Points earned from group order ${createdOrders[0].orderNumber}`,
+            groupOrderId,
           );
         } catch {
           // Non-blocking
@@ -663,41 +836,49 @@ export const createOrderFromCart = async (
     }
 
     // Create notification
+    const firstOrder = createdOrders[0];
     await Notification.create({
       userId: authReq.user._id,
       type: NotificationType.ORDER_UPDATE,
       title: "Order Placed!",
-      message: `Your order ${order.orderNumber} has been placed successfully.`,
-      data: { orderId: order._id },
+      message: `Your order${createdOrders.length > 1 ? "s" : ""} ${createdOrders.map((o) => o.orderNumber).join(", ")} ${createdOrders.length > 1 ? "have" : "has"} been placed successfully.`,
+      data: { orderId: firstOrder._id, groupOrderId },
     });
 
-    // Emit real-time newOrder event to the vendor
-    try {
-      const VendorProfile = (await import("../models/VendorProfile")).default;
-      const vendorProfile = await VendorProfile.findOne({
-        restaurantIds: restaurantObjectId,
-      });
-      if (vendorProfile) {
-        getIO()
-          .to(`vendor:${vendorProfile.userId.toString()}`)
-          .emit("newOrder", {
-            _id: order._id.toString(),
-            orderNumber: order.orderNumber,
-            customerName: `${authReq.user.firstName} ${authReq.user.lastName}`,
-            total: order.total,
-            items: order.items.map((i) => ({
-              name: i.name,
-              quantity: i.quantity,
-            })),
-            status: order.status,
-            createdAt: order.createdAt,
-          });
+    // Emit real-time newOrder events to each vendor
+    for (const order of createdOrders) {
+      try {
+        const VendorProfile = (await import("../models/VendorProfile")).default;
+        const vendorProfile = await VendorProfile.findOne({
+          restaurantIds: order.restaurantId,
+        });
+        if (vendorProfile) {
+          getIO()
+            .to(`vendor:${vendorProfile.userId.toString()}`)
+            .emit("newOrder", {
+              _id: order._id.toString(),
+              orderNumber: order.orderNumber,
+              customerName: `${authReq.user.firstName} ${authReq.user.lastName}`,
+              total: order.total,
+              items: order.items.map((i: any) => ({
+                name: i.name,
+                quantity: i.quantity,
+              })),
+              status: order.status,
+              createdAt: order.createdAt,
+            });
+        }
+      } catch {
+        // Non-blocking
       }
-    } catch {
-      // Non-blocking
     }
 
-    successResponse(res, { order }, "Order placed successfully", 201);
+    successResponse(
+      res,
+      { orders: createdOrders, groupOrderId },
+      "Order placed successfully",
+      201,
+    );
   } catch (error) {
     next(error);
   }
@@ -765,14 +946,22 @@ export const getOrderById = async (
 
     const { orderId } = req.params;
 
-    const order = await Order.findOne({
-      _id: orderId,
-      customerId: authReq.user._id,
-    }).populate("restaurantId", "name images.logo contactInfo");
+    const [order, existingReview, existingDriverRating] = await Promise.all([
+      Order.findOne({
+        _id: orderId,
+        customerId: authReq.user._id,
+      }).populate("restaurantId", "name images.logo contactInfo"),
+      Review.findOne({ orderId, customerId: authReq.user._id }),
+      DriverRating.findOne({ orderId, customerId: authReq.user._id }),
+    ]);
 
     if (!order) throw new NotFoundError("Order not found");
 
-    successResponse(res, { order });
+    successResponse(res, {
+      order,
+      review: existingReview,
+      driverRating: existingDriverRating,
+    });
   } catch (error) {
     next(error);
   }

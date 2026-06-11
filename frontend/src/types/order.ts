@@ -51,6 +51,7 @@ export interface Order {
   orderNumber: string;
   customerId: string;
   restaurantId: string | OrderRestaurant;
+  groupOrderId?: string;
   driverId?: string;
   items: OrderItem[];
   deliveryAddress: DeliveryAddress;
@@ -69,6 +70,38 @@ export interface Order {
   estimatedDeliveryTime?: string;
   actualDeliveryTime?: string;
   cancelReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderFromCartResponse {
+  orders: Order[];
+  groupOrderId: string;
+}
+
+export interface OrderReview {
+  _id: string;
+  customerId: string;
+  restaurantId: string;
+  orderId: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  images: string[];
+  helpfulVotes: number;
+  unhelpfulVotes: number;
+  reply?: { text: string; repliedAt: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderDriverRating {
+  _id: string;
+  driverId: string;
+  customerId: string;
+  orderId: string;
+  rating: number;
+  comment?: string;
   createdAt: string;
   updatedAt: string;
 }

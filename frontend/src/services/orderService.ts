@@ -3,7 +3,7 @@
  */
 import httpClient from "@/lib/httpClient";
 import type { ApiResponse } from "@/services/authService";
-import type { Order, CreateOrderPayload } from "@/types/order";
+import type { Order, CreateOrderPayload, CreateOrderFromCartResponse, OrderReview, OrderDriverRating } from "@/types/order";
 
 interface OrderListData {
   orders: Order[];
@@ -63,15 +63,14 @@ const orderService = {
   /** POST /api/orders/from-cart – Place an order from the server cart */
   async createOrderFromCart(
     payload: CreateOrderFromCartPayload,
-  ): Promise<ApiResponse<{ order: Order }>> {
+  ): Promise<ApiResponse<CreateOrderFromCartResponse>> {
     try {
-      const response = await httpClient.post<ApiResponse<{ order: Order }>>(
-        "/api/orders/from-cart",
-        payload,
-      );
+      const response = await httpClient.post<
+        ApiResponse<CreateOrderFromCartResponse>
+      >("/api/orders/from-cart", payload);
       return response.data;
     } catch (error: unknown) {
-      return extractError(error) as ApiResponse<{ order: Order }>;
+      return extractError(error) as ApiResponse<CreateOrderFromCartResponse>;
     }
   },
 
@@ -96,15 +95,29 @@ const orderService = {
     }
   },
 
-  /** GET /api/orders/:orderId – Get order details */
-  async getOrderById(orderId: string): Promise<ApiResponse<{ order: Order }>> {
+  /** GET /api/orders/:orderId – Get order details with review + driver rating */
+  async getOrderById(orderId: string): Promise<
+    ApiResponse<{
+      order: Order;
+      review: OrderReview | null;
+      driverRating: OrderDriverRating | null;
+    }>
+  > {
     try {
-      const response = await httpClient.get<ApiResponse<{ order: Order }>>(
-        `/api/orders/${orderId}`,
-      );
+      const response = await httpClient.get<
+        ApiResponse<{
+          order: Order;
+          review: OrderReview | null;
+          driverRating: OrderDriverRating | null;
+        }>
+      >(`/api/orders/${orderId}`);
       return response.data;
     } catch (error: unknown) {
-      return extractError(error) as ApiResponse<{ order: Order }>;
+      return extractError(error) as ApiResponse<{
+        order: Order;
+        review: OrderReview | null;
+        driverRating: OrderDriverRating | null;
+      }>;
     }
   },
 
