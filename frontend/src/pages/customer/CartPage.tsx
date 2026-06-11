@@ -116,12 +116,20 @@ const CartPage: React.FC = () => {
                 Browse Restaurants
               </Button>
             </Link>
-            <Link to="/">
-              <Button variant="outline" className="px-6 w-full sm:w-auto">
-                Go Home
-              </Button>
-            </Link>
+            {isAuthenticated && (
+              <Link to="/orders">
+                <Button variant="outline" className="px-6 w-full sm:w-auto">
+                  View Order History &rarr;
+                </Button>
+              </Link>
+            )}
           </div>
+          <Link
+            to="/"
+            className="inline-block mt-4 text-sm text-gray-500 hover:text-gray-700 font-medium hover:underline transition-colors"
+          >
+            Go Home
+          </Link>
         </motion.div>
       </div>
     );
@@ -403,6 +411,15 @@ const CartPage: React.FC = () => {
                     Secure checkout · No hidden fees
                   </p>
                 </Card>
+
+                  {isAuthenticated && (
+                    <Link
+                      to="/orders"
+                      className="block text-center text-xs text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
+                    >
+                      View Order History &rarr;
+                    </Link>
+                  )}
               </div>
             </div>
           </div>
