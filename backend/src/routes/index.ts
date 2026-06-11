@@ -39,14 +39,15 @@ router.use("/vendor/delivery-zone", deliveryZoneRoutes);
 router.use(supportRoutes);
 router.use("/admin/campaigns", campaignRoutes);
 router.use("/referrals", referralRoutes);
-router.use("/driver", driverRoutes);
 
 import { UserRole } from "../config/constants";
 import { authenticate, authorize } from "../controllers/../middleware/auth.middleware";
 import { submitDriverRating } from "../controllers/driver.controller";
 
-// Customer rates a driver
+// Customer rates a driver — must be before /driver driverRoutes to avoid DRIVER-only auth
 router.post("/driver/ratings", authenticate, authorize(UserRole.CUSTOMER), submitDriverRating);
+
+router.use("/driver", driverRoutes);
 
 // Restaurant-scoped review listing (public)
 router.get("/restaurants/:restaurantId/reviews", getRestaurantReviews);

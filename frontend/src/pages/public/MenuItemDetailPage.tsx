@@ -47,7 +47,7 @@ const MenuItemDetailPage: React.FC = () => {
     itemId: string;
   }>();
   const navigate = useNavigate();
-  const { addItem, isRestaurantMismatch, clearCart } = useCart();
+  const { addItem } = useCart();
   const { toast } = useToast();
 
   const [item, setItem] = useState<MenuItem | null>(null);
@@ -124,12 +124,7 @@ const MenuItemDetailPage: React.FC = () => {
       })),
     };
 
-    if (isRestaurantMismatch(restaurantId)) {
-      await clearCart();
-      await addItem(restaurantId, "", cartItem, true);
-    } else {
-      await addItem(restaurantId, "", cartItem);
-    }
+    await addItem(restaurantId, "", cartItem);
 
     toast({
       title: "Added to cart",
@@ -142,8 +137,6 @@ const MenuItemDetailPage: React.FC = () => {
     selectedVariant,
     selectedAddons,
     addItem,
-    isRestaurantMismatch,
-    clearCart,
     toast,
   ]);
 

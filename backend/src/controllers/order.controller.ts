@@ -554,7 +554,8 @@ export const createOrderFromCart = async (
 ): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-    if (!authReq.user) throw new AuthenticationError();
+    const currentUser = authReq.user;
+    if (!currentUser) throw new AuthenticationError();
 
     const {
       deliveryAddress,
@@ -567,24 +568,26 @@ export const createOrderFromCart = async (
 
     // Fetch server cart
     const Cart = (await import("../models/Cart")).default;
-    const cart = await Cart.findOne({ userId: authReq.user._id });
+    const cart = await Cart.findOne({ userId: currentUser._id });
     if (!cart || cart.items.length === 0) {
       throw new ValidationError("Your cart is empty");
     }
 
+    // Migrate legacy cart items (old single-restaurant schema)
+    try {
+      const { migrateLegacyCartItems: migrate } = await import("../controllers/cart.controller");
+      if (typeof migrate === "function") {
+        migrate(cart);
+      }
+    } catch {
+      // Non-blocking – migration is best-effort
+    }
+
     // Group cart items by restaurant
-    // Fallback for legacy carts where items lack restaurantId:
-    // use the old cart-level restaurantId (from toObject/get)
-    const legacyRestId = (cart as any).restaurantId?.toString();
-    const legacyRestName = (cart as any).restaurantName || "";
     const restaurantGroups = new Map<string, typeof cart.items>();
     for (const item of cart.items) {
-      const restId = item.restaurantId?.toString() || legacyRestId || "unknown";
+      const restId = item.restaurantId?.toString() || "unknown";
       const group = restaurantGroups.get(restId) || [];
-      if (!item.restaurantId && legacyRestId) {
-        (item as any).restaurantId = legacyRestId;
-        (item as any).restaurantName = legacyRestName;
-      }
       group.push(item);
       restaurantGroups.set(restId, group);
     }
@@ -608,7 +611,7 @@ export const createOrderFromCart = async (
       const result = await buildSubOrder({
         restaurantId: restId,
         items,
-        customerId: authReq.user._id,
+        customerId: currentUser._id,
         deliveryAddress,
         paymentMethod,
       });
@@ -644,7 +647,7 @@ export const createOrderFromCart = async (
       if (
         coupon.perUserLimit > 0 &&
         coupon.usedBy.filter(
-          (entry) => entry.userId.toString() === authReq.user._id.toString(),
+          (entry) => entry.userId.toString() === currentUser._id.toString(),
         ).length >= coupon.perUserLimit
       ) {
         throw new ValidationError("You have already used this coupon");
@@ -665,9 +668,9 @@ export const createOrderFromCart = async (
     // Auto-apply active campaigns
     let campaignDiscount = 0;
     try {
-      const profile = await CustomerProfile.findOne({ userId: authReq.user._id });
+      const profile = await CustomerProfile.findOne({ userId: currentUser._id });
       const campaignResult = await applyCampaigns(
-        authReq.user._id.toString(),
+        currentUser._id.toString(),
         "", // campaigns applied at group level, discount distributed proportionally
         combinedSubtotal,
         !profile || profile.totalOrders === 0,
@@ -762,7 +765,7 @@ export const createOrderFromCart = async (
 
       const order = await Order.create({
         orderNumber: generateOrderNumber(),
-        customerId: authReq.user._id,
+        customerId: currentUser._id,
         restaurantId: g.restaurantId,
         groupOrderId,
         items: orderItems,
@@ -782,8 +785,8 @@ export const createOrderFromCart = async (
         statusHistory: [{
           status: OrderStatus.PENDING,
           timestamp: new Date(),
-          actorId: authReq.user._id,
-          actorRole: authReq.user.role,
+          actorId: currentUser._id,
+          actorRole: currentUser.role,
         }],
       });
 
@@ -791,17 +794,17 @@ export const createOrderFromCart = async (
     }
 
     // Clear cart after all sub-orders created
-    await Cart.deleteOne({ userId: authReq.user._id });
+    await Cart.deleteOne({ userId: currentUser._id });
 
     if (appliedCoupon) {
       appliedCoupon.usedCount += 1;
-      appliedCoupon.usedBy.push({ userId: authReq.user._id, usedAt: new Date() });
+      appliedCoupon.usedBy.push({ userId: currentUser._id, usedAt: new Date() });
       await appliedCoupon.save();
     }
 
     // Update customer stats (once per group order)
     const profile = await CustomerProfile.findOne({
-      userId: authReq.user._id,
+      userId: currentUser._id,
     });
     if (profile) {
       const groupTotal = createdOrders.reduce((s, o) => s + o.total, 0);
@@ -815,7 +818,7 @@ export const createOrderFromCart = async (
         try {
           const LoyaltyTransactionTypeModule = await import("../models/LoyaltyTransaction");
           await CustomerProfile.addLoyaltyPoints(
-            authReq.user._id,
+            currentUser._id,
             pointsEarned,
             LoyaltyTransactionTypeModule.LoyaltyTransactionType.ORDER_EARNED,
             `Points earned from group order ${createdOrders[0].orderNumber}`,
@@ -828,7 +831,7 @@ export const createOrderFromCart = async (
 
       if (profile.totalOrders === 1) {
         try {
-          await processReferralReward(authReq.user._id.toString());
+          await processReferralReward(currentUser._id.toString());
         } catch {
           // Non-blocking
         }
@@ -838,7 +841,7 @@ export const createOrderFromCart = async (
     // Create notification
     const firstOrder = createdOrders[0];
     await Notification.create({
-      userId: authReq.user._id,
+      userId: currentUser._id,
       type: NotificationType.ORDER_UPDATE,
       title: "Order Placed!",
       message: `Your order${createdOrders.length > 1 ? "s" : ""} ${createdOrders.map((o) => o.orderNumber).join(", ")} ${createdOrders.length > 1 ? "have" : "has"} been placed successfully.`,
@@ -858,7 +861,7 @@ export const createOrderFromCart = async (
             .emit("newOrder", {
               _id: order._id.toString(),
               orderNumber: order.orderNumber,
-              customerName: `${authReq.user.firstName} ${authReq.user.lastName}`,
+              customerName: `${currentUser.firstName} ${currentUser.lastName}`,
               total: order.total,
               items: order.items.map((i: any) => ({
                 name: i.name,

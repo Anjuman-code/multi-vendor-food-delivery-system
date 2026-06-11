@@ -76,6 +76,7 @@ export interface IOrder {
   orderNumber: string;
   customerId: Types.ObjectId;
   restaurantId: Types.ObjectId;
+  groupOrderId?: Types.ObjectId;
   driverId?: Types.ObjectId;
   items: IOrderItem[];
   deliveryAddress: IDeliveryAddress;
@@ -215,6 +216,10 @@ const orderSchema = new Schema<IOrder>(
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+    groupOrderId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Order',
+    },
     items: {
       type: [orderItemSchema],
       required: true,
@@ -264,6 +269,7 @@ const orderSchema = new Schema<IOrder>(
 
 orderSchema.index({ customerId: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, status: 1 });
+orderSchema.index({ groupOrderId: 1 });
 
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
 

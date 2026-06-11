@@ -140,7 +140,7 @@ code {
 
 /* ── KPI card pattern ──────────────────────────────────────────── */
 .kpi-card {
-  @apply bg-white rounded-xl border border-gray-100 p-5 shadow-card;
+  @apply bg-white rounded-xl border border-gray-100 p-5 shadow-card h-full;
 }
 
 .kpi-card-label {

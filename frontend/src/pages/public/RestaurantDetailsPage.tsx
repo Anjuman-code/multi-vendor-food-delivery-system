@@ -20,7 +20,6 @@ import { Textarea } from "@/components/ui/textarea";
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/hooks/use-toast";
 import apiService from "@/services/apiService";
 import menuService from "@/services/menuService";
@@ -160,8 +159,7 @@ const RestaurantDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const confirm = useConfirm();
-  const { addItem, clearCart, items: cartItems, updateQuantity } = useCart();
+  const { addItem, items: cartItems, updateQuantity } = useCart();
   const isCustomer = user?.role === "customer";
 
   const [restaurant, setRestaurant] = useState<ApiRestaurant | null>(null);
@@ -398,31 +396,13 @@ const RestaurantDetailsPage: React.FC = () => {
         addons: [],
       };
 
-      const added = await addItem(restaurant._id, restaurant.name, cartItem);
-      if (added) {
-        toast({
-          title: "Added to cart",
-          description: `${item.name} has been added to your cart.`,
-        });
-        return;
-      }
-
-      const shouldReplace = await confirm({
-        title: "Different restaurant",
-        description:
-          "Your cart has items from another restaurant. Clear cart and add this item?",
-        confirmLabel: "Clear & add",
-      });
-      if (!shouldReplace) return;
-
-      await clearCart();
-      await addItem(restaurant._id, restaurant.name, cartItem, true);
+      await addItem(restaurant._id, restaurant.name, cartItem);
       toast({
-        title: "Cart updated",
+        title: "Added to cart",
         description: `${item.name} has been added to your cart.`,
       });
     },
-    [addItem, clearCart, restaurant, toast],
+    [addItem, restaurant, toast],
   );
 
   const handleIncreaseQuantity = useCallback(

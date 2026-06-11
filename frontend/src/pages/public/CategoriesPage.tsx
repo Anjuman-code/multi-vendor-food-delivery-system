@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useCart } from "@/contexts/CartContext";
-import type { CartItem } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -65,7 +64,7 @@ const Breadcrumb: React.FC<{ category: string }> = ({ category }) => (
 
 const CategoriesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { addItem, items, updateQuantity, isRestaurantMismatch, clearCart } = useCart();
+  const { addItem, items, updateQuantity } = useCart();
   const { toast } = useToast();
 
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -75,23 +74,6 @@ const CategoriesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [showVegOnly, setShowVegOnly] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingAdd, setPendingAdd] = useState<{
-    restaurantId: string;
-    restaurantName: string;
-    cartItem: CartItem;
-  } | null>(null);
-
-  // Handle pending add after cart is cleared (restaurant switch)
-  useEffect(() => {
-    if (pendingAdd) {
-      addItem(pendingAdd.restaurantId, pendingAdd.restaurantName, pendingAdd.cartItem);
-      toast({
-        title: "Cart updated",
-        description: `${pendingAdd.cartItem.name} has been added to your cart.`,
-      });
-      setPendingAdd(null);
-    }
-  }, [pendingAdd, addItem, toast]);
 
   const getItemQuantity = useCallback(
     (menuItemId: string) => {
@@ -103,7 +85,7 @@ const CategoriesPage: React.FC = () => {
 
   const handleAddToCart = useCallback(
     async (menuItem: MenuItemByCategory) => {
-      const cartItem: CartItem = {
+      const cartItem = {
         menuItemId: menuItem._id,
         name: menuItem.name,
         price: menuItem.price,
@@ -113,23 +95,13 @@ const CategoriesPage: React.FC = () => {
         addons: [],
       };
 
-      if (isRestaurantMismatch(menuItem.restaurantId)) {
-        await clearCart();
-        setPendingAdd({
-          restaurantId: menuItem.restaurantId,
-          restaurantName: menuItem.restaurantName,
-          cartItem,
-        });
-        return;
-      }
-
       await addItem(menuItem.restaurantId, menuItem.restaurantName, cartItem);
       toast({
         title: "Added to cart",
         description: `${menuItem.name} has been added to your cart.`,
       });
     },
-    [addItem, isRestaurantMismatch, clearCart, toast],
+    [addItem, toast],
   );
 
   const handleUpdateQuantity = useCallback(
