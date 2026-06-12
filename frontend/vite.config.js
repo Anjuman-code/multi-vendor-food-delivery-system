@@ -53,6 +53,14 @@ export default defineConfig({
     }),
   ],
   resolve: { alias: { "@": resolve(__dirname, "./src") } },
+  server: {
+    proxy: {
+      '/uploads': {
+        target: `http://localhost:${process.env.BACKEND_PORT || 2002}`,
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     sourcemap: false,
     minify: "esbuild",
