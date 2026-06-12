@@ -19,6 +19,7 @@ const ContactPage = lazy(() => import("@/pages/public/ContactPage"));
 const FAQPage = lazy(() => import("./pages/public/FAQPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/public/PrivacyPolicyPage"));
 const TermsPage = lazy(() => import("./pages/public/TermsPage"));
+const RefundPolicyPage = lazy(() => import("./pages/public/RefundPolicyPage"));
 const RestaurantsPage = lazy(() => import("./pages/public/RestaurantsPage"));
 const RestaurantDetailsPage = lazy(() => import("./pages/public/RestaurantDetailsPage"));
 const NotFoundPage = lazy(() => import("./pages/public/NotFoundPage"));
@@ -109,6 +110,7 @@ function App(): React.ReactElement {
                       <Route path="/about" element={<AboutPage />} />
                       <Route path="/privacy" element={<PrivacyPolicyPage />} />
                       <Route path="/terms" element={<TermsPage />} />
+                      <Route path="/refund" element={<RefundPolicyPage />} />
                       <Route path="/contact" element={<ContactPage />} />
                       <Route path="/faq" element={<FAQPage />} />
                       <Route path="/help" element={<FAQPage />} />
