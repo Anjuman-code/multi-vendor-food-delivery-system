@@ -6,6 +6,7 @@ import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { UserRole } from "../config/constants";
 import SupportTicket, { TicketStatus } from "../models/SupportTicket";
+import Notification from "../models/Notification";
 import type { AuthRequest } from "../types";
 import { createAuditLog } from "../utils/audit.util";
 import {
@@ -15,6 +16,7 @@ import {
     ValidationError,
 } from "../utils/errors";
 import { successResponse } from "../utils/response.util";
+import { getIO } from "../socket";
 import type {
     AddMessageInput,
     CreateTicketInput,
@@ -54,6 +56,17 @@ export const createTicket = async (
     });
 
     successResponse(res, { ticket }, "Ticket created", 201);
+
+    // Notify admin/support agents
+    try {
+      getIO().to("admin:room").emit("ticket:new", {
+        _id: ticket._id,
+        subject: ticket.subject,
+        type: ticket.type,
+        priority: ticket.priority,
+        createdAt: ticket.createdAt,
+      });
+    } catch { /* socket not available */ }
   } catch (error) {
     next(error);
   }
@@ -138,6 +151,15 @@ export const addMessage = async (
     await ticket.save();
 
     successResponse(res, { ticket }, "Reply added");
+
+    // Notify admin/support agents of customer reply
+    try {
+      getIO().to("admin:room").emit("ticket:message", {
+        ticketId: ticket._id,
+        subject: ticket.subject,
+        message,
+      });
+    } catch { /* socket not available */ }
   } catch (error) {
     next(error);
   }
@@ -220,6 +242,7 @@ export const updateTicket = async (
     const ticket = await SupportTicket.findById(req.params.ticketId);
     if (!ticket) throw new NotFoundError("Ticket not found");
 
+    const oldStatus = ticket.status;
     const changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown }> = [];
 
     if (updates.status && updates.status !== ticket.status) {
@@ -259,6 +282,32 @@ export const updateTicket = async (
     }
 
     successResponse(res, { ticket }, "Ticket updated");
+
+    // Notify customer of status change
+    if (updates.status && updates.status !== oldStatus) {
+      try {
+        const statusMessages: Record<string, string> = {
+          resolved: "Your support ticket has been resolved.",
+          closed: "Your support ticket has been closed.",
+          waiting_on_user: "Support is waiting for your response.",
+          in_progress: "Your support ticket is being worked on.",
+        };
+        const msg = statusMessages[updates.status];
+        if (msg) {
+          await Notification.create({
+            userId: ticket.userId,
+            type: "system",
+            title: "Ticket Status Updated",
+            message: `${msg} Ticket: ${ticket.subject}`,
+            data: { ticketId: ticket._id, status: updates.status },
+          });
+          getIO().to(`user:${ticket.userId.toString()}`).emit("ticket:statusChange", {
+            ticketId: ticket._id,
+            status: updates.status,
+          });
+        }
+      } catch { /* notification not critical */ }
+    }
   } catch (error) {
     next(error);
   }
@@ -309,6 +358,23 @@ export const adminAddMessage = async (
     await ticket.save();
 
     successResponse(res, { ticket }, "Reply added");
+
+    // Notify customer of admin reply
+    try {
+      const ticketUserId = ticket.userId.toString();
+      await Notification.create({
+        userId: ticket.userId,
+        type: "system",
+        title: "Support Ticket Reply",
+        message: `A support agent replied to your ticket: ${ticket.subject}`,
+        data: { ticketId: ticket._id },
+      });
+      getIO().to(`user:${ticketUserId}`).emit("ticket:message", {
+        ticketId: ticket._id,
+        subject: ticket.subject,
+        message,
+      });
+    } catch { /* notification not critical */ }
   } catch (error) {
     next(error);
   }

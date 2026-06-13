@@ -18,6 +18,7 @@ import referralRoutes from "./referral.routes";
 import restaurantRoutes from "./restaurantRoutes";
 import reviewRoutes from "./review.routes";
 import supportRoutes from "./support.routes";
+import contactRoutes from "./contact.routes";
 import userRoutes from "./user.routes";
 import vendorRoutes from "./vendor.routes";
 
@@ -37,6 +38,7 @@ router.use("/admin", adminRoutes);
 router.use("/cart", cartRoutes);
 router.use("/vendor/delivery-zone", deliveryZoneRoutes);
 router.use(supportRoutes);
+router.use(contactRoutes);
 router.use("/admin/campaigns", campaignRoutes);
 router.use("/referrals", referralRoutes);
 
