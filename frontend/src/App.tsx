@@ -65,6 +65,7 @@ const VendorSettingsPage = lazy(() => import("./pages/vendor/VendorSettingsPage"
 const VendorSupportPage = lazy(() => import("./pages/vendor/VendorSupportPage"));
 const VendorCreateTicketPage = lazy(() => import("./pages/vendor/VendorCreateTicketPage"));
 const VendorTicketDetailPage = lazy(() => import("./pages/vendor/VendorTicketDetailPage"));
+const VendorOnboardingPage = lazy(() => import("./pages/vendor/VendorOnboardingPage"));
 
 // ── Rider pages ────────────────────────────────────────────────
 const RiderLayout = lazy(() => import("./layouts/RiderLayout"));
@@ -164,6 +165,9 @@ function App(): React.ReactElement {
                       <Route path="/verify-email" element={<VerifyEmail />} />
                     </Route>
                   </Route>
+
+                  {/* Vendor onboarding (no sidebar) */}
+                  <Route path="/vendor/onboarding" element={<VendorOnboardingPage />} />
 
                   {/* ── Vendor routes (own sidebar layout) ──── */}
                   <Route element={<VendorLayout />}>

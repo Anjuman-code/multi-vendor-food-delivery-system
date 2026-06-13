@@ -21,7 +21,9 @@ export function getPostAuthPath(user: Pick<AuthUser, "role" | "onboardingComplet
           : "/";
 
   if (user.onboardingCompleted) return base;
-  return user.role === "driver" ? "/rider/onboarding" : "/onboarding";
+  if (user.role === "driver") return "/rider/onboarding";
+  if (user.role === "vendor") return "/vendor/onboarding";
+  return "/onboarding";
 }
 
 /**

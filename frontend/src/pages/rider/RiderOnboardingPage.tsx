@@ -1,4 +1,11 @@
-import { Button } from '@/components/ui/button';
+import {
+  OnboardingLayout,
+  OptionCard,
+  StepHeader,
+  StepNav,
+  type OnboardingStep,
+} from "@/components/onboarding";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -6,41 +13,45 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { AnimatePresence, motion } from 'framer-motion';
+} from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
 import {
   Banknote,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
+  CheckCircle2,
+  Clock,
+  Coins,
+  FileCheck2,
   FileImage,
   Loader2,
+  Rocket,
   ShieldCheck,
+  Smartphone,
   Truck,
   Upload,
+  Wallet,
   X,
-} from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 
 const MOBILE_MONEY_PROVIDERS = [
-  { value: 'bkash', label: 'bKash' },
-  { value: 'nagad', label: 'Nagad' },
-  { value: 'rocket', label: 'Rocket' },
-  { value: 'upay', label: 'Upay' },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "rocket", label: "Rocket" },
+  { value: "upay", label: "Upay" },
 ];
 
 const onboardingSchema = z.object({
@@ -53,24 +64,48 @@ const onboardingSchema = z.object({
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
-const STEPS = [
-  { label: 'Documents', description: 'Upload your documents' },
-  { label: 'Payout', description: 'Set up your payout' },
-  { label: 'Ready', description: 'Start delivering' },
+const STEPS: OnboardingStep[] = [
+  { id: "welcome", label: "Welcome", description: "How it works", icon: Truck },
+  {
+    id: "documents",
+    label: "Documents",
+    description: "Verify your identity",
+    icon: FileImage,
+  },
+  { id: "payout", label: "Payout", description: "Get paid your way", icon: Wallet },
+  { id: "submit", label: "Submit", description: "Send for review", icon: Rocket },
 ];
 
 const DOCUMENT_FIELDS = [
-  { key: 'licensePhoto', label: "Driver's License", accept: 'image/*' },
-  { key: 'vehicleRegistrationPhoto', label: 'Vehicle Registration', accept: 'image/*' },
-  { key: 'insurancePhoto', label: 'Insurance Document', accept: 'image/*' },
+  {
+    key: "licensePhoto",
+    label: "Driver's license",
+    hint: "Front side, clearly readable",
+  },
+  {
+    key: "vehicleRegistrationPhoto",
+    label: "Vehicle registration",
+    hint: "Matches your registered vehicle",
+  },
+  {
+    key: "insurancePhoto",
+    label: "Insurance document",
+    hint: "Must be currently valid",
+  },
 ] as const;
+
+type PayoutMethod = "mobile" | "bank";
 
 const RiderOnboardingPage: React.FC = () => {
   const [step, setStep] = useState(0);
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("mobile");
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Record<string, string>>({});
-  const [existingProfile, setExistingProfile] = useState<Record<string, unknown> | null>(null);
+  const [existingProfile, setExistingProfile] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -79,19 +114,23 @@ const RiderOnboardingPage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { default: riderService } = await import('@/services/riderService');
+        const { default: riderService } = await import(
+          "@/services/riderService"
+        );
         const res = await riderService.getProfile();
-        const profile = (res.data as { data?: { profile: Record<string, unknown> } }).data?.profile ?? {};
+        const profile =
+          (res.data as { data?: { profile: Record<string, unknown> } }).data
+            ?.profile ?? {};
         setExistingProfile(profile);
         const docs = (profile?.documents as Record<string, string>) ?? {};
-        if (docs.licensePhoto) setDocuments((prev) => ({ ...prev, licensePhoto: docs.licensePhoto }));
-        if (docs.vehicleRegistrationPhoto) setDocuments((prev) => ({ ...prev, vehicleRegistrationPhoto: docs.vehicleRegistrationPhoto }));
-        if (docs.insurancePhoto) setDocuments((prev) => ({ ...prev, insurancePhoto: docs.insurancePhoto }));
+        DOCUMENT_FIELDS.forEach(({ key }) => {
+          if (docs[key]) setDocuments((prev) => ({ ...prev, [key]: docs[key] }));
+        });
         if (profile?.onboardingCompleted) {
-          navigate('/rider', { replace: true });
+          navigate("/rider", { replace: true });
         }
       } catch {
-        // Profile not found yet
+        // Profile not created yet — first-time rider
       } finally {
         setProfileLoading(false);
       }
@@ -102,50 +141,70 @@ const RiderOnboardingPage: React.FC = () => {
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      bankName: '',
-      accountNumber: '',
-      accountHolderName: '',
-      mobileMoneyNumber: '',
+      bankName: "",
+      accountNumber: "",
+      accountHolderName: "",
+      mobileMoneyNumber: "",
       mobileMoneyProvider: undefined,
     },
-    mode: 'onTouched',
+    mode: "onTouched",
   });
 
   useEffect(() => {
     if (existingProfile?.bankDetails) {
       const bd = existingProfile.bankDetails as Record<string, string | undefined>;
-      if (bd.bankName) form.setValue('bankName', bd.bankName);
-      if (bd.accountNumber) form.setValue('accountNumber', bd.accountNumber);
-      if (bd.accountHolderName) form.setValue('accountHolderName', bd.accountHolderName);
-      if (bd.mobileMoneyNumber) form.setValue('mobileMoneyNumber', bd.mobileMoneyNumber);
-      if (bd.mobileMoneyProvider) form.setValue('mobileMoneyProvider', bd.mobileMoneyProvider);
+      if (bd.bankName) form.setValue("bankName", bd.bankName);
+      if (bd.accountNumber) form.setValue("accountNumber", bd.accountNumber);
+      if (bd.accountHolderName)
+        form.setValue("accountHolderName", bd.accountHolderName);
+      if (bd.mobileMoneyNumber)
+        form.setValue("mobileMoneyNumber", bd.mobileMoneyNumber);
+      if (bd.mobileMoneyProvider) {
+        form.setValue("mobileMoneyProvider", bd.mobileMoneyProvider);
+        setPayoutMethod("mobile");
+      } else if (bd.bankName) {
+        setPayoutMethod("bank");
+      }
     }
   }, [existingProfile, form]);
 
-  const handleFileUpload = useCallback(async (fieldName: string, file: File) => {
-    setUploading(fieldName);
-    try {
-      const { default: riderService } = await import('@/services/riderService');
-      const formData = new FormData();
-      formData.append('document', file);
-      formData.append('documentType', fieldName);
-      const res = await riderService.uploadDocument(formData);
-      const url = (res.data as { data?: { documentUrl: string } }).data?.documentUrl;
-      if (url) {
-        setDocuments((prev) => ({ ...prev, [fieldName]: url }));
-        toast({ title: 'Uploaded', description: `${DOCUMENT_FIELDS.find(f => f.key === fieldName)?.label} uploaded successfully` });
+  const handleFileUpload = useCallback(
+    async (fieldName: string, file: File) => {
+      setUploading(fieldName);
+      try {
+        const { default: riderService } = await import(
+          "@/services/riderService"
+        );
+        const formData = new FormData();
+        formData.append("document", file);
+        formData.append("documentType", fieldName);
+        const res = await riderService.uploadDocument(formData);
+        const url = (res.data as { data?: { documentUrl: string } }).data
+          ?.documentUrl;
+        if (url) {
+          setDocuments((prev) => ({ ...prev, [fieldName]: url }));
+          toast({
+            title: "Uploaded",
+            description: `${DOCUMENT_FIELDS.find((f) => f.key === fieldName)?.label} uploaded successfully`,
+          });
+        }
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: "Please try again",
+        });
+      } finally {
+        setUploading(null);
       }
-    } catch {
-      toast({ variant: 'destructive', title: 'Upload failed', description: 'Please try again' });
-    } finally {
-      setUploading(null);
-    }
-  }, [toast]);
+    },
+    [toast],
+  );
 
   const triggerUpload = (fieldName: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
     input.onchange = (e) => {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
@@ -154,20 +213,11 @@ const RiderOnboardingPage: React.FC = () => {
     input.click();
   };
 
-  const onSubmit = async () => {
-    if (step === 0) {
-      setStep(1);
-      return;
-    }
-    if (step === 1) {
-      setStep(2);
-      return;
-    }
-
+  const submitOnboarding = async () => {
     setIsLoading(true);
     try {
       const data = form.getValues();
-      const { default: riderService } = await import('@/services/riderService');
+      const { default: riderService } = await import("@/services/riderService");
       await riderService.completeOnboardingWithDetails({
         bankName: data.bankName || undefined,
         accountNumber: data.accountNumber || undefined,
@@ -177,341 +227,398 @@ const RiderOnboardingPage: React.FC = () => {
       });
       updateUser({ onboardingCompleted: true });
       toast({
-        title: 'Welcome aboard!',
-        description: 'Your onboarding is complete. You can now start delivering.',
+        title: "Application submitted!",
+        description: "We'll review your details and notify you once approved.",
       });
-      navigate('/rider', { replace: true });
+      navigate("/rider", { replace: true });
     } catch {
-      toast({ variant: 'destructive', title: 'Failed', description: 'Something went wrong. Please try again.' });
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: "Please try again in a moment.",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const uploadedCount = Object.keys(documents).length;
+
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-lg"
-      >
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-200">
-            <Truck className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Complete Your Setup</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Just a few steps to start earning
+    <OnboardingLayout role="rider" steps={STEPS} currentStep={step}>
+      {/* ── Step 0: Welcome ── */}
+      {step === 0 && (
+        <div>
+          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-red-500 text-white shadow-lg shadow-brand-500/25">
+            <Truck className="h-7 w-7" />
+          </span>
+          <h2 className="mt-5 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Welcome to the Food Rush fleet
+          </h2>
+          <p className="mt-2 max-w-md text-[0.95rem] leading-relaxed text-muted-foreground">
+            You're almost ready to start earning. Here's what we'll need before
+            you can hit the road.
           </p>
-        </div>
 
-        <div className="flex items-center gap-2 mb-6">
-          {STEPS.map((s, i) => (
-            <React.Fragment key={i}>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
-                    i <= step ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  {i < step ? <CheckCircle className="w-4 h-4" /> : i + 1}
-                </div>
-                <div className="hidden sm:block">
-                  <p className={`text-xs font-medium ${i === step ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {s.label}
-                  </p>
+          <div className="mt-7 space-y-3">
+            {[
+              {
+                icon: FileImage,
+                title: "Verify your documents",
+                desc: "License, vehicle registration and insurance.",
+              },
+              {
+                icon: Wallet,
+                title: "Set up your payout",
+                desc: "Mobile money or bank — get paid weekly.",
+              },
+              {
+                icon: ShieldCheck,
+                title: "Quick admin review",
+                desc: "We'll approve you and you can start delivering.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-semibold text-foreground">{title}</p>
+                  <p className="text-sm text-muted-foreground">{desc}</p>
                 </div>
               </div>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 ${i < step ? 'bg-orange-400' : 'bg-gray-200'}`} />
-              )}
-            </React.Fragment>
-          ))}
+            ))}
+          </div>
+
+          <div className="mt-5 flex items-center gap-2.5 rounded-xl bg-emerald-50/70 px-4 py-3 text-sm text-emerald-700">
+            <Coins className="h-4 w-4 shrink-0" />
+            Keep 100% of your tips, every single time.
+          </div>
+
+          <StepNav nextLabel="Get started" onNext={() => setStep(1)} />
         </div>
+      )}
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <AnimatePresence mode="wait">
-                {step === 0 && (
-                  <motion.div
-                    key="step0"
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    className="space-y-4"
-                  >
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Upload Documents</h3>
-                      <p className="text-sm text-gray-500 mb-4">
-                        Please upload clear photos of the following documents
+      {/* ── Step 1: Documents ── */}
+      {step === 1 && (
+        <div>
+          <StepHeader
+            icon={FileImage}
+            title="Upload your documents"
+            subtitle="Clear photos help us verify you faster. You can replace any document before submitting."
+          />
+
+          <div className="space-y-3">
+            {DOCUMENT_FIELDS.map((doc) => {
+              const done = !!documents[doc.key];
+              return (
+                <div
+                  key={doc.key}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 transition-colors ${
+                    done
+                      ? "border-emerald-200 bg-emerald-50/50"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                        done
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {done ? (
+                        <FileCheck2 className="h-5 w-5" />
+                      ) : (
+                        <FileImage className="h-5 w-5" />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">
+                        {doc.label}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {done ? "Uploaded — looks good" : doc.hint}
                       </p>
                     </div>
-
-                    {DOCUMENT_FIELDS.map((doc) => (
-                      <div key={doc.key} className="border border-gray-200 rounded-xl p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                              documents[doc.key] ? 'bg-green-50' : 'bg-gray-50'
-                            }`}>
-                              {documents[doc.key]
-                                ? <CheckCircle className="w-5 h-5 text-green-500" />
-                                : <FileImage className="w-5 h-5 text-gray-400" />
-                              }
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{doc.label}</p>
-                              {documents[doc.key] && (
-                                <p className="text-xs text-green-600">Uploaded</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            {documents[doc.key] && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setDocuments((prev) => {
-                                  const next = { ...prev };
-                                  delete next[doc.key];
-                                  return next;
-                                })}
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={uploading === doc.key}
-                              onClick={() => triggerUpload(doc.key)}
-                            >
-                              {uploading === doc.key
-                                ? <Loader2 className="w-4 h-4 animate-spin" />
-                                : <Upload className="w-4 h-4 mr-1" />
-                              }
-                              {documents[doc.key] ? 'Replace' : 'Upload'}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-                      <ShieldCheck className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                      <p className="text-xs text-amber-700">
-                        Your documents are securely stored and will only be used for verification purposes.
-                      </p>
-                    </div>
-
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {done && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setDocuments((prev) => {
+                            const next = { ...prev };
+                            delete next[doc.key];
+                            return next;
+                          })
+                        }
+                        className="text-muted-foreground hover:text-red-600"
+                        aria-label={`Remove ${doc.label}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       type="button"
-                      onClick={() => setStep(1)}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                      variant={done ? "outline" : "default"}
+                      size="sm"
+                      disabled={uploading === doc.key}
+                      onClick={() => triggerUpload(doc.key)}
+                      className="gap-1.5"
                     >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </motion.div>
-                )}
-
-                {step === 1 && (
-                  <motion.div
-                    key="step1"
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    className="space-y-4"
-                  >
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Payout Details</h3>
-                      <p className="text-sm text-gray-500 mb-4">
-                        Set up how you want to receive your earnings
-                      </p>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 flex items-center gap-3">
-                      <Banknote className="w-8 h-8 text-blue-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Mobile Money (Recommended)</p>
-                        <p className="text-xs text-gray-500">Get paid instantly to your mobile wallet</p>
-                      </div>
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="mobileMoneyProvider"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Mobile Money Provider</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select provider" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {MOBILE_MONEY_PROVIDERS.map((p) => (
-                                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="mobileMoneyNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Mobile Money Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="01XXXXXXXXX" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-gray-200" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-gray-400">Or bank transfer</span>
-                      </div>
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="accountHolderName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Account Holder Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Full name on bank account" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="bankName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bank Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. Dutch-Bangla Bank" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="accountNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Account Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter bank account number" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="flex gap-3 pt-2">
-                      <Button type="button" variant="outline" onClick={() => setStep(0)} className="flex-1">
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Back
-                      </Button>
-                      <Button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600 text-white">
-                        Next <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {step === 2 && (
-                  <motion.div
-                    key="step2"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="space-y-6 text-center"
-                  >
-                    <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto">
-                      <CheckCircle className="w-10 h-10 text-green-500" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">You're All Set!</h3>
-                      <p className="text-gray-500 text-sm mt-1">
-                        Your onboarding is complete. Your application is pending admin approval.
-                        You'll be notified once approved and can start accepting deliveries.
-                      </p>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-xl p-4 text-left space-y-3">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Documents Uploaded</p>
-                          <p className="text-xs text-gray-500">
-                            {Object.keys(documents).length} of {DOCUMENT_FIELDS.length} documents
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Payout Method Set</p>
-                          <p className="text-xs text-gray-500">Ready to receive earnings</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Pending Admin Review</p>
-                          <p className="text-xs text-gray-500">You'll be notified once approved</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      {isLoading ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Completing…</>
+                      {uploading === doc.key ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        'Complete Setup'
+                        <Upload className="h-4 w-4" />
                       )}
+                      {done ? "Replace" : "Upload"}
                     </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </form>
-          </Form>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <p className="text-xs leading-relaxed text-amber-700">
+              Your documents are encrypted and used only for verification. You
+              can submit now and add anything missing later from your profile.
+            </p>
+          </div>
+
+          <StepNav
+            onBack={() => setStep(0)}
+            nextLabel="Continue"
+            onNext={() => setStep(2)}
+          />
         </div>
-      </motion.div>
-    </div>
+      )}
+
+      {/* ── Step 2: Payout ── */}
+      {step === 2 && (
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(() => setStep(3))}
+          >
+            <StepHeader
+              icon={Wallet}
+              title="How would you like to get paid?"
+              subtitle="Choose your preferred payout method. Mobile money lands instantly; bank transfers run weekly."
+            />
+
+            <div className="space-y-3">
+              <OptionCard
+                icon={Smartphone}
+                title="Mobile money"
+                description="bKash, Nagad, Rocket or Upay — paid instantly"
+                badge="Recommended"
+                selected={payoutMethod === "mobile"}
+                onSelect={() => setPayoutMethod("mobile")}
+              />
+              <OptionCard
+                icon={Banknote}
+                title="Bank transfer"
+                description="Weekly payout straight to your bank account"
+                selected={payoutMethod === "bank"}
+                onSelect={() => setPayoutMethod("bank")}
+              />
+            </div>
+
+            {payoutMethod === "mobile" ? (
+              <div className="mt-5 space-y-4 rounded-2xl border border-border bg-muted/40 p-4">
+                <FormField
+                  control={form.control}
+                  name="mobileMoneyProvider"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Provider</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select provider" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {MOBILE_MONEY_PROVIDERS.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="mobileMoneyNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mobile money number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="01XXXXXXXXX" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            ) : (
+              <div className="mt-5 space-y-4 rounded-2xl border border-border bg-muted/40 p-4">
+                <FormField
+                  control={form.control}
+                  name="accountHolderName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account holder name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Full name on account" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bankName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Dutch-Bangla Bank" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="accountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter account number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            <StepNav
+              submit
+              onBack={() => setStep(1)}
+              onSkip={() => setStep(3)}
+              skipLabel="Add later"
+              nextLabel="Continue"
+            />
+          </form>
+        </Form>
+      )}
+
+      {/* ── Step 3: Submit ── */}
+      {step === 3 && (
+        <div>
+          <StepHeader
+            icon={Rocket}
+            title="Review & submit"
+            subtitle="Here's a snapshot of your application. Submit it for review — you'll be notified the moment you're approved."
+          />
+
+          <div className="space-y-3">
+            <SummaryRow
+              icon={FileImage}
+              title="Documents"
+              value={`${uploadedCount} of ${DOCUMENT_FIELDS.length} uploaded`}
+              ok={uploadedCount > 0}
+            />
+            <SummaryRow
+              icon={Wallet}
+              title="Payout method"
+              value={
+                payoutMethod === "mobile" ? "Mobile money" : "Bank transfer"
+              }
+              ok
+            />
+            <SummaryRow
+              icon={Clock}
+              title="Admin review"
+              value="Pending — usually within 24 hours"
+              ok={false}
+            />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-5 flex items-start gap-2.5 rounded-xl border border-brand-100 bg-brand-50/60 p-4"
+          >
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+            <p className="text-sm leading-relaxed text-foreground/80">
+              By submitting, you confirm your details are accurate. You'll get
+              full access to your dashboard while we complete the review.
+            </p>
+          </motion.div>
+
+          <StepNav
+            onBack={() => setStep(2)}
+            nextLabel="Submit application"
+            onNext={submitOnboarding}
+            isLoading={isLoading}
+          />
+        </div>
+      )}
+    </OnboardingLayout>
   );
 };
+
+const SummaryRow = ({
+  icon: Icon,
+  title,
+  value,
+  ok,
+}: {
+  icon: typeof FileImage;
+  title: string;
+  value: string;
+  ok: boolean;
+}) => (
+  <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+      <Icon className="h-5 w-5" />
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="font-semibold text-foreground">{title}</p>
+      <p className="text-sm text-muted-foreground">{value}</p>
+    </div>
+    {ok ? (
+      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+    ) : (
+      <Clock className="h-5 w-5 shrink-0 text-amber-500" />
+    )}
+  </div>
+);
 
 export default RiderOnboardingPage;
