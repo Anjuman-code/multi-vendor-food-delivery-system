@@ -8,17 +8,22 @@ import bcrypt from 'bcryptjs';
 import mongoose, { Schema } from 'mongoose';
 import { AddressType, AdminTier, AUTH, UserRole } from '../config/constants';
 import {
-    IAddress,
-    ICoordinates,
-    IUserDocument,
-    IUserModel,
+  IAddress,
+  ICoordinates,
+  IUserDocument,
+  IUserModel,
 } from '../types/user.types';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.util';
 import {
-    generateOTP,
-    generateResetToken,
-    generateVerificationToken,
-    hashToken,
+  BD_PHONE_ERROR_MESSAGE,
+  isCanonicalBdPhoneNumber,
+  normalizeBdPhoneNumber,
+} from '../utils/phone.util';
+import {
+  generateOTP,
+  generateResetToken,
+  generateVerificationToken,
+  hashToken,
 } from '../utils/token.util';
 
 // ── Sub-schemas ────────────────────────────────────────────────
@@ -119,7 +124,7 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
       unique: true,
       sparse: true,
       trim: true,
-      match: [/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number'],
+      match: [/^\+8801[3-9]\d{8}$/, BD_PHONE_ERROR_MESSAGE],
     },
     isPhoneVerified: { type: Boolean, default: false },
     profileImage: { type: String },
@@ -175,7 +180,11 @@ userSchema.pre('save', async function () {
 
   // Normalize phone
   if (this.isModified('phoneNumber') && this.phoneNumber) {
-    this.phoneNumber = this.phoneNumber.trim();
+    this.phoneNumber = normalizeBdPhoneNumber(this.phoneNumber);
+
+    if (!isCanonicalBdPhoneNumber(this.phoneNumber)) {
+      this.invalidate('phoneNumber', BD_PHONE_ERROR_MESSAGE);
+    }
   }
 });
 
@@ -260,7 +269,7 @@ userSchema.statics.findByEmail = function (
 userSchema.statics.findByPhone = function (
   phoneNumber: string,
 ): Promise<IUserDocument | null> {
-  return this.findOne({ phoneNumber: phoneNumber.trim() });
+  return this.findOne({ phoneNumber: normalizeBdPhoneNumber(phoneNumber) });
 };
 
 userSchema.statics.findActiveUsers = function (

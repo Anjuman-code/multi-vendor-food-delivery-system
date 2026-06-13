@@ -4,8 +4,8 @@ import {
   StepHeader,
   StepNav,
   type OnboardingStep,
-} from "@/components/onboarding";
-import { Button } from "@/components/ui/button";
+} from '@/components/onboarding';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -13,19 +13,20 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
+} from '@/components/ui/select';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { optionalBdPhoneSchema } from '@/lib/phone';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
 import {
   Banknote,
   CheckCircle2,
@@ -41,64 +42,74 @@ import {
   Upload,
   Wallet,
   X,
-} from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
-import { z } from "zod";
+} from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
 
 const MOBILE_MONEY_PROVIDERS = [
-  { value: "bkash", label: "bKash" },
-  { value: "nagad", label: "Nagad" },
-  { value: "rocket", label: "Rocket" },
-  { value: "upay", label: "Upay" },
+  { value: 'bkash', label: 'bKash' },
+  { value: 'nagad', label: 'Nagad' },
+  { value: 'rocket', label: 'Rocket' },
+  { value: 'upay', label: 'Upay' },
 ];
 
 const onboardingSchema = z.object({
   bankName: z.string().optional(),
   accountNumber: z.string().optional(),
   accountHolderName: z.string().optional(),
-  mobileMoneyNumber: z.string().optional(),
+  mobileMoneyNumber: optionalBdPhoneSchema,
   mobileMoneyProvider: z.string().optional(),
 });
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
 const STEPS: OnboardingStep[] = [
-  { id: "welcome", label: "Welcome", description: "How it works", icon: Truck },
+  { id: 'welcome', label: 'Welcome', description: 'How it works', icon: Truck },
   {
-    id: "documents",
-    label: "Documents",
-    description: "Verify your identity",
+    id: 'documents',
+    label: 'Documents',
+    description: 'Verify your identity',
     icon: FileImage,
   },
-  { id: "payout", label: "Payout", description: "Get paid your way", icon: Wallet },
-  { id: "submit", label: "Submit", description: "Send for review", icon: Rocket },
+  {
+    id: 'payout',
+    label: 'Payout',
+    description: 'Get paid your way',
+    icon: Wallet,
+  },
+  {
+    id: 'submit',
+    label: 'Submit',
+    description: 'Send for review',
+    icon: Rocket,
+  },
 ];
 
 const DOCUMENT_FIELDS = [
   {
-    key: "licensePhoto",
+    key: 'licensePhoto',
     label: "Driver's license",
-    hint: "Front side, clearly readable",
+    hint: 'Front side, clearly readable',
   },
   {
-    key: "vehicleRegistrationPhoto",
-    label: "Vehicle registration",
-    hint: "Matches your registered vehicle",
+    key: 'vehicleRegistrationPhoto',
+    label: 'Vehicle registration',
+    hint: 'Matches your registered vehicle',
   },
   {
-    key: "insurancePhoto",
-    label: "Insurance document",
-    hint: "Must be currently valid",
+    key: 'insurancePhoto',
+    label: 'Insurance document',
+    hint: 'Must be currently valid',
   },
 ] as const;
 
-type PayoutMethod = "mobile" | "bank";
+type PayoutMethod = 'mobile' | 'bank';
 
 const RiderOnboardingPage: React.FC = () => {
   const [step, setStep] = useState(0);
-  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("mobile");
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>('mobile');
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Record<string, string>>({});
@@ -114,9 +125,8 @@ const RiderOnboardingPage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { default: riderService } = await import(
-          "@/services/riderService"
-        );
+        const { default: riderService } =
+          await import('@/services/riderService');
         const res = await riderService.getProfile();
         const profile =
           (res.data as { data?: { profile: Record<string, unknown> } }).data
@@ -124,10 +134,11 @@ const RiderOnboardingPage: React.FC = () => {
         setExistingProfile(profile);
         const docs = (profile?.documents as Record<string, string>) ?? {};
         DOCUMENT_FIELDS.forEach(({ key }) => {
-          if (docs[key]) setDocuments((prev) => ({ ...prev, [key]: docs[key] }));
+          if (docs[key])
+            setDocuments((prev) => ({ ...prev, [key]: docs[key] }));
         });
         if (profile?.onboardingCompleted) {
-          navigate("/rider", { replace: true });
+          navigate('/rider', { replace: true });
         }
       } catch {
         // Profile not created yet — first-time rider
@@ -141,29 +152,32 @@ const RiderOnboardingPage: React.FC = () => {
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      bankName: "",
-      accountNumber: "",
-      accountHolderName: "",
-      mobileMoneyNumber: "",
+      bankName: '',
+      accountNumber: '',
+      accountHolderName: '',
+      mobileMoneyNumber: '',
       mobileMoneyProvider: undefined,
     },
-    mode: "onTouched",
+    mode: 'onTouched',
   });
 
   useEffect(() => {
     if (existingProfile?.bankDetails) {
-      const bd = existingProfile.bankDetails as Record<string, string | undefined>;
-      if (bd.bankName) form.setValue("bankName", bd.bankName);
-      if (bd.accountNumber) form.setValue("accountNumber", bd.accountNumber);
+      const bd = existingProfile.bankDetails as Record<
+        string,
+        string | undefined
+      >;
+      if (bd.bankName) form.setValue('bankName', bd.bankName);
+      if (bd.accountNumber) form.setValue('accountNumber', bd.accountNumber);
       if (bd.accountHolderName)
-        form.setValue("accountHolderName", bd.accountHolderName);
+        form.setValue('accountHolderName', bd.accountHolderName);
       if (bd.mobileMoneyNumber)
-        form.setValue("mobileMoneyNumber", bd.mobileMoneyNumber);
+        form.setValue('mobileMoneyNumber', bd.mobileMoneyNumber);
       if (bd.mobileMoneyProvider) {
-        form.setValue("mobileMoneyProvider", bd.mobileMoneyProvider);
-        setPayoutMethod("mobile");
+        form.setValue('mobileMoneyProvider', bd.mobileMoneyProvider);
+        setPayoutMethod('mobile');
       } else if (bd.bankName) {
-        setPayoutMethod("bank");
+        setPayoutMethod('bank');
       }
     }
   }, [existingProfile, form]);
@@ -172,27 +186,26 @@ const RiderOnboardingPage: React.FC = () => {
     async (fieldName: string, file: File) => {
       setUploading(fieldName);
       try {
-        const { default: riderService } = await import(
-          "@/services/riderService"
-        );
+        const { default: riderService } =
+          await import('@/services/riderService');
         const formData = new FormData();
-        formData.append("document", file);
-        formData.append("documentType", fieldName);
+        formData.append('document', file);
+        formData.append('documentType', fieldName);
         const res = await riderService.uploadDocument(formData);
         const url = (res.data as { data?: { documentUrl: string } }).data
           ?.documentUrl;
         if (url) {
           setDocuments((prev) => ({ ...prev, [fieldName]: url }));
           toast({
-            title: "Uploaded",
+            title: 'Uploaded',
             description: `${DOCUMENT_FIELDS.find((f) => f.key === fieldName)?.label} uploaded successfully`,
           });
         }
       } catch {
         toast({
-          variant: "destructive",
-          title: "Upload failed",
-          description: "Please try again",
+          variant: 'destructive',
+          title: 'Upload failed',
+          description: 'Please try again',
         });
       } finally {
         setUploading(null);
@@ -202,9 +215,9 @@ const RiderOnboardingPage: React.FC = () => {
   );
 
   const triggerUpload = (fieldName: string) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
     input.onchange = (e) => {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
@@ -217,7 +230,7 @@ const RiderOnboardingPage: React.FC = () => {
     setIsLoading(true);
     try {
       const data = form.getValues();
-      const { default: riderService } = await import("@/services/riderService");
+      const { default: riderService } = await import('@/services/riderService');
       await riderService.completeOnboardingWithDetails({
         bankName: data.bankName || undefined,
         accountNumber: data.accountNumber || undefined,
@@ -227,15 +240,15 @@ const RiderOnboardingPage: React.FC = () => {
       });
       updateUser({ onboardingCompleted: true });
       toast({
-        title: "Application submitted!",
+        title: 'Application submitted!',
         description: "We'll review your details and notify you once approved.",
       });
-      navigate("/rider", { replace: true });
+      navigate('/rider', { replace: true });
     } catch {
       toast({
-        variant: "destructive",
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
+        variant: 'destructive',
+        title: 'Something went wrong',
+        description: 'Please try again in a moment.',
       });
     } finally {
       setIsLoading(false);
@@ -272,17 +285,17 @@ const RiderOnboardingPage: React.FC = () => {
             {[
               {
                 icon: FileImage,
-                title: "Verify your documents",
-                desc: "License, vehicle registration and insurance.",
+                title: 'Verify your documents',
+                desc: 'License, vehicle registration and insurance.',
               },
               {
                 icon: Wallet,
-                title: "Set up your payout",
-                desc: "Mobile money or bank — get paid weekly.",
+                title: 'Set up your payout',
+                desc: 'Mobile money or bank — get paid weekly.',
               },
               {
                 icon: ShieldCheck,
-                title: "Quick admin review",
+                title: 'Quick admin review',
                 desc: "We'll approve you and you can start delivering.",
               },
             ].map(({ icon: Icon, title, desc }) => (
@@ -327,16 +340,16 @@ const RiderOnboardingPage: React.FC = () => {
                   key={doc.key}
                   className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 transition-colors ${
                     done
-                      ? "border-emerald-200 bg-emerald-50/50"
-                      : "border-border bg-card"
+                      ? 'border-emerald-200 bg-emerald-50/50'
+                      : 'border-border bg-card'
                   }`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
                         done
-                          ? "bg-emerald-100 text-emerald-600"
-                          : "bg-muted text-muted-foreground"
+                          ? 'bg-emerald-100 text-emerald-600'
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       {done ? (
@@ -350,7 +363,7 @@ const RiderOnboardingPage: React.FC = () => {
                         {doc.label}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {done ? "Uploaded — looks good" : doc.hint}
+                        {done ? 'Uploaded — looks good' : doc.hint}
                       </p>
                     </div>
                   </div>
@@ -375,7 +388,7 @@ const RiderOnboardingPage: React.FC = () => {
                     )}
                     <Button
                       type="button"
-                      variant={done ? "outline" : "default"}
+                      variant={done ? 'outline' : 'default'}
                       size="sm"
                       disabled={uploading === doc.key}
                       onClick={() => triggerUpload(doc.key)}
@@ -386,7 +399,7 @@ const RiderOnboardingPage: React.FC = () => {
                       ) : (
                         <Upload className="h-4 w-4" />
                       )}
-                      {done ? "Replace" : "Upload"}
+                      {done ? 'Replace' : 'Upload'}
                     </Button>
                   </div>
                 </div>
@@ -413,9 +426,7 @@ const RiderOnboardingPage: React.FC = () => {
       {/* ── Step 2: Payout ── */}
       {step === 2 && (
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(() => setStep(3))}
-          >
+          <form onSubmit={form.handleSubmit(() => setStep(3))}>
             <StepHeader
               icon={Wallet}
               title="How would you like to get paid?"
@@ -428,19 +439,19 @@ const RiderOnboardingPage: React.FC = () => {
                 title="Mobile money"
                 description="bKash, Nagad, Rocket or Upay — paid instantly"
                 badge="Recommended"
-                selected={payoutMethod === "mobile"}
-                onSelect={() => setPayoutMethod("mobile")}
+                selected={payoutMethod === 'mobile'}
+                onSelect={() => setPayoutMethod('mobile')}
               />
               <OptionCard
                 icon={Banknote}
                 title="Bank transfer"
                 description="Weekly payout straight to your bank account"
-                selected={payoutMethod === "bank"}
-                onSelect={() => setPayoutMethod("bank")}
+                selected={payoutMethod === 'bank'}
+                onSelect={() => setPayoutMethod('bank')}
               />
             </div>
 
-            {payoutMethod === "mobile" ? (
+            {payoutMethod === 'mobile' ? (
               <div className="mt-5 space-y-4 rounded-2xl border border-border bg-muted/40 p-4">
                 <FormField
                   control={form.control}
@@ -450,7 +461,7 @@ const RiderOnboardingPage: React.FC = () => {
                       <FormLabel>Provider</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value ?? ""}
+                        value={field.value ?? ''}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -505,7 +516,10 @@ const RiderOnboardingPage: React.FC = () => {
                     <FormItem>
                       <FormLabel>Bank name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. Dutch-Bangla Bank" {...field} />
+                        <Input
+                          placeholder="e.g. Dutch-Bangla Bank"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -558,7 +572,7 @@ const RiderOnboardingPage: React.FC = () => {
               icon={Wallet}
               title="Payout method"
               value={
-                payoutMethod === "mobile" ? "Mobile money" : "Bank transfer"
+                payoutMethod === 'mobile' ? 'Mobile money' : 'Bank transfer'
               }
               ok
             />

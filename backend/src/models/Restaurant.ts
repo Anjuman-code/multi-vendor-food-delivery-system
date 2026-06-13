@@ -1,5 +1,10 @@
-import mongoose, { Model, Schema } from "mongoose";
-import { IOperatingHours, IRestaurant } from "../types";
+import mongoose, { Model, Schema } from 'mongoose';
+import { IOperatingHours, IRestaurant } from '../types';
+import {
+  BD_PHONE_ERROR_MESSAGE,
+  isCanonicalBdPhoneNumber,
+  normalizeBdPhoneNumber,
+} from '../utils/phone.util';
 
 // ── Sub-schema: operating hours ──────────────────────────────────
 const operatingHoursSchema = new Schema<IOperatingHours>(
@@ -8,13 +13,13 @@ const operatingHoursSchema = new Schema<IOperatingHours>(
       type: String,
       required: true,
       enum: [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
       ],
     },
     openTime: { type: String, required: true }, // "HH:MM"
@@ -29,9 +34,9 @@ const restaurantSchema = new Schema<IRestaurant>(
   {
     name: {
       type: String,
-      required: [true, "Restaurant name is required"],
+      required: [true, 'Restaurant name is required'],
       trim: true,
-      maxlength: [150, "Restaurant name cannot exceed 150 characters"],
+      maxlength: [150, 'Restaurant name cannot exceed 150 characters'],
     },
     nameI18n: { type: Map, of: String },
     slug: {
@@ -44,9 +49,9 @@ const restaurantSchema = new Schema<IRestaurant>(
     },
     description: {
       type: String,
-      required: [true, "Description is required"],
+      required: [true, 'Description is required'],
       trim: true,
-      maxlength: [1000, "Description cannot exceed 1000 characters"],
+      maxlength: [1000, 'Description cannot exceed 1000 characters'],
     },
     descriptionI18n: { type: Map, of: String },
     address: {
@@ -59,12 +64,17 @@ const restaurantSchema = new Schema<IRestaurant>(
     location: {
       type: {
         type: String,
-        enum: ["Point"],
+        enum: ['Point'],
       },
       coordinates: { type: [Number] }, // [longitude, latitude]
     },
     contactInfo: {
-      phone: { type: String, required: true, trim: true },
+      phone: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [/^\+8801[3-9]\d{8}$/, BD_PHONE_ERROR_MESSAGE],
+      },
       email: { type: String, required: true, trim: true, lowercase: true },
       website: { type: String, trim: true, lowercase: true },
     },
@@ -81,8 +91,8 @@ const restaurantSchema = new Schema<IRestaurant>(
     closureReason: { type: String, trim: true, maxlength: 300 },
     approvalStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
     },
     rejectionReason: { type: String, trim: true, maxlength: 500 },
     rating: {
@@ -100,12 +110,12 @@ const restaurantSchema = new Schema<IRestaurant>(
     priceRange: { type: Number, enum: [1, 2, 3, 4], default: 2 },
     serviceOptions: {
       type: [String],
-      enum: ["delivery", "dine-in", "takeaway"],
-      default: ["delivery"],
+      enum: ['delivery', 'dine-in', 'takeaway'],
+      default: ['delivery'],
     },
     paymentMethods: {
       type: [String],
-      default: ["cash"],
+      default: ['cash'],
     },
     totalOrders: { type: Number, default: 0 },
     averagePreparationTime: { type: Number, default: 20 }, // minutes
@@ -113,6 +123,39 @@ const restaurantSchema = new Schema<IRestaurant>(
   },
   { timestamps: true },
 );
+
+// ── Slug generation ───────────────────────────────────────────────
+const slugify = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
+restaurantSchema.pre('validate', async function () {
+  if (this.isModified('contactInfo.phone') && this.contactInfo?.phone) {
+    this.contactInfo.phone = normalizeBdPhoneNumber(this.contactInfo.phone);
+
+    if (!isCanonicalBdPhoneNumber(this.contactInfo.phone)) {
+      this.invalidate('contactInfo.phone', BD_PHONE_ERROR_MESSAGE);
+    }
+  }
+
+  if (this.isModified('name') || this.isNew || !this.slug) {
+    const baseSlug = slugify(this.name) || 'restaurant';
+    let slug = baseSlug;
+    let counter = 1;
+    const doc = this;
+    while (
+      await mongoose.model('Restaurant').exists({ slug, _id: { $ne: doc._id } })
+    ) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    doc.slug = slug;
+  }
+});
 
 // ── Soft-delete query middleware ─────────────────────────────────
 restaurantSchema.pre(
@@ -125,10 +168,10 @@ restaurantSchema.pre(
 );
 
 // ── Indexes ──────────────────────────────────────────────────────
-restaurantSchema.index({ location: "2dsphere" });
+restaurantSchema.index({ location: '2dsphere' });
 restaurantSchema.index({ approvalStatus: 1, isActive: 1 });
 restaurantSchema.index({ cuisineType: 1 });
-restaurantSchema.index({ "rating.average": -1 });
+restaurantSchema.index({ 'rating.average': -1 });
 restaurantSchema.index({ deletedAt: 1 });
 
 // ── Statics ──────────────────────────────────────────────────────
@@ -138,11 +181,13 @@ restaurantSchema.statics.findActive = function (filter = {}) {
 
 // ── Export model ─────────────────────────────────────────────────
 interface IRestaurantModel extends Model<IRestaurant> {
-  findActive(filter?: Record<string, unknown>): ReturnType<Model<IRestaurant>["find"]>;
+  findActive(
+    filter?: Record<string, unknown>,
+  ): ReturnType<Model<IRestaurant>['find']>;
 }
 
 const Restaurant = mongoose.model<IRestaurant, IRestaurantModel>(
-  "Restaurant",
+  'Restaurant',
   restaurantSchema,
 );
 

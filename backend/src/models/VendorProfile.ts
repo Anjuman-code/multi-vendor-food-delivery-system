@@ -2,20 +2,24 @@
  * VendorProfile Mongoose model – placeholder for vendor-specific data.
  * Structure defined; full implementation deferred.
  */
-import mongoose, { Model, Schema } from "mongoose";
-import { IVendorProfileDocument } from "../types/user.types";
+import mongoose, { Model, Schema } from 'mongoose';
+import { IVendorProfileDocument } from '../types/user.types';
+import {
+  BD_PHONE_ERROR_MESSAGE,
+  normalizeBdPhoneNumber,
+} from '../utils/phone.util';
 
 const vendorProfileSchema = new Schema<IVendorProfileDocument>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
       unique: true,
       index: true,
     },
     restaurantIds: {
-      type: [{ type: Schema.Types.ObjectId, ref: "Restaurant" }],
+      type: [{ type: Schema.Types.ObjectId, ref: 'Restaurant' }],
       default: [],
     },
     businessName: { type: String, required: true, trim: true },
@@ -27,7 +31,11 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
       accountName: { type: String, trim: true },
       branchName: { type: String, trim: true },
       routingNumber: { type: String, trim: true },
-      mobileMoneyNumber: { type: String, trim: true },
+      mobileMoneyNumber: {
+        type: String,
+        trim: true,
+        match: [/^\+8801[3-9]\d{8}$/, BD_PHONE_ERROR_MESSAGE],
+      },
       mobileMoneyProvider: { type: String, trim: true },
     },
     commissionRate: { type: Number, default: 0 },
@@ -36,7 +44,7 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
         {
           rate: { type: Number, required: true },
           effectiveFrom: { type: Date, required: true, default: Date.now },
-          setBy: { type: Schema.Types.ObjectId, ref: "User" },
+          setBy: { type: Schema.Types.ObjectId, ref: 'User' },
           reason: { type: String, trim: true },
         },
       ],
@@ -46,10 +54,17 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
     isVerified: { type: Boolean, default: false },
     verificationDocuments: [
       {
-        type: { type: String, enum: ['nid', 'trade_license', 'tin', 'vat_certificate', 'other'] },
+        type: {
+          type: String,
+          enum: ['nid', 'trade_license', 'tin', 'vat_certificate', 'other'],
+        },
         url: { type: String, trim: true },
         uploadedAt: { type: Date, default: Date.now },
-        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        status: {
+          type: String,
+          enum: ['pending', 'approved', 'rejected'],
+          default: 'pending',
+        },
       },
     ],
     autoAcceptOrders: { type: Boolean, default: false },
@@ -72,7 +87,15 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
 // the denormalized-stat sync helpers (VendorProfile.findOne({ restaurantIds })).
 vendorProfileSchema.index({ restaurantIds: 1 });
 
+vendorProfileSchema.pre('validate', function () {
+  if (this.bankDetails?.mobileMoneyNumber) {
+    this.bankDetails.mobileMoneyNumber = normalizeBdPhoneNumber(
+      this.bankDetails.mobileMoneyNumber,
+    );
+  }
+});
+
 const VendorProfile: Model<IVendorProfileDocument> =
-  mongoose.model<IVendorProfileDocument>("VendorProfile", vendorProfileSchema);
+  mongoose.model<IVendorProfileDocument>('VendorProfile', vendorProfileSchema);
 
 export default VendorProfile;

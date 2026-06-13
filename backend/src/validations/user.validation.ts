@@ -1,31 +1,37 @@
 /**
  * Zod validation schemas for user management endpoints.
  */
-import { z } from "zod";
-import { AddressType } from "../config/constants";
+import { z } from 'zod';
+import { AddressType } from '../config/constants';
+import {
+  BD_PHONE_ERROR_MESSAGE,
+  isValidBdPhoneNumber,
+  normalizeBdPhoneNumber,
+} from '../utils/phone.util';
 
 // ── Profile update ─────────────────────────────────────────────
 
 export const updateProfileSchema = z.object({
   firstName: z
     .string()
-    .min(2, "First name must be at least 2 characters")
-    .max(50, "First name cannot exceed 50 characters")
+    .min(2, 'First name must be at least 2 characters')
+    .max(50, 'First name cannot exceed 50 characters')
     .trim()
     .optional(),
   lastName: z
     .string()
-    .min(2, "Last name must be at least 2 characters")
-    .max(50, "Last name cannot exceed 50 characters")
+    .min(2, 'Last name must be at least 2 characters')
+    .max(50, 'Last name cannot exceed 50 characters')
     .trim()
     .optional(),
   phoneNumber: z
     .string()
-    .min(7, "Phone number is too short")
-    .max(20, "Phone number is too long")
-    .regex(/^\+?[\d\s\-()]+$/, "Please enter a valid phone number")
+    .transform((v) => normalizeBdPhoneNumber(v))
+    .refine((v) => isValidBdPhoneNumber(v), {
+      message: BD_PHONE_ERROR_MESSAGE,
+    })
     .optional(),
-  profileImage: z.string().url("Profile image must be a valid URL").optional(),
+  profileImage: z.string().url('Profile image must be a valid URL').optional(),
   dateOfBirth: z
     .string()
     .datetime({ offset: true })
@@ -42,10 +48,10 @@ const coordinatesSchema = z.object({
 
 export const addAddressSchema = z.object({
   type: z.nativeEnum(AddressType),
-  street: z.string().min(1, "Street is required").trim(),
+  street: z.string().min(1, 'Street is required').trim(),
   apartment: z.string().trim().optional(),
-  area: z.string().min(1, "Area is required").trim(),
-  district: z.string().min(1, "District is required").trim(),
+  area: z.string().min(1, 'Area is required').trim(),
+  district: z.string().min(1, 'District is required').trim(),
   coordinates: coordinatesSchema,
   isDefault: z.boolean().optional().default(false),
 });
@@ -70,13 +76,13 @@ export const updatePreferencesSchema = z.object({
 // ── Payment methods ────────────────────────────────────────────
 
 export const addPaymentMethodSchema = z.object({
-  type: z.enum(["card", "upi", "wallet"]),
-  provider: z.string().min(1, "Provider is required").max(50).trim(),
-  token: z.string().min(1, "Token is required").trim(),
+  type: z.enum(['card', 'upi', 'wallet']),
+  provider: z.string().min(1, 'Provider is required').max(50).trim(),
+  token: z.string().min(1, 'Token is required').trim(),
   last4: z
     .string()
-    .length(4, "last4 must be exactly 4 characters")
-    .regex(/^\d{4}$/, "last4 must be 4 digits"),
+    .length(4, 'last4 must be exactly 4 characters')
+    .regex(/^\d{4}$/, 'last4 must be 4 digits'),
   isDefault: z.boolean().optional().default(false),
   expiryMonth: z.number().int().min(1).max(12).optional(),
   expiryYear: z.number().int().min(2024).max(2050).optional(),

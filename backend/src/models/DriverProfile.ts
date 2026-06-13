@@ -2,15 +2,19 @@
  * DriverProfile Mongoose model – full driver profile with application lifecycle,
  * documents, earnings, and rating tracking.
  */
-import mongoose, { Model, Schema } from "mongoose";
-import { VehicleType } from "../config/constants";
-import { IDriverProfileDocument } from "../types/user.types";
+import mongoose, { Model, Schema } from 'mongoose';
+import { VehicleType } from '../config/constants';
+import { IDriverProfileDocument } from '../types/user.types';
+import {
+  BD_PHONE_ERROR_MESSAGE,
+  normalizeBdPhoneNumber,
+} from '../utils/phone.util';
 
 const driverProfileSchema = new Schema<IDriverProfileDocument>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
       unique: true,
       index: true,
@@ -18,12 +22,12 @@ const driverProfileSchema = new Schema<IDriverProfileDocument>(
     // ── Application lifecycle ──────────────────────────────────
     applicationStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
       index: true,
     },
     rejectionReason: { type: String },
-    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     approvedAt: { type: Date },
 
     // ── Vehicle & license ──────────────────────────────────────
@@ -62,7 +66,10 @@ const driverProfileSchema = new Schema<IDriverProfileDocument>(
       bankName: { type: String },
       accountNumber: { type: String },
       accountHolderName: { type: String },
-      mobileMoneyNumber: { type: String },
+      mobileMoneyNumber: {
+        type: String,
+        match: [/^\+8801[3-9]\d{8}$/, BD_PHONE_ERROR_MESSAGE],
+      },
       mobileMoneyProvider: { type: String },
     },
 
@@ -72,7 +79,15 @@ const driverProfileSchema = new Schema<IDriverProfileDocument>(
   { timestamps: true },
 );
 
+driverProfileSchema.pre('validate', function () {
+  if (this.bankDetails?.mobileMoneyNumber) {
+    this.bankDetails.mobileMoneyNumber = normalizeBdPhoneNumber(
+      this.bankDetails.mobileMoneyNumber,
+    );
+  }
+});
+
 const DriverProfile: Model<IDriverProfileDocument> =
-  mongoose.model<IDriverProfileDocument>("DriverProfile", driverProfileSchema);
+  mongoose.model<IDriverProfileDocument>('DriverProfile', driverProfileSchema);
 
 export default DriverProfile;

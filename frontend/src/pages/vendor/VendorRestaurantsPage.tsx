@@ -127,7 +127,7 @@ const VendorRestaurantsPage: React.FC = () => {
             const deliveryTime =
               restaurant.estimatedDeliveryTime != null
                 ? `${restaurant.estimatedDeliveryTime} min`
-                : restaurant.deliveryTime;
+                : `${restaurant.deliveryTime.min}–${restaurant.deliveryTime.max} min`;
             const area = restaurant.address?.area;
             const district = restaurant.address?.district;
             const location = [area, district].filter(Boolean).join(", ");

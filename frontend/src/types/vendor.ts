@@ -96,7 +96,7 @@ export interface VendorRestaurant {
   approvalStatus: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
   rating: RestaurantRating;
-  deliveryTime: string;
+  deliveryTime: { min: number; max: number };
   deliveryFee: number;
   minimumOrder: number;
   createdAt: string;
@@ -332,7 +332,7 @@ export interface CreateRestaurantPayload {
   contactInfo?: RestaurantContactInfo;
   images?: RestaurantImages;
   operatingHours?: OperatingHoursEntry[];
-  deliveryTime?: string;
+  deliveryTime?: { min: number; max: number };
 }
 
 export interface UpdateRestaurantPayload extends Partial<CreateRestaurantPayload> {

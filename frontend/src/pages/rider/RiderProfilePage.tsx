@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { optionalBdPhoneSchema } from '@/lib/phone';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import {
@@ -36,11 +37,7 @@ const profileSchema = z.object({
   bankName: z.string().optional(),
   accountNumber: z.string().optional(),
   accountHolderName: z.string().optional(),
-  mobileMoneyNumber: z
-    .string()
-    .regex(/^\+?[\d\s\-()]{7,20}$/, 'Please enter a valid phone number')
-    .optional()
-    .or(z.literal('')),
+  mobileMoneyNumber: optionalBdPhoneSchema,
   mobileMoneyProvider: z.string().optional(),
 });
 
@@ -84,21 +81,36 @@ const RiderProfilePage: React.FC = () => {
     try {
       const { default: riderService } = await import('@/services/riderService');
       const res = await riderService.getProfile();
-      const profile = (res.data as { data?: { profile: Record<string, unknown> } }).data?.profile ?? {};
+      const profile =
+        (res.data as { data?: { profile: Record<string, unknown> } }).data
+          ?.profile ?? {};
 
       setApplicationStatus((profile?.applicationStatus as string) ?? 'pending');
 
       const docs = (profile?.documents as Record<string, string>) ?? {};
-      if (docs.licensePhoto) setDocuments((prev) => ({ ...prev, licensePhoto: docs.licensePhoto }));
-      if (docs.vehicleRegistrationPhoto) setDocuments((prev) => ({ ...prev, vehicleRegistrationPhoto: docs.vehicleRegistrationPhoto }));
-      if (docs.insurancePhoto) setDocuments((prev) => ({ ...prev, insurancePhoto: docs.insurancePhoto }));
+      if (docs.licensePhoto)
+        setDocuments((prev) => ({ ...prev, licensePhoto: docs.licensePhoto }));
+      if (docs.vehicleRegistrationPhoto)
+        setDocuments((prev) => ({
+          ...prev,
+          vehicleRegistrationPhoto: docs.vehicleRegistrationPhoto,
+        }));
+      if (docs.insurancePhoto)
+        setDocuments((prev) => ({
+          ...prev,
+          insurancePhoto: docs.insurancePhoto,
+        }));
 
-      const bd = profile?.bankDetails as Record<string, string | undefined> ?? {};
+      const bd =
+        (profile?.bankDetails as Record<string, string | undefined>) ?? {};
       if (bd.bankName) form.setValue('bankName', bd.bankName);
       if (bd.accountNumber) form.setValue('accountNumber', bd.accountNumber);
-      if (bd.accountHolderName) form.setValue('accountHolderName', bd.accountHolderName);
-      if (bd.mobileMoneyNumber) form.setValue('mobileMoneyNumber', bd.mobileMoneyNumber);
-      if (bd.mobileMoneyProvider) form.setValue('mobileMoneyProvider', bd.mobileMoneyProvider);
+      if (bd.accountHolderName)
+        form.setValue('accountHolderName', bd.accountHolderName);
+      if (bd.mobileMoneyNumber)
+        form.setValue('mobileMoneyNumber', bd.mobileMoneyNumber);
+      if (bd.mobileMoneyProvider)
+        form.setValue('mobileMoneyProvider', bd.mobileMoneyProvider);
     } catch {
       toast({ variant: 'destructive', title: 'Error loading profile' });
     } finally {
@@ -106,35 +118,45 @@ const RiderProfilePage: React.FC = () => {
     }
   }, [form, toast]);
 
-  useEffect(() => { void fetchProfile(); }, [fetchProfile]);
+  useEffect(() => {
+    void fetchProfile();
+  }, [fetchProfile]);
 
-  const handleFileUpload = useCallback(async (fieldName: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      setUploading(fieldName);
-      try {
-        const { default: riderService } = await import('@/services/riderService');
-        const formData = new FormData();
-        formData.append('document', file);
-        formData.append('documentType', fieldName);
-        const res = await riderService.uploadDocument(formData);
-        const documentUrl = (res.data as { data?: { documentUrl: string } }).data?.documentUrl;
-        if (documentUrl) {
-          setDocuments((prev) => ({ ...prev, [fieldName]: documentUrl }));
-          toast({ title: 'Uploaded', description: 'Document updated successfully' });
+  const handleFileUpload = useCallback(
+    async (fieldName: string) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        setUploading(fieldName);
+        try {
+          const { default: riderService } =
+            await import('@/services/riderService');
+          const formData = new FormData();
+          formData.append('document', file);
+          formData.append('documentType', fieldName);
+          const res = await riderService.uploadDocument(formData);
+          const documentUrl = (res.data as { data?: { documentUrl: string } })
+            .data?.documentUrl;
+          if (documentUrl) {
+            setDocuments((prev) => ({ ...prev, [fieldName]: documentUrl }));
+            toast({
+              title: 'Uploaded',
+              description: 'Document updated successfully',
+            });
+          }
+        } catch {
+          toast({ variant: 'destructive', title: 'Upload failed' });
+        } finally {
+          setUploading(null);
         }
-      } catch {
-        toast({ variant: 'destructive', title: 'Upload failed' });
-      } finally {
-        setUploading(null);
-      }
-    };
-    input.click();
-  }, [toast]);
+      };
+      input.click();
+    },
+    [toast],
+  );
 
   const onSubmit = async (data: ProfileFormData) => {
     setSaving(true);
@@ -178,7 +200,8 @@ const RiderProfilePage: React.FC = () => {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         className={`rounded-2xl border p-4 flex items-center gap-3 ${
-          statusColors[applicationStatus] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+          statusColors[applicationStatus] ??
+          'bg-gray-50 text-gray-600 border-gray-200'
         }`}
       >
         {applicationStatus === 'approved' ? (
@@ -191,10 +214,18 @@ const RiderProfilePage: React.FC = () => {
             Application {applicationStatus}
           </p>
           <p className="text-xs opacity-80">
-            {applicationStatus === 'pending' && 'Your application is under review'}
-            {applicationStatus === 'approved' && 'You can now accept deliveries'}
+            {applicationStatus === 'pending' &&
+              'Your application is under review'}
+            {applicationStatus === 'approved' &&
+              'You can now accept deliveries'}
             {applicationStatus === 'rejected' && (
-              <span>Please <Link to="/rider/support" className="underline font-medium">contact support</Link> for details</span>
+              <span>
+                Please{' '}
+                <Link to="/rider/support" className="underline font-medium">
+                  contact support
+                </Link>{' '}
+                for details
+              </span>
             )}
           </p>
         </div>
@@ -213,7 +244,10 @@ const RiderProfilePage: React.FC = () => {
 
         <div className="space-y-3">
           {DOCUMENT_FIELDS.map((doc) => (
-            <div key={doc.key} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+            <div
+              key={doc.key}
+              className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+            >
               <div className="flex items-center gap-3">
                 {documents[doc.key] ? (
                   <CheckCircle className="w-5 h-5 text-green-500" />
@@ -259,8 +293,12 @@ const RiderProfilePage: React.FC = () => {
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 flex items-center gap-3">
               <Banknote className="w-6 h-6 text-blue-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Mobile Money (Recommended)</p>
-                <p className="text-xs text-gray-500">Get paid instantly to your mobile wallet</p>
+                <p className="text-sm font-medium text-gray-900">
+                  Mobile Money (Recommended)
+                </p>
+                <p className="text-xs text-gray-500">
+                  Get paid instantly to your mobile wallet
+                </p>
               </div>
             </div>
 
@@ -271,7 +309,10 @@ const RiderProfilePage: React.FC = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provider</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value ?? ''}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
@@ -279,7 +320,9 @@ const RiderProfilePage: React.FC = () => {
                       </FormControl>
                       <SelectContent>
                         {MOBILE_MONEY_PROVIDERS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -307,7 +350,9 @@ const RiderProfilePage: React.FC = () => {
                 <span className="w-full border-t border-gray-200" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-400">Or bank transfer</span>
+                <span className="bg-white px-2 text-gray-400">
+                  Or bank transfer
+                </span>
               </div>
             </div>
 
@@ -359,7 +404,9 @@ const RiderProfilePage: React.FC = () => {
               className="w-full bg-orange-500 hover:bg-orange-600 text-white"
             >
               {saving ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</>
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…
+                </>
               ) : (
                 'Save Changes'
               )}

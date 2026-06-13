@@ -1,14 +1,28 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import type { Booking, BookingSlot, Restaurant } from "@/types/restaurant";
+import { Button } from '@/components/ui/button';
+import { DialogHeader } from '@/components/ui/dialog';
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { bdPhoneSchema } from '@/lib/phone';
+import type { Booking, BookingSlot, Restaurant } from '@/types/restaurant';
 import { cn } from '@/utils/cn';
-import { restaurantFallbackSVG } from "@/utils/fallbackImages";
+import { restaurantFallbackSVG } from '@/utils/fallbackImages';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
-import { format, addDays } from 'date-fns';
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@radix-ui/react-dialog';
+import { addDays, format } from 'date-fns';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
   Calendar,
@@ -19,25 +33,23 @@ import {
   Loader2,
   MapPin,
   Star,
-  Users
-} from "lucide-react";
-import React, { useCallback, useMemo, useState } from "react";
+  Users,
+} from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import z from 'zod';
-import { DialogHeader } from '@/components/ui/dialog';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 
 // Validation schema
 const bookingSchema = z.object({
   guests: z
     .number()
-    .min(1, "At least 1 guest required")
-    .max(20, "Maximum 20 guests"),
-  date: z.string().min(1, "Please select a date"),
-  time: z.string().min(1, "Please select a time"),
-  contactName: z.string().min(2, "Name is required"),
-  contactPhone: z.string().min(10, "Valid phone number required"),
-  contactEmail: z.string().email("Valid email required"),
+    .min(1, 'At least 1 guest required')
+    .max(20, 'Maximum 20 guests'),
+  date: z.string().min(1, 'Please select a date'),
+  time: z.string().min(1, 'Please select a time'),
+  contactName: z.string().min(2, 'Name is required'),
+  contactPhone: bdPhoneSchema,
+  contactEmail: z.string().email('Valid email required'),
   specialRequests: z.string().optional(),
 });
 
@@ -63,14 +75,14 @@ const generateTimeSlots = (_date: string): BookingSlot[] => {
       if (hour === 21 && minute === 30) continue;
 
       const hour12 = hour > 12 ? hour - 12 : hour;
-      const ampm = hour >= 12 ? "PM" : "AM";
+      const ampm = hour >= 12 ? 'PM' : 'AM';
 
       // Random availability for demo
       const available = Math.random() > 0.2;
       const tablesLeft = available ? Math.floor(Math.random() * 5) + 1 : 0;
 
       slots.push({
-        time: `${hour12}:${minute.toString().padStart(2, "0")} ${ampm}`,
+        time: `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`,
         available,
         tablesLeft: available ? tablesLeft : undefined,
       });
@@ -84,20 +96,20 @@ const generateTimeSlots = (_date: string): BookingSlot[] => {
 const getQuickDates = () => {
   const today = new Date();
   return [
-    { label: "Today", date: format(today, "yyyy-MM-dd"), isToday: true },
+    { label: 'Today', date: format(today, 'yyyy-MM-dd'), isToday: true },
     {
-      label: "Tomorrow",
-      date: format(addDays(today, 1), "yyyy-MM-dd"),
+      label: 'Tomorrow',
+      date: format(addDays(today, 1), 'yyyy-MM-dd'),
       isToday: false,
     },
     {
-      label: format(addDays(today, 2), "EEE"),
-      date: format(addDays(today, 2), "yyyy-MM-dd"),
+      label: format(addDays(today, 2), 'EEE'),
+      date: format(addDays(today, 2), 'yyyy-MM-dd'),
       isToday: false,
     },
     {
-      label: format(addDays(today, 3), "EEE"),
-      date: format(addDays(today, 3), "yyyy-MM-dd"),
+      label: format(addDays(today, 3), 'EEE'),
+      date: format(addDays(today, 3), 'yyyy-MM-dd'),
       isToday: false,
     },
   ];
@@ -107,7 +119,7 @@ const getQuickDates = () => {
 const guestOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
 // Booking steps
-type BookingStep = "select" | "details" | "confirm" | "success";
+type BookingStep = 'select' | 'details' | 'confirm' | 'success';
 
 const BookingModal: React.FC<BookingModalProps> = ({
   restaurant,
@@ -118,14 +130,14 @@ const BookingModal: React.FC<BookingModalProps> = ({
   initialDate,
   initialTime,
 }) => {
-  const [step, setStep] = useState<BookingStep>("select");
+  const [step, setStep] = useState<BookingStep>('select');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedGuests, setSelectedGuests] = useState(initialGuests);
   const [selectedDate, setSelectedDate] = useState(
-    initialDate || format(new Date(), "yyyy-MM-dd"),
+    initialDate || format(new Date(), 'yyyy-MM-dd'),
   );
-  const [selectedTime, setSelectedTime] = useState(initialTime || "");
-  const [confirmationCode, setConfirmationCode] = useState("");
+  const [selectedTime, setSelectedTime] = useState(initialTime || '');
+  const [confirmationCode, setConfirmationCode] = useState('');
   const { toast } = useToast();
 
   // Generate time slots based on selected date
@@ -141,35 +153,35 @@ const BookingModal: React.FC<BookingModalProps> = ({
       guests: initialGuests,
       date: selectedDate,
       time: selectedTime,
-      contactName: "",
-      contactPhone: "",
-      contactEmail: "",
-      specialRequests: "",
+      contactName: '',
+      contactPhone: '',
+      contactEmail: '',
+      specialRequests: '',
     },
   });
 
   // Update form when selections change
   React.useEffect(() => {
-    form.setValue("guests", selectedGuests);
-    form.setValue("date", selectedDate);
-    form.setValue("time", selectedTime);
+    form.setValue('guests', selectedGuests);
+    form.setValue('date', selectedDate);
+    form.setValue('time', selectedTime);
   }, [selectedGuests, selectedDate, selectedTime, form]);
 
   const handleTimeSelect = useCallback((time: string) => {
     setSelectedTime(time);
-    setStep("details");
+    setStep('details');
   }, []);
 
   const handleBack = useCallback(() => {
-    if (step === "details") {
-      setStep("select");
-    } else if (step === "confirm") {
-      setStep("details");
+    if (step === 'details') {
+      setStep('select');
+    } else if (step === 'confirm') {
+      setStep('details');
     }
   }, [step]);
 
   const handleDetailsSubmit = useCallback(() => {
-    setStep("confirm");
+    setStep('confirm');
   }, []);
 
   const handleConfirmBooking = useCallback(async () => {
@@ -190,25 +202,25 @@ const BookingModal: React.FC<BookingModalProps> = ({
         guests: selectedGuests,
         date: selectedDate,
         time: selectedTime,
-        status: "confirmed",
+        status: 'confirmed',
         confirmationCode: code,
-        specialRequests: form.getValues("specialRequests"),
+        specialRequests: form.getValues('specialRequests'),
         createdAt: new Date().toISOString(),
       };
 
-      setStep("success");
+      setStep('success');
 
       toast({
-        title: "Booking Confirmed!",
+        title: 'Booking Confirmed!',
         description: `Your table at ${restaurant?.name} is booked.`,
       });
 
       onBookingComplete?.(booking);
     } catch (error) {
       toast({
-        title: "Booking Failed",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        title: 'Booking Failed',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
@@ -225,8 +237,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleClose = useCallback(() => {
     // Reset state on close
-    setStep("select");
-    setSelectedTime("");
+    setStep('select');
+    setSelectedTime('');
     form.reset();
     onClose();
   }, [form, onClose]);
@@ -238,9 +250,9 @@ const BookingModal: React.FC<BookingModalProps> = ({
         /(\d+):(\d+)\s*(AM|PM)/i,
         (_, h, m, p) => {
           let hour = parseInt(h);
-          if (p.toUpperCase() === "PM" && hour !== 12) hour += 12;
-          if (p.toUpperCase() === "AM" && hour === 12) hour = 0;
-          return `${hour.toString().padStart(2, "0")}:${m}`;
+          if (p.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+          if (p.toUpperCase() === 'AM' && hour === 12) hour = 0;
+          return `${hour.toString().padStart(2, '0')}:${m}`;
         },
       )}:00`,
     );
@@ -248,22 +260,22 @@ const BookingModal: React.FC<BookingModalProps> = ({
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours
 
     const formatGoogleDate = (date: Date) =>
-      date.toISOString().replace(/-|:|\.\d+/g, "");
+      date.toISOString().replace(/-|:|\.\d+/g, '');
 
-    const url = new URL("https://calendar.google.com/calendar/render");
-    url.searchParams.set("action", "TEMPLATE");
-    url.searchParams.set("text", `Dinner at ${restaurant?.name}`);
+    const url = new URL('https://calendar.google.com/calendar/render');
+    url.searchParams.set('action', 'TEMPLATE');
+    url.searchParams.set('text', `Dinner at ${restaurant?.name}`);
     url.searchParams.set(
-      "dates",
+      'dates',
       `${formatGoogleDate(startDate)}/${formatGoogleDate(endDate)}`,
     );
-    url.searchParams.set("location", restaurant?.address || "");
+    url.searchParams.set('location', restaurant?.address || '');
     url.searchParams.set(
-      "details",
+      'details',
       `Booking for ${selectedGuests} guests. Confirmation: ${confirmationCode}`,
     );
 
-    window.open(url.toString(), "_blank");
+    window.open(url.toString(), '_blank');
   }, [
     restaurant,
     selectedDate,
@@ -304,7 +316,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
         <AnimatePresence mode="wait">
           {/* Step 1: Select Date, Time & Guests */}
-          {step === "select" && (
+          {step === 'select' && (
             <motion.div
               key="select"
               initial={{ opacity: 0, x: 20 }}
@@ -325,10 +337,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       type="button"
                       onClick={() => setSelectedGuests(num)}
                       className={cn(
-                        "w-10 h-10 rounded-lg text-sm font-medium transition-all",
+                        'w-10 h-10 rounded-lg text-sm font-medium transition-all',
                         selectedGuests === num
-                          ? "bg-brand-500 text-white shadow-md"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                          ? 'bg-brand-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
                       )}
                     >
                       {num}
@@ -338,10 +350,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
                     type="button"
                     onClick={() => setSelectedGuests(10)}
                     className={cn(
-                      "px-4 h-10 rounded-lg text-sm font-medium transition-all",
+                      'px-4 h-10 rounded-lg text-sm font-medium transition-all',
                       selectedGuests > 8
-                        ? "bg-brand-500 text-white shadow-md"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                        ? 'bg-brand-500 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
                     )}
                   >
                     9+
@@ -362,15 +374,15 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       type="button"
                       onClick={() => setSelectedDate(option.date)}
                       className={cn(
-                        "flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                        'flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all',
                         selectedDate === option.date
-                          ? "bg-brand-500 text-white shadow-md"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                          ? 'bg-brand-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
                       )}
                     >
                       <div>{option.label}</div>
                       <div className="text-xs opacity-80">
-                        {format(new Date(option.date), "MMM d")}
+                        {format(new Date(option.date), 'MMM d')}
                       </div>
                     </button>
                   ))}
@@ -393,13 +405,13 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       }
                       disabled={!slot.available}
                       className={cn(
-                        "py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                        'py-2 px-3 rounded-lg text-sm font-medium transition-all',
                         !slot.available &&
-                          "opacity-50 cursor-not-allowed bg-gray-50 text-gray-400 line-through",
+                          'opacity-50 cursor-not-allowed bg-gray-50 text-gray-400 line-through',
                         slot.available && selectedTime === slot.time
-                          ? "bg-brand-500 text-white shadow-md"
+                          ? 'bg-brand-500 text-white shadow-md'
                           : slot.available &&
-                              "bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-600",
+                              'bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-600',
                       )}
                     >
                       {slot.time}
@@ -417,7 +429,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
           )}
 
           {/* Step 2: Contact Details */}
-          {step === "details" && (
+          {step === 'details' && (
             <motion.div
               key="details"
               initial={{ opacity: 0, x: 20 }}
@@ -434,7 +446,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4 text-brand-500" />
-                    {format(new Date(selectedDate), "MMM d")}
+                    {format(new Date(selectedDate), 'MMM d')}
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-4 h-4 text-brand-500" />
@@ -542,7 +554,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
           )}
 
           {/* Step 3: Confirm Booking */}
-          {step === "confirm" && (
+          {step === 'confirm' && (
             <motion.div
               key="confirm"
               initial={{ opacity: 0, x: 20 }}
@@ -561,7 +573,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   <div className="flex justify-between">
                     <span className="text-gray-500">Date</span>
                     <span className="font-medium">
-                      {format(new Date(selectedDate), "EEEE, MMMM d, yyyy")}
+                      {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -575,16 +587,16 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   <div className="flex justify-between">
                     <span className="text-gray-500">Contact</span>
                     <span className="font-medium">
-                      {form.getValues("contactName")}
+                      {form.getValues('contactName')}
                     </span>
                   </div>
-                  {form.getValues("specialRequests") && (
+                  {form.getValues('specialRequests') && (
                     <div className="pt-2 border-t">
                       <span className="text-gray-500 block mb-1">
                         Special Requests
                       </span>
                       <span className="text-gray-700">
-                        {form.getValues("specialRequests")}
+                        {form.getValues('specialRequests')}
                       </span>
                     </div>
                   )}
@@ -619,7 +631,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       Confirming...
                     </>
                   ) : (
-                    "Confirm Booking"
+                    'Confirm Booking'
                   )}
                 </Button>
               </div>
@@ -627,7 +639,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
           )}
 
           {/* Step 4: Success */}
-          {step === "success" && (
+          {step === 'success' && (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -637,7 +649,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: "spring", delay: 0.2 }}
+                transition={{ type: 'spring', delay: 0.2 }}
                 className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto"
               >
                 <Check className="w-8 h-8 text-green-600" />
@@ -662,7 +674,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               <div className="text-sm text-gray-600 space-y-1">
                 <p>
                   <Calendar className="w-4 h-4 inline mr-1" />
-                  {format(new Date(selectedDate), "EEEE, MMMM d, yyyy")}
+                  {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
                 </p>
                 <p>
                   <Clock className="w-4 h-4 inline mr-1" />

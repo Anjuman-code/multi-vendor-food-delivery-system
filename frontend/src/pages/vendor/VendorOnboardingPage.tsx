@@ -1,23 +1,25 @@
-import {
-  DISTRICT_DATA,
-  getAreasByDistrict,
-} from "@/components/locationUtils";
+import { DISTRICT_DATA, getAreasByDistrict } from '@/components/locationUtils';
 import {
   OnboardingLayout,
   OptionCard,
   StepHeader,
   StepNav,
   type OnboardingStep,
-} from "@/components/onboarding";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import authService from "@/services/authService";
-import vendorService from "@/services/vendorService";
-import type { CreateRestaurantPayload } from "@/types/vendor";
-import { motion } from "framer-motion";
+} from '@/components/onboarding';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import {
+  BD_PHONE_ERROR_MESSAGE,
+  isValidBdPhoneNumber,
+  normalizeBdPhoneNumber,
+} from '@/lib/phone';
+import authService from '@/services/authService';
+import vendorService from '@/services/vendorService';
+import type { CreateRestaurantPayload } from '@/types/vendor';
+import { motion } from 'framer-motion';
 import {
   Banknote,
   Bike,
@@ -31,61 +33,66 @@ import {
   Truck,
   Utensils,
   Wallet,
-} from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const CUISINE_OPTIONS = [
-  "Bengali",
-  "Indian",
-  "Chinese",
-  "Thai",
-  "Italian",
-  "Mexican",
-  "Japanese",
-  "Korean",
-  "American",
-  "Middle Eastern",
-  "Mediterranean",
-  "Fast Food",
-  "Street Food",
-  "Desserts",
-  "Beverages",
+  'Bengali',
+  'Indian',
+  'Chinese',
+  'Thai',
+  'Italian',
+  'Mexican',
+  'Japanese',
+  'Korean',
+  'American',
+  'Middle Eastern',
+  'Mediterranean',
+  'Fast Food',
+  'Street Food',
+  'Desserts',
+  'Beverages',
 ];
 
 const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
 ];
 
 const MOBILE_MONEY_PROVIDERS = [
-  { value: "bkash", label: "bKash" },
-  { value: "nagad", label: "Nagad" },
-  { value: "rocket", label: "Rocket" },
-  { value: "upay", label: "Upay" },
+  { value: 'bkash', label: 'bKash' },
+  { value: 'nagad', label: 'Nagad' },
+  { value: 'rocket', label: 'Rocket' },
+  { value: 'upay', label: 'Upay' },
 ];
 
 const STEPS: OnboardingStep[] = [
-  { id: "welcome", label: "Welcome", description: "How it works", icon: Store },
+  { id: 'welcome', label: 'Welcome', description: 'How it works', icon: Store },
   {
-    id: "restaurant",
-    label: "Restaurant",
-    description: "Tell us the basics",
+    id: 'restaurant',
+    label: 'Restaurant',
+    description: 'Tell us the basics',
     icon: Utensils,
   },
   {
-    id: "delivery",
-    label: "Hours & delivery",
-    description: "When & how you deliver",
+    id: 'delivery',
+    label: 'Hours & delivery',
+    description: 'When & how you deliver',
     icon: Truck,
   },
-  { id: "payout", label: "Payout", description: "Get paid your way", icon: Wallet },
-  { id: "launch", label: "Launch", description: "Go live", icon: Rocket },
+  {
+    id: 'payout',
+    label: 'Payout',
+    description: 'Get paid your way',
+    icon: Wallet,
+  },
+  { id: 'launch', label: 'Launch', description: 'Go live', icon: Rocket },
 ];
 
 interface DayHours {
@@ -98,12 +105,12 @@ interface DayHours {
 const defaultHours = (): DayHours[] =>
   DAYS.map((day) => ({
     day,
-    open: "09:00",
-    close: "22:00",
+    open: '09:00',
+    close: '22:00',
     isClosed: false,
   }));
 
-type PayoutMethod = "mobile" | "bank";
+type PayoutMethod = 'mobile' | 'bank';
 
 const VendorOnboardingPage: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -113,42 +120,42 @@ const VendorOnboardingPage: React.FC = () => {
   const [step, setStep] = useState(0);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [existingRestaurantId, setExistingRestaurantId] = useState<string | null>(
-    null,
-  );
+  const [existingRestaurantId, setExistingRestaurantId] = useState<
+    string | null
+  >(null);
 
   // Restaurant basics
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [cuisines, setCuisines] = useState<string[]>([]);
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [street, setStreet] = useState("");
-  const [district, setDistrict] = useState("");
-  const [area, setArea] = useState("");
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [street, setStreet] = useState('');
+  const [district, setDistrict] = useState('');
+  const [area, setArea] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Hours & delivery
   const [hours, setHours] = useState<DayHours[]>(defaultHours);
-  const [minimumOrder, setMinimumOrder] = useState("");
-  const [deliveryFee, setDeliveryFee] = useState("");
-  const [deliveryTime, setDeliveryTime] = useState("30");
+  const [minimumOrder, setMinimumOrder] = useState('');
+  const [deliveryFee, setDeliveryFee] = useState('');
+  const [deliveryTime, setDeliveryTime] = useState('30');
 
   // Payout
-  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("mobile");
-  const [provider, setProvider] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [accountHolderName, setAccountHolderName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>('mobile');
+  const [provider, setProvider] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
 
   useEffect(() => {
     if (!user) {
-      navigate("/login", { replace: true });
+      navigate('/login', { replace: true });
       return;
     }
     if (user.onboardingCompleted) {
-      navigate("/vendor", { replace: true });
+      navigate('/vendor', { replace: true });
       return;
     }
     void (async () => {
@@ -159,10 +166,11 @@ const VendorOnboardingPage: React.FC = () => {
         ]);
 
         if (profileRes.success && profileRes.data) {
-          setName((prev) => prev || profileRes.data?.businessName || "");
-          setPhone((prev) => prev || profileRes.data?.businessPhone || "");
+          setName((prev) => prev || profileRes.data?.businessName || '');
+          setPhone((prev) => prev || profileRes.data?.businessPhone || '');
           setEmail(
-            (prev) => prev || profileRes.data?.businessEmail || user.email || "",
+            (prev) =>
+              prev || profileRes.data?.businessEmail || user.email || '',
           );
         } else if (user.email) {
           setEmail((prev) => prev || user.email);
@@ -173,8 +181,8 @@ const VendorOnboardingPage: React.FC = () => {
           : undefined;
         if (restaurant) {
           setExistingRestaurantId(restaurant._id);
-          setName((prev) => prev || restaurant.name || "");
-          setDescription((prev) => prev || restaurant.description || "");
+          setName((prev) => prev || restaurant.name || '');
+          setDescription((prev) => prev || restaurant.description || '');
         }
       } catch {
         // Non-blocking — vendor can fill everything from scratch
@@ -198,16 +206,16 @@ const VendorOnboardingPage: React.FC = () => {
 
   const validateRestaurant = (): boolean => {
     const next: Record<string, string> = {};
-    if (name.trim().length < 2) next.name = "Enter your restaurant name.";
+    if (name.trim().length < 2) next.name = 'Enter your restaurant name.';
     if (description.trim().length < 10)
-      next.description = "Add a short description (at least 10 characters).";
-    if (cuisines.length === 0) next.cuisines = "Pick at least one cuisine.";
-    if (phone.trim().length < 6) next.phone = "Enter a contact phone number.";
+      next.description = 'Add a short description (at least 10 characters).';
+    if (cuisines.length === 0) next.cuisines = 'Pick at least one cuisine.';
+    if (!isValidBdPhoneNumber(phone)) next.phone = BD_PHONE_ERROR_MESSAGE;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      next.email = "Enter a valid email address.";
-    if (street.trim().length < 2) next.street = "Enter your street address.";
-    if (!district) next.district = "Select a district.";
-    if (!area) next.area = "Select an area.";
+      next.email = 'Enter a valid email address.';
+    if (street.trim().length < 2) next.street = 'Enter your street address.';
+    if (!district) next.district = 'Select a district.';
+    if (!area) next.area = 'Select an area.';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -223,7 +231,7 @@ const VendorOnboardingPage: React.FC = () => {
         name: name.trim(),
         description: description.trim(),
         cuisineType: cuisines,
-        phone: phone.trim(),
+        phone: normalizeBdPhoneNumber(phone),
         email: email.trim(),
         address: {
           street: street.trim(),
@@ -241,14 +249,19 @@ const VendorOnboardingPage: React.FC = () => {
         : await vendorService.createRestaurant(payload);
 
       if (!restaurantRes.success) {
-        throw new Error(restaurantRes.message || "Could not save your restaurant.");
+        throw new Error(
+          restaurantRes.message || 'Could not save your restaurant.',
+        );
       }
 
       // Persist payout details (best-effort — not blocking go-live)
       const bankDetails =
-        payoutMethod === "mobile"
+        payoutMethod === 'mobile'
           ? provider || mobileNumber
-            ? { mobileMoneyProvider: provider, mobileMoneyNumber: mobileNumber }
+            ? {
+                mobileMoneyProvider: provider,
+                mobileMoneyNumber: normalizeBdPhoneNumber(mobileNumber),
+              }
             : null
           : bankName || accountNumber
             ? { bankName, accountHolderName, accountNumber }
@@ -264,17 +277,17 @@ const VendorOnboardingPage: React.FC = () => {
       toast({
         title: "You're live! 🎉",
         description:
-          "Your restaurant is set up. Add menu items to start taking orders.",
+          'Your restaurant is set up. Add menu items to start taking orders.',
       });
-      navigate("/vendor", { replace: true });
+      navigate('/vendor', { replace: true });
     } catch (err) {
       toast({
-        variant: "destructive",
+        variant: 'destructive',
         title: "Couldn't finish setup",
         description:
           err instanceof Error
             ? err.message
-            : "Something went wrong. Please try again.",
+            : 'Something went wrong. Please try again.',
       });
     } finally {
       setSubmitting(false);
@@ -326,7 +339,7 @@ const VendorOnboardingPage: React.FC = () => {
           </span>
           <h2 className="mt-5 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
             Welcome aboard
-            {name ? `, ${name}` : user.firstName ? `, ${user.firstName}` : ""}!
+            {name ? `, ${name}` : user.firstName ? `, ${user.firstName}` : ''}!
           </h2>
           <p className="mt-2 max-w-md text-[0.95rem] leading-relaxed text-muted-foreground">
             Let's get your restaurant ready for orders. It only takes a few
@@ -337,17 +350,17 @@ const VendorOnboardingPage: React.FC = () => {
             {[
               {
                 icon: Utensils,
-                title: "Set up your restaurant",
+                title: 'Set up your restaurant',
                 desc: "Name, cuisine and where you're located.",
               },
               {
                 icon: Truck,
-                title: "Hours & delivery",
+                title: 'Hours & delivery',
                 desc: "When you're open and your delivery terms.",
               },
               {
                 icon: Wallet,
-                title: "Payout details",
+                title: 'Payout details',
                 desc: "Choose how you'd like to receive earnings.",
               },
             ].map(({ icon: Icon, title, desc }) => (
@@ -415,8 +428,8 @@ const VendorOnboardingPage: React.FC = () => {
                       onClick={() => toggleCuisine(cuisine)}
                       className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
                         active
-                          ? "border-brand-500 bg-brand-500 text-white"
-                          : "border-border bg-card text-muted-foreground hover:border-brand-200"
+                          ? 'border-brand-500 bg-brand-500 text-white'
+                          : 'border-border bg-card text-muted-foreground hover:border-brand-200'
                       }`}
                     >
                       {cuisine}
@@ -430,7 +443,11 @@ const VendorOnboardingPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Contact phone" error={errors.phone} htmlFor="r-phone">
+              <Field
+                label="Contact phone"
+                error={errors.phone}
+                htmlFor="r-phone"
+              >
                 <Input
                   id="r-phone"
                   value={phone}
@@ -439,7 +456,11 @@ const VendorOnboardingPage: React.FC = () => {
                   inputMode="tel"
                 />
               </Field>
-              <Field label="Contact email" error={errors.email} htmlFor="r-email">
+              <Field
+                label="Contact email"
+                error={errors.email}
+                htmlFor="r-email"
+              >
                 <Input
                   id="r-email"
                   type="email"
@@ -450,7 +471,11 @@ const VendorOnboardingPage: React.FC = () => {
               </Field>
             </div>
 
-            <Field label="Street address" error={errors.street} htmlFor="r-street">
+            <Field
+              label="Street address"
+              error={errors.street}
+              htmlFor="r-street"
+            >
               <Input
                 id="r-street"
                 value={street}
@@ -460,13 +485,17 @@ const VendorOnboardingPage: React.FC = () => {
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="District" error={errors.district} htmlFor="r-district">
+              <Field
+                label="District"
+                error={errors.district}
+                htmlFor="r-district"
+              >
                 <select
                   id="r-district"
                   value={district}
                   onChange={(e) => {
                     setDistrict(e.target.value);
-                    setArea("");
+                    setArea('');
                   }}
                   className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 >
@@ -524,7 +553,7 @@ const VendorOnboardingPage: React.FC = () => {
                   type="button"
                   onClick={() => updateHours(i, { isClosed: !h.isClosed })}
                   className={`flex h-6 w-11 shrink-0 items-center rounded-full px-0.5 transition-colors ${
-                    h.isClosed ? "bg-muted" : "bg-brand-500"
+                    h.isClosed ? 'bg-muted' : 'bg-brand-500'
                   }`}
                   role="switch"
                   aria-checked={!h.isClosed}
@@ -532,7 +561,7 @@ const VendorOnboardingPage: React.FC = () => {
                 >
                   <span
                     className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                      h.isClosed ? "translate-x-0" : "translate-x-5"
+                      h.isClosed ? 'translate-x-0' : 'translate-x-5'
                     }`}
                   />
                 </button>
@@ -553,7 +582,9 @@ const VendorOnboardingPage: React.FC = () => {
                     <Input
                       type="time"
                       value={h.close}
-                      onChange={(e) => updateHours(i, { close: e.target.value })}
+                      onChange={(e) =>
+                        updateHours(i, { close: e.target.value })
+                      }
                       className="h-9 w-[7.5rem]"
                     />
                   </div>
@@ -618,19 +649,19 @@ const VendorOnboardingPage: React.FC = () => {
               title="Mobile money"
               description="bKash, Nagad, Rocket or Upay"
               badge="Popular"
-              selected={payoutMethod === "mobile"}
-              onSelect={() => setPayoutMethod("mobile")}
+              selected={payoutMethod === 'mobile'}
+              onSelect={() => setPayoutMethod('mobile')}
             />
             <OptionCard
               icon={Banknote}
               title="Bank transfer"
               description="Weekly payout to your business account"
-              selected={payoutMethod === "bank"}
-              onSelect={() => setPayoutMethod("bank")}
+              selected={payoutMethod === 'bank'}
+              onSelect={() => setPayoutMethod('bank')}
             />
           </div>
 
-          {payoutMethod === "mobile" ? (
+          {payoutMethod === 'mobile' ? (
             <div className="mt-5 space-y-4 rounded-2xl border border-border bg-muted/40 p-4">
               <Field label="Provider" htmlFor="p-provider">
                 <select
@@ -706,28 +737,28 @@ const VendorOnboardingPage: React.FC = () => {
           />
 
           <div className="space-y-3">
-            <SummaryRow icon={Store} title={name || "Your restaurant"}>
-              {cuisines.length > 0 ? cuisines.join(" · ") : "Cuisine not set"}
+            <SummaryRow icon={Store} title={name || 'Your restaurant'}>
+              {cuisines.length > 0 ? cuisines.join(' · ') : 'Cuisine not set'}
             </SummaryRow>
             <SummaryRow icon={MapPin} title="Location">
-              {[street, area, district].filter(Boolean).join(", ") ||
-                "Not provided"}
+              {[street, area, district].filter(Boolean).join(', ') ||
+                'Not provided'}
             </SummaryRow>
             <SummaryRow icon={Clock} title="Open hours">
-              {openDaysCount} day{openDaysCount === 1 ? "" : "s"} a week
+              {openDaysCount} day{openDaysCount === 1 ? '' : 's'} a week
             </SummaryRow>
             <SummaryRow icon={Bike} title="Delivery">
-              {deliveryFee ? `৳${deliveryFee} fee` : "Free delivery"}
-              {deliveryTime ? ` · ~${deliveryTime} min` : ""}
+              {deliveryFee ? `৳${deliveryFee} fee` : 'Free delivery'}
+              {deliveryTime ? ` · ~${deliveryTime} min` : ''}
             </SummaryRow>
             <SummaryRow icon={Wallet} title="Payout">
-              {payoutMethod === "mobile"
+              {payoutMethod === 'mobile'
                 ? provider || mobileNumber
-                  ? "Mobile money"
-                  : "Set up later"
+                  ? 'Mobile money'
+                  : 'Set up later'
                 : bankName || accountNumber
-                  ? "Bank transfer"
-                  : "Set up later"}
+                  ? 'Bank transfer'
+                  : 'Set up later'}
             </SummaryRow>
           </div>
 

@@ -1,3 +1,4 @@
+import { bdPhoneSchema } from '@/lib/phone';
 import { z } from 'zod';
 
 // ── Restaurant schemas ───────────────────────────────────────────
@@ -16,11 +17,7 @@ export const createRestaurantSchema = z.object({
   cuisineType: z
     .array(z.string().min(1))
     .min(1, 'Select at least one cuisine type'),
-  phone: z
-    .string()
-    .min(7, 'Phone number is too short')
-    .max(20, 'Phone number is too long')
-    .regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number'),
+  phone: z.pipe(bdPhoneSchema),
   email: z.string().email('Please enter a valid email address'),
   website: z
     .string()

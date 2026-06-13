@@ -2,13 +2,17 @@
  * Payout — vendor settlement ledger. Each payout covers a batch of
  * completed orders within a date range, minus platform commission.
  */
-import mongoose, { Model, Schema, Types } from "mongoose";
+import mongoose, { Model, Schema, Types } from 'mongoose';
+import {
+  BD_PHONE_ERROR_MESSAGE,
+  normalizeBdPhoneNumber,
+} from '../utils/phone.util';
 
 export enum PayoutStatus {
-  PENDING = "pending",
-  PROCESSING = "processing",
-  COMPLETED = "completed",
-  FAILED = "failed",
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
 }
 
 export interface IPayout {
@@ -42,7 +46,7 @@ const payoutSchema = new Schema<IPayout>(
   {
     vendorId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
       index: true,
     },
@@ -60,13 +64,17 @@ const payoutSchema = new Schema<IPayout>(
       accountNumber: { type: String, trim: true },
       accountName: { type: String, trim: true },
       routingNumber: { type: String, trim: true },
-      mobileMoneyNumber: { type: String, trim: true },
+      mobileMoneyNumber: {
+        type: String,
+        trim: true,
+        match: [/^\+8801[3-9]\d{8}$/, BD_PHONE_ERROR_MESSAGE],
+      },
       mobileMoneyProvider: { type: String, trim: true },
     },
     orderCount: { type: Number, default: 0, min: 0 },
     commissionTotal: { type: Number, default: 0, min: 0 },
     transactionRef: { type: String, trim: true },
-    processedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    processedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     processedAt: { type: Date },
     notes: { type: String, trim: true, maxlength: 500 },
   },
@@ -76,6 +84,14 @@ const payoutSchema = new Schema<IPayout>(
 payoutSchema.index({ vendorId: 1, createdAt: -1 });
 payoutSchema.index({ status: 1 });
 
-const Payout: Model<IPayout> = mongoose.model<IPayout>("Payout", payoutSchema);
+payoutSchema.pre('validate', function () {
+  if (this.bankSnapshot?.mobileMoneyNumber) {
+    this.bankSnapshot.mobileMoneyNumber = normalizeBdPhoneNumber(
+      this.bankSnapshot.mobileMoneyNumber,
+    );
+  }
+});
+
+const Payout: Model<IPayout> = mongoose.model<IPayout>('Payout', payoutSchema);
 
 export default Payout;

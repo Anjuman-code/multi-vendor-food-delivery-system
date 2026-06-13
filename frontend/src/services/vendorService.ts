@@ -74,7 +74,8 @@ const normalizeRestaurantPayload = (
   }
 
   if (!data.deliveryTime && typeof data.estimatedDeliveryTime === "number") {
-    normalized.deliveryTime = `${Math.round(data.estimatedDeliveryTime)} min`;
+    const t = Math.round(data.estimatedDeliveryTime);
+    normalized.deliveryTime = { min: t, max: t + 15 };
   }
 
   return normalized;
