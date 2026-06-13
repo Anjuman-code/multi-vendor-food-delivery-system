@@ -9,6 +9,7 @@ import {
     ChevronLeft,
     ChevronRight,
     DollarSign,
+    HelpCircle,
     History,
     LayoutDashboard,
     LogOut,
@@ -46,6 +47,12 @@ const sidebarGroups: SidebarGroup[] = [
     label: "Account",
     items: [
       { name: "Profile", path: "/rider/profile", icon: User },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { name: "Help & Support", path: "/rider/support", icon: HelpCircle },
     ],
   },
 ];

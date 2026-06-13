@@ -2,6 +2,7 @@ import { AdminTable, Column } from "@/components/admin/AdminTable";
 import httpClient from "@/lib/httpClient";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface SupportTicket {
   _id: string;
@@ -44,6 +45,7 @@ const priorityBadge = (t: SupportTicket) => {
 };
 
 export default function SupportPage() {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -111,6 +113,18 @@ export default function SupportPage() {
       key: "created",
       header: "Created",
       render: (t) => <span className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</span>,
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (t) => (
+        <button
+          onClick={(e) => { e.preventDefault(); navigate(`/admin/support/${t._id}`); }}
+          className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+        >
+          View
+        </button>
+      ),
     },
   ];
 

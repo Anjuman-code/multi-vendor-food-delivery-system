@@ -101,6 +101,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "react-router-dom", "framer-motion"],
+    include: ["react", "react-dom", "react-router-dom", "framer-motion", "leaflet", "react-leaflet"],
   },
 });

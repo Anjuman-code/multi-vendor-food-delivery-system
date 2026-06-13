@@ -24,7 +24,8 @@ import {
     Tag,
     Users,
     Wallet,
-    X
+    X,
+    Gavel,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -61,6 +62,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Restaurants", path: "/admin/restaurants", icon: Store },
       { name: "Orders", path: "/admin/orders", icon: ClipboardList },
+      { name: "Disputes", path: "/admin/disputes", icon: Gavel },
       { name: "Support", path: "/admin/support", icon: AlertTriangle },
     ],
   },
@@ -110,6 +112,8 @@ const getBreadcrumbs = (pathname: string) => {
   if (pathname.match(/\/admin\/users\/drivers\/[^/]+$/)) crumbs.push({ label: "Driver Detail" });
   if (pathname.match(/\/admin\/restaurants\/[^/]+$/)) crumbs.push({ label: "Restaurant Detail" });
   if (pathname.match(/\/admin\/orders\/[^/]+$/)) crumbs.push({ label: "Order Detail" });
+  if (pathname.match(/\/admin\/support\/[^/]+$/)) crumbs.push({ label: "Ticket Detail" });
+  if (pathname === "/admin/disputes") crumbs.push({ label: "Disputes" });
   return crumbs;
 };
 

@@ -124,7 +124,7 @@ const RiderDashboardPage: React.FC = () => {
           <p className="text-gray-500 text-sm">
             {profile.applicationStatus === "pending"
               ? "Our team is reviewing your application. You'll be notified once approved."
-              : `Your application was not approved. Reason: ${profile.rejectionReason ?? "No reason provided"}. Please contact support.`}
+              : <>Your application was not approved. Reason: {profile.rejectionReason ?? "No reason provided"}. Please <Link to="/rider/support" className="text-orange-600 underline font-medium">contact support</Link>.</>}
           </p>
         </div>
       </div>

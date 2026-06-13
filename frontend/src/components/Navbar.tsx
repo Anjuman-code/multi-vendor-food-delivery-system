@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ClipboardList,
   Heart,
+  HelpCircle,
   LogOut,
   MapPin,
   Menu,
@@ -328,6 +329,13 @@ const Navbar: React.FC = memo(() => {
                         <Heart className="mr-2 h-4 w-4" />
                         <span>Favorites</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate("/support")}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                      >
+                        <HelpCircle className="mr-2 h-4 w-4" />
+                        <span>Help & Support</span>
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuItem
@@ -528,6 +536,18 @@ const Navbar: React.FC = memo(() => {
                         )}
                         {isVendor ? "Go to Dashboard" : "View Profile"}
                       </button>
+                      {!isVendor && (
+                        <button
+                          onClick={() => {
+                            setIsOpen(false);
+                            navigate("/support");
+                          }}
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                          Help & Support
+                        </button>
+                      )}
                       <Button
                         onClick={() => {
                           setIsOpen(false);

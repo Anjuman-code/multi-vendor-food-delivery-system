@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -192,7 +193,9 @@ const RiderProfilePage: React.FC = () => {
           <p className="text-xs opacity-80">
             {applicationStatus === 'pending' && 'Your application is under review'}
             {applicationStatus === 'approved' && 'You can now accept deliveries'}
-            {applicationStatus === 'rejected' && 'Please contact support for details'}
+            {applicationStatus === 'rejected' && (
+              <span>Please <Link to="/rider/support" className="underline font-medium">contact support</Link> for details</span>
+            )}
           </p>
         </div>
       </motion.div>

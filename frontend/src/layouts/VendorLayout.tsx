@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -62,6 +63,12 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { name: "Restaurants", path: "/vendor/restaurants", icon: Store },
       { name: "Settings", path: "/vendor/settings", icon: Settings },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { name: "Help & Support", path: "/vendor/support", icon: HelpCircle },
     ],
   },
 ];

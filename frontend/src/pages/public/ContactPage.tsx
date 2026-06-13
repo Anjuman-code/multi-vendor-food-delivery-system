@@ -2,12 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import httpClient from "@/lib/httpClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import {
     Clock,
     Facebook,
     Instagram,
+    Loader2,
     Mail,
     MapPin,
     MessageCircle,
@@ -100,17 +102,29 @@ const ContactPage: React.FC = () => {
   ];
 
   const onSubmit = async (data: ContactFormData) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    toast({
-      title: "Message Sent!",
-      description:
-        "Thank you for reaching out. We'll get back to you within 24 hours.",
-    });
-
-    reset();
-    console.log("Form submitted:", data);
+    try {
+      const res = await httpClient.post("/api/contact", data);
+      const result = res.data as { success: boolean; message: string };
+      if (result.success) {
+        toast({
+          title: "Message Sent!",
+          description: result.message || "Thank you for reaching out. We'll get back to you within 24 hours.",
+        });
+        reset();
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to send message. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again later.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

@@ -42,6 +42,9 @@ const CheckoutPage = lazy(() => import("./pages/customer/CheckoutPage"));
 const OrdersPage = lazy(() => import("./pages/customer/OrdersPage"));
 const OrderDetailsPage = lazy(() => import("./pages/customer/OrderDetailsPage"));
 const NotificationsPage = lazy(() => import("./pages/customer/NotificationsPage"));
+const SupportPage = lazy(() => import("./pages/customer/SupportPage"));
+const CreateTicketPage = lazy(() => import("./pages/customer/CreateTicketPage"));
+const TicketDetailPage = lazy(() => import("./pages/customer/TicketDetailPage"));
 const OnboardingPage = lazy(() => import("./pages/customer/OnboardingPage"));
 
 // ── Vendor pages ───────────────────────────────────────────────
@@ -56,6 +59,9 @@ const VendorReviewsPage = lazy(() => import("./pages/vendor/VendorReviewsPage"))
 const VendorPromotionsPage = lazy(() => import("./pages/vendor/VendorPromotionsPage"));
 const VendorAnalyticsPage = lazy(() => import("./pages/vendor/VendorAnalyticsPage"));
 const VendorSettingsPage = lazy(() => import("./pages/vendor/VendorSettingsPage"));
+const VendorSupportPage = lazy(() => import("./pages/vendor/VendorSupportPage"));
+const VendorCreateTicketPage = lazy(() => import("./pages/vendor/VendorCreateTicketPage"));
+const VendorTicketDetailPage = lazy(() => import("./pages/vendor/VendorTicketDetailPage"));
 
 // ── Rider pages ────────────────────────────────────────────────
 const RiderLayout = lazy(() => import("./layouts/RiderLayout"));
@@ -64,6 +70,9 @@ const AvailableDeliveriesPage = lazy(() => import("./pages/rider/AvailableDelive
 const ActiveDeliveryPage = lazy(() => import("./pages/rider/ActiveDeliveryPage"));
 const RiderEarningsPage = lazy(() => import("./pages/rider/RiderEarningsPage"));
 const RiderProfilePage = lazy(() => import("./pages/rider/RiderProfilePage"));
+const RiderSupportPage = lazy(() => import("./pages/rider/RiderSupportPage"));
+const RiderCreateTicketPage = lazy(() => import("./pages/rider/RiderCreateTicketPage"));
+const RiderTicketDetailPage = lazy(() => import("./pages/rider/RiderTicketDetailPage"));
 const RiderOnboardingPage = lazy(() => import("./pages/rider/RiderOnboardingPage"));
 
 // ── Admin pages ─────────────────────────────────────────────────
@@ -83,6 +92,8 @@ const AdminOrderDetailPage = lazy(() => import("./pages/admin/orders/OrderDetail
 const AdminPayoutsPage = lazy(() => import("./pages/admin/finance/PayoutsPage"));
 const AdminRevenueReportsPage = lazy(() => import("./pages/admin/finance/RevenueReportsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/support/SupportPage"));
+const AdminTicketDetailPage = lazy(() => import("./pages/admin/support/AdminTicketDetailPage"));
+const AdminDisputePage = lazy(() => import("./pages/admin/support/DisputePage"));
 const AdminReviewModerationPage = lazy(() => import("./pages/admin/support/ReviewModerationPage"));
 const AdminTaxonomyPage = lazy(() => import("./pages/admin/content/TaxonomyPage"));
 const AdminContentBlocksPage = lazy(() => import("./pages/admin/content/ContentBlocksPage"));
@@ -127,6 +138,9 @@ function App(): React.ReactElement {
                       <Route path="/orders" element={<OrdersPage />} />
                       <Route path="/orders/:id" element={<OrderDetailsPage />} />
                       <Route path="/notifications" element={<NotificationsPage />} />
+                      <Route path="/support" element={<SupportPage />} />
+                      <Route path="/support/new" element={<CreateTicketPage />} />
+                      <Route path="/support/:id" element={<TicketDetailPage />} />
 
                       <Route path="*" element={<NotFoundPage />} />
                     </Route>
@@ -162,6 +176,9 @@ function App(): React.ReactElement {
                     <Route path="/vendor/promotions" element={<VendorPromotionsPage />} />
                     <Route path="/vendor/analytics" element={<VendorAnalyticsPage />} />
                     <Route path="/vendor/settings" element={<VendorSettingsPage />} />
+                    <Route path="/vendor/support" element={<VendorSupportPage />} />
+                    <Route path="/vendor/support/new" element={<VendorCreateTicketPage />} />
+                    <Route path="/vendor/support/:id" element={<VendorTicketDetailPage />} />
                   </Route>
 
                   {/* ── Rider routes (own sidebar layout) ───── */}
@@ -172,6 +189,9 @@ function App(): React.ReactElement {
                     <Route path="/rider/earnings" element={<RiderEarningsPage />} />
                     <Route path="/rider/history" element={<RiderEarningsPage />} />
                     <Route path="/rider/profile" element={<RiderProfilePage />} />
+                    <Route path="/rider/support" element={<RiderSupportPage />} />
+                    <Route path="/rider/support/new" element={<RiderCreateTicketPage />} />
+                    <Route path="/rider/support/:id" element={<RiderTicketDetailPage />} />
                   </Route>
 
                   {/* Rider onboarding (no sidebar) */}
@@ -194,6 +214,8 @@ function App(): React.ReactElement {
                     <Route path="finance/payouts" element={<AdminPayoutsPage />} />
                     <Route path="finance/revenue" element={<AdminRevenueReportsPage />} />
                     <Route path="support" element={<AdminSupportPage />} />
+                    <Route path="support/:id" element={<AdminTicketDetailPage />} />
+                    <Route path="disputes" element={<AdminDisputePage />} />
                     <Route path="reviews" element={<AdminReviewModerationPage />} />
                     <Route path="content/taxonomy" element={<AdminTaxonomyPage />} />
                     <Route path="content/blocks" element={<AdminContentBlocksPage />} />

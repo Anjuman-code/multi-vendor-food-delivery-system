@@ -24,6 +24,7 @@ import {
   Clock,
   CreditCard,
   Download,
+  HelpCircle,
   Loader2,
   MapPin,
   Package,
@@ -499,6 +500,15 @@ const OrderDetailsPage: React.FC = () => {
             >
               <Download className="mr-1 h-4 w-4" />
               Download Receipt
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/support/new?type=order_issue&orderId=${order._id}`)}
+              className="border-blue-200 text-blue-600 hover:bg-blue-50"
+            >
+              <HelpCircle className="mr-1 h-4 w-4" />
+              Need Help?
             </Button>
           </div>
         </div>
