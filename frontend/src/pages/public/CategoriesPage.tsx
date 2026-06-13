@@ -33,14 +33,14 @@ const CategoryTab: React.FC<{
     onClick={onClick}
     className={`relative px-6 py-3 text-base font-medium transition-all duration-200 whitespace-nowrap ${
       isActive
-        ? "text-orange-500 border-b-2 border-orange-500"
+        ? "text-brand-500 border-b-2 border-brand-500"
         : "text-gray-600 hover:text-gray-900"
     }`}
   >
     <span className="flex items-center gap-2">
       {category.name}
       {category.isNew && (
-        <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-0 text-xs px-2 py-0.5">
+        <Badge className="bg-brand-500 hover:bg-brand-600 text-white border-0 text-xs px-2 py-0.5">
           NEW
         </Badge>
       )}
@@ -50,11 +50,11 @@ const CategoryTab: React.FC<{
 
 const Breadcrumb: React.FC<{ category: string }> = ({ category }) => (
   <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
-    <Link to="/" className="hover:text-orange-500 transition-colors">
+    <Link to="/" className="hover:text-brand-500 transition-colors">
       Home
     </Link>
     <ChevronRight className="w-4 h-4" />
-    <Link to="/categories" className="hover:text-orange-500 transition-colors">
+    <Link to="/categories" className="hover:text-brand-500 transition-colors">
       Menu
     </Link>
     <ChevronRight className="w-4 h-4" />
@@ -190,7 +190,7 @@ const CategoriesPage: React.FC = () => {
     <div>
       <div className="bg-white border-b border-gray-200 sticky top-20 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center overflow-x-auto hide-scrollbar">
+          <div className="flex items-center overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((category) => (
               <CategoryTab
                 key={category.id}
@@ -246,7 +246,7 @@ const CategoriesPage: React.FC = () => {
                     onClick={() => setSortBy("popular")}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
                       sortBy === "popular"
-                        ? "text-orange-500 font-medium"
+                        ? "text-brand-500 font-medium"
                         : "text-gray-700"
                     }`}
                   >
@@ -256,7 +256,7 @@ const CategoriesPage: React.FC = () => {
                     onClick={() => setSortBy("rating")}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
                       sortBy === "rating"
-                        ? "text-orange-500 font-medium"
+                        ? "text-brand-500 font-medium"
                         : "text-gray-700"
                     }`}
                   >
@@ -266,7 +266,7 @@ const CategoriesPage: React.FC = () => {
                     onClick={() => setSortBy("price-low")}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
                       sortBy === "price-low"
-                        ? "text-orange-500 font-medium"
+                        ? "text-brand-500 font-medium"
                         : "text-gray-700"
                     }`}
                   >
@@ -276,7 +276,7 @@ const CategoriesPage: React.FC = () => {
                     onClick={() => setSortBy("price-high")}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
                       sortBy === "price-high"
-                        ? "text-orange-500 font-medium"
+                        ? "text-brand-500 font-medium"
                         : "text-gray-700"
                     }`}
                   >
@@ -291,7 +291,7 @@ const CategoriesPage: React.FC = () => {
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded-lg transition-all duration-200 ${
                   viewMode === "grid"
-                    ? "bg-white shadow-sm text-orange-500"
+                    ? "bg-white shadow-sm text-brand-500"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -301,7 +301,7 @@ const CategoriesPage: React.FC = () => {
                 onClick={() => setViewMode("list")}
                 className={`p-2 rounded-lg transition-all duration-200 ${
                   viewMode === "list"
-                    ? "bg-white shadow-sm text-orange-500"
+                    ? "bg-white shadow-sm text-brand-500"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -327,7 +327,7 @@ const CategoriesPage: React.FC = () => {
             {isLoading ? (
               <div className="col-span-full text-center py-16">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
                   Loading...
@@ -380,16 +380,6 @@ const CategoriesPage: React.FC = () => {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      <style>{`
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 };

@@ -8,7 +8,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Orange brand scale ──────────────────────────────────
+        // ── shadcn/ui semantic tokens (driven by CSS vars in index.css) ──
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        // ── Orange brand scale (primary mirrors brand-500) ──────────
         brand: {
           50:  "#fff7ed",
           100: "#ffedd5",
@@ -20,10 +54,6 @@ export default {
           700: "#c2410c",
           800: "#9a3412",
           900: "#7c2d12",
-        },
-        destructive: {
-          DEFAULT: "#ef4444",
-          foreground: "#ffffff",
         },
         // ── Semantic surfaces for vendor pages ──────────────────
         vendor: {
@@ -54,8 +84,11 @@ export default {
         "card-lg": "0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04)",
         "sidebar": "4px 0 24px 0 rgb(0 0 0 / 0.08)",
       },
-      // ── Border radius tokens ─────────────────────────────────
+      // ── Border radius tokens (lg/md/sm derive from --radius) ──
       borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
         "2.5xl": "1.25rem",
       },
     },

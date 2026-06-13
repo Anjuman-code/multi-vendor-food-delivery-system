@@ -1,3 +1,4 @@
+import Container from "@/components/public/Container";
 import {
   BookingControls,
   BookingModal,
@@ -11,18 +12,36 @@ import {
 } from "@/components/restaurants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { fadeInUp } from "@/lib/motion";
 import apiService from "@/services/apiService";
 import type {
   Booking,
   FilterCategory,
   FilterState,
+  PriceRange,
   Restaurant,
   SearchFilters,
   SortOption,
 } from "@/types/restaurant";
+import { cn } from "@/utils/cn";
 import { AnimatePresence, motion } from "framer-motion";
-import { Award } from "lucide-react";
+import {
+  Award,
+  CalendarRange,
+  MapPin,
+  Search,
+  Sparkles,
+  Star,
+  X,
+} from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -279,9 +298,17 @@ const typeLabelMap: Record<Restaurant["type"], string> = {
   bakery: "Bakeries",
 };
 
-// ============================================================================
-// Animation Variants
-// ============================================================================
+const sortLabels: Record<SortOption, string> = {
+  recommended: "Recommended",
+  "rating-high": "Top rated",
+  "rating-low": "Lowest rated",
+  distance: "Nearest",
+  reviews: "Most reviewed",
+  "name-asc": "Name (A–Z)",
+  "name-desc": "Name (Z–A)",
+};
+
+const priceOptions: PriceRange[] = ["$", "$$", "$$$", "$$$$"];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -294,10 +321,6 @@ const containerVariants = {
   },
 };
 
-// ============================================================================
-// Default Filter State
-// ============================================================================
-
 const defaultFilterState: FilterState = {
   types: [],
   cuisines: [],
@@ -308,15 +331,9 @@ const defaultFilterState: FilterState = {
   sortBy: "recommended",
 };
 
-// ============================================================================
-// Items per page for pagination
-// ============================================================================
-
-const ITEMS_PER_PAGE = 6;
-
-// ============================================================================
-// Main RestaurantsPage Component
-// ============================================================================
+const ITEMS_PER_PAGE = 9;
+const TOP_RATED_THRESHOLD = 4.5;
+const NEARBY_THRESHOLD_KM = 5;
 
 const RestaurantsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -330,13 +347,14 @@ const RestaurantsPage: React.FC = () => {
   const [hasLoadError, setHasLoadError] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Text search from URL
+  // Text search (seeded from ?q=, then driven locally for instant filtering)
   const [textSearch, setTextSearch] = useState(() => searchParams.get("q") ?? "");
 
   // Filter states
   const [filterState, setFilterState] =
     useState<FilterState>(defaultFilterState);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  const [showReservation, setShowReservation] = useState(false);
 
   // UI states
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
@@ -424,13 +442,10 @@ const RestaurantsPage: React.FC = () => {
 
     return typeOrder
       .map((type) => {
-        const count = restaurants.filter((restaurant) => restaurant.type === type)
-          .length;
-        return {
-          id: type,
-          label: typeLabelMap[type],
-          count,
-        };
+        const count = restaurants.filter(
+          (restaurant) => restaurant.type === type,
+        ).length;
+        return { id: type, label: typeLabelMap[type], count };
       })
       .filter((entry) => entry.count > 0);
   }, [restaurants]);
@@ -477,20 +492,18 @@ const RestaurantsPage: React.FC = () => {
       .sort((left, right) => right.count - left.count);
   }, [restaurants]);
 
-  // ============================================================================
-  // Filter handlers
-  // ============================================================================
-
+  // ── Filter handlers ──────────────────────────────────────────────
   const handleFilterChange = useCallback(
     <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
       setFilterState((prev) => ({ ...prev, [key]: value }));
-      setDisplayCount(ITEMS_PER_PAGE); // Reset pagination on filter change
+      setDisplayCount(ITEMS_PER_PAGE);
     },
     [],
   );
 
   const handleClearAllFilters = useCallback(() => {
     setFilterState(defaultFilterState);
+    setTextSearch("");
     setDisplayCount(ITEMS_PER_PAGE);
   }, []);
 
@@ -505,14 +518,47 @@ const RestaurantsPage: React.FC = () => {
     await loadRestaurants();
   }, [loadRestaurants, searchFilters.query]);
 
-  // ============================================================================
-  // Restaurant filtering and sorting
-  // ============================================================================
+  const handleTextSearch = useCallback((value: string) => {
+    setTextSearch(value);
+    setDisplayCount(ITEMS_PER_PAGE);
+  }, []);
 
+  const toggleCuisine = useCallback(
+    (cuisine: string) => {
+      const next = filterState.cuisines.includes(cuisine)
+        ? filterState.cuisines.filter((entry) => entry !== cuisine)
+        : [...filterState.cuisines, cuisine];
+      handleFilterChange("cuisines", next);
+    },
+    [filterState.cuisines, handleFilterChange],
+  );
+
+  const togglePrice = useCallback(
+    (price: PriceRange) => {
+      const next = filterState.priceRange.includes(price)
+        ? filterState.priceRange.filter((entry) => entry !== price)
+        : [...filterState.priceRange, price];
+      handleFilterChange("priceRange", next);
+    },
+    [filterState.priceRange, handleFilterChange],
+  );
+
+  const topRatedActive = filterState.rating >= TOP_RATED_THRESHOLD;
+  const nearbyActive = filterState.distance <= NEARBY_THRESHOLD_KM;
+
+  const activeFilterCount =
+    filterState.cuisines.length +
+    filterState.types.length +
+    filterState.amenities.length +
+    filterState.priceRange.length +
+    (filterState.rating > 0 ? 1 : 0) +
+    (filterState.distance < 50 ? 1 : 0) +
+    (textSearch.trim() ? 1 : 0);
+
+  // ── Filtering & sorting ──────────────────────────────────────────
   const filteredRestaurants = useMemo(() => {
     let result = [...restaurants];
 
-    // Text search filter (from URL param or local state)
     if (textSearch.trim()) {
       const q = textSearch.trim().toLowerCase();
       result = result.filter(
@@ -523,15 +569,14 @@ const RestaurantsPage: React.FC = () => {
       );
     }
 
-    // Type filter
     if (filterState.types.length > 0) {
       result = result.filter((r) => filterState.types.includes(r.type));
     }
 
-    // Cuisine filter
     if (filterState.cuisines.length > 0) {
       result = result.filter((r) => filterState.cuisines.includes(r.cuisine));
-    }    // Amenities filter (must have ALL selected amenities)
+    }
+
     if (filterState.amenities.length > 0) {
       result = result.filter((r) =>
         filterState.amenities.every((amenity) =>
@@ -540,19 +585,22 @@ const RestaurantsPage: React.FC = () => {
       );
     }
 
-    // Rating filter
+    if (filterState.priceRange.length > 0) {
+      result = result.filter(
+        (r) => r.priceRange !== undefined && filterState.priceRange.includes(r.priceRange),
+      );
+    }
+
     if (filterState.rating > 0) {
       result = result.filter((r) => r.rating >= filterState.rating);
     }
 
-    // Distance filter
     if (filterState.distance < 50) {
       result = result.filter(
         (r) => r.distance !== undefined && r.distance <= filterState.distance,
       );
     }
 
-    // Sort
     const sortFunctions: Record<
       SortOption,
       (a: Restaurant, b: Restaurant) => number
@@ -571,23 +619,19 @@ const RestaurantsPage: React.FC = () => {
     };
 
     result.sort(sortFunctions[filterState.sortBy]);
-
     return result;
   }, [restaurants, filterState, textSearch]);
 
-  // Paginated results
   const displayedRestaurants = useMemo(
     () => filteredRestaurants.slice(0, displayCount),
     [filteredRestaurants, displayCount],
   );
 
-  // Recommended restaurants
   const recommendedRestaurants = useMemo(
     () => displayedRestaurants.filter((r) => r.isRecommended),
     [displayedRestaurants],
   );
 
-  // Non-recommended restaurants
   const regularRestaurants = useMemo(
     () => displayedRestaurants.filter((r) => !r.isRecommended),
     [displayedRestaurants],
@@ -595,47 +639,34 @@ const RestaurantsPage: React.FC = () => {
 
   const hasMore = displayCount < filteredRestaurants.length;
 
-  // ============================================================================
-  // Infinite scroll / Load more
-  // ============================================================================
-
   const handleLoadMore = useCallback(() => {
     setIsLoadingMore(true);
     setDisplayCount((prev) => prev + ITEMS_PER_PAGE);
     setIsLoadingMore(false);
   }, []);
 
-  // Optional: Intersection Observer for infinite scroll
+  // Infinite scroll: auto-load when the sentinel scrolls into view
   useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          // Auto-load more when scrolled to bottom (optional)
-          // handleLoadMore();
+          setDisplayCount((prev) => prev + ITEMS_PER_PAGE);
         }
       },
-      { threshold: 0.1 },
+      { rootMargin: "400px" },
     );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
+    observer.observe(node);
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore]);
 
-  // ============================================================================
-  // Restaurant interaction handlers
-  // ============================================================================
-
+  // ── Restaurant interactions ──────────────────────────────────────
   const handleFavoriteToggle = useCallback(
     (id: string | number) => {
       setRestaurants((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, isFavorite: !r.isFavorite } : r,
-        ),
+        prev.map((r) => (r.id === id ? { ...r, isFavorite: !r.isFavorite } : r)),
       );
-
       const restaurant = restaurants.find((r) => r.id === id);
       if (restaurant) {
         toast({
@@ -655,10 +686,7 @@ const RestaurantsPage: React.FC = () => {
   }, []);
 
   const handleCardClick = useCallback(
-    (restaurant: Restaurant) => {
-      // Navigate to restaurant detail page
-      navigate(`/restaurants/${restaurant.id}`);
-    },
+    (restaurant: Restaurant) => navigate(`/restaurants/${restaurant.id}`),
     [navigate],
   );
 
@@ -679,9 +707,10 @@ const RestaurantsPage: React.FC = () => {
     setIsMapView(true);
   }, []);
 
-  const handleRestaurantSelect = useCallback((restaurant: Restaurant | null) => {
-    setSelectedRestaurant(restaurant);
-  }, []);
+  const handleRestaurantSelect = useCallback(
+    (restaurant: Restaurant | null) => setSelectedRestaurant(restaurant),
+    [],
+  );
 
   const handleBookingComplete = useCallback(
     (booking: Booking) => {
@@ -698,21 +727,200 @@ const RestaurantsPage: React.FC = () => {
     setSelectedRestaurant(null);
   }, []);
 
-  // ============================================================================
-  // Render
-  // ============================================================================
+  const renderGrid = (list: Restaurant[]) => (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
+    >
+      {list.map((restaurant) => (
+        <RestaurantCard
+          key={restaurant.id}
+          restaurant={restaurant}
+          onFavoriteToggle={handleFavoriteToggle}
+          onBookClick={handleBookClick}
+          onViewMapClick={handleViewInMapClick}
+          onCardClick={handleCardClick}
+          onImageClick={handleImageClick}
+          isSelected={selectedRestaurant?.id === restaurant.id}
+        />
+      ))}
+    </motion.div>
+  );
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
-      {/* Decorative Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-orange-100/40 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-gradient-to-tl from-red-100/30 to-transparent rounded-full blur-3xl" />
+    <div className="min-h-screen bg-gray-50/60">
+      {/* ── Hero / search band ───────────────────────────────────── */}
+      <section className="relative overflow-hidden border-b border-gray-100 bg-white">
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div className="absolute -top-24 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-brand-100/50 to-transparent blur-3xl" />
+          <div className="absolute -bottom-32 right-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-tl from-red-100/40 to-transparent blur-3xl" />
+        </div>
+        <Container className="relative z-10 pt-28 pb-8">
+          <motion.div variants={fadeInUp} initial="hidden" animate="visible">
+            <div className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-brand-600">
+              <MapPin className="h-4 w-4" />
+              Delivering across Sylhet
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">
+              Find your next meal
+            </h1>
+            <p className="mt-1 text-gray-500">
+              {isLoading
+                ? "Loading restaurants…"
+                : `${filteredRestaurants.length} ${
+                    filteredRestaurants.length === 1 ? "place" : "places"
+                  } ready to deliver`}
+            </p>
+
+            {/* Search */}
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={textSearch}
+                  onChange={(e) => handleTextSearch(e.target.value)}
+                  placeholder="Search restaurants, cuisines, or dishes…"
+                  className="h-14 w-full rounded-2xl border border-gray-200 bg-white pl-12 pr-12 text-base shadow-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  aria-label="Search restaurants"
+                />
+                {textSearch && (
+                  <button
+                    onClick={() => handleTextSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="xl"
+                onClick={() => setShowReservation((prev) => !prev)}
+                className="gap-2 rounded-2xl"
+              >
+                <CalendarRange className="h-5 w-5" />
+                Book a table
+              </Button>
+            </div>
+
+            <AnimatePresence initial={false}>
+              {showReservation && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4">
+                    <BookingControls
+                      filters={searchFilters}
+                      onFiltersChange={handleSearchFiltersChange}
+                      onSearch={handleSearch}
+                      isLoading={isLoading}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </Container>
+      </section>
+
+      {/* ── Sticky toolbar: cuisines + quick filters ─────────────── */}
+      <div className="sticky top-20 z-30 border-b border-gray-100 bg-white/90 backdrop-blur-md">
+        <Container className="py-3">
+          <div className="flex items-center gap-3">
+            {/* Cuisine rail */}
+            <div className="flex flex-1 items-center gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <FilterChip
+                active={filterState.cuisines.length === 0}
+                onClick={() => handleFilterChange("cuisines", [])}
+              >
+                All
+              </FilterChip>
+              {cuisineFilters.map((cuisine) => (
+                <FilterChip
+                  key={cuisine.id}
+                  active={filterState.cuisines.includes(cuisine.id)}
+                  onClick={() => toggleCuisine(cuisine.id)}
+                >
+                  {cuisine.label}
+                </FilterChip>
+              ))}
+            </div>
+
+            {/* Sort + map (desktop) */}
+            <div className="hidden shrink-0 items-center gap-2 lg:flex">
+              <Select
+                value={filterState.sortBy}
+                onValueChange={(value) =>
+                  handleFilterChange("sortBy", value as SortOption)
+                }
+              >
+                <SelectTrigger className="h-10 w-[170px] rounded-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(sortLabels) as SortOption[]).map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {sortLabels[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <MapViewToggle isMapView={isMapView} onToggle={handleMapToggle} />
+            </div>
+          </div>
+
+          {/* Quick filter chips */}
+          <div className="mt-2 flex items-center gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <FilterChip
+              icon={<Star className="h-3.5 w-3.5" />}
+              active={topRatedActive}
+              onClick={() =>
+                handleFilterChange("rating", topRatedActive ? 0 : TOP_RATED_THRESHOLD)
+              }
+            >
+              Top rated
+            </FilterChip>
+            <FilterChip
+              icon={<MapPin className="h-3.5 w-3.5" />}
+              active={nearbyActive}
+              onClick={() =>
+                handleFilterChange("distance", nearbyActive ? 50 : NEARBY_THRESHOLD_KM)
+              }
+            >
+              Nearby
+            </FilterChip>
+            {priceOptions.map((price) => (
+              <FilterChip
+                key={price}
+                active={filterState.priceRange.includes(price)}
+                onClick={() => togglePrice(price)}
+              >
+                {price}
+              </FilterChip>
+            ))}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={handleClearAllFilters}
+                className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 transition hover:text-brand-600"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear ({activeFilterCount})
+              </button>
+            )}
+          </div>
+        </Container>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-16 relative z-10">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Filters Panel (Desktop sidebar + Mobile sheet) */}
+      {/* ── Body ─────────────────────────────────────────────────── */}
+      <Container className="py-8">
+        <div className="flex flex-col gap-8 lg:flex-row">
           <FiltersPanel
             typeFilters={typeFilters}
             cuisineFilters={cuisineFilters}
@@ -723,39 +931,29 @@ const RestaurantsPage: React.FC = () => {
             resultCount={filteredRestaurants.length}
           />
 
-          {/* Main Content */}
-          <main
-            className="flex-1 min-w-0"
-            role="main"
-            aria-label="Restaurant listings"
-          >
-            {/* Header */}
-            <motion.header
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4"
-            >
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-                  Sylhet
-                </h1>
-                <p className="text-gray-500 mt-1">
-                  {filteredRestaurants.length} restaurants found
-                </p>
-              </div>
+          <main className="min-w-0 flex-1" aria-label="Restaurant listings">
+            {/* Mobile sort + map */}
+            <div className="mb-5 flex items-center gap-2 lg:hidden">
+              <Select
+                value={filterState.sortBy}
+                onValueChange={(value) =>
+                  handleFilterChange("sortBy", value as SortOption)
+                }
+              >
+                <SelectTrigger className="h-10 flex-1 rounded-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(sortLabels) as SortOption[]).map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {sortLabels[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <MapViewToggle isMapView={isMapView} onToggle={handleMapToggle} />
-            </motion.header>
+            </div>
 
-            {/* Booking Controls */}
-            <BookingControls
-              filters={searchFilters}
-              onFiltersChange={handleSearchFiltersChange}
-              onSearch={handleSearch}
-              isLoading={isLoading}
-            />
-
-            {/* Restaurant List */}
             <AnimatePresence mode="wait">
               {isLoading ? (
                 <motion.div
@@ -763,9 +961,9 @@ const RestaurantsPage: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="space-y-4"
+                  className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
                 >
-                  <RestaurantCardSkeleton count={3} />
+                  <RestaurantCardSkeleton count={6} />
                 </motion.div>
               ) : filteredRestaurants.length === 0 ? (
                 <motion.div
@@ -776,7 +974,11 @@ const RestaurantsPage: React.FC = () => {
                 >
                   <EmptyState
                     type={hasLoadError ? "error" : "no-filters"}
-                    onAction={hasLoadError ? () => void loadRestaurants() : handleClearAllFilters}
+                    onAction={
+                      hasLoadError
+                        ? () => void loadRestaurants()
+                        : handleClearAllFilters
+                    }
                     actionLabel={hasLoadError ? "Try again" : "Clear all filters"}
                   />
                 </motion.div>
@@ -787,14 +989,10 @@ const RestaurantsPage: React.FC = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  {/* Recommended Section */}
                   {recommendedRestaurants.length > 0 && (
-                    <section
-                      className="mb-10"
-                      aria-labelledby="recommended-heading"
-                    >
-                      <div className="flex items-center gap-2 mb-4">
-                        <Award className="w-5 h-5 text-orange-500" />
+                    <section className="mb-10" aria-labelledby="recommended-heading">
+                      <div className="mb-4 flex items-center gap-2">
+                        <Award className="h-5 w-5 text-brand-500" />
                         <h2
                           id="recommended-heading"
                           className="text-lg font-semibold text-gray-900"
@@ -805,31 +1003,10 @@ const RestaurantsPage: React.FC = () => {
                           {recommendedRestaurants.length}
                         </Badge>
                       </div>
-                      <motion.div
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate="visible"
-                        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 justify-items-start"
-                      >
-                        {recommendedRestaurants.map((restaurant) => (
-                          <RestaurantCard
-                            key={restaurant.id}
-                            restaurant={restaurant}
-                            onFavoriteToggle={handleFavoriteToggle}
-                            onBookClick={handleBookClick}
-                            onViewMapClick={handleViewInMapClick}
-                            onCardClick={handleCardClick}
-                            onImageClick={handleImageClick}
-                            isSelected={
-                              selectedRestaurant?.id === restaurant.id
-                            }
-                          />
-                        ))}
-                      </motion.div>
+                      {renderGrid(recommendedRestaurants)}
                     </section>
                   )}
 
-                  {/* Visual Divider */}
                   {recommendedRestaurants.length > 0 &&
                     regularRestaurants.length > 0 && (
                       <div className="relative my-8">
@@ -837,84 +1014,56 @@ const RestaurantsPage: React.FC = () => {
                           <div className="w-full border-t border-gray-200" />
                         </div>
                         <div className="relative flex justify-center">
-                          <span className="bg-gradient-to-br from-orange-50/50 via-white to-red-50/30 px-4 text-sm text-gray-500">
-                            All Restaurants
+                          <span className="bg-gray-50/60 px-4 text-sm font-medium text-gray-500">
+                            All restaurants
                           </span>
                         </div>
                       </div>
                     )}
 
-                  {/* All Restaurants Section */}
                   {regularRestaurants.length > 0 && (
                     <section aria-labelledby="all-restaurants-heading">
                       {recommendedRestaurants.length === 0 && (
                         <h2
                           id="all-restaurants-heading"
-                          className="text-lg font-semibold text-gray-900 mb-4"
+                          className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900"
                         >
-                          All Restaurants
+                          <Sparkles className="h-5 w-5 text-brand-500" />
+                          All restaurants
                         </h2>
                       )}
-                      <motion.div
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate="visible"
-                        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 justify-items-start"
-                      >
-                        {regularRestaurants.map((restaurant) => (
-                          <RestaurantCard
-                            key={restaurant.id}
-                            restaurant={restaurant}
-                            onFavoriteToggle={handleFavoriteToggle}
-                            onBookClick={handleBookClick}
-                            onViewMapClick={handleViewInMapClick}
-                            onCardClick={handleCardClick}
-                            onImageClick={handleImageClick}
-                            isSelected={
-                              selectedRestaurant?.id === restaurant.id
-                            }
-                          />
-                        ))}
-                      </motion.div>
+                      {renderGrid(regularRestaurants)}
                     </section>
                   )}
 
-                  {/* Load More */}
+                  {/* Infinite-scroll sentinel + fallback button */}
                   {hasMore && (
-                    <motion.div
-                      ref={loadMoreRef}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                      className="mt-10 text-center"
-                    >
+                    <div ref={loadMoreRef} className="mt-10 text-center">
                       {isLoadingMore ? (
-                        <div className="space-y-4">
-                          <RestaurantCardSkeleton count={2} />
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                          <RestaurantCardSkeleton count={3} />
                         </div>
                       ) : (
                         <Button
                           variant="outline"
                           onClick={handleLoadMore}
-                          className="px-8 border-gray-300 hover:border-orange-400 hover:bg-orange-50 text-gray-700 hover:text-orange-600 transition-all"
+                          className="rounded-full px-8"
                         >
-                          Load more restaurants
+                          Load more
                           <span className="ml-2 text-sm text-gray-400">
-                            ({filteredRestaurants.length - displayCount}{" "}
-                            remaining)
+                            ({filteredRestaurants.length - displayCount} more)
                           </span>
                         </Button>
                       )}
-                    </motion.div>
+                    </div>
                   )}
                 </motion.div>
               )}
             </AnimatePresence>
           </main>
         </div>
-      </div>
+      </Container>
 
-      {/* Map View Overlay */}
       <RestaurantMapView
         restaurants={filteredRestaurants}
         selectedRestaurant={selectedRestaurant}
@@ -924,7 +1073,6 @@ const RestaurantsPage: React.FC = () => {
         isOpen={isMapView}
       />
 
-      {/* Booking Modal */}
       <BookingModal
         restaurant={bookingRestaurant}
         isOpen={bookingModalOpen}
@@ -938,7 +1086,6 @@ const RestaurantsPage: React.FC = () => {
         initialTime={searchFilters.time}
       />
 
-      {/* Image Gallery Modal */}
       <ImageGalleryModal
         restaurant={galleryRestaurant}
         isOpen={galleryModalOpen}
@@ -950,5 +1097,33 @@ const RestaurantsPage: React.FC = () => {
     </div>
   );
 };
+
+interface FilterChipProps {
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const FilterChip: React.FC<FilterChipProps> = ({
+  active,
+  onClick,
+  icon,
+  children,
+}) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-all",
+      active
+        ? "border-brand-500 bg-brand-50 text-brand-700"
+        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50",
+    )}
+    aria-pressed={active}
+  >
+    {icon}
+    {children}
+  </button>
+);
 
 export default RestaurantsPage;

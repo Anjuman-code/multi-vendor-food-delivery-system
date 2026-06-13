@@ -1,13 +1,14 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import apiService from "@/services/apiService";
 import menuService from "@/services/menuService";
 import type { MenuItem, MenuItemAddon, MenuItemVariant } from "@/types/menu";
 import { cn } from "@/utils/cn";
 import {
   ArrowLeft,
+  Check,
   ChevronRight,
   Clock,
   Flame,
@@ -41,6 +42,8 @@ const DIETARY_COLORS: Record<string, string> = {
   spicy: "bg-red-50 text-red-700 border-red-200",
 };
 
+const formatTaka = (amount: number): string => `৳${Math.round(amount)}`;
+
 const MenuItemDetailPage: React.FC = () => {
   const { restaurantId, itemId } = useParams<{
     restaurantId: string;
@@ -51,9 +54,11 @@ const MenuItemDetailPage: React.FC = () => {
   const { toast } = useToast();
 
   const [item, setItem] = useState<MenuItem | null>(null);
+  const [restaurantName, setRestaurantName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
   const [selectedVariant, setSelectedVariant] =
     useState<MenuItemVariant | null>(null);
   const [selectedAddons, setSelectedAddons] = useState<MenuItemAddon[]>([]);
@@ -81,6 +86,17 @@ const MenuItemDetailPage: React.FC = () => {
         setError("Something went wrong. Please try again.");
       })
       .finally(() => setIsLoading(false));
+
+    // Fetch the restaurant name so the cart entry and breadcrumb are correct.
+    apiService
+      .getRestaurantById(restaurantId)
+      .then((res) => {
+        const payload = res.data as { data?: { name?: string } };
+        setRestaurantName(payload?.data?.name || "");
+      })
+      .catch(() => {
+        /* non-blocking: name is a nicety, not required to order */
+      });
   }, [restaurantId, itemId]);
 
   const toggleAddon = useCallback((addon: MenuItemAddon) => {
@@ -91,16 +107,18 @@ const MenuItemDetailPage: React.FC = () => {
     );
   }, []);
 
-  const effectivePrice = useMemo(() => {
+  const unitPrice = useMemo(() => {
     if (!item) return 0;
-    const base = item.price;
     const variantDelta = selectedVariant ? selectedVariant.price : 0;
     const addonTotal = selectedAddons.reduce((s, a) => s + a.price, 0);
-    return (base + variantDelta + addonTotal) * quantity;
-  }, [item, selectedVariant, selectedAddons, quantity]);
+    return item.price + variantDelta + addonTotal;
+  }, [item, selectedVariant, selectedAddons]);
+
+  const effectivePrice = unitPrice * quantity;
 
   const handleAddToCart = useCallback(async () => {
     if (!item || !restaurantId) return;
+    setIsAdding(true);
 
     const cartItem = {
       menuItemId: item._id,
@@ -124,15 +142,19 @@ const MenuItemDetailPage: React.FC = () => {
       })),
     };
 
-    await addItem(restaurantId, "", cartItem);
-
-    toast({
-      title: "Added to cart",
-      description: `${item.name} (${quantity}x) has been added to your cart.`,
-    });
+    try {
+      await addItem(restaurantId, restaurantName, cartItem);
+      toast({
+        title: "Added to cart",
+        description: `${item.name} (${quantity}x) has been added to your cart.`,
+      });
+    } finally {
+      setIsAdding(false);
+    }
   }, [
     item,
     restaurantId,
+    restaurantName,
     quantity,
     selectedVariant,
     selectedAddons,
@@ -143,16 +165,16 @@ const MenuItemDetailPage: React.FC = () => {
   // ── Loading state ───────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Skeleton className="h-6 w-32 mb-6" />
-        <div className="grid md:grid-cols-2 gap-8">
-          <Skeleton className="aspect-[4/3] rounded-2xl" />
+      <div className="mx-auto max-w-5xl px-4 pt-24">
+        <Skeleton className="mb-6 h-6 w-32" />
+        <div className="grid gap-8 md:grid-cols-2">
+          <Skeleton className="aspect-square rounded-3xl" />
           <div className="space-y-4">
-            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-9 w-3/4" />
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
           </div>
         </div>
       </div>
@@ -162,16 +184,18 @@ const MenuItemDetailPage: React.FC = () => {
   // ── Error state ─────────────────────────────────────────────────
   if (error || !item) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mb-4">
-          <Flame className="w-8 h-8 text-red-400" />
+      <div className="mx-auto max-w-4xl px-4 pt-24 pb-16 text-center">
+        <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+          <Flame className="h-8 w-8 text-red-400" />
         </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        <h2 className="mb-2 text-xl font-semibold text-gray-900">
           Item not found
         </h2>
-        <p className="text-gray-600 mb-6">{error || "This item may have been removed."}</p>
+        <p className="mb-6 text-gray-600">
+          {error || "This item may have been removed."}
+        </p>
         <Button variant="outline" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Go back
         </Button>
       </div>
@@ -179,142 +203,133 @@ const MenuItemDetailPage: React.FC = () => {
   }
 
   const gradient = itemGradient(item.name);
+  const hasDiscount = !!item.originalPrice && item.originalPrice > item.price;
+  const discountPct = hasDiscount
+    ? Math.round(((item.originalPrice! - item.price) / item.originalPrice!) * 100)
+    : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-4">
+    <div className="min-h-screen bg-gray-50/60 pb-28">
+      {/* Breadcrumb header */}
+      <div className="sticky top-20 z-30 border-b border-gray-100 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="-ml-2 rounded-lg p-2 transition-colors hover:bg-gray-100"
             aria-label="Back"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+            <ArrowLeft className="h-5 w-5 text-gray-700" />
           </button>
-          <div className="flex items-center gap-2 text-sm text-gray-500 truncate">
+          <div className="flex items-center gap-2 truncate text-sm text-gray-500">
             <Link
               to={`/restaurants/${restaurantId}`}
-              className="hover:text-orange-500 transition-colors truncate"
+              className="truncate transition-colors hover:text-brand-600"
             >
-              Restaurant
+              {restaurantName || "Restaurant"}
             </Link>
-            <ChevronRight className="w-3 h-3 shrink-0" />
-            <span className="text-gray-900 font-medium truncate">
-              {item.name}
-            </span>
+            <ChevronRight className="h-3 w-3 shrink-0" />
+            <span className="truncate font-medium text-gray-900">{item.name}</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="grid md:grid-cols-2 gap-8">
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <div className="grid gap-8 md:grid-cols-2">
           {/* ── Image ───────────────────────────────────────── */}
-          <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
-            {item.image ? (
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`,
-                }}
-              >
-                <span className="text-6xl font-bold text-white/80 select-none">
-                  {item.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-
-            {/* Badges */}
-            <div className="absolute top-3 left-3 flex gap-2">
-              {item.isPopular && (
-                <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-0">
-                  <Flame className="w-3 h-3 mr-1" /> Popular
-                </Badge>
+          <div className="md:sticky md:top-36 md:self-start">
+            <div className="relative aspect-square overflow-hidden rounded-3xl bg-gray-100 shadow-sm">
+              {item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-full w-full items-center justify-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`,
+                  }}
+                >
+                  <span className="select-none text-7xl font-bold text-white/80">
+                    {item.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
               )}
-              {item.isFeatured && (
-                <Badge className="bg-purple-500 hover:bg-purple-600 text-white border-0">
-                  Featured
-                </Badge>
-              )}
-            </div>
 
-            {item.originalPrice && item.originalPrice > item.price && (
-              <div className="absolute top-3 right-3 bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                -
-                {Math.round(
-                  ((item.originalPrice - item.price) / item.originalPrice) * 100,
+              <div className="absolute left-3 top-3 flex gap-2">
+                {item.isPopular && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-3 py-1 text-xs font-semibold text-white">
+                    <Flame className="h-3 w-3" /> Popular
+                  </span>
                 )}
-                %
-              </div>
-            )}
-          </div>
-
-          {/* ── Details ─────────────────────────────────────── */}
-          <div className="flex flex-col gap-6">
-            {/* Name + Price */}
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                {item.name}
-              </h1>
-
-              <div className="flex items-center gap-4 flex-wrap">
-                <span className="text-2xl font-bold text-orange-500">
-                  ৳{item.price}
-                </span>
-                {item.originalPrice && item.originalPrice > item.price && (
-                  <span className="text-lg text-gray-400 line-through">
-                    ৳{item.originalPrice}
+                {item.isFeatured && (
+                  <span className="rounded-full bg-purple-500 px-3 py-1 text-xs font-semibold text-white">
+                    Featured
                   </span>
                 )}
               </div>
 
-              {/* Tags */}
+              {hasDiscount && (
+                <div className="absolute right-3 top-3 rounded-full bg-brand-500 px-2.5 py-1 text-xs font-bold text-white">
+                  -{discountPct}%
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Details ─────────────────────────────────────── */}
+          <div className="flex flex-col gap-6">
+            <div>
+              <h1 className="mb-2 text-2xl font-bold text-gray-900 md:text-3xl">
+                {item.name}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-2xl font-bold text-brand-500">
+                  {formatTaka(item.price)}
+                </span>
+                {hasDiscount && (
+                  <span className="text-lg text-gray-400 line-through">
+                    {formatTaka(item.originalPrice!)}
+                  </span>
+                )}
+              </div>
+
               {item.dietaryTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
+                <div className="mt-3 flex flex-wrap gap-1.5">
                   {item.dietaryTags.map((tag) => (
                     <span
                       key={tag}
                       className={cn(
-                        "text-[11px] font-medium px-2.5 py-1 rounded-full border",
+                        "rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize",
                         DIETARY_COLORS[tag.toLowerCase()] ||
-                          "bg-gray-100 text-gray-700 border-gray-200",
+                          "border-gray-200 bg-gray-100 text-gray-700",
                       )}
                     >
-                      {tag}
+                      {tag.replace(/[_-]/g, " ")}
                     </span>
                   ))}
                 </div>
               )}
 
-              {/* Meta */}
-              <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-gray-500">
                 {item.preparationTime > 0 && (
                   <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" /> {item.preparationTime} min
+                    <Clock className="h-4 w-4" /> {item.preparationTime} min
                   </span>
                 )}
-                {item.calories && (
-                  <span>{item.calories} cal</span>
-                )}
-                {item.servingSize && (
-                  <span>{item.servingSize}</span>
-                )}
+                {item.calories ? <span>{item.calories} cal</span> : null}
+                {item.servingSize ? <span>{item.servingSize}</span> : null}
               </div>
             </div>
 
-            {/* Description */}
             {item.description && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1 uppercase tracking-wider">
+                <h3 className="mb-1 text-sm font-semibold uppercase tracking-wider text-gray-900">
                   Description
                 </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed text-gray-600">
                   {item.description}
                 </p>
               </div>
@@ -323,29 +338,45 @@ const MenuItemDetailPage: React.FC = () => {
             {/* Variants */}
             {item.variants.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wider">
+                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-900">
                   Choose an option
                 </h3>
                 <div className="space-y-2">
-                  {item.variants.map((v) => (
-                    <button
-                      key={v._id}
-                      onClick={() => setSelectedVariant(v)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left",
-                        selectedVariant?._id === v._id
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-gray-200 hover:border-gray-300",
-                      )}
-                    >
-                      <span className="text-sm font-medium text-gray-900">
-                        {v.name}
-                      </span>
-                      <span className="text-sm font-semibold text-orange-500">
-                        +৳{v.price}
-                      </span>
-                    </button>
-                  ))}
+                  {item.variants.map((v) => {
+                    const active = selectedVariant?._id === v._id;
+                    return (
+                      <button
+                        key={v._id}
+                        onClick={() =>
+                          setSelectedVariant(active ? null : v)
+                        }
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-left transition-all",
+                          active
+                            ? "border-brand-500 bg-brand-50"
+                            : "border-gray-200 hover:border-gray-300",
+                        )}
+                        aria-pressed={active}
+                      >
+                        <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                          <span
+                            className={cn(
+                              "flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors",
+                              active
+                                ? "border-brand-500 bg-brand-500"
+                                : "border-gray-300",
+                            )}
+                          >
+                            {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                          </span>
+                          {v.name}
+                        </span>
+                        <span className="text-sm font-semibold text-brand-500">
+                          +{formatTaka(v.price)}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -353,101 +384,115 @@ const MenuItemDetailPage: React.FC = () => {
             {/* Addons */}
             {item.addons.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wider">
+                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-900">
                   Extras
                 </h3>
                 <div className="space-y-2">
-                  {item.addons.map((a) => (
-                    <button
-                      key={a._id}
-                      onClick={() => toggleAddon(a)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left",
-                        selectedAddons.some((s) => s._id === a._id)
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-gray-200 hover:border-gray-300",
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={cn(
-                            "w-4 h-4 rounded border-2 flex items-center justify-center transition-colors",
-                            selectedAddons.some((s) => s._id === a._id)
-                              ? "border-orange-500 bg-orange-500"
-                              : "border-gray-300",
-                          )}
-                        >
-                          {selectedAddons.some((s) => s._id === a._id) && (
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                        <span className="text-sm text-gray-900">
-                          {a.name}
-                          {a.isRequired && (
-                            <span className="text-red-500 ml-0.5">*</span>
-                          )}
+                  {item.addons.map((a) => {
+                    const active = selectedAddons.some((s) => s._id === a._id);
+                    return (
+                      <button
+                        key={a._id}
+                        onClick={() => toggleAddon(a)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-left transition-all",
+                          active
+                            ? "border-brand-500 bg-brand-50"
+                            : "border-gray-200 hover:border-gray-300",
+                        )}
+                        aria-pressed={active}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "flex h-4 w-4 items-center justify-center rounded border-2 transition-colors",
+                              active
+                                ? "border-brand-500 bg-brand-500"
+                                : "border-gray-300",
+                            )}
+                          >
+                            {active && <Check className="h-3 w-3 text-white" />}
+                          </span>
+                          <span className="text-sm text-gray-900">
+                            {a.name}
+                            {a.isRequired && (
+                              <span className="ml-0.5 text-red-500">*</span>
+                            )}
+                          </span>
                         </span>
-                      </div>
-                      <span className="text-sm text-gray-500">
-                        {a.price > 0 ? `+৳${a.price}` : "Free"}
-                      </span>
-                    </button>
-                  ))}
+                        <span className="text-sm text-gray-500">
+                          {a.price > 0 ? `+${formatTaka(a.price)}` : "Free"}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Bottom bar */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between gap-4 sticky bottom-4">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-40"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-8 text-center font-semibold text-lg">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-                  aria-label="Increase quantity"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
+            {/* Desktop action row */}
+            <div className="hidden items-center gap-4 md:flex">
+              <QuantityStepper quantity={quantity} setQuantity={setQuantity} />
               <Button
                 onClick={handleAddToCart}
-                disabled={!item.isAvailable}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-6 rounded-xl text-base"
+                variant="brand"
+                size="xl"
+                disabled={!item.isAvailable || isAdding}
+                className="flex-1 justify-between"
               >
-                Add to Cart — ৳{effectivePrice}
+                <span>{item.isAvailable ? "Add to cart" : "Unavailable"}</span>
+                {item.isAvailable && <span>{formatTaka(effectivePrice)}</span>}
               </Button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile sticky action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-gray-200 bg-white p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] md:hidden">
+        <QuantityStepper quantity={quantity} setQuantity={setQuantity} />
+        <Button
+          onClick={handleAddToCart}
+          variant="brand"
+          size="lg"
+          disabled={!item.isAvailable || isAdding}
+          className="flex-1 justify-between"
+        >
+          <span>{item.isAvailable ? "Add to cart" : "Unavailable"}</span>
+          {item.isAvailable && <span>{formatTaka(effectivePrice)}</span>}
+        </Button>
+      </div>
     </div>
   );
 };
+
+interface QuantityStepperProps {
+  quantity: number;
+  setQuantity: React.Dispatch<React.SetStateAction<number>>;
+}
+
+const QuantityStepper: React.FC<QuantityStepperProps> = ({
+  quantity,
+  setQuantity,
+}) => (
+  <div className="flex shrink-0 items-center gap-2">
+    <button
+      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+      disabled={quantity <= 1}
+      className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 transition-colors hover:bg-gray-50 disabled:opacity-40"
+      aria-label="Decrease quantity"
+    >
+      <Minus className="h-4 w-4" />
+    </button>
+    <span className="w-8 text-center text-lg font-semibold">{quantity}</span>
+    <button
+      onClick={() => setQuantity((q) => q + 1)}
+      className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white transition-colors hover:bg-brand-600"
+      aria-label="Increase quantity"
+    >
+      <Plus className="h-4 w-4" />
+    </button>
+  </div>
+);
 
 export default MenuItemDetailPage;

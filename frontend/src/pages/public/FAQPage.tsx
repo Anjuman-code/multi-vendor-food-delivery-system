@@ -1,5 +1,9 @@
+import Container from "@/components/public/Container";
+import PageHero from "@/components/public/PageHero";
+import Section from "@/components/public/Section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { fadeInUp, inViewport } from "@/lib/motion";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ChevronDown,
@@ -22,38 +26,30 @@ interface FAQItem {
   answer: string;
 }
 
+type FAQColor = "orange" | "green" | "blue" | "purple" | "red" | "teal";
+
 interface FAQCategory {
   id: string;
   title: string;
   icon: React.ElementType;
-  color: string;
+  color: FAQColor;
   faqs: FAQItem[];
 }
+
+/** Static class map — Tailwind can't see dynamically built `bg-${x}` names. */
+const categoryColors: Record<FAQColor, { bg: string; text: string }> = {
+  orange: { bg: "bg-brand-100", text: "text-brand-500" },
+  green: { bg: "bg-green-100", text: "text-green-500" },
+  blue: { bg: "bg-blue-100", text: "text-blue-500" },
+  purple: { bg: "bg-purple-100", text: "text-purple-500" },
+  red: { bg: "bg-red-100", text: "text-red-500" },
+  teal: { bg: "bg-teal-100", text: "text-teal-500" },
+};
 
 const FAQPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string>("ordering");
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
-    },
-  };
 
   const faqCategories: FAQCategory[] = [
     {
@@ -285,96 +281,58 @@ const FAQPage: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-16 overflow-hidden">
-        {/* Decorative Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-orange-200/40 to-transparent rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-red-200/30 to-transparent rounded-full blur-3xl" />
+      <PageHero
+        eyebrow="Help Center"
+        eyebrowIcon={HelpCircle}
+        title={
+          <>
+            <span className="text-gray-900">How Can We </span>
+            <span className="bg-gradient-to-r from-brand-500 to-red-500 bg-clip-text text-transparent">
+              Help You?
+            </span>
+          </>
+        }
+        subtitle="Find answers to common questions about ordering, delivery, payments, and more. Can't find what you're looking for? Contact our support team."
+      >
+        <div className="relative mx-auto max-w-xl">
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search for answers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-14 rounded-xl pl-12 pr-4 text-lg"
+          />
         </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="max-w-4xl mx-auto text-center"
-          >
-            {/* Badge */}
-            <motion.div variants={itemVariants} className="mb-6">
-              <span className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-600 rounded-full text-sm font-medium">
-                <HelpCircle className="w-4 h-4" />
-                Help Center
-              </span>
-            </motion.div>
-
-            {/* Headline */}
-            <motion.h1
-              variants={itemVariants}
-              className="text-4xl md:text-5xl font-bold leading-[1.1] mb-6"
-            >
-              <span className="text-gray-900">How Can We </span>
-              <span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-                Help You?
-              </span>
-            </motion.h1>
-
-            {/* Subtitle */}
-            <motion.p
-              variants={itemVariants}
-              className="text-lg text-gray-600 max-w-2xl mx-auto mb-8"
-            >
-              Find answers to common questions about ordering, delivery,
-              payments, and more. Can't find what you're looking for? Contact
-              our support team.
-            </motion.p>
-
-            {/* Search Bar */}
-            <motion.div
-              variants={itemVariants}
-              className="max-w-xl mx-auto relative"
-            >
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search for answers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 py-6 text-lg rounded-xl border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+      </PageHero>
 
       {/* Category Navigation */}
       {searchQuery.length === 0 && (
-        <section className="py-8 bg-white/50 border-y border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav className="border-y border-gray-100 bg-white/50 py-8" aria-label="FAQ categories">
+          <Container>
             <div className="flex flex-wrap justify-center gap-3">
               {faqCategories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setActiveCategory(category.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
                     activeCategory === category.id
-                      ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg"
+                      ? "bg-gradient-to-r from-brand-500 to-red-500 text-white shadow-lg"
                       : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <category.icon className="w-4 h-4" />
+                  <category.icon className="h-4 w-4" />
                   {category.title}
                 </button>
               ))}
             </div>
-          </div>
-        </section>
+          </Container>
+        </nav>
       )}
 
       {/* FAQ Content */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto">
+      <Section>
+        <Container width="narrow">
             {searchQuery.length > 0 && filteredCategories.length === 0 && (
               <div className="text-center py-12">
                 <HelpCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -384,12 +342,12 @@ const FAQPage: React.FC = () => {
                 <p className="text-gray-600 mb-6">
                   We couldn't find any FAQs matching "{searchQuery}"
                 </p>
-                <Link to="/contact">
-                  <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white">
-                    <MessageCircle className="w-4 h-4 mr-2" />
+                <Button asChild variant="brand">
+                  <Link to="/contact">
+                    <MessageCircle className="mr-2 h-4 w-4" />
                     Contact Support
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             )}
 
@@ -404,10 +362,10 @@ const FAQPage: React.FC = () => {
                 {searchQuery.length > 0 && (
                   <div className="flex items-center gap-3 mb-6">
                     <div
-                      className={`w-10 h-10 bg-${category.color}-100 rounded-xl flex items-center justify-center`}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl ${categoryColors[category.color].bg}`}
                     >
                       <category.icon
-                        className={`w-5 h-5 text-${category.color}-500`}
+                        className={`h-5 w-5 ${categoryColors[category.color].text}`}
                       />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900">
@@ -464,56 +422,47 @@ const FAQPage: React.FC = () => {
                 </div>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
+        </Container>
+      </Section>
 
       {/* Still Need Help Section */}
-      <section className="py-16 bg-orange-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Section tone="brand">
+        <Container width="narrow">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto text-center"
+            variants={fadeInUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={inViewport}
+            className="mx-auto max-w-2xl text-center"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-full text-sm font-medium mb-6">
-              <Sparkles className="w-4 h-4" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-brand-600">
+              <Sparkles className="h-4 w-4" />
               Need More Help?
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
+            <h2 className="mb-6 text-2xl font-bold text-gray-900 md:text-3xl">
               Still Have Questions?
             </h2>
-            <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">
+            <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-600">
               Our customer support team is available 24/7 to help with any
               issues or questions you might have.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <a href="tel:+8801637429498">
-                <Button
-                  size="lg"
-                  className="bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
-                >
-                  <Phone className="w-5 h-5 mr-2" />
+              <Button asChild variant="outline" size="lg">
+                <a href="tel:+8801637429498">
+                  <Phone className="mr-2 h-5 w-5" />
                   Call Support
-                </Button>
-              </a>
-              <Link to="/contact">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg shadow-orange-500/25"
-                >
-                  <MessageCircle className="w-5 h-5 mr-2" />
+                </a>
+              </Button>
+              <Button asChild variant="brand" size="lg">
+                <Link to="/contact">
+                  <MessageCircle className="mr-2 h-5 w-5" />
                   Contact Us
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Developer Credit */}
+        </Container>
+      </Section>
     </div>
   );
 };
