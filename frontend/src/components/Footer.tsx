@@ -58,7 +58,7 @@ const Footer: React.FC = memo(() => {
     >
       {/* Decorative Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl" />
       </div>
 
@@ -81,10 +81,10 @@ const Footer: React.FC = memo(() => {
                   <Input
                     type="email"
                     placeholder="Enter your email"
-                    className="pl-12 pr-4 py-3 w-full sm:w-80 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="pl-12 pr-4 py-3 w-full sm:w-80 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   />
                 </div>
-                <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg shadow-orange-500/25 whitespace-nowrap">
+                <Button className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg shadow-brand-500/25 whitespace-nowrap">
                   Subscribe
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -100,7 +100,7 @@ const Footer: React.FC = memo(() => {
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <Link to="/" className="inline-flex items-center gap-3 mb-6">
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-xl">
+              <div className="bg-gradient-to-r from-brand-500 to-red-500 p-2 rounded-xl">
                 <img
                   src="/logo.svg"
                   alt=""
@@ -120,18 +120,18 @@ const Footer: React.FC = memo(() => {
             <div className="space-y-3 mb-6">
               <a
                 href="mailto:contact@foodrush.com"
-                className="flex items-center gap-3 text-gray-400 hover:text-orange-400 transition-colors group"
+                className="flex items-center gap-3 text-gray-400 hover:text-brand-400 transition-colors group"
               >
-                <div className="p-2 bg-gray-800 rounded-lg group-hover:bg-orange-500/20 transition-colors">
+                <div className="p-2 bg-gray-800 rounded-lg group-hover:bg-brand-500/20 transition-colors">
                   <Mail className="w-4 h-4" />
                 </div>
                 contact@foodrush.com
               </a>
               <a
                 href="tel:+8801637429498"
-                className="flex items-center gap-3 text-gray-400 hover:text-orange-400 transition-colors group"
+                className="flex items-center gap-3 text-gray-400 hover:text-brand-400 transition-colors group"
               >
-                <div className="p-2 bg-gray-800 rounded-lg group-hover:bg-orange-500/20 transition-colors">
+                <div className="p-2 bg-gray-800 rounded-lg group-hover:bg-brand-500/20 transition-colors">
                   <Phone className="w-4 h-4" />
                 </div>
                 +880 1637 429498
@@ -169,7 +169,7 @@ const Footer: React.FC = memo(() => {
                 <li key={link.name}>
                   <Link
                     to={link.href}
-                    className="text-gray-400 hover:text-orange-400 transition-colors inline-flex items-center gap-1 group"
+                    className="text-gray-400 hover:text-brand-400 transition-colors inline-flex items-center gap-1 group"
                   >
                     <span>{link.name}</span>
                     <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
@@ -187,7 +187,7 @@ const Footer: React.FC = memo(() => {
                 <li key={link.name}>
                   <Link
                     to={link.href}
-                    className="text-gray-400 hover:text-orange-400 transition-colors inline-flex items-center gap-1 group"
+                    className="text-gray-400 hover:text-brand-400 transition-colors inline-flex items-center gap-1 group"
                   >
                     <span>{link.name}</span>
                     <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
@@ -205,7 +205,7 @@ const Footer: React.FC = memo(() => {
                 <li key={link.name}>
                   <Link
                     to={link.href}
-                    className="text-gray-400 hover:text-orange-400 transition-colors inline-flex items-center gap-1 group"
+                    className="text-gray-400 hover:text-brand-400 transition-colors inline-flex items-center gap-1 group"
                   >
                     <span>{link.name}</span>
                     <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
@@ -229,9 +229,9 @@ const Footer: React.FC = memo(() => {
                 <Code className="w-4 h-4" />
                 <span>
                   Developed by{' '}
-                  <span className="text-orange-400 font-medium">Anjuman</span>,{' '}
-                  <span className="text-orange-400 font-medium">Shafi</span> &{' '}
-                  <span className="text-orange-400 font-medium">Tabassum</span>
+                  <span className="text-brand-400 font-medium">Anjuman</span>,{' '}
+                  <span className="text-brand-400 font-medium">Shafi</span> &{' '}
+                  <span className="text-brand-400 font-medium">Tabassum</span>
                 </span>
               </div>
             </div>

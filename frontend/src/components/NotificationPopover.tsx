@@ -228,7 +228,7 @@ const NotificationPopover: React.FC = () => {
         >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-brand-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -243,7 +243,7 @@ const NotificationPopover: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 text-xs gap-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+              className="h-8 text-xs gap-1 text-brand-600 hover:text-brand-700 hover:bg-brand-50"
               onClick={markAllAsRead}
             >
               <CheckCheck className="h-3.5 w-3.5" />
@@ -256,7 +256,7 @@ const NotificationPopover: React.FC = () => {
         <div className="overflow-y-auto max-h-80">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
@@ -278,7 +278,7 @@ const NotificationPopover: React.FC = () => {
                       "px-4 py-3 cursor-pointer transition-colors border-b border-gray-50 last:border-b-0",
                       notif.isRead
                         ? "hover:bg-gray-50"
-                        : "bg-orange-50/40 hover:bg-orange-50/80",
+                        : "bg-brand-50/40 hover:bg-brand-50/80",
                     )}
                     onClick={() => {
                       if (!notif.isRead) markAsRead(notif._id);
@@ -302,7 +302,7 @@ const NotificationPopover: React.FC = () => {
                             {notif.title}
                           </p>
                           {!notif.isRead && (
-                            <span className="h-2 w-2 rounded-full bg-orange-500 shrink-0" />
+                            <span className="h-2 w-2 rounded-full bg-brand-500 shrink-0" />
                           )}
                         </div>
                         <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">

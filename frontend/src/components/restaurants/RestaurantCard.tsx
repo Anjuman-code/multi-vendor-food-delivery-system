@@ -134,16 +134,16 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
           role="article"
           aria-label={`${restaurant.name} - ${typeLabel}, ${cuisineLabel}. Rating: ${restaurant.rating} out of 5 with ${restaurant.reviewCount} reviews. Located at ${restaurant.address}`}
           className={cn(
-            "bg-white rounded-2xl overflow-hidden shadow-sm border flex flex-col w-full max-w-[430px] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
+            "bg-white rounded-2xl overflow-hidden shadow-sm border flex flex-col w-full max-w-[430px] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
             isSelected
-              ? "border-orange-400 ring-2 ring-orange-100"
+              ? "border-brand-400 ring-2 ring-brand-100"
               : "border-gray-200/80",
           )}
         >
           {/* Image Section */}
           <button
             onClick={handleImageClick}
-            className="relative w-full h-44 flex-shrink-0 overflow-hidden bg-gray-100 group focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500"
+            className="relative w-full h-44 flex-shrink-0 overflow-hidden bg-gray-100 group focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500"
             aria-label={`View photos of ${restaurant.name}`}
             type="button"
           >
@@ -172,7 +172,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-2">
               <div className="bg-white/95 backdrop-blur rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm border border-white/80">
                 <Star
-                  className="w-3.5 h-3.5 text-orange-500 fill-orange-500"
+                  className="w-3.5 h-3.5 text-brand-500 fill-brand-500"
                   aria-hidden="true"
                 />
                 <span className="text-xs font-bold text-gray-900">
@@ -194,7 +194,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             </div>
 
             {restaurant.isRecommended && (
-              <div className="absolute left-2 bottom-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+              <div className="absolute left-2 bottom-2 bg-gradient-to-r from-brand-500 to-amber-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
                 <Star className="w-3 h-3 fill-current" />
                 Recommended
               </div>
@@ -208,7 +208,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-gray-900 hover:text-orange-600 transition-colors truncate">
+                  <h3 className="text-lg font-bold text-gray-900 hover:text-brand-600 transition-colors truncate">
                     {restaurant.name}
                   </h3>
                   <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
@@ -239,7 +239,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                         }
                         aria-pressed={restaurant.isFavorite}
                         className={cn(
-                          "p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
+                          "p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
                           restaurant.isFavorite
                             ? "text-red-500 bg-red-50"
                             : "text-gray-400 hover:text-red-500 hover:bg-red-50",
@@ -265,14 +265,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
 
               <div className="flex items-center gap-1.5 text-gray-600">
                 <MapPin
-                  className="w-4 h-4 text-orange-500 flex-shrink-0"
+                  className="w-4 h-4 text-brand-500 flex-shrink-0"
                   aria-hidden="true"
                 />
                 <span className="text-sm truncate">{restaurant.address}</span>
               </div>
 
               {restaurant.recommendedReason && restaurant.isRecommended && (
-                <p className="text-xs text-orange-700 bg-orange-50/70 border border-orange-100 px-2.5 py-1 rounded-lg inline-flex max-w-full truncate">
+                <p className="text-xs text-brand-700 bg-brand-50/70 border border-brand-100 px-2.5 py-1 rounded-lg inline-flex max-w-full truncate">
                   {restaurant.recommendedReason}
                 </p>
               )}
@@ -300,7 +300,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleBookClick}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-medium px-5 rounded-lg transition-colors h-9"
+                className="bg-brand-500 hover:bg-brand-600 text-white font-medium px-5 rounded-lg transition-colors h-9"
                 size="sm"
                 aria-label={`Book a table at ${restaurant.name}`}
               >
@@ -310,7 +310,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                 onClick={handleViewMapClick}
                 variant="outline"
                 size="sm"
-                className="h-9 px-3 border-gray-300 hover:border-orange-300 hover:text-orange-600"
+                className="h-9 px-3 border-gray-300 hover:border-brand-300 hover:text-brand-600"
                 aria-label={`View ${restaurant.name} on map`}
               >
                 <Map className="w-4 h-4 mr-1" />

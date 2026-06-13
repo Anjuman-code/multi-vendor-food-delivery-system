@@ -67,7 +67,7 @@ function itemGradient(name: string) {
 const SPICE_CFG: Record<string, { label: string; color: string; dots: number }> = {
   none: { label: "", color: "", dots: 0 },
   mild: { label: "Mild", color: "text-yellow-500", dots: 1 },
-  medium: { label: "Medium", color: "text-orange-500", dots: 2 },
+  medium: { label: "Medium", color: "text-brand-500", dots: 2 },
   hot: { label: "Hot", color: "text-red-500", dots: 3 },
   "extra-hot": { label: "Extra Hot", color: "text-red-700", dots: 4 },
 };
@@ -249,7 +249,7 @@ function QtyControls({
         whileTap={{ scale: 0.9 }}
         onClick={onIncrease}
         className={cn(
-          "bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-all flex items-center justify-center min-w-[44px] min-h-[44px]",
+          "bg-brand-500 hover:bg-brand-600 text-white font-semibold transition-all flex items-center justify-center min-w-[44px] min-h-[44px]",
           btnCls,
         )}
         aria-label="Increase quantity"
@@ -305,7 +305,7 @@ function VendorStatusDropdown({
                   }}
                   className={cn(
                     "w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors",
-                    stockStatus === s ? "text-orange-600 font-semibold" : "text-gray-600",
+                    stockStatus === s ? "text-brand-600 font-semibold" : "text-gray-600",
                   )}
                 >
                   {VENDOR_STATUS_CFG[s].label}
@@ -409,7 +409,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
         {/* Bottom overlay content */}
         <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-10">
           {item.category && (
-            <p className="text-orange-400 font-medium tracking-widest text-[10px] uppercase mb-1">
+            <p className="text-brand-400 font-medium tracking-widest text-[10px] uppercase mb-1">
               {item.category}
             </p>
           )}
@@ -425,7 +425,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onAddToCart(item)}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-4 py-2.5 rounded-full font-bold text-sm transition-all shadow min-h-[44px]"
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white px-4 py-2.5 rounded-full font-bold text-sm transition-all shadow min-h-[44px]"
               >
                 <ShoppingBag className="w-4 h-4" />
                 Order
@@ -471,7 +471,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
               </span>
             )}
             {item.isPopular && !item.isFeatured && (
-              <span className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-white/90 text-orange-600 shadow-sm">
+              <span className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-white/90 text-brand-600 shadow-sm">
                 <Star className="w-2.5 h-2.5" /> Popular
               </span>
             )}
@@ -705,7 +705,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
         <div className="flex-1 flex flex-col justify-between min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="font-medium text-gray-900 text-sm leading-snug group-hover:text-orange-500 transition-colors line-clamp-1">
+              <p className="font-medium text-gray-900 text-sm leading-snug group-hover:text-brand-500 transition-colors line-clamp-1">
                 {item.name}
               </p>
               {item.description && (
@@ -715,7 +715,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
             </div>
 
             <div className="flex flex-col items-end gap-2 shrink-0 ml-2">
-              <span className="text-orange-600 font-semibold text-sm whitespace-nowrap">
+              <span className="text-brand-600 font-semibold text-sm whitespace-nowrap">
                 ৳{item.price}
                 {discount && (
                   <span className="ml-1.5 text-gray-400 line-through font-normal text-xs">
@@ -732,7 +732,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
                       e.stopPropagation();
                       onUpdateQuantity(item.id, cartQuantity - 1);
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors min-h-[44px] min-w-[44px]"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-brand-300 text-brand-600 hover:bg-brand-50 transition-colors min-h-[44px] min-w-[44px]"
                     aria-label="Decrease"
                   >
                     <Minus className="w-3.5 h-3.5" />
@@ -743,7 +743,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
                       e.stopPropagation();
                       onUpdateQuantity(item.id, cartQuantity + 1);
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors min-h-[44px] min-w-[44px]"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors min-h-[44px] min-w-[44px]"
                     aria-label="Increase"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -758,7 +758,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
                     onAddToCart(item);
                   }}
                   disabled={isOutOfStock}
-                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-sm hover:shadow-md transition-all min-h-[44px] min-w-[44px]"
+                  className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-sm hover:shadow-md transition-all min-h-[44px] min-w-[44px]"
                   aria-label="Add to cart"
                 >
                   <ShoppingBag className="w-4 h-4" />
@@ -772,7 +772,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
             <div className="flex items-center gap-3 mt-1.5">
               {item.rating != null && (
                 <span className="flex items-center gap-0.5 text-xs text-gray-500">
-                  <Star className="w-3 h-3 fill-orange-400 text-orange-400" />
+                  <Star className="w-3 h-3 fill-brand-400 text-brand-400" />
                   {item.rating.toFixed(1)}
                 </span>
               )}
@@ -828,14 +828,14 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
 
         {/* Discount badge */}
         {discount && (
-          <div className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md">
+          <div className="absolute top-2 left-2 bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md">
             -{discount}%
           </div>
         )}
 
         {/* Popular / Featured badge */}
         {(item.isFeatured || item.isPopular) && (
-          <div className="absolute top-2 right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 shadow-md">
+          <div className="absolute top-2 right-2 bg-gradient-to-r from-brand-500 to-red-500 text-white text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 shadow-md">
             {item.isFeatured ? (
               <>
                 <Zap className="w-2.5 h-2.5" /> Featured
@@ -859,7 +859,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
 
       {/* Content */}
       <div className="p-4 flex flex-col flex-1 sm:p-5">
-        <h3 className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-orange-500 transition-colors line-clamp-1 mb-1">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-brand-500 transition-colors line-clamp-1 mb-1">
           {item.name}
         </h3>
 
@@ -867,7 +867,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
         <div className="flex items-center gap-3 mb-1.5">
           {item.rating != null && (
             <div className="flex items-center gap-1">
-              <Star className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
+              <Star className="w-3.5 h-3.5 fill-brand-500 text-brand-500" />
               <span className="text-xs font-medium text-gray-900">{item.rating}</span>
               {item.reviewCount != null && (
                 <span className="text-[10px] text-gray-500">({item.reviewCount})</span>
@@ -922,7 +922,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
                 onAddToCart(item);
               }}
               disabled={isOutOfStock}
-              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all min-h-[44px] min-w-[44px]"
+              className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all min-h-[44px] min-w-[44px]"
               aria-label="Add to cart"
             >
               <Plus className="w-4 h-4 sm:w-5 sm:h-5" />

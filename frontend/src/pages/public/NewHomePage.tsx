@@ -1,36 +1,31 @@
-import React from "react";
-import NewHeroSection from "@/components/NewHeroSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
-import BannerSearchSection from "@/components/BannerSearchSection";
+import JoinFoodRushSection from "@/components/JoinFoodRushSection";
 import NearbyRestaurants from "@/components/NearbyRestaurants";
-import TopFoodCategories from "@/components/TopFoodCategories";
-import TrendingFoodItems from "@/components/TrendingFoodItems";
+import NewHeroSection from "@/components/NewHeroSection";
 import PopularRestaurants from "@/components/PopularRestaurants";
 import ReviewsAndRatings from "@/components/ReviewsAndRatings";
-import RiderCTASection from "@/components/RiderCTASection";
-import VendorCTASection from "@/components/VendorCTASection";
+import TopFoodCategories from "@/components/TopFoodCategories";
+import TrendingFoodItems from "@/components/TrendingFoodItems";
+import React from "react";
 
 /**
- * NewHomePage - The main landing page of the application.
+ * NewHomePage — the landing page.
  *
- * This page is wrapped by MainLayout which provides:
- * - Navbar at the top
- * - Footer at the bottom
- * - Page transition animations
+ * Wrapped by MainLayout (navbar + footer + page transition). Section order
+ * moves the visitor from "find food" (hero search → categories → restaurants)
+ * to trust (how it works → reviews) to growth (join the platform).
  */
 const NewHomePage: React.FC = () => {
   return (
     <>
       <NewHeroSection />
-      <HowItWorksSection />
-      <BannerSearchSection />
-      <NearbyRestaurants />
       <TopFoodCategories />
-      <TrendingFoodItems />
+      <NearbyRestaurants />
       <PopularRestaurants />
+      <TrendingFoodItems />
+      <HowItWorksSection />
       <ReviewsAndRatings />
-      <RiderCTASection />
-      <VendorCTASection />
+      <JoinFoodRushSection />
     </>
   );
 };

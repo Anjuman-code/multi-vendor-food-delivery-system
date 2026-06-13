@@ -1,5 +1,17 @@
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+
+import {
+  AuthHeading,
+  AuthTabs,
+  OAuthSection,
+  PasswordInput,
+  PasswordStrengthMeter,
+  SubmitButton,
+} from "@/components/auth";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -7,58 +19,37 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
-import SocialButton from '@/components/SocialButton';
-import { registerSchema, type RegisterFormData } from '@/lib/validation';
-import authService from '@/services/authService';
-
-/**
- * RegisterPage - User registration page.
- *
- * This page is wrapped by AuthLayout which provides:
- * - Split-screen layout with branding
- * - Logo and footer
- */
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
+import { useToast } from "@/hooks/use-toast";
+import { registerSchema, type RegisterFormData } from "@/lib/validation";
+import authService from "@/services/authService";
 
 const RegisterPage: React.FC = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+  useRedirectIfAuthenticated();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phoneNumber: '',
-      password: '',
-      confirmPassword: '',
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+      password: "",
+      confirmPassword: "",
       agreedToTerms: false,
     },
   });
 
+  const password = form.watch("password");
+
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
-
     try {
       const response = await authService.register({
         firstName: data.firstName,
@@ -70,111 +61,69 @@ const RegisterPage: React.FC = () => {
 
       if (response.success) {
         toast({
-          title: 'Success',
-          description:
-            'Account created successfully! Please check your email to verify.',
+          title: "Account created",
+          description: "Check your email for a verification code.",
         });
-        // Navigate to verify-email page, passing email via router state
-        navigate('/verify-email', { state: { email: data.email } });
+        navigate("/verify-email", { state: { email: data.email } });
       } else {
         toast({
-          title: 'Error',
-          description: response.message || 'Registration failed',
-          variant: 'destructive',
+          title: "Registration failed",
+          description: response.message || "Please check your details and try again.",
+          variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: 'Error',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
+        title: "Something went wrong",
+        description: "Please try again in a moment.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: 'google' | 'facebook') => {
-    if (provider === 'google') {
-      authService.startGoogleAuth('/');
+  const handleSocialLogin = (provider: "google" | "facebook") => {
+    if (provider === "google") {
+      authService.startGoogleAuth("/");
       return;
     }
-
-    toast({
-      title: 'Info',
-      description: `Social login with ${provider} coming soon`,
-    });
+    toast({ title: "Coming soon", description: `${provider} sign-up is on the way.` });
   };
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Create an account
-        </h2>
-        <p className="text-gray-600">
-          Join us today and enjoy delicious food from Sylhet!
-        </p>
-      </div>
+      <AuthHeading
+        title="Create your account"
+        subtitle="Join Food Rush and enjoy Sylhet's best flavours at your door."
+      />
 
-      {/* Tab Navigation */}
-      <div className="flex space-x-4 mb-8 border-b border-gray-200">
-        <Link
-          to="/login"
-          className="pb-3 text-gray-500 hover:text-orange-500 font-medium transition-colors"
-        >
-          Log in
-        </Link>
-        <Link
-          to="/register"
-          className="pb-3 text-orange-500 font-semibold border-b-2 border-orange-500 transition-colors"
-        >
-          Sign Up
-        </Link>
-      </div>
+      <AuthTabs active="register" />
 
-      {/* Registration Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          {/* First / Last name – side-by-side */}
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
             <FormField
               control={form.control}
               name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>First Name</FormLabel>
+                  <FormLabel>First name</FormLabel>
                   <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="First name"
-                      {...field}
-                      className={
-                        form.formState.errors.firstName ? 'border-red-500' : ''
-                      }
-                    />
+                    <Input autoComplete="given-name" placeholder="First name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="lastName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name</FormLabel>
+                  <FormLabel>Last name</FormLabel>
                   <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="Last name"
-                      {...field}
-                      className={
-                        form.formState.errors.lastName ? 'border-red-500' : ''
-                      }
-                    />
+                    <Input autoComplete="family-name" placeholder="Last name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -191,11 +140,9 @@ const RegisterPage: React.FC = () => {
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="Enter your email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
                     {...field}
-                    className={
-                      form.formState.errors.email ? 'border-red-500' : ''
-                    }
                   />
                 </FormControl>
                 <FormMessage />
@@ -208,15 +155,13 @@ const RegisterPage: React.FC = () => {
             name="phoneNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone Number</FormLabel>
+                <FormLabel>Phone number</FormLabel>
                 <FormControl>
                   <Input
                     type="tel"
-                    placeholder="e.g. +8801XXXXXXXXX"
+                    autoComplete="tel"
+                    placeholder="+8801XXXXXXXXX"
                     {...field}
-                    className={
-                      form.formState.errors.phoneNumber ? 'border-red-500' : ''
-                    }
                   />
                 </FormControl>
                 <FormMessage />
@@ -224,79 +169,48 @@ const RegisterPage: React.FC = () => {
             )}
           />
 
-          <div>
-            <FormLabel>Password</FormLabel>
-            <div className="relative">
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Create a password"
-                        className={`${form.formState.errors.password ? 'border-red-500' : ''} pr-10`}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-500" />
-                )}
-              </button>
-            </div>
-          </div>
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <PasswordInput
+                    autoComplete="new-password"
+                    placeholder="Create a strong password"
+                    {...field}
+                  />
+                </FormControl>
+                <PasswordStrengthMeter password={password} />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <div>
-            <FormLabel>Confirm Password</FormLabel>
-            <div className="relative">
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Confirm your password"
-                        className={`${form.formState.errors.confirmPassword ? 'border-red-500' : ''} pr-10`}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-500" />
-                )}
-              </button>
-            </div>
-          </div>
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm password</FormLabel>
+                <FormControl>
+                  <PasswordInput
+                    autoComplete="new-password"
+                    placeholder="Re-enter your password"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
             name="agreedToTerms"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-1">
                 <FormControl>
                   <Checkbox
                     checked={field.value}
@@ -305,13 +219,14 @@ const RegisterPage: React.FC = () => {
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel className="text-sm">
-                    I agree to the{' '}
-                    <Link
-                      to="/terms"
-                      className="text-orange-500 hover:text-orange-600 transition-colors"
-                    >
-                      Terms & Privacy Policy
+                  <FormLabel className="text-sm font-normal text-muted-foreground">
+                    I agree to the{" "}
+                    <Link to="/terms" className="font-medium text-brand-600 hover:text-brand-700">
+                      Terms
+                    </Link>{" "}
+                    &amp;{" "}
+                    <Link to="/privacy" className="font-medium text-brand-600 hover:text-brand-700">
+                      Privacy Policy
                     </Link>
                   </FormLabel>
                   <FormMessage />
@@ -320,71 +235,32 @@ const RegisterPage: React.FC = () => {
             )}
           />
 
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold shadow-md hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200 h-11"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Creating account...
-              </span>
-            ) : (
-              'Create Account'
-            )}
-          </Button>
+          <SubmitButton loading={isLoading} loadingText="Creating account…">
+            Create account
+          </SubmitButton>
         </form>
       </Form>
 
-      {/* Divider */}
-      <div className="my-6 flex items-center">
-        <div className="flex-grow border-t border-gray-200"></div>
-        <span className="mx-4 text-sm text-gray-500">or continue with</span>
-        <div className="flex-grow border-t border-gray-200"></div>
-      </div>
+      <OAuthSection onProvider={handleSocialLogin} isLoading={isLoading} />
 
-      {/* Social Login */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <SocialButton
-          provider="google"
-          onClick={() => handleSocialLogin('google')}
-          isLoading={isLoading}
-        />
-        <SocialButton
-          provider="facebook"
-          onClick={() => handleSocialLogin('facebook')}
-          isLoading={isLoading}
-        />
-      </div>
-
-      {/* Login Link */}
-      <p className="text-center text-sm text-gray-600">
-        Already have an account?{' '}
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
         <Link
           to="/login"
-          className="font-medium text-orange-500 hover:text-orange-600 transition-colors"
+          className="font-semibold text-brand-600 transition-colors hover:text-brand-700"
         >
           Log in
+        </Link>
+      </p>
+
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        Want to partner with us?{" "}
+        <Link to="/vendor/register" className="font-medium text-brand-600 hover:text-brand-700">
+          Add your restaurant
+        </Link>{" "}
+        ·{" "}
+        <Link to="/rider/register" className="font-medium text-brand-600 hover:text-brand-700">
+          Become a rider
         </Link>
       </p>
     </>

@@ -61,7 +61,7 @@ const TopFoodCategories: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-1">Categories</p>
+            <p className="text-xs font-semibold tracking-widest text-brand-500 uppercase mb-1">Categories</p>
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Top Food Categories</h2>
           </div>
 
@@ -72,7 +72,7 @@ const TopFoodCategories: React.FC = () => {
                 key={tab.id}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors duration-300 text-sm md:text-base ${
                   activeTab === tab.id
-                    ? "bg-orange-500 text-white shadow-md"
+                    ? "bg-brand-500 text-white shadow-md"
                     : "text-gray-600 hover:bg-gray-200"
                 }`}
                 onClick={() => setActiveTab(tab.id)}
@@ -100,7 +100,7 @@ const TopFoodCategories: React.FC = () => {
             <div className="rounded-2xl border border-dashed border-gray-200 p-10 text-center">
               <p className="text-gray-500 mb-4">{errorMessage}</p>
               <button
-                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors"
+                className="px-4 py-2 rounded-lg bg-brand-500 text-white font-semibold hover:bg-brand-600 transition-colors"
                 onClick={loadCategories}
                 type="button"
               >
@@ -154,7 +154,7 @@ const TopFoodCategories: React.FC = () => {
                         <h3 className="text-base font-bold text-white leading-tight">
                           {category.name}
                         </h3>
-                        <span className="text-orange-300 text-xs mt-0.5">
+                        <span className="text-brand-300 text-xs mt-0.5">
                           {category.restaurantCount} Restaurants
                         </span>
                       </div>

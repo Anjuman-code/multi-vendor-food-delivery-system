@@ -124,12 +124,12 @@ const NearbyRestaurants: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-3">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-1">Nearby</p>
+            <p className="text-xs font-semibold tracking-widest text-brand-500 uppercase mb-1">Nearby</p>
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Restaurants Near You</h2>
           </div>
           <Link
             to="/restaurants"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors"
           >
             View all <ArrowRight className="w-4 h-4" />
           </Link>
@@ -164,7 +164,7 @@ const NearbyRestaurants: React.FC = () => {
 
                   <div className="p-4">
                     <h3 className="text-sm font-bold text-gray-900 mb-0.5">{restaurant.name}</h3>
-                    <p className="text-xs text-orange-500 font-medium mb-3">{restaurant.cuisine}</p>
+                    <p className="text-xs text-brand-500 font-medium mb-3">{restaurant.cuisine}</p>
 
                     <div className="flex justify-between items-center text-xs text-gray-400">
                       <div className="flex items-center gap-1">

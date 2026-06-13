@@ -286,7 +286,7 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({
                     key={index}
                     onClick={() => handleThumbnailClick(index)}
                     className={cn(
-                      "flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500",
+                      "flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500",
                       currentIndex === index
                         ? "ring-2 ring-white scale-110"
                         : "opacity-50 hover:opacity-100",

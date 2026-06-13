@@ -82,7 +82,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
     <motion.div variants={itemVariants} className="mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between py-2 group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 rounded-lg"
+        className="w-full flex items-center justify-between py-2 group focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 rounded-lg"
         aria-expanded={isOpen}
         aria-controls={`filter-section-${title.toLowerCase().replace(/\s/g, "-")}`}
       >
@@ -98,7 +98,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-colors" />
+          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-brand-500 transition-colors" />
         </motion.div>
       </button>
 
@@ -125,7 +125,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                     placeholder={`Search ${title.toLowerCase()}`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 h-9 text-sm bg-gray-50 border-gray-200 focus:border-orange-300 focus:ring-orange-200"
+                    className="pl-9 h-9 text-sm bg-gray-50 border-gray-200 focus:border-brand-300 focus:ring-brand-200"
                     aria-label={`Search ${title}`}
                   />
                 </div>
@@ -145,7 +145,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                     <Checkbox
                       checked={selectedFilters.includes(filter.id)}
                       onCheckedChange={() => onFilterChange(filter.id)}
-                      className="border-gray-300 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                      className="border-gray-300 data-[state=checked]:bg-brand-500 data-[state=checked]:border-brand-500"
                       aria-label={`${filter.label} (${filter.count} results)`}
                     />
                     <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors flex-1">
@@ -188,7 +188,7 @@ const RatingFilter: React.FC<RatingFilterProps> = ({ value, onChange }) => {
     <motion.div variants={itemVariants} className="mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between py-2 group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 rounded-lg"
+        className="w-full flex items-center justify-between py-2 group focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 rounded-lg"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ const RatingFilter: React.FC<RatingFilterProps> = ({ value, onChange }) => {
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-colors" />
+          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-brand-500 transition-colors" />
         </motion.div>
       </button>
 
@@ -220,7 +220,7 @@ const RatingFilter: React.FC<RatingFilterProps> = ({ value, onChange }) => {
             <div className="pt-4 pb-3 px-1">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 text-orange-500 fill-orange-500" />
+                  <Star className="w-4 h-4 text-brand-500 fill-brand-500" />
                   <span className="text-sm font-medium text-gray-900">
                     {ratingLabel}
                   </span>
@@ -262,7 +262,7 @@ const DistanceFilter: React.FC<DistanceFilterProps> = ({ value, onChange }) => {
     <motion.div variants={itemVariants} className="mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between py-2 group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 rounded-lg"
+        className="w-full flex items-center justify-between py-2 group focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 rounded-lg"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ const DistanceFilter: React.FC<DistanceFilterProps> = ({ value, onChange }) => {
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-colors" />
+          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-brand-500 transition-colors" />
         </motion.div>
       </button>
 
@@ -510,7 +510,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={onClearAll}
-                  className="mb-4 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                  className="mb-4 text-brand-600 hover:text-brand-700 hover:bg-brand-50"
                 >
                   <RotateCcw className="w-3 h-3 mr-1" />
                   Clear all filters
@@ -520,7 +520,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
             </div>
 
             <SheetFooter className="sticky bottom-0 bg-white border-t pt-4 -mx-6 px-6 -mb-6 pb-6">
-              <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white">
+              <Button className="w-full bg-brand-500 hover:bg-brand-600 text-white">
                 Show {resultCount} Results
               </Button>
             </SheetFooter>
@@ -532,7 +532,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
             variant="ghost"
             size="sm"
             onClick={onClearAll}
-            className="text-orange-600 hover:text-orange-700"
+            className="text-brand-600 hover:text-brand-700"
           >
             Clear all
           </Button>
@@ -554,7 +554,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
               variant="ghost"
               size="sm"
               onClick={onClearAll}
-              className="mb-3 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+              className="mb-3 text-brand-600 hover:text-brand-700 hover:bg-brand-50"
             >
               <X className="w-3 h-3 mr-1" />
               Clear all filters ({totalActiveFilters})

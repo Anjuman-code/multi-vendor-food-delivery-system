@@ -110,15 +110,15 @@ const StatCard: React.FC<StatCardProps> = ({
       transition={{ duration: 0.6, delay }}
       className="group relative"
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-300" />
+      <div className="absolute inset-0 bg-gradient-to-r from-brand-500 to-red-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-300" />
       <div className="relative bg-white/80 backdrop-blur-sm rounded-3xl p-8 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
         <div className="flex items-center justify-center mb-4">
-          <div className="p-3 bg-gradient-to-br from-orange-100 to-red-100 rounded-2xl text-orange-500">
+          <div className="p-3 bg-gradient-to-br from-brand-100 to-red-100 rounded-2xl text-brand-500">
             {icon}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mb-2">
+          <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-brand-500 to-red-500 bg-clip-text text-transparent mb-2">
             <AnimatedCounter value={value} suffix={suffix} />
           </div>
           <div className="text-gray-600 font-medium">{label}</div>
@@ -142,11 +142,11 @@ const ReviewCard: React.FC<{ review: Review; index: number }> = ({
     >
       <div className="relative h-full bg-white rounded-3xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden">
         {/* Decorative gradient blob */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-orange-200 to-red-200 rounded-full opacity-50 blur-2xl group-hover:opacity-70 transition-opacity duration-500" />
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-brand-200 to-red-200 rounded-full opacity-50 blur-2xl group-hover:opacity-70 transition-opacity duration-500" />
 
         {/* Quote icon */}
         <div className="relative mb-4">
-          <div className="inline-flex p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl shadow-lg">
+          <div className="inline-flex p-3 bg-gradient-to-br from-brand-500 to-red-500 rounded-2xl shadow-lg">
             <Quote className="w-5 h-5 text-white" />
           </div>
         </div>
@@ -176,14 +176,14 @@ const ReviewCard: React.FC<{ review: Review; index: number }> = ({
             <img
               src={review.avatar}
               alt={review.name}
-              className="w-14 h-14 rounded-full object-cover ring-4 ring-orange-100"
+              className="w-14 h-14 rounded-full object-cover ring-4 ring-brand-100"
             />
             <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white" />
           </div>
           <div className="flex-1">
             <h4 className="font-bold text-gray-800">{review.name}</h4>
             <p className="text-sm text-gray-500">{review.location}</p>
-            <p className="text-xs text-orange-500 font-medium mt-1">
+            <p className="text-xs text-brand-500 font-medium mt-1">
               Verified customer review
             </p>
           </div>
@@ -356,7 +356,7 @@ const ReviewsAndRatings: React.FC = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <span className="inline-block px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-xs font-semibold tracking-widest uppercase mb-3">
+          <span className="inline-block px-3 py-1 bg-brand-50 text-brand-500 rounded-full text-xs font-semibold tracking-widest uppercase mb-3">
             Customer Reviews
           </span>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
@@ -426,7 +426,7 @@ const ReviewsAndRatings: React.FC = () => {
                 variant="outline"
                 size="icon"
                 onClick={prevPage}
-                className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all duration-300"
+                className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-brand-500 hover:bg-brand-50 transition-all duration-300"
               >
                 <ChevronLeft className="w-5 h-5" />
               </Button>
@@ -439,7 +439,7 @@ const ReviewsAndRatings: React.FC = () => {
                     onClick={() => setCurrentPage(i)}
                     className={`transition-all duration-300 rounded-full ${
                       i === currentPage
-                        ? "w-8 h-3 bg-gradient-to-r from-orange-500 to-red-500"
+                        ? "w-8 h-3 bg-gradient-to-r from-brand-500 to-red-500"
                         : "w-3 h-3 bg-gray-300 hover:bg-gray-400"
                     }`}
                   />
@@ -450,7 +450,7 @@ const ReviewsAndRatings: React.FC = () => {
                 variant="outline"
                 size="icon"
                 onClick={nextPage}
-                className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all duration-300"
+                className="rounded-full w-12 h-12 border-2 border-gray-200 hover:border-brand-500 hover:bg-brand-50 transition-all duration-300"
               >
                 <ChevronRight className="w-5 h-5" />
               </Button>
@@ -500,7 +500,7 @@ const ReviewsAndRatings: React.FC = () => {
             Ready to join our community of food lovers?
           </p>
           <Link to="/restaurants">
-            <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-6 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Button className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-8 py-6 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               Start Ordering Now
             </Button>
           </Link>

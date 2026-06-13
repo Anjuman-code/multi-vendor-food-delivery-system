@@ -1,309 +1,190 @@
+import Container from "@/components/public/Container";
+import GradientText from "@/components/public/GradientText";
 import { Button } from "@/components/ui/button";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import { motion } from "framer-motion";
-import {
-    ArrowRight,
-    Clock,
-    Leaf,
-    MapPin,
-    Smartphone,
-    Sparkles,
-    Star,
-    Truck,
-} from "lucide-react";
-import React from "react";
-import { Link } from "react-router-dom";
+import { ArrowRight, MapPin, Search, Sparkles, Star, Truck } from "lucide-react";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+
+const popularSearches = ["Biryani", "Pizza", "Burger", "Cafe", "Chinese"];
+
+const benefits = [
+  { icon: Star, label: "4.8 rating", sub: "5k+ reviews" },
+  { icon: Truck, label: "30-min delivery", sub: "across Sylhet" },
+];
 
 const NewHeroSection: React.FC = () => {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  };
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
-    },
+  const submitSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmed = query.trim();
+    navigate(trimmed ? `/restaurants?q=${encodeURIComponent(trimmed)}` : "/restaurants");
   };
-
-  const benefits = [
-    { icon: Clock, text: "30 min delivery", bg: "bg-green-50" },
-    { icon: Leaf, text: "Fresh ingredients", bg: "bg-emerald-50" },
-    { icon: Smartphone, text: "Live tracking", bg: "bg-blue-50" },
-  ];
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-32 lg:pb-24 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          {/* Left Side - Content */}
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="max-w-xl"
-          >
-            {/* Badge */}
-            <motion.div variants={itemVariants} className="mb-6">
-              <span className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-600 rounded-full text-sm font-medium">
-                <Sparkles className="w-4 h-4" />
-                #1 Food Delivery in Sylhet
-              </span>
-            </motion.div>
-
-            {/* Headline */}
-            <motion.h1
-              variants={itemVariants}
-              className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] mb-6"
-            >
-              <span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-                Hungry?
-              </span>
-              <br />
-              <span className="text-gray-900">Get Food </span>
-              <span className="relative inline-block">
-                <span className="text-gray-900">Fast!</span>
-                <svg
-                  className="absolute -bottom-1 left-0 w-full"
-                  viewBox="0 0 100 8"
-                  fill="none"
-                >
-                  <path
-                    d="M1 5C25 1 75 1 99 5"
-                    stroke="url(#underline-gradient)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                  <defs>
-                    <linearGradient
-                      id="underline-gradient"
-                      x1="0"
-                      y1="0"
-                      x2="100"
-                      y2="0"
-                    >
-                      <stop stopColor="#f97316" />
-                      <stop offset="1" stopColor="#ef4444" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </span>
-            </motion.h1>
-
-            {/* Subtitle */}
-            <motion.p
-              variants={itemVariants}
-              className="text-lg text-gray-600 mb-8"
-            >
-              Delicious meals from 500+ local restaurants, delivered to your
-              door.
-            </motion.p>
-
-            {/* Benefits - Inline */}
-            <motion.div
-              variants={itemVariants}
-              className="flex flex-wrap gap-3 mb-8"
-            >
-              {benefits.map((benefit, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center gap-2 px-4 py-2 ${benefit.bg} rounded-full`}
-                >
-                  <benefit.icon className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-medium text-gray-700">
-                    {benefit.text}
-                  </span>
-                </div>
-              ))}
-            </motion.div>
-
-            {/* CTA Buttons */}
-            <motion.div
-              variants={itemVariants}
-              className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10"
-            >
-              <Link to="/restaurants">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-6 rounded-xl font-semibold text-lg shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-1 group"
-                >
-                  Order Now
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-            </motion.div>
-
-            {/* Trust Indicators + Rider Highlight */}
-            <motion.div
-              variants={itemVariants}
-              className="flex items-center gap-4 flex-wrap"
-            >
-              {/* Existing trust indicators - rating */}
-              <div className="flex items-center gap-1.5">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4 fill-yellow-400 text-yellow-400"
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600 font-medium">
-                  4.8 <span className="text-gray-400">(5k+ reviews)</span>
-                </span>
-              </div>
-
-              <span className="w-1 h-1 rounded-full bg-gray-300" />
-
-              {/* Rider recruitment badge */}
-              <Link
-                to="/rider/register"
-                className="group inline-flex items-center gap-1.5 text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
-              >
-                <Truck className="w-4 h-4" />
-                <span>Become a Rider</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </motion.div>
-          </motion.div>
-
-          {/* Right Side - Image Collage */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="relative flex justify-center lg:justify-end"
-          >
-            <div className="relative w-full max-w-md lg:max-w-lg">
-              {/* Image Collage Grid */}
-              <div className="relative w-full aspect-square">
-                {/* Main Large Image */}
-                <motion.div
-                  className="absolute top-0 left-0 w-[60%] h-[55%] rounded-3xl overflow-hidden shadow-2xl"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                >
-                  <img
-                    src="/src/assets/images/deliveryman.jpg"
-                    alt="Delivery rider"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </motion.div>
-
-                {/* Top Right Image */}
-                <motion.div
-                  className="absolute top-4 right-0 w-[45%] h-[40%] rounded-3xl overflow-hidden shadow-xl"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 0.5 }}
-                >
-                  <img
-                    src="https://images.pexels.com/photos/2233729/pexels-photo-2233729.jpeg?auto=compress&cs=tinysrgb&w=600"
-                    alt="Gourmet burger"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </motion.div>
-
-                {/* Bottom Left Image */}
-                <motion.div
-                  className="absolute bottom-8 left-4 w-[40%] h-[38%] rounded-3xl overflow-hidden shadow-xl"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 0.6 }}
-                >
-                  <img
-                    src="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600"
-                    alt="Delicious healthy food bowl"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </motion.div>
-
-                {/* Bottom Right Image */}
-                <motion.div
-                  className="absolute bottom-0 right-4 w-[50%] h-[45%] rounded-3xl overflow-hidden shadow-2xl border-4 border-white"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 0.7 }}
-                >
-                  <img
-                    src="https://images.pexels.com/photos/4393021/pexels-photo-4393021.jpeg?auto=compress&cs=tinysrgb&w=600"
-                    alt="Food delivery package"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                </motion.div>
-              </div>
-
-              {/* Floating Elements */}
-              <motion.div
-                className="absolute top-0 right-0 lg:-right-4 z-20"
-                animate={{ y: [-8, 8, -8] }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              >
-                <div className="bg-white rounded-2xl shadow-xl p-3 border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl">
-                      <MapPin className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Delivering to</p>
-                      <p className="font-semibold text-gray-800 text-sm">
-                        Sylhet, BD
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="absolute bottom-4 -left-4 lg:left-0 z-20"
-                animate={{ y: [8, -8, 8] }}
-                transition={{
-                  duration: 5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.5,
-                }}
-              >
-                <div className="bg-white rounded-2xl shadow-xl p-3 border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-xl">
-                      <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800 text-sm">
-                        4.8 Rating
-                      </p>
-                      <p className="text-xs text-gray-500">5,000+ reviews</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Decorative Blobs */}
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-br from-orange-300/30 to-red-300/30 rounded-full blur-2xl -z-10" />
-              <div className="absolute top-0 -left-4 w-24 h-24 bg-gradient-to-br from-yellow-300/30 to-orange-300/30 rounded-full blur-2xl -z-10" />
-              <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-gradient-to-br from-red-300/20 to-orange-300/20 rounded-full blur-xl -z-10" />
-            </div>
-          </motion.div>
-        </div>
+    <section className="relative flex min-h-[90vh] items-center overflow-hidden">
+      {/* Soft brand background */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <div className="absolute -top-32 -left-24 h-[480px] w-[480px] rounded-full bg-gradient-to-br from-brand-200/50 to-transparent blur-3xl" />
+        <div className="absolute -bottom-24 right-0 h-[460px] w-[460px] rounded-full bg-gradient-to-tl from-red-200/40 to-transparent blur-3xl" />
       </div>
+
+      <Container className="relative z-10 grid grid-cols-1 items-center gap-12 pt-28 pb-16 lg:grid-cols-2 lg:gap-8 lg:pt-32">
+        {/* ── Copy ─────────────────────────────────────────────── */}
+        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="max-w-xl">
+          <motion.div variants={staggerItem} className="mb-6">
+            <span className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-4 py-2 text-sm font-medium text-brand-700">
+              <Sparkles className="h-4 w-4" />
+              #1 Food Delivery in Sylhet
+            </span>
+          </motion.div>
+
+          <motion.h1
+            variants={staggerItem}
+            className="text-4xl font-bold leading-[1.08] tracking-tight text-gray-900 md:text-5xl xl:text-6xl"
+          >
+            Your favorite meals,{" "}
+            <GradientText>delivered fast</GradientText>
+          </motion.h1>
+
+          <motion.p variants={staggerItem} className="mt-5 text-lg text-gray-600">
+            Order from 500+ local restaurants and track every step to your door.
+            Fresh, fast, and right on time.
+          </motion.p>
+
+          {/* Integrated search */}
+          <motion.form
+            variants={staggerItem}
+            onSubmit={submitSearch}
+            className="mt-8 flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-card-lg sm:flex-row sm:items-center"
+          >
+            <div className="flex items-center gap-2 border-gray-100 px-3 sm:border-r">
+              <MapPin className="h-5 w-5 shrink-0 text-brand-500" />
+              <span className="whitespace-nowrap text-sm font-medium text-gray-700">
+                Sylhet
+              </span>
+            </div>
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search for food or restaurants"
+                aria-label="Search for food or restaurants"
+                className="h-12 w-full rounded-xl bg-transparent pl-10 pr-3 text-base outline-none placeholder:text-gray-400"
+              />
+            </div>
+            <Button type="submit" variant="brand" size="lg" className="rounded-xl">
+              Find food
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          </motion.form>
+
+          {/* Popular searches */}
+          <motion.div variants={staggerItem} className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-400">Popular:</span>
+            {popularSearches.map((term) => (
+              <Link
+                key={term}
+                to={`/restaurants?q=${encodeURIComponent(term)}`}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+              >
+                {term}
+              </Link>
+            ))}
+          </motion.div>
+
+          {/* Trust row */}
+          <motion.div variants={staggerItem} className="mt-8 flex flex-wrap items-center gap-6">
+            {benefits.map((benefit) => (
+              <div key={benefit.label} className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
+                  <benefit.icon className="h-5 w-5" />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-gray-900">{benefit.label}</p>
+                  <p className="text-xs text-gray-500">{benefit.sub}</p>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* ── Image collage ────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          className="relative hidden lg:block"
+        >
+          <div className="relative mx-auto aspect-square w-full max-w-lg">
+            <div className="absolute left-0 top-0 h-[55%] w-[58%] overflow-hidden rounded-3xl shadow-2xl">
+              <img
+                src="https://images.pexels.com/photos/2233729/pexels-photo-2233729.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Gourmet burger"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="absolute right-0 top-6 h-[42%] w-[40%] overflow-hidden rounded-3xl border-4 border-white shadow-xl">
+              <img
+                src="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Healthy bowl"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="absolute bottom-0 right-8 h-[46%] w-[52%] overflow-hidden rounded-3xl shadow-2xl">
+              <img
+                src="https://images.pexels.com/photos/4393021/pexels-photo-4393021.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Food delivery"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="absolute bottom-10 left-0 h-[38%] w-[34%] overflow-hidden rounded-3xl border-4 border-white shadow-xl">
+              <img
+                src="/src/assets/images/deliveryman.jpg"
+                alt="Delivery rider"
+                className="h-full w-full object-cover"
+              />
+            </div>
+
+            {/* Floating delivery card */}
+            <motion.div
+              animate={{ y: [-8, 8, -8] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -right-4 top-1/3 z-20 rounded-2xl border border-gray-100 bg-white p-3 shadow-xl"
+            >
+              <div className="flex items-center gap-2">
+                <div className="rounded-xl bg-gradient-to-br from-brand-100 to-red-100 p-2">
+                  <Truck className="h-5 w-5 text-brand-500" />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-xs text-gray-500">Arriving in</p>
+                  <p className="text-sm font-semibold text-gray-800">28 min</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [8, -8, 8] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+              className="absolute -left-4 bottom-1/4 z-20 rounded-2xl border border-gray-100 bg-white p-3 shadow-xl"
+            >
+              <div className="flex items-center gap-2">
+                <div className="rounded-xl bg-gradient-to-br from-yellow-100 to-brand-100 p-2">
+                  <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-gray-800">4.8 Rating</p>
+                  <p className="text-xs text-gray-500">5,000+ reviews</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      </Container>
     </section>
   );
 };

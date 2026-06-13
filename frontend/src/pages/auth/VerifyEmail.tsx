@@ -1,115 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
-import {
-  Mail,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, CheckCircle2, Loader2, Mail } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+
+import { AuthHeading, OTPInput, SubmitButton } from "@/components/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPostAuthPath } from "@/hooks/useAuthRedirect";
 import { useToast } from "@/hooks/use-toast";
 import authService from "@/services/authService";
 
-// ── Types ──────────────────────────────────────────────────────
+type Status = "idle" | "verifying-token" | "verifying-otp" | "success" | "error";
 
-type VerificationState =
-  | "idle"
-  | "verifying-token"
-  | "verifying-otp"
-  | "success"
-  | "error";
-
-// ── OTP Input Component ────────────────────────────────────────
-
-interface OTPInputProps {
-  length?: number;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}
-
-const OTPInput: React.FC<OTPInputProps> = ({
-  length = 6,
-  value,
-  onChange,
-  disabled = false,
-}) => {
-  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
-
-  const handleChange = (index: number, char: string) => {
-    if (!/^\d*$/.test(char)) return;
-    const newValue = value.split("");
-    newValue[index] = char;
-    const joined = newValue.join("").slice(0, length);
-    onChange(joined);
-    if (char && index < length - 1) {
-      inputsRef.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>,
-  ) => {
-    if (e.key === "Backspace" && !value[index] && index > 0) {
-      inputsRef.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, length);
-    onChange(pasted);
-    const focusIndex = Math.min(pasted.length, length - 1);
-    inputsRef.current[focusIndex]?.focus();
-  };
-
-  return (
-    <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
-      {Array.from({ length }).map((_, i) => (
-        <Input
-          key={i}
-          ref={(el) => {
-            inputsRef.current[i] = el;
-          }}
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={value[i] || ""}
-          onChange={(e) => handleChange(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          disabled={disabled}
-          className="w-11 h-13 sm:w-13 sm:h-14 text-center text-xl sm:text-2xl font-bold border-2 rounded-lg
-            focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label={`Digit ${i + 1}`}
-        />
-      ))}
-    </div>
-  );
-};
-
-// ── Main Component ─────────────────────────────────────────────
-
-/**
- * VerifyEmail – handles email verification via OTP input or token link.
- *
- * Scenarios:
- * 1. Redirected from RegisterPage with `state.email` → shows OTP input form.
- * 2. Opened via verification link with `?token=xxx` → auto-verifies.
- */
 const VerifyEmail: React.FC = () => {
   const { toast } = useToast();
   const location = useLocation();
@@ -120,147 +22,117 @@ const VerifyEmail: React.FC = () => {
   const email = (location.state as { email?: string } | null)?.email;
   const tokenFromURL = searchParams.get("token");
 
-  const [status, setStatus] = useState<VerificationState>("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [otp, setOtp] = useState("");
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // ── Auto-verify from link token ────────────────────────────
-
+  // ── Complete: store tokens, hydrate auth, redirect by role ───
   const completeVerification = useCallback(
     (response: Awaited<ReturnType<typeof authService.verifyEmail>>) => {
       if (response.success && response.data?.user) {
-        if (response.data.accessToken) {
-          localStorage.setItem('accessToken', response.data.accessToken);
-        }
-        if (response.data.refreshToken) {
-          localStorage.setItem('refreshToken', response.data.refreshToken);
-        }
-        login(response.data.user);
-
-        // Redirect to onboarding if not completed, otherwise to home
-        const redirectPath = response.data.user.onboardingCompleted ? '/' : '/onboarding';
-        navigate(redirectPath, { replace: true });
+        const { accessToken, refreshToken, user } = response.data;
+        if (accessToken) localStorage.setItem("accessToken", accessToken);
+        if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+        login(user);
+        navigate(getPostAuthPath(user), { replace: true });
         return;
       }
-
       if (response.success) {
         setStatus("success");
         return;
       }
-
       setStatus("error");
       setErrorMessage(response.message || "Verification failed.");
     },
     [login, navigate],
   );
 
+  // ── Auto-verify from email link ──────────────────────────────
   const verifyToken = useCallback(
     async (token: string) => {
       setStatus("verifying-token");
       setErrorMessage("");
-
       const response = await authService.verifyEmail(token);
-
       if (!response.success) {
         setStatus("error");
-        setErrorMessage(
-          response.message || "Invalid or expired verification link.",
-        );
+        setErrorMessage(response.message || "Invalid or expired verification link.");
         return;
       }
-
       completeVerification(response);
     },
     [completeVerification],
   );
 
   useEffect(() => {
-    if (tokenFromURL) {
-      verifyToken(tokenFromURL);
-    }
+    if (tokenFromURL) verifyToken(tokenFromURL);
   }, [tokenFromURL, verifyToken]);
 
-  // ── Resend cooldown timer ──────────────────────────────────
-
+  // ── Resend cooldown ──────────────────────────────────────────
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
-  // ── Handlers ───────────────────────────────────────────────
-
-  const handleVerifyOTP = async () => {
+  const handleVerifyOTP = useCallback(async () => {
     if (!email) {
       toast({
-        title: "Error",
-        description: "Email address is missing. Please register again.",
+        title: "Missing email",
+        description: "Please register again to receive a new code.",
         variant: "destructive",
       });
       return;
     }
-    if (otp.length !== 6) {
-      toast({
-        title: "Invalid OTP",
-        description: "Please enter the complete 6-digit code.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (otp.length !== 6) return;
 
     setStatus("verifying-otp");
     setErrorMessage("");
-
     const response = await authService.verifyOTP(email, otp);
-
     if (!response.success) {
       setStatus("error");
-      setErrorMessage(response.message || "Invalid or expired OTP.");
+      setErrorMessage(response.message || "Invalid or expired code.");
       setOtp("");
       return;
     }
-
     completeVerification(response);
-  };
+  }, [email, otp, toast, completeVerification]);
 
-  const handleResendEmail = async () => {
+  // ── Auto-submit once 6 digits are entered ────────────────────
+  useEffect(() => {
+    if (otp.length === 6 && status === "idle") void handleVerifyOTP();
+  }, [otp, status, handleVerifyOTP]);
+
+  const handleResend = async () => {
     if (!email) {
       toast({
-        title: "Error",
-        description: "Email address is missing. Please register again.",
+        title: "Missing email",
+        description: "Please register again to receive a new code.",
         variant: "destructive",
       });
       return;
     }
-
     setIsResending(true);
-
     try {
       const response = await authService.resendVerification(email);
-
       if (response.success) {
-        toast({
-          title: "Email sent",
-          description: "A new verification email has been sent to your inbox.",
-        });
+        toast({ title: "Code sent", description: "A new code is on its way to your inbox." });
         setResendCooldown(60);
         setOtp("");
         setStatus("idle");
         setErrorMessage("");
       } else {
         toast({
-          title: "Error",
-          description:
-            response.message || "Failed to resend verification email.",
+          title: "Couldn't resend",
+          description: response.message || "Please try again.",
           variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
+        title: "Something went wrong",
+        description: "Please try again in a moment.",
         variant: "destructive",
       });
     } finally {
@@ -268,240 +140,132 @@ const VerifyEmail: React.FC = () => {
     }
   };
 
-  // ── Auto-submit when OTP is complete ───────────────────────
-
-  useEffect(() => {
-    if (otp.length === 6 && status === "idle") {
-      handleVerifyOTP();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [otp]);
-
-  // ── Render: Token auto-verify (loading / success / error) ──
-
+  // ── Token auto-verify view (loading / success / error) ───────
   if (tokenFromURL) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="text-center"
-      >
+      <div className="text-center">
         <AnimatePresence mode="wait">
-          {status === "verifying-token" && (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+          {(status === "idle" || status === "verifying-token") && (
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+                <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
                 Verifying your email…
-              </h2>
-              <p className="text-gray-600">
-                Please wait while we verify your email address.
-              </p>
+              </h1>
+              <p className="text-sm text-muted-foreground">Hang tight, this only takes a moment.</p>
             </motion.div>
           )}
 
           {status === "success" && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-            >
-              <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-10 h-10 text-green-600" />
+            <motion.div key="success" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}>
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                Email verified!
-              </h2>
-              <p className="text-gray-600 mb-8 leading-relaxed">
-                Your email has been successfully verified. You can now log in to
-                your account.
+              <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Email verified!</h1>
+              <p className="mb-8 text-sm leading-relaxed text-muted-foreground">
+                Your email is confirmed. You can now log in to your account.
               </p>
-              <Button
-                className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11"
-                onClick={() => navigate("/", { replace: true })}
-              >
-                <ShieldCheck className="w-4 h-4 mr-2" />
-                Go to Home
-              </Button>
+              <SubmitButton onClick={() => navigate("/login", { replace: true })}>
+                Continue to login
+              </SubmitButton>
             </motion.div>
           )}
 
           {status === "error" && (
-            <motion.div
-              key="error"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-            >
-              <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-10 h-10 text-red-500" />
+            <motion.div key="error" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}>
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                <AlertCircle className="h-8 w-8 text-red-500" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                Verification failed
-              </h2>
-              <p className="text-gray-600 mb-8">{errorMessage}</p>
-              <div className="space-y-3">
-                <Link to="/register">
-                  <Button variant="outline" className="w-full h-11">
-                    Register again
-                  </Button>
-                </Link>
-              </div>
+              <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Verification failed</h1>
+              <p className="mb-8 text-sm leading-relaxed text-muted-foreground">{errorMessage}</p>
+              <Link to="/register">
+                <Button variant="outline" size="lg" className="w-full">
+                  Register again
+                </Button>
+              </Link>
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
     );
   }
 
-  // ── Render: OTP verification (main flow) ───────────────────
-
+  // ── OTP entry view (main flow) ───────────────────────────────
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="text-center"
-    >
-      <AnimatePresence mode="wait">
-        {status === "success" ? (
-          <motion.div
-            key="success"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Email verified!
-            </h2>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              Your email has been successfully verified. You can now log in to
-              your account.
-            </p>
-            <Button
-              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11"
-              onClick={() => navigate("/", { replace: true })}
-            >
-              <ShieldCheck className="w-4 h-4 mr-2" />
-              Go to Home
-            </Button>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="form"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {/* Icon */}
-            <div className="mb-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center mx-auto">
-                <Mail className="w-10 h-10 text-orange-500" />
-              </div>
-            </div>
+    <div className="text-center">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+        <Mail className="h-8 w-8 text-brand-500" />
+      </div>
 
-            {/* Header */}
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Verify your email
-            </h2>
-            <p className="text-gray-600 mb-2 leading-relaxed">
-              We've sent a 6-digit verification code to{" "}
-              {email ? (
-                <span className="font-semibold text-gray-800">{email}</span>
-              ) : (
-                "your email address"
-              )}
-            </p>
-            <p className="text-gray-500 text-sm mb-8">
-              Enter the code below or click the link in the email.
-            </p>
-
-            {/* Error banner */}
-            {status === "error" && errorMessage && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6"
-              >
-                <div className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm font-medium">{errorMessage}</span>
-                </div>
-              </motion.div>
+      <AuthHeading
+        className="text-center"
+        title="Verify your email"
+        subtitle={
+          <>
+            We sent a 6-digit code to{" "}
+            {email ? (
+              <span className="font-semibold text-foreground">{email}</span>
+            ) : (
+              "your email address"
             )}
+            . Enter it below or use the link in the email.
+          </>
+        }
+      />
 
-            {/* OTP Input */}
-            <div className="mb-6">
-              <OTPInput
-                value={otp}
-                onChange={setOtp}
-                disabled={status === "verifying-otp"}
-              />
-            </div>
+      {status === "error" && errorMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-5 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {errorMessage}
+        </motion.div>
+      )}
 
-            {/* Verify button */}
-            <Button
-              onClick={handleVerifyOTP}
-              disabled={otp.length !== 6 || status === "verifying-otp"}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold hover:from-orange-600 hover:to-red-700 transition-all duration-200 h-11 mb-4"
-            >
-              {status === "verifying-otp" ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Verifying…
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  Verify Email
-                </>
-              )}
-            </Button>
+      <div className="mb-6">
+        <OTPInput
+          value={otp}
+          onChange={setOtp}
+          disabled={status === "verifying-otp"}
+          invalid={status === "error"}
+          autoFocus
+        />
+      </div>
 
-            {/* Resend / Go to Login */}
-            <div className="space-y-3">
-              <div className="text-sm text-gray-600">
-                Didn't receive the code?{" "}
-                <button
-                  onClick={handleResendEmail}
-                  disabled={isResending || resendCooldown > 0}
-                  className="text-orange-500 hover:text-orange-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isResending
-                    ? "Sending…"
-                    : resendCooldown > 0
-                      ? `Resend in ${resendCooldown}s`
-                      : "Resend code"}
-                </button>
-              </div>
+      <SubmitButton
+        onClick={handleVerifyOTP}
+        loading={status === "verifying-otp"}
+        loadingText="Verifying…"
+        disabled={otp.length !== 6}
+        className="mb-5"
+      >
+        Verify email
+      </SubmitButton>
 
-              <Link
-                to="/login"
-                className="block text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Already verified?{" "}
-                <span className="font-medium text-orange-500">Log in</span>
-              </Link>
-            </div>
-
-            {/* Help Text */}
-            <p className="mt-8 text-xs text-gray-500">
-              Check your spam folder if you don't see the email in your inbox.
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+      <p className="text-sm text-muted-foreground">
+        Didn&apos;t get the code?{" "}
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={isResending || resendCooldown > 0}
+          className="font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isResending ? "Sending…" : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+        </button>
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Already verified?{" "}
+        <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">
+          Log in
+        </Link>
+      </p>
+      <p className="mt-6 text-xs text-muted-foreground">
+        Check your spam folder if it doesn&apos;t arrive within a minute.
+      </p>
+    </div>
   );
 };
 

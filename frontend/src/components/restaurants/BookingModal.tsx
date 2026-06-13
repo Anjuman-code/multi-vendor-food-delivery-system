@@ -287,7 +287,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
             <div>
               <DialogTitle className="text-left">{restaurant.name}</DialogTitle>
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Star className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
+                <Star className="w-3.5 h-3.5 text-brand-500 fill-brand-500" />
                 <span>{restaurant.rating}</span>
                 <span>•</span>
                 <MapPin className="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       className={cn(
                         "w-10 h-10 rounded-lg text-sm font-medium transition-all",
                         selectedGuests === num
-                          ? "bg-orange-500 text-white shadow-md"
+                          ? "bg-brand-500 text-white shadow-md"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200",
                       )}
                     >
@@ -340,7 +340,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                     className={cn(
                       "px-4 h-10 rounded-lg text-sm font-medium transition-all",
                       selectedGuests > 8
-                        ? "bg-orange-500 text-white shadow-md"
+                        ? "bg-brand-500 text-white shadow-md"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200",
                     )}
                   >
@@ -364,7 +364,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                       className={cn(
                         "flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                         selectedDate === option.date
-                          ? "bg-orange-500 text-white shadow-md"
+                          ? "bg-brand-500 text-white shadow-md"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200",
                       )}
                     >
@@ -397,15 +397,15 @@ const BookingModal: React.FC<BookingModalProps> = ({
                         !slot.available &&
                           "opacity-50 cursor-not-allowed bg-gray-50 text-gray-400 line-through",
                         slot.available && selectedTime === slot.time
-                          ? "bg-orange-500 text-white shadow-md"
+                          ? "bg-brand-500 text-white shadow-md"
                           : slot.available &&
-                              "bg-gray-100 text-gray-700 hover:bg-orange-100 hover:text-orange-600",
+                              "bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-600",
                       )}
                     >
                       {slot.time}
                       {slot.tablesLeft !== undefined &&
                         slot.tablesLeft <= 2 && (
-                          <div className="text-xs text-orange-600">
+                          <div className="text-xs text-brand-600">
                             {slot.tablesLeft} left
                           </div>
                         )}
@@ -426,18 +426,18 @@ const BookingModal: React.FC<BookingModalProps> = ({
               className="space-y-4"
             >
               {/* Booking Summary */}
-              <div className="bg-orange-50 rounded-lg p-3 flex items-center justify-between">
+              <div className="bg-brand-50 rounded-lg p-3 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm">
                   <span className="flex items-center gap-1">
-                    <Users className="w-4 h-4 text-orange-500" />
+                    <Users className="w-4 h-4 text-brand-500" />
                     {selectedGuests}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4 text-orange-500" />
+                    <Calendar className="w-4 h-4 text-brand-500" />
                     {format(new Date(selectedDate), "MMM d")}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4 text-orange-500" />
+                    <Clock className="w-4 h-4 text-brand-500" />
                     {selectedTime}
                   </span>
                 </div>
@@ -531,7 +531,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                     </Button>
                     <Button
                       type="submit"
-                      className="flex-1 bg-orange-500 hover:bg-orange-600"
+                      className="flex-1 bg-brand-500 hover:bg-brand-600"
                     >
                       Continue
                     </Button>
@@ -611,7 +611,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 <Button
                   onClick={handleConfirmBooking}
                   disabled={isSubmitting}
-                  className="flex-1 bg-orange-500 hover:bg-orange-600"
+                  className="flex-1 bg-brand-500 hover:bg-brand-600"
                 >
                   {isSubmitting ? (
                     <>
@@ -685,7 +685,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 </Button>
                 <Button
                   onClick={handleClose}
-                  className="w-full bg-orange-500 hover:bg-orange-600"
+                  className="w-full bg-brand-500 hover:bg-brand-600"
                 >
                   Done
                 </Button>

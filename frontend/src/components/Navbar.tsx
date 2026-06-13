@@ -173,8 +173,8 @@ const Navbar: React.FC = memo(() => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl blur-lg opacity-50 group-hover:opacity-70 transition-opacity" />
-              <div className="relative bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-xl">
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-500 to-red-500 rounded-xl blur-lg opacity-50 group-hover:opacity-70 transition-opacity" />
+              <div className="relative bg-gradient-to-r from-brand-500 to-red-500 p-2 rounded-xl">
                 <img
                   src="/logo.svg"
                   alt=""
@@ -196,7 +196,7 @@ const Navbar: React.FC = memo(() => {
                 to={link.path}
                 className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                   isActiveLink(link.path)
-                    ? "text-orange-600"
+                    ? "text-brand-600"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -204,7 +204,7 @@ const Navbar: React.FC = memo(() => {
                 {isActiveLink(link.path) && (
                   <motion.div
                     layoutId="activeNav"
-                    className="absolute inset-0 bg-orange-100 rounded-full -z-10"
+                    className="absolute inset-0 bg-brand-100 rounded-full -z-10"
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -216,7 +216,7 @@ const Navbar: React.FC = memo(() => {
           <div className="hidden lg:flex items-center gap-3">
             {/* Location Selector */}
             <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100">
-              <MapPin className="w-4 h-4 text-orange-500" />
+              <MapPin className="w-4 h-4 text-brand-500" />
               <span>Sylhet</span>
               <ChevronDown className="w-3 h-3" />
             </button>
@@ -232,7 +232,7 @@ const Navbar: React.FC = memo(() => {
               >
                 <ShoppingBag className="w-5 h-5" />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-brand-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                     {itemCount > 9 ? "9+" : itemCount}
                   </span>
                 )}
@@ -252,7 +252,7 @@ const Navbar: React.FC = memo(() => {
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                      <div className="w-8 h-8 bg-gradient-to-r from-brand-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                         {getUserInitials()}
                       </div>
                     )}
@@ -286,21 +286,21 @@ const Navbar: React.FC = memo(() => {
                     <>
                       <DropdownMenuItem
                         onClick={() => navigate("/vendor")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Store className="mr-2 h-4 w-4" />
                         <span>Dashboard</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => navigate("/vendor/restaurants")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Package className="mr-2 h-4 w-4" />
                         <span>My Restaurants</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => navigate("/vendor/orders")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <ClipboardList className="mr-2 h-4 w-4" />
                         <span>Vendor Orders</span>
@@ -310,28 +310,28 @@ const Navbar: React.FC = memo(() => {
                     <>
                       <DropdownMenuItem
                         onClick={() => navigate("/profile")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => navigate("/orders")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Package className="mr-2 h-4 w-4" />
                         <span>Orders</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => navigate("/favorites")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Heart className="mr-2 h-4 w-4" />
                         <span>Favorites</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => navigate("/support")}
-                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <HelpCircle className="mr-2 h-4 w-4" />
                         <span>Help & Support</span>
@@ -340,7 +340,7 @@ const Navbar: React.FC = memo(() => {
                   )}
                   <DropdownMenuItem
                     onClick={() => navigate("/settings")}
-                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-orange-50 focus:bg-orange-50 focus:text-orange-700"
+                    className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
@@ -360,7 +360,7 @@ const Navbar: React.FC = memo(() => {
                 {!isAuthenticated && (
                   <Link
                     to="/vendor/register"
-                    className="hidden xl:flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors rounded-full hover:bg-orange-50"
+                    className="hidden xl:flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-brand-500 transition-colors rounded-full hover:bg-brand-50"
                   >
                     <Store className="w-4 h-4" />
                     Sell on Food Rush
@@ -368,12 +368,12 @@ const Navbar: React.FC = memo(() => {
                 )}
                 <Link
                   to="/login"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors"
                 >
                   Log in
                 </Link>
                 <Link to="/register">
-                  <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-2 rounded-full font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-0.5">
+                  <Button className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-6 py-2 rounded-full font-medium shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-300 hover:-translate-y-0.5">
                     Sign up
                   </Button>
                 </Link>
@@ -388,7 +388,7 @@ const Navbar: React.FC = memo(() => {
               <Link to="/cart" className="relative p-2 text-gray-600">
                 <ShoppingBag className="w-5 h-5" />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-brand-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                     {itemCount > 9 ? "9+" : itemCount}
                   </span>
                 )}
@@ -442,7 +442,7 @@ const Navbar: React.FC = memo(() => {
                   className="flex items-center gap-2"
                   onClick={() => setIsOpen(false)}
                 >
-                  <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-xl">
+                  <div className="bg-gradient-to-r from-brand-500 to-red-500 p-2 rounded-xl">
                     <img
                       src="/logo.svg"
                       alt=""
@@ -464,9 +464,9 @@ const Navbar: React.FC = memo(() => {
               {/* Menu Content */}
               <div className="p-6">
                 {/* Location */}
-                <button className="w-full flex items-center gap-3 p-4 mb-6 bg-orange-50 rounded-2xl text-left">
-                  <div className="p-2 bg-orange-100 rounded-xl">
-                    <MapPin className="w-5 h-5 text-orange-500" />
+                <button className="w-full flex items-center gap-3 p-4 mb-6 bg-brand-50 rounded-2xl text-left">
+                  <div className="p-2 bg-brand-100 rounded-xl">
+                    <MapPin className="w-5 h-5 text-brand-500" />
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Deliver to</p>
@@ -491,7 +491,7 @@ const Navbar: React.FC = memo(() => {
                         onClick={() => setIsOpen(false)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
                           isActiveLink(link.path)
-                            ? "bg-orange-100 text-orange-600"
+                            ? "bg-brand-100 text-brand-600"
                             : "text-gray-700 hover:bg-gray-100"
                         }`}
                       >
@@ -508,8 +508,8 @@ const Navbar: React.FC = memo(() => {
                   user.firstName &&
                   user.lastName ? (
                     <>
-                      <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl">
-                        <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                      <div className="flex items-center gap-3 p-4 bg-brand-50 rounded-2xl">
+                        <div className="w-12 h-12 bg-gradient-to-r from-brand-500 to-red-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
                           {getUserInitials()}
                         </div>
                         <div className="flex-1">
@@ -517,7 +517,7 @@ const Navbar: React.FC = memo(() => {
                             {user.firstName} {user.lastName}
                           </p>
                           <p className="text-sm text-gray-600">{user.email}</p>
-                          <p className="text-xs text-orange-600 capitalize mt-0.5">
+                          <p className="text-xs text-brand-600 capitalize mt-0.5">
                             {user.role}
                           </p>
                         </div>
@@ -527,7 +527,7 @@ const Navbar: React.FC = memo(() => {
                           setIsOpen(false);
                           navigate(isVendor ? "/vendor" : "/profile");
                         }}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
                       >
                         {isVendor ? (
                           <Store className="w-4 h-4" />
@@ -542,7 +542,7 @@ const Navbar: React.FC = memo(() => {
                             setIsOpen(false);
                             navigate("/support");
                           }}
-                          className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
                         >
                           <HelpCircle className="w-4 h-4" />
                           Help & Support
@@ -564,13 +564,13 @@ const Navbar: React.FC = memo(() => {
                       <Link
                         to="/login"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
                       >
                         <User className="w-4 h-4" />
                         Log in
                       </Link>
                       <Link to="/register" onClick={() => setIsOpen(false)}>
-                        <Button className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-orange-500/25">
+                        <Button className="w-full bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-brand-500/25">
                           Create Account
                         </Button>
                       </Link>
@@ -578,7 +578,7 @@ const Navbar: React.FC = memo(() => {
                         <Link
                           to="/vendor/register"
                           onClick={() => setIsOpen(false)}
-                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors border border-orange-200"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 transition-colors border border-brand-200"
                         >
                           <Store className="w-4 h-4" />
                           Partner with us – Sell on Food Rush

@@ -72,7 +72,7 @@ export const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = (
         {step === "send" ? (
           <div className="space-y-4">
             <div className="p-4 bg-gray-50 rounded-xl text-center">
-              <Phone className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+              <Phone className="w-8 h-8 text-brand-500 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-900">
                 {phoneNumber || "No phone number set"}
               </p>
@@ -93,7 +93,7 @@ export const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = (
               <Button
                 onClick={handleSendCode}
                 disabled={!phoneNumber || isSending}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                className="rounded-xl bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white"
               >
                 {isSending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Send Code
@@ -120,7 +120,7 @@ export const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = (
               <Button
                 onClick={handleVerify}
                 disabled={otp.length < 6}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                className="rounded-xl bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white"
               >
                 Verify
               </Button>

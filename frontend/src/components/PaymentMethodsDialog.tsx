@@ -320,7 +320,7 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
             type="button"
             onClick={handleAddPaymentMethod}
             disabled={isAddingPayment}
-            className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+            className="rounded-xl bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white"
           >
             {isAddingPayment ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -406,14 +406,14 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
           className="border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
         >
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
               <p className="font-medium text-gray-900 capitalize">
                 {pm.type} · {pm.provider}
                 {pm.isDefault && (
-                  <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                  <span className="ml-2 text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
                     Default
                   </span>
                 )}

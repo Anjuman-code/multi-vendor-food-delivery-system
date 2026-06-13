@@ -13,6 +13,7 @@ import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 // ── Public pages ──────────────────────────────────────
 const NewHomePage = lazy(() => import("@/pages/public/NewHomePage"));
 const AboutPage = lazy(() => import("@/pages/public/AboutPage"));
+const CareersPage = lazy(() => import("@/pages/public/CareersPage"));
 const CategoriesPage = lazy(() => import("@/pages/public/CategoriesPage"));
 const MenuItemDetailPage = lazy(() => import("@/pages/public/MenuItemDetailPage"));
 const ContactPage = lazy(() => import("@/pages/public/ContactPage"));
@@ -119,6 +120,7 @@ function App(): React.ReactElement {
                       {/* Public */}
                       <Route path="/" element={<NewHomePage />} />
                       <Route path="/about" element={<AboutPage />} />
+                      <Route path="/careers" element={<CareersPage />} />
                       <Route path="/privacy" element={<PrivacyPolicyPage />} />
                       <Route path="/terms" element={<TermsPage />} />
                       <Route path="/refund" element={<RefundPolicyPage />} />

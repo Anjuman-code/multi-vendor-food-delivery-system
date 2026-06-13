@@ -253,7 +253,7 @@ const CoverPhotoPositioner: React.FC<CoverPhotoPositionerProps> = ({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg"
+              className="bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-lg"
             >
               {isSaving ? (
                 <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />

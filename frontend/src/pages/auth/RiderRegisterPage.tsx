@@ -1,5 +1,19 @@
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, Bike } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+import {
+  AuthHeading,
+  PasswordInput,
+  PasswordStrengthMeter,
+  StepProgress,
+  SubmitButton,
+} from "@/components/auth";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -7,113 +21,90 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import {
-  riderRegisterSchema,
-  type RiderRegisterFormData,
-} from '@/lib/validation';
-import authService from '@/services/authService';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Truck } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+} from "@/components/ui/select";
+import { useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
+import { useToast } from "@/hooks/use-toast";
+import { riderRegisterSchema, type RiderRegisterFormData } from "@/lib/validation";
+import authService from "@/services/authService";
 
-const STEPS = [
-  { label: 'Account', description: 'Personal details & login' },
-  { label: 'Vehicle', description: 'Vehicle & license info' },
-];
+const STEPS = [{ label: "Account" }, { label: "Vehicle" }];
 
 const VEHICLE_TYPES = [
-  { value: 'bicycle', label: 'Bicycle' },
-  { value: 'motorcycle', label: 'Motorcycle' },
-  { value: 'car', label: 'Car' },
-  { value: 'van', label: 'Van' },
-  { value: 'truck', label: 'Truck' },
+  { value: "bicycle", label: "Bicycle" },
+  { value: "motorcycle", label: "Motorcycle" },
+  { value: "car", label: "Car" },
+  { value: "van", label: "Van" },
+  { value: "truck", label: "Truck" },
 ];
 
 const STEP_0_FIELDS: (keyof RiderRegisterFormData)[] = [
-  'firstName',
-  'lastName',
-  'email',
-  'phoneNumber',
-  'password',
-  'confirmPassword',
+  "firstName",
+  "lastName",
+  "email",
+  "phoneNumber",
+  "password",
+  "confirmPassword",
 ];
-const STEP_1_FIELDS: (keyof RiderRegisterFormData)[] = [
-  'licenseNumber',
-  'vehicleType',
-  'vehicleNumber',
-  'agreedToTerms',
-];
+
+const stepTransition = {
+  initial: { opacity: 0, x: 16 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -16 },
+  transition: { duration: 0.22 },
+};
 
 const RiderRegisterPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const rawStep = searchParams.get('step');
-  const step = rawStep === 'vehicle' ? 1 : 0;
-  const setStep = (n: number) => {
-    setSearchParams(
-      { step: n === 0 ? 'account' : 'vehicle' },
-      { replace: true },
-    );
-  };
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const rawStep = searchParams.get("step");
+  const step = rawStep === "vehicle" ? 1 : 0;
+  const setStep = (n: number) =>
+    setSearchParams({ step: n === 0 ? "account" : "vehicle" }, { replace: true });
+
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+
+  useRedirectIfAuthenticated();
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/', { replace: true });
-  }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
-    if (!rawStep) setSearchParams({ step: 'account' }, { replace: true });
+    if (!rawStep) setSearchParams({ step: "account" }, { replace: true });
   }, [rawStep, setSearchParams]);
 
   const form = useForm<RiderRegisterFormData>({
     resolver: zodResolver(riderRegisterSchema),
+    mode: "onTouched",
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phoneNumber: '',
-      password: '',
-      confirmPassword: '',
-      licenseNumber: '',
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+      password: "",
+      confirmPassword: "",
+      licenseNumber: "",
       vehicleType: undefined,
-      vehicleNumber: '',
+      vehicleNumber: "",
       agreedToTerms: false,
     },
-    mode: 'onTouched',
   });
 
-  const { trigger } = form;
+  const password = form.watch("password");
 
   const handleNext = async () => {
-    const valid = await trigger(STEP_0_FIELDS);
-    if (valid) setStep(1);
+    if (await form.trigger(STEP_0_FIELDS)) setStep(1);
   };
 
   const onSubmit = async (data: RiderRegisterFormData) => {
-    const valid = await trigger(STEP_1_FIELDS);
-    if (!valid) return;
-
     setIsLoading(true);
     try {
-      const result = await authService.registerDriver({
+      const response = await authService.registerDriver({
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
@@ -124,356 +115,239 @@ const RiderRegisterPage: React.FC = () => {
         vehicleNumber: data.vehicleNumber,
       });
 
-      if (result.success) {
+      if (response.success) {
         toast({
-          title: 'Application submitted!',
-          description:
-            'Please verify your email then wait for admin approval before you can start delivering.',
+          title: "Application submitted!",
+          description: "Verify your email, then wait for admin approval before you start delivering.",
         });
-        navigate('/login');
+        navigate("/verify-email", { state: { email: data.email } });
       } else {
         toast({
-          variant: 'destructive',
-          title: result.message ?? 'Registration failed',
+          title: "Registration failed",
+          description: response.message || "Please check your details and try again.",
+          variant: "destructive",
         });
       }
     } catch {
-      toast({ variant: 'destructive', title: 'An unexpected error occurred' });
+      toast({
+        title: "Something went wrong",
+        description: "Please try again in a moment.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-200">
-            <Truck className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Become a Rider</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Join Food Rush and earn on your schedule
-          </p>
-        </div>
+    <>
+      <AuthHeading
+        icon={Bike}
+        eyebrow="Rider application"
+        title="Become a rider"
+        subtitle="Join Food Rush and earn on your own schedule."
+      />
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          {STEPS.map((s, i) => (
-            <React.Fragment key={i}>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
-                    i <= step
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  {i + 1}
+      <StepProgress steps={STEPS} current={step} onStepClick={setStep} />
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <AnimatePresence mode="wait" initial={false}>
+            {step === 0 ? (
+              <motion.div key="account" {...stepTransition} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First name</FormLabel>
+                        <FormControl>
+                          <Input autoComplete="given-name" placeholder="First name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last name</FormLabel>
+                        <FormControl>
+                          <Input autoComplete="family-name" placeholder="Last name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <div className="hidden sm:block">
-                  <p
-                    className={`text-xs font-medium ${i === step ? 'text-gray-900' : 'text-gray-400'}`}
-                  >
-                    {s.label}
-                  </p>
-                </div>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={`flex-1 h-0.5 ${i < step ? 'bg-orange-400' : 'bg-gray-200'}`}
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <AnimatePresence mode="wait">
-                {step === 0 && (
-                  <motion.div
-                    key="step0"
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    className="space-y-4"
-                  >
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="John" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Doe" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="you@example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="phoneNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="tel"
-                              placeholder="+880 1X XX XXX XXX"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                type={showPassword ? 'text' : 'password'}
-                                placeholder="Min. 8 characters"
-                                {...field}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword((p) => !p)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                              >
-                                {showPassword ? (
-                                  <EyeOff className="w-4 h-4" />
-                                ) : (
-                                  <Eye className="w-4 h-4" />
-                                )}
-                              </button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirm Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                placeholder="Repeat password"
-                                {...field}
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setShowConfirmPassword((p) => !p)
-                                }
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                              >
-                                {showConfirmPassword ? (
-                                  <EyeOff className="w-4 h-4" />
-                                ) : (
-                                  <Eye className="w-4 h-4" />
-                                )}
-                              </button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => void handleNext()}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </motion.div>
-                )}
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone number</FormLabel>
+                      <FormControl>
+                        <Input type="tel" autoComplete="tel" placeholder="+8801XXXXXXXXX" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                {step === 1 && (
-                  <motion.div
-                    key="step1"
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={form.control}
-                      name="licenseNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Driver's License Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="DL-XXXX-XXXX" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="vehicleType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Vehicle Type</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select vehicle type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {VEHICLE_TYPES.map((vt) => (
-                                <SelectItem key={vt.value} value={vt.value}>
-                                  {vt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="vehicleNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Vehicle Registration Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="DHK-XX-XXXX" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="agreedToTerms"
-                      render={({ field }) => (
-                        <FormItem>
-                          <div className="flex items-start gap-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                id="terms"
-                              />
-                            </FormControl>
-                            <label
-                              htmlFor="terms"
-                              className="text-sm text-gray-600 cursor-pointer"
-                            >
-                              I agree to the{' '}
-                              <Link
-                                to="/terms"
-                                className="text-orange-500 hover:underline"
-                              >
-                                Terms of Service
-                              </Link>{' '}
-                              and{' '}
-                              <Link
-                                to="/privacy"
-                                className="text-orange-500 hover:underline"
-                              >
-                                Privacy Policy
-                              </Link>
-                            </label>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex gap-3 pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setStep(0)}
-                        className="flex-1"
-                      >
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Back
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
-                      >
-                        {isLoading ? 'Submitting…' : 'Submit Application'}
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </form>
-          </Form>
-        </div>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <PasswordInput autoComplete="new-password" placeholder="Create a strong password" {...field} />
+                      </FormControl>
+                      <PasswordStrengthMeter password={password} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-        {/* Footer */}
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{' '}
-          <Link
-            to="/login"
-            className="text-orange-500 font-medium hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
-      </motion.div>
-    </div>
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm password</FormLabel>
+                      <FormControl>
+                        <PasswordInput autoComplete="new-password" placeholder="Re-enter your password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="button" variant="brand" size="lg" onClick={handleNext} className="mt-2 w-full">
+                  Continue
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div key="vehicle" {...stepTransition} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="licenseNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Driver&apos;s license number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="DL-XXXX-XXXX" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="vehicleType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vehicle type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select vehicle type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {VEHICLE_TYPES.map((vt) => (
+                            <SelectItem key={vt.value} value={vt.value}>
+                              {vt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="vehicleNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vehicle registration number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="DHK-XX-XXXX" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="agreedToTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-1">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-normal text-muted-foreground">
+                          I agree to the{" "}
+                          <Link to="/terms" className="font-medium text-brand-600 hover:text-brand-700">
+                            Terms
+                          </Link>{" "}
+                          and{" "}
+                          <Link to="/privacy" className="font-medium text-brand-600 hover:text-brand-700">
+                            Privacy Policy
+                          </Link>
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex gap-3 pt-1">
+                  <Button type="button" variant="outline" size="lg" onClick={() => setStep(0)} className="flex-1">
+                    <ChevronLeft className="mr-1 h-4 w-4" />
+                    Back
+                  </Button>
+                  <SubmitButton loading={isLoading} loadingText="Submitting…" className="flex-1">
+                    Submit application
+                  </SubmitButton>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </form>
+      </Form>
+
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link to="/login" className="font-semibold text-brand-600 transition-colors hover:text-brand-700">
+          Log in
+        </Link>
+      </p>
+    </>
   );
 };
 

@@ -163,7 +163,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
           >
             <SelectTrigger
               id="guests-select"
-              className="w-full h-11 bg-white border-gray-300 hover:border-orange-300 focus:border-orange-400 focus:ring-orange-200 shadow-sm"
+              className="w-full h-11 bg-white border-gray-300 hover:border-brand-300 focus:border-brand-400 focus:ring-brand-200 shadow-sm"
               aria-describedby="guests-hint"
             >
               <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
                 type="button"
                 className={cn(
                   "w-full h-11 flex items-center gap-2 px-3 bg-white border rounded-md text-sm transition-colors shadow-sm",
-                  "hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2",
+                  "hover:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2",
                   errors.date
                     ? "border-red-300 focus:ring-red-400"
                     : "border-gray-300",
@@ -249,7 +249,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
           <Select value={filters.time || ""} onValueChange={handleTimeChange}>
             <SelectTrigger
               id="time-select"
-              className="w-full h-11 bg-white border-gray-300 hover:border-orange-300 focus:border-orange-400 focus:ring-orange-200 shadow-sm"
+              className="w-full h-11 bg-white border-gray-300 hover:border-brand-300 focus:border-brand-400 focus:ring-brand-200 shadow-sm"
               aria-describedby="time-hint"
             >
               <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ const BookingControls: React.FC<BookingControlsProps> = ({
         <Button
           type="submit"
           disabled={isLoading}
-          className="bg-orange-500 hover:bg-orange-600 text-white h-11 px-6 min-w-[140px]"
+          className="bg-brand-500 hover:bg-brand-600 text-white h-11 px-6 min-w-[140px]"
         >
           {isLoading ? (
             <motion.div

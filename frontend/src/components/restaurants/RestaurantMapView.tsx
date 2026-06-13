@@ -25,7 +25,7 @@ export const MapViewToggle: React.FC<MapViewToggleProps> = ({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onToggle}
-      className="flex items-center gap-2 text-orange-600 font-medium hover:text-orange-700 transition-colors"
+      className="flex items-center gap-2 text-brand-600 font-medium hover:text-brand-700 transition-colors"
       aria-label={isMapView ? "Switch to list view" : "Switch to map view"}
       type="button"
     >
@@ -168,7 +168,7 @@ const RestaurantInfoCard: React.FC<{
 
           <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
             <div className="flex items-center gap-1">
-              <Star className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
+              <Star className="w-3.5 h-3.5 text-brand-500 fill-brand-500" />
               <span>{restaurant.rating}</span>
             </div>
             <span>•</span>
@@ -179,7 +179,7 @@ const RestaurantInfoCard: React.FC<{
             <Button
               size="sm"
               onClick={onBook}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-xs px-4"
+              className="bg-brand-500 hover:bg-brand-600 text-white text-xs px-4"
             >
               Book a table
             </Button>
@@ -351,7 +351,7 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
                         <div className="min-w-[180px]">
                           <p className="font-semibold text-gray-900">{restaurant.name}</p>
                           <p className="text-sm text-gray-600 mt-1">{restaurant.address}</p>
-                          <p className="text-xs text-orange-600 mt-1">
+                          <p className="text-xs text-brand-600 mt-1">
                             Rating {restaurant.rating.toFixed(1)}
                           </p>
                         </div>
@@ -369,9 +369,9 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
                 )}
               </MapContainer>
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-white">
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-brand-50 to-white">
                 <div className="text-center px-6">
-                  <Map className="w-10 h-10 text-orange-400 mx-auto mb-3" />
+                  <Map className="w-10 h-10 text-brand-400 mx-auto mb-3" />
                   <p className="text-gray-700 font-medium">No restaurant coordinates available</p>
                   <p className="text-sm text-gray-500 mt-1">
                     Restaurant locations will appear here once coordinates are provided.
@@ -397,7 +397,7 @@ const RestaurantMapView: React.FC<RestaurantMapViewProps> = ({
               <button
                 type="button"
                 onClick={() => handleNavigateToRestaurant(activeRestaurant)}
-                className="absolute bottom-36 left-1/2 -translate-x-1/2 z-[1000] bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-full shadow-md"
+                className="absolute bottom-36 left-1/2 -translate-x-1/2 z-[1000] bg-brand-500 hover:bg-brand-600 text-white text-sm px-4 py-2 rounded-full shadow-md"
               >
                 Open details page
               </button>

@@ -19,7 +19,7 @@ const SocialButton: React.FC<SocialButtonProps> = ({ provider, onClick, isLoadin
       onClick={onClick}
       disabled={isLoading}
       variant="outline"
-      className="w-full py-3 px-4 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200 flex items-center justify-center"
+      className="w-full py-3 px-4 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-all duration-200 flex items-center justify-center"
     >
       {isGoogle ? (
         <img src={GoogleIcon} alt="Google" className="h-5 w-5 mr-2" />

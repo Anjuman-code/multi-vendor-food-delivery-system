@@ -465,7 +465,7 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
               <Button
                 type="submit"
                 disabled={isSaving || !form.formState.isValid}
-                className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                className="rounded-xl bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white"
               >
                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {isEdit ? "Update" : "Add"} Address

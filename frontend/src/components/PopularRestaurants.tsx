@@ -84,12 +84,12 @@ const PopularRestaurants: React.FC = () => {
         {/* Section Header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-1">Popular</p>
+            <p className="text-xs font-semibold tracking-widest text-brand-500 uppercase mb-1">Popular</p>
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Popular Restaurants</h2>
           </div>
           <Link
             to="/restaurants"
-            className="hidden md:inline-flex items-center gap-2 text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+            className="hidden md:inline-flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors"
           >
             View all <ArrowRight className="w-4 h-4" />
           </Link>
@@ -108,7 +108,7 @@ const PopularRestaurants: React.FC = () => {
             <div className="col-span-full rounded-2xl border border-dashed border-gray-200 p-10 text-center">
               <p className="text-gray-500 mb-4">{errorMessage}</p>
               <button
-                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors"
+                className="px-4 py-2 rounded-lg bg-brand-500 text-white font-semibold hover:bg-brand-600 transition-colors"
                 onClick={loadRestaurants}
                 type="button"
               >
@@ -185,7 +185,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
         <div className="mb-2">
           {/* Tags Row */}
           <div className="flex gap-2 mb-3">
-            <span className="text-xs font-medium text-orange-300 bg-orange-500/20 px-2 py-1 rounded backdrop-blur-sm border border-orange-500/20">
+            <span className="text-xs font-medium text-brand-300 bg-brand-500/20 px-2 py-1 rounded backdrop-blur-sm border border-brand-500/20">
               {data.cuisine}
             </span>
             {data.tags.slice(0, 1).map((tag) => (
@@ -248,7 +248,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
 
             <Link
               to={`/restaurants/${data.id}`}
-              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn"
+              className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn"
             >
               View Menu{" "}
               <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

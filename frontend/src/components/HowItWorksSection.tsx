@@ -39,7 +39,7 @@ const HowItWorksSection: React.FC = () => {
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-xs font-semibold tracking-widest text-orange-500 uppercase mb-2">How it works</p>
+          <p className="text-xs font-semibold tracking-widest text-brand-500 uppercase mb-2">How it works</p>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
             Simple steps to delicious food
           </h2>
@@ -60,16 +60,16 @@ const HowItWorksSection: React.FC = () => {
                 transition={{ duration: 0.45, delay: index * 0.12 }}
               >
                 {/* Step circle */}
-                <div className="relative z-10 w-16 h-16 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center mb-4 shadow-sm">
-                  <Icon className="w-7 h-7 text-orange-500" strokeWidth={1.6} />
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                <div className="relative z-10 w-16 h-16 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center mb-4 shadow-sm">
+                  <Icon className="w-7 h-7 text-brand-500" strokeWidth={1.6} />
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">
                     {step.id}
                   </span>
                 </div>
 
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">{step.title}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed mb-3">{step.description}</p>
-                <span className="inline-block text-[11px] text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-0.5 rounded-full font-medium">
+                <span className="inline-block text-[11px] text-brand-600 bg-brand-50 border border-brand-100 px-2.5 py-0.5 rounded-full font-medium">
                   {step.badge}
                 </span>
               </motion.div>

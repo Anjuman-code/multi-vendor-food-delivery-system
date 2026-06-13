@@ -11,7 +11,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const colorPalette = [
-  "from-orange-900 to-amber-900",
+  "from-brand-900 to-amber-900",
   "from-red-900 to-rose-900",
   "from-slate-900 to-gray-900",
   "from-amber-950 to-brown-900",
@@ -135,16 +135,16 @@ const TrendingFoodItems: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 border border-orange-100 text-orange-600 mb-4"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-50 border border-brand-100 text-brand-600 mb-4"
           >
-            <Flame className="w-4 h-4 text-orange-400" />
+            <Flame className="w-4 h-4 text-brand-400" />
             <span className="text-sm font-medium tracking-wide uppercase">
               Trending Now
             </span>
           </motion.div>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 tracking-tight">
             Culinary{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-red-500">
               Masterpieces
             </span>
           </h2>
@@ -158,7 +158,7 @@ const TrendingFoodItems: React.FC = () => {
             <div className="rounded-3xl border border-gray-200 bg-white px-8 py-10 text-center text-gray-500">
               <p className="mb-4">{errorMessage}</p>
               <button
-                className="px-4 py-2 rounded-full bg-orange-500 text-white font-semibold hover:scale-105 transition-transform"
+                className="px-4 py-2 rounded-full bg-brand-500 text-white font-semibold hover:scale-105 transition-transform"
                 onClick={loadTrendingItems}
                 type="button"
               >

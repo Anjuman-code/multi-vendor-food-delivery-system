@@ -94,7 +94,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           <Button
             onClick={onAction}
             variant="outline"
-            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+            className="border-brand-300 text-brand-600 hover:bg-brand-50"
           >
             {actionLabel || "Clear filters"}
           </Button>

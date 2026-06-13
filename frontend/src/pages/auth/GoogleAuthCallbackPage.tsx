@@ -63,16 +63,14 @@ const GoogleAuthCallbackPage: React.FC = () => {
   }, [location.search, login, navigate, toast]);
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
-          <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-        </div>
-        <h1 className="mb-2 text-xl font-semibold text-gray-900">
-          Signing You In
-        </h1>
-        <p className="text-sm text-gray-600">{message}</p>
+    <div className="text-center">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
       </div>
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
+        Signing you in
+      </h1>
+      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 };
