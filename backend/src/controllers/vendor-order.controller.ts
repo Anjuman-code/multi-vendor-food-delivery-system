@@ -14,6 +14,7 @@ import {
     ValidationError,
 } from "../utils/errors";
 import { successResponse } from "../utils/response.util";
+import { applyOrderDelivered } from "../utils/vendor-stats.util";
 import type { UpdateOrderStatusInput } from "../validations/vendor.validation";
 
 // ────────────────────────────────────────────────────────────────
@@ -224,6 +225,20 @@ export const updateVendorOrderStatus = async (
     }
 
     await order.save();
+
+    // Accrue vendor earnings on delivery. Guarded on previousStatus so a
+    // replay can't double-count; best-effort so a sync hiccup can't fail the
+    // status update (the transition is already persisted).
+    if (
+      newStatus === OrderStatus.DELIVERED &&
+      previousStatus !== OrderStatus.DELIVERED
+    ) {
+      try {
+        await applyOrderDelivered(order.restaurantId, order.subtotal);
+      } catch (statErr) {
+        console.error("[vendor-stats] applyOrderDelivered failed", statErr);
+      }
+    }
 
     // Notify the customer via DB notification
     const statusLabel = STATUS_LABELS[newStatus] || newStatus;

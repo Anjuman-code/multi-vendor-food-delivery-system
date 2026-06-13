@@ -68,6 +68,10 @@ const vendorProfileSchema = new Schema<IVendorProfileDocument>(
   { timestamps: true },
 );
 
+// Speeds the per-order vendor lookup used by the new-order socket emit and
+// the denormalized-stat sync helpers (VendorProfile.findOne({ restaurantIds })).
+vendorProfileSchema.index({ restaurantIds: 1 });
+
 const VendorProfile: Model<IVendorProfileDocument> =
   mongoose.model<IVendorProfileDocument>("VendorProfile", vendorProfileSchema);
 

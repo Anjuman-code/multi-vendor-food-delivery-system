@@ -3,12 +3,13 @@
  * Every mutation writes to AuditLog.
  */
 import { NextFunction, Request, Response } from 'express';
-import Order from '../models/Order';
+import Order, { OrderStatus } from '../models/Order';
 import User from '../models/User';
 import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
 import { AuthenticationError, NotFoundError, ValidationError } from '../utils/errors';
 import { successResponse } from '../utils/response.util';
+import { reverseOrderEarnings } from '../utils/vendor-stats.util';
 
 const buildPagination = (page: number, limit: number, total: number) => ({
   page,
@@ -221,6 +222,16 @@ export const issueRefund = async (
 
     order.paymentStatus = amount >= order.total ? 'refunded' : order.paymentStatus;
     await order.save();
+
+    // Claw back the vendor's net share of the refund — only if the order was
+    // delivered (earnings are accrued on delivery). Best-effort.
+    if (order.status === OrderStatus.DELIVERED) {
+      try {
+        await reverseOrderEarnings(order.restaurantId, amount);
+      } catch (statErr) {
+        console.error('[vendor-stats] reverseOrderEarnings failed', statErr);
+      }
+    }
 
     await createAuditLog({
       actorId: authReq.user._id,

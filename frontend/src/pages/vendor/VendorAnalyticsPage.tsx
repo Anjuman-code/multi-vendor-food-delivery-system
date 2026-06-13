@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import {
   LineChart,
   Line,
@@ -13,18 +12,31 @@ import {
   TrendingUp,
   DollarSign,
   ShoppingBag,
-  Loader2,
   BarChart3,
   Percent,
   Tag,
   Award,
-  CheckCircle2,
   Utensils,
-  ArrowUpRight,
-  ArrowDownRight,
 } from "lucide-react";
 import vendorService from "@/services/vendorService";
 import type { VendorAnalytics, VendorCoupon } from "@/types/vendor";
+import {
+  PageHeader,
+  StatCard,
+  ChartCard,
+  DataTable,
+  VendorEmptyState,
+  CHART_COLORS,
+  type DataTableColumn,
+} from "@/components/vendor";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { formatCurrency, formatNumber, formatPercent } from "@/utils/format";
 
 // ── Period Options ─────────────────────────────────────────────────
 
@@ -46,102 +58,6 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-// ── KPI Card Component ─────────────────────────────────────────────
-
-interface KpiCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  iconColor: string;
-  trend?: number | null;
-  subtitle?: string;
-}
-
-const KpiCard: React.FC<KpiCardProps> = ({
-  title,
-  value,
-  icon: Icon,
-  iconColor,
-  trend,
-  subtitle,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="kpi-card"
-  >
-    <div className="flex items-center justify-between mb-3">
-      <div className={`p-3 rounded-xl ${iconColor}`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      {trend !== null && trend !== undefined && (
-        <span
-          className={`kpi-card-delta ${
-            trend >= 0 ? "text-green-600" : "text-red-500"
-          }`}
-        >
-          {trend >= 0 ? (
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          ) : (
-            <ArrowDownRight className="w-3.5 h-3.5" />
-          )}
-          {Math.abs(trend)}%
-        </span>
-      )}
-    </div>
-    <p className="kpi-card-value">{value}</p>
-    <p className="kpi-card-label">{title}</p>
-    {subtitle && <p className="text-2xs text-gray-400 mt-0.5">{subtitle}</p>}
-  </motion.div>
-);
-
-// ── Section Header ─────────────────────────────────────────────────
-
-const SectionHeader: React.FC<{
-  icon: React.ElementType;
-  title: string;
-  subtitle?: string;
-}> = ({ icon: Icon, title, subtitle }) => (
-  <div className="flex items-center gap-2 mb-5">
-    <div className="p-1.5 rounded-lg bg-orange-50">
-      <Icon className="w-4 h-4 text-orange-500" />
-    </div>
-    <div>
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-      {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-    </div>
-  </div>
-);
-
-// ── Skeleton ───────────────────────────────────────────────────────
-
-const AnalyticsSkeleton: React.FC = () => (
-  <div className="space-y-6 animate-pulse">
-    <div className="h-8 w-48 bg-gray-200 rounded mb-4" />
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="kpi-card">
-          <div className="h-11 w-11 bg-gray-200 rounded-xl mb-4" />
-          <div className="h-7 w-24 bg-gray-200 rounded mb-2" />
-          <div className="h-4 w-32 bg-gray-200 rounded" />
-        </div>
-      ))}
-    </div>
-    <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-card">
-      <div className="h-5 w-40 bg-gray-200 rounded mb-6" />
-      <div className="flex items-end gap-1 h-48">
-        {Array.from({ length: 14 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 bg-gray-100 rounded-t"
-            style={{ height: `${20 + Math.random() * 80}%` }}
-          />
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
 // ── Helpers ────────────────────────────────────────────────────────
 
 const toSafeNumber = (value: unknown): number => {
@@ -159,11 +75,21 @@ const toSafeNumber = (value: unknown): number => {
   return 0;
 };
 
-const formatCurrency = (amount: unknown): string =>
-  `৳${toSafeNumber(amount).toLocaleString("en-BD")}`;
+// ── Coupon row type (for the DataTable) ────────────────────────────
 
-const formatPercent = (value: number): string =>
-  `${(Math.round(value * 100) / 100).toFixed(1)}%`;
+interface CouponRow {
+  _id: string;
+  code: string;
+  type: VendorCoupon["type"];
+  value: number;
+  usedCount: number;
+  usageLimit: number;
+  redemptionRate: number;
+  avgDiscount: number;
+  estimatedRevenueAttributed: number;
+  minOrder: number;
+  maxDisc: number;
+}
 
 // ── Main Page ──────────────────────────────────────────────────────
 
@@ -259,10 +185,6 @@ const VendorAnalyticsPage: React.FC = () => {
     };
   }, [analytics]);
 
-  // ── Revenue Chart Limits ────────────────────────────────────────
-
-  const maxRevenue = Math.max(...revenueOverTime.map((d) => d.revenue), 1);
-
   // ── Status Breakdown (derived from delivered/cancelled counts) ──
 
   const statusBreakdown = useMemo(() => {
@@ -305,7 +227,7 @@ const VendorAnalyticsPage: React.FC = () => {
 
   // ── Coupon Stats ────────────────────────────────────────────────
 
-  const activeCouponsWithUsage = useMemo(
+  const activeCouponsWithUsage = useMemo<CouponRow[]>(
     () =>
       coupons
         .filter((c) => c.isActive)
@@ -358,442 +280,427 @@ const VendorAnalyticsPage: React.FC = () => {
     [coupons],
   );
 
-  // ── Loading State ───────────────────────────────────────────────
+  // ── Period Selector (rendered in the header) ────────────────────
 
-  if (loading) {
-    return <AnalyticsSkeleton />;
-  }
+  const periodSelector = (
+    <Select value={period} onValueChange={setPeriod}>
+      <SelectTrigger className="w-[140px]">
+        <SelectValue placeholder="Period" />
+      </SelectTrigger>
+      <SelectContent>
+        {PERIOD_OPTIONS.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
-  if (!analytics) {
+  // ── Failed-to-load State ────────────────────────────────────────
+
+  if (!loading && !analytics) {
     return (
-      <div className="text-center py-16">
-        <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">Failed to load analytics data.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 text-sm text-orange-500 hover:text-orange-600 underline"
-        >
-          Try again
-        </button>
+      <div className="space-y-6">
+        <PageHeader
+          title="Analytics"
+          description="Track your business performance"
+          actions={periodSelector}
+        />
+        <VendorEmptyState
+          variant="error"
+          icon={BarChart3}
+          title="Failed to load analytics"
+          description="We couldn't load analytics data for this period."
+          action={{
+            label: "Try again",
+            onClick: () => window.location.reload(),
+          }}
+        />
       </div>
     );
   }
+
+  // ── Coupon table columns ────────────────────────────────────────
+
+  const couponColumns: DataTableColumn<CouponRow>[] = [
+    {
+      key: "code",
+      header: "Code",
+      render: (c) => (
+        <span className="rounded bg-accent px-2 py-0.5 font-mono text-xs font-semibold text-primary">
+          {c.code}
+        </span>
+      ),
+    },
+    {
+      key: "discount",
+      header: "Discount",
+      render: (c) => (
+        <span className="text-foreground">
+          {c.type === "percentage"
+            ? `${c.value}% off`
+            : `${formatCurrency(c.value)} off`}
+          {c.minOrder > 0 && ` (min ${formatCurrency(c.minOrder)})`}
+        </span>
+      ),
+    },
+    {
+      key: "uses",
+      header: "Uses",
+      align: "right",
+      render: (c) => (
+        <span className="font-medium text-foreground">
+          {c.usedCount}
+          <span className="font-normal text-muted-foreground">
+            {c.usageLimit > 0 ? `/${c.usageLimit}` : "/∞"}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "redemptionRate",
+      header: "Redemption Rate",
+      align: "right",
+      render: (c) => (
+        <span
+          className={
+            c.redemptionRate > 75
+              ? "text-xs font-semibold text-emerald-600"
+              : c.redemptionRate > 50
+                ? "text-xs font-semibold text-primary"
+                : "text-xs font-semibold text-muted-foreground"
+          }
+        >
+          {c.redemptionRate.toFixed(1)}%
+        </span>
+      ),
+    },
+    {
+      key: "avgDiscount",
+      header: "Avg Discount",
+      align: "right",
+      render: (c) => (
+        <span className="text-foreground">{formatCurrency(c.avgDiscount)}</span>
+      ),
+    },
+    {
+      key: "estimatedRevenueAttributed",
+      header: "Est. Revenue",
+      align: "right",
+      render: (c) => (
+        <span className="text-foreground">
+          {formatCurrency(c.estimatedRevenueAttributed)}
+        </span>
+      ),
+    },
+  ];
 
   // ── Render ──────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
       {/* ── Header ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Track your business performance
-          </p>
-        </div>
+      <PageHeader
+        title="Analytics"
+        description="Track your business performance"
+        actions={periodSelector}
+      />
 
-        {/* Pill-style period toggle */}
-        <div className="inline-flex items-center bg-gray-100 rounded-lg p-1 gap-0">
-          {PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setPeriod(opt.value)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                period === opt.value
-                  ? "bg-white text-orange-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 6. Summary KPI Row ────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Revenue"
+      {/* ── Summary KPI Row ───────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Total Revenue"
           value={formatCurrency(totalRevenue)}
           icon={DollarSign}
-          iconColor="bg-green-500"
+          accent="brand"
+          loading={loading}
         />
-        <KpiCard
-          title="Total Orders"
-          value={totalOrders}
+        <StatCard
+          label="Total Orders"
+          value={formatNumber(totalOrders)}
           icon={ShoppingBag}
-          iconColor="bg-blue-500"
+          loading={loading}
         />
-        <KpiCard
-          title="Avg Order Value"
+        <StatCard
+          label="Avg Order Value"
           value={formatCurrency(averageOrderValue)}
           icon={TrendingUp}
-          iconColor="bg-orange-500"
+          loading={loading}
         />
-        <KpiCard
-          title="Completion Rate"
+        <StatCard
+          label="Completion Rate"
           value={formatPercent(completionRate)}
           icon={Percent}
-          iconColor="bg-purple-500"
-          subtitle={`${deliveredOrders} delivered · ${cancelledOrders} cancelled`}
+          hint={`${deliveredOrders} delivered · ${cancelledOrders} cancelled`}
+          loading={loading}
         />
       </div>
 
-      {/* ── 2. Revenue Over Time Bar Chart ────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-xl border border-gray-100 p-5 shadow-card"
+      {/* ── Revenue Over Time ─────────────────────────────── */}
+      <ChartCard
+        title="Revenue Over Time"
+        description="Daily revenue across the selected period"
+        loading={loading}
+        empty={revenueOverTime.length === 0}
+        emptyLabel="No revenue data available for this period."
+        height={220}
       >
-        <SectionHeader icon={BarChart3} title="Revenue Over Time" />
-        {revenueOverTime.length === 0 ? (
-          <p className="text-gray-400 text-center py-8 text-sm">
-            No revenue data available for this period.
-          </p>
-        ) : (
-          <div className="h-48 w-full mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueOverTime}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#E5E7EB"
-                />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  tickFormatter={(val) => `৳${val}`}
-                />
-                <RechartsTooltip
-                  formatter={(value: number) => [
-                    formatCurrency(value),
-                    "Revenue",
-                  ]}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "none",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    fontSize: 12,
-                    padding: "8px 12px",
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#f97316"
-                  strokeWidth={3}
-                  dot={{ r: 3, fill: "#f97316", strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: "#ea580c" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </motion.div>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={revenueOverTime}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke={CHART_COLORS.grid}
+            />
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: CHART_COLORS.axis }}
+              dy={10}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: CHART_COLORS.axis }}
+              tickFormatter={(val) => formatCurrency(val)}
+            />
+            <RechartsTooltip
+              formatter={(value) =>
+                [formatCurrency(value as number), "Revenue"] as [string, string]
+              }
+              contentStyle={{
+                borderRadius: 8,
+                border: "none",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                fontSize: 12,
+                padding: "8px 12px",
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke={CHART_COLORS.brand}
+              strokeWidth={3}
+              dot={{ r: 3, fill: CHART_COLORS.brand, strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: CHART_COLORS.brandDark }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
-      {/* ── 3. Orders by Status + 4. Top Items (quick) ────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Orders by Status — stacked horizontal + legend */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-white rounded-xl border border-gray-100 p-5 shadow-card"
+      {/* ── Orders by Status + Quick Top Items ────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Orders by Status */}
+        <ChartCard
+          title="Orders by Status"
+          loading={loading}
+          empty={
+            statusBreakdown.length === 0 ||
+            statusBreakdown.every((s) => s.count === 0)
+          }
+          emptyLabel="No order data available."
+          height={180}
         >
-          <SectionHeader icon={CheckCircle2} title="Orders by Status" />
-          {statusBreakdown.length === 0 ||
-          statusBreakdown.every((s) => s.count === 0) ? (
-            <p className="text-gray-400 text-center py-8 text-sm">
-              No order data available.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {/* Stacked bar converted to Line Graph */}
-              <div className="h-40 w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={statusBreakdown}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#E5E7EB"
-                    />
-                    <XAxis
-                      dataKey="status"
-                      tickFormatter={(status: string) =>
-                        STATUS_LABELS[status] ||
-                        (status === "in_progress" ? "In Progress" : status)
-                      }
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: "#9ca3af" }}
-                      dy={10}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: "#9ca3af" }}
-                      allowDecimals={false}
-                    />
-                    <RechartsTooltip
-                      formatter={(value: number) => [value, "Orders"]}
-                      labelFormatter={(label) =>
-                        STATUS_LABELS[label as string] ||
-                        (label === "in_progress" ? "In Progress" : label)
-                      }
-                      contentStyle={{
-                        borderRadius: 8,
-                        border: "none",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        fontSize: 12,
-                        padding: "8px 12px",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke="#8b5cf6"
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: "#8b5cf6", strokeWidth: 0 }}
-                      activeDot={{ r: 6, fill: "#7c3aed" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-        </motion.div>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={statusBreakdown}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke={CHART_COLORS.grid}
+              />
+              <XAxis
+                dataKey="status"
+                tickFormatter={(status: string) =>
+                  STATUS_LABELS[status] ||
+                  (status === "in_progress" ? "In Progress" : status)
+                }
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: CHART_COLORS.axis }}
+                dy={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: CHART_COLORS.axis }}
+                allowDecimals={false}
+              />
+              <RechartsTooltip
+                formatter={(value) =>
+                  [value as number, "Orders"] as [number, string]
+                }
+                labelFormatter={(label) =>
+                  STATUS_LABELS[label as string] ||
+                  (label === "in_progress" ? "In Progress" : label)
+                }
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "none",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  fontSize: 12,
+                  padding: "8px 12px",
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke={CHART_COLORS.brand}
+                strokeWidth={3}
+                dot={{ r: 4, fill: CHART_COLORS.brand, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: CHART_COLORS.brandDark }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
         {/* Quick Top Items (top 5 by revenue) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl border border-gray-100 p-5 shadow-card"
+        <ChartCard
+          title="Top Items by Revenue"
+          loading={loading}
+          empty={itemsSortedByRevenue.length === 0}
+          emptyLabel="No item data available."
+          height={180}
         >
-          <SectionHeader icon={Utensils} title="Top Items by Revenue" />
-          {itemsSortedByRevenue.length === 0 ? (
-            <p className="text-gray-400 text-center py-8 text-sm">
-              No item data available.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {itemsSortedByRevenue.slice(0, 5).map((item, idx) => {
+          <div className="space-y-3">
+            {itemsSortedByRevenue.slice(0, 5).map((item, idx) => {
+              const pct = (item.revenue / maxItemRevenue) * 100;
+              return (
+                <div key={idx} className="flex items-center gap-3">
+                  <span className="w-5 flex-shrink-0 text-right text-xs font-bold text-muted-foreground">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="truncate font-medium text-foreground">
+                        {item.name}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-20 flex-shrink-0 text-right text-xs text-muted-foreground">
+                    {formatCurrency(item.revenue)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* ── Top Items: Revenue vs Quantity ────────────────── */}
+      <ChartCard
+        title="Top Items: Revenue vs Quantity"
+        description="Comparing top 10 items by revenue and by units sold"
+        loading={loading}
+        empty={topSellingItems.length === 0}
+        emptyLabel="No item data available."
+        height={320}
+      >
+        <div className="grid h-full grid-cols-1 gap-8 md:grid-cols-2">
+          {/* Revenue column */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <Award className="h-4 w-4 text-primary" />
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                By Revenue
+              </h4>
+            </div>
+            <div className="space-y-2">
+              {itemsSortedByRevenue.slice(0, 8).map((item, idx) => {
                 const pct = (item.revenue / maxItemRevenue) * 100;
                 return (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="w-5 text-xs font-bold text-gray-400 text-right flex-shrink-0">
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-4 flex-shrink-0 text-right text-xs text-muted-foreground">
                       {idx + 1}
                     </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-medium text-gray-900 truncate">
-                          {item.name}
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-orange-400 to-red-400 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                    <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+                      {item.name}
+                    </span>
+                    <div className="h-3 w-24 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                    <span className="text-xs text-gray-500 w-20 text-right flex-shrink-0">
+                    <span className="w-16 flex-shrink-0 text-right text-xs font-medium text-primary">
                       {formatCurrency(item.revenue)}
                     </span>
                   </div>
                 );
               })}
             </div>
-          )}
-        </motion.div>
-      </div>
+          </div>
 
-      {/* ── 4. Top Items: Revenue vs Quantity (side-by-side) ─ */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        className="bg-white rounded-xl border border-gray-100 p-5 shadow-card"
-      >
-        <SectionHeader
-          icon={Award}
-          title="Top Items: Revenue vs Quantity"
-          subtitle="Comparing top 10 items by revenue and by units sold"
-        />
-        {topSellingItems.length === 0 ? (
-          <p className="text-gray-400 text-center py-8 text-sm">
-            No item data available.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Revenue column — orange bars */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                By Revenue
-              </h4>
-              <div className="space-y-2">
-                {itemsSortedByRevenue.slice(0, 8).map((item, idx) => {
-                  const pct = (item.revenue / maxItemRevenue) * 100;
-                  return (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400 w-4 text-right flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span className="text-xs text-gray-700 truncate flex-1 min-w-0">
-                        {item.name}
-                      </span>
-                      <div className="w-24 h-3 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-                        <div
-                          className="h-full bg-gradient-to-r from-orange-400 to-red-400 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-orange-600 font-medium w-16 text-right flex-shrink-0">
-                        {formatCurrency(item.revenue)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Quantity column — gray bars */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          {/* Quantity column */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <Utensils className="h-4 w-4 text-muted-foreground" />
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 By Quantity
               </h4>
-              <div className="space-y-2">
-                {itemsSortedByQuantity.slice(0, 8).map((item, idx) => {
-                  const pct = (item.quantity / maxItemQuantity) * 100;
-                  return (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400 w-4 text-right flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span className="text-xs text-gray-700 truncate flex-1 min-w-0">
-                        {item.name}
-                      </span>
-                      <div className="w-24 h-3 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-                        <div
-                          className="h-full bg-gradient-to-r from-gray-300 to-gray-500 rounded-full"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-600 font-medium w-10 text-right flex-shrink-0">
-                        {item.quantity}
-                      </span>
+            </div>
+            <div className="space-y-2">
+              {itemsSortedByQuantity.slice(0, 8).map((item, idx) => {
+                const pct = (item.quantity / maxItemQuantity) * 100;
+                return (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-4 flex-shrink-0 text-right text-xs text-muted-foreground">
+                      {idx + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+                      {item.name}
+                    </span>
+                    <div className="h-3 w-24 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-muted-foreground/60"
+                        style={{ width: `${Math.max(pct, 2)}%` }}
+                      />
                     </div>
-                  );
-                })}
-              </div>
+                    <span className="w-10 flex-shrink-0 text-right text-xs font-medium text-muted-foreground">
+                      {item.quantity}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
-      </motion.div>
+        </div>
+      </ChartCard>
 
-      {/* ── 5. Coupon Performance Table ───────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white rounded-xl border border-gray-100 p-5 shadow-card"
-      >
-        <SectionHeader
-          icon={Tag}
-          title="Coupon Performance"
-          subtitle="Active coupons sorted by usage"
+      {/* ── Coupon Performance Table ──────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-primary">
+            <Tag className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Coupon Performance
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Active coupons sorted by usage
+            </p>
+          </div>
+        </div>
+        <DataTable<CouponRow>
+          columns={couponColumns}
+          data={activeCouponsWithUsage}
+          getRowId={(c) => c._id}
+          loading={couponsLoading}
+          emptyState={
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              No active coupons to display.
+            </p>
+          }
         />
-        {couponsLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-          </div>
-        ) : activeCouponsWithUsage.length === 0 ? (
-          <p className="text-gray-400 text-center py-8 text-sm">
-            No active coupons to display.
-          </p>
-        ) : (
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide py-3 pr-4">
-                    Code
-                  </th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide py-3 pr-4">
-                    Discount
-                  </th>
-                  <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide py-3 pr-4">
-                    Uses
-                  </th>
-                  <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide py-3 pr-4">
-                    Redemption Rate
-                  </th>
-                  <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide py-3 pr-4">
-                    Avg Discount
-                  </th>
-                  <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide py-3">
-                    Est. Revenue
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {activeCouponsWithUsage.map((c) => (
-                  <tr
-                    key={c._id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="py-3 pr-4">
-                      <span className="font-mono text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
-                        {c.code}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-gray-700">
-                      {c.type === "percentage"
-                        ? `${c.value}% off`
-                        : `${formatCurrency(c.value)} off`}
-                      {c.minOrder > 0 && ` (min ${formatCurrency(c.minOrder)})`}
-                    </td>
-                    <td className="py-3 pr-4 text-right text-gray-900 font-medium">
-                      {c.usedCount}
-                      <span className="text-gray-400 font-normal">
-                        {c.usageLimit > 0 ? `/${c.usageLimit}` : "/∞"}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-right">
-                      <span
-                        className={`text-xs font-semibold ${
-                          c.redemptionRate > 75
-                            ? "text-green-600"
-                            : c.redemptionRate > 50
-                              ? "text-orange-500"
-                              : "text-gray-500"
-                        }`}
-                      >
-                        {c.redemptionRate.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-right text-gray-700">
-                      {formatCurrency(c.avgDiscount)}
-                    </td>
-                    <td className="py-3 text-right text-gray-700">
-                      {formatCurrency(c.estimatedRevenueAttributed)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </motion.div>
+      </section>
     </div>
   );
 };

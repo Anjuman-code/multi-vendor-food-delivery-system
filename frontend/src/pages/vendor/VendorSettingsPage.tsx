@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import {
     Save,
     Loader2,
@@ -13,9 +12,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PageHeader, SectionCard, StatusBadge } from "@/components/vendor";
 import vendorService from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVendor } from "@/contexts/VendorContext";
@@ -53,13 +52,17 @@ const HoursPreview: React.FC<{
     };
 
     return (
-        <div className="space-y-1.5 text-sm">
+        <div className="space-y-1 text-sm">
             {hours.map((h, i) => (
                 <div
                     key={h.day}
-                    className={`flex items-center justify-between py-1.5 px-3 rounded-lg ${i === 0 ? "bg-orange-50 font-medium text-orange-700" : "text-gray-600"}`}
+                    className={`flex items-center justify-between rounded-lg px-3 py-1.5 ${
+                        i === 0
+                            ? "bg-accent font-medium text-primary"
+                            : "text-muted-foreground"
+                    }`}
                 >
-                    <span className="w-10 text-xs font-medium text-gray-500">
+                    <span className="w-10 text-xs font-medium text-muted-foreground">
                         {SHORT_DAYS[i]}
                     </span>
                     <span>
@@ -73,6 +76,29 @@ const HoursPreview: React.FC<{
     );
 };
 
+// ── Save button helper ───────────────────────────────────────────
+
+const SaveButton: React.FC<{
+    onClick: () => void;
+    loading: boolean;
+    disabled?: boolean;
+    label: string;
+}> = ({ onClick, loading, disabled, label }) => (
+    <Button
+        variant="brand"
+        onClick={onClick}
+        disabled={loading || disabled}
+        className="gap-2"
+    >
+        {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+            <Save className="h-4 w-4" />
+        )}
+        {label}
+    </Button>
+);
+
 // ── Main Page ────────────────────────────────────────────────────
 
 const VendorSettingsPage: React.FC = () => {
@@ -83,7 +109,7 @@ const VendorSettingsPage: React.FC = () => {
     const [saving, setSaving] = useState<string | null>(null);
 
     // Profile
-    const [profile, setProfile] = useState<VendorProfile | null>(null);
+    const [, setProfile] = useState<VendorProfile | null>(null);
     const [businessName, setBusinessName] = useState("");
     const [businessLicense, setBusinessLicense] = useState("");
     const [taxId, setTaxId] = useState("");
@@ -250,112 +276,116 @@ const VendorSettingsPage: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         );
     }
 
+    const hasInvalidHours = operatingHours.some(
+        (h) =>
+            h.isOpen &&
+            h.openTime &&
+            h.closeTime &&
+            h.openTime >= h.closeTime,
+    );
+
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="mx-auto max-w-5xl space-y-6">
+            <PageHeader
+                title="Settings"
+                description="Manage your account, business details, payouts, hours, and notifications."
+            />
+
             {/* Account info */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl border border-gray-200 p-6"
+            <SectionCard
+                title="Account"
+                description="Your personal account information."
+                icon={<User className="h-5 w-5" />}
             >
-                <div className="flex items-center gap-2 mb-4">
-                    <User className="w-5 h-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">Account</h2>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
                     <div>
-                        <p className="text-gray-500 text-xs">Name</p>
-                        <p className="font-medium text-gray-900">
+                        <p className="text-xs text-muted-foreground">Name</p>
+                        <p className="font-medium text-foreground">
                             {user?.firstName} {user?.lastName}
                         </p>
                     </div>
                     <div>
-                        <p className="text-gray-500 text-xs">Email</p>
-                        <p className="font-medium text-gray-900">{user?.email}</p>
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="font-medium text-foreground">{user?.email}</p>
                     </div>
                     <div>
-                        <p className="text-gray-500 text-xs">Role</p>
-                        <p className="font-medium text-gray-900 capitalize">{user?.role}</p>
+                        <p className="text-xs text-muted-foreground">Role</p>
+                        <p className="font-medium capitalize text-foreground">
+                            {user?.role}
+                        </p>
                     </div>
                 </div>
-            </motion.div>
+            </SectionCard>
 
             {/* Business Details */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
+            <SectionCard
+                title="Business Details"
+                description="Legal name and identifiers for your business."
+                icon={<Building className="h-5 w-5" />}
+                footer={
+                    <div className="flex justify-end">
+                        <SaveButton
+                            onClick={handleSaveProfile}
+                            loading={saving === "profile"}
+                            label="Save Business Details"
+                        />
+                    </div>
+                }
             >
-                <div className="flex items-center gap-2 mb-2">
-                    <Building className="w-5 h-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">Business Details</h2>
-                </div>
-                <div>
-                    <Label>Business Name</Label>
-                    <Input
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        placeholder="Your business name"
-                        className="mt-1"
-                    />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                     <div>
-                        <Label>Business License</Label>
+                        <Label>Business Name</Label>
                         <Input
-                            value={businessLicense}
-                            onChange={(e) => setBusinessLicense(e.target.value)}
-                            placeholder="License number"
+                            value={businessName}
+                            onChange={(e) => setBusinessName(e.target.value)}
+                            placeholder="Your business name"
                             className="mt-1"
                         />
                     </div>
-                    <div>
-                        <Label>Tax ID</Label>
-                        <Input
-                            value={taxId}
-                            onChange={(e) => setTaxId(e.target.value)}
-                            placeholder="Tax identification"
-                            className="mt-1"
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Business License</Label>
+                            <Input
+                                value={businessLicense}
+                                onChange={(e) => setBusinessLicense(e.target.value)}
+                                placeholder="License number"
+                                className="mt-1"
+                            />
+                        </div>
+                        <div>
+                            <Label>Tax ID</Label>
+                            <Input
+                                value={taxId}
+                                onChange={(e) => setTaxId(e.target.value)}
+                                placeholder="Tax identification"
+                                className="mt-1"
+                            />
+                        </div>
                     </div>
                 </div>
-                <div className="flex justify-end pt-2">
-                    <Button
-                        onClick={handleSaveProfile}
-                        disabled={saving === "profile"}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-                    >
-                        {saving === "profile" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Save Business Details
-                    </Button>
-                </div>
-            </motion.div>
+            </SectionCard>
 
-            {/* Bank Details (separated) */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
+            {/* Bank Details */}
+            <SectionCard
+                title="Bank Details"
+                description="Used for payouts and stored securely."
+                icon={<CreditCard className="h-5 w-5" />}
+                footer={
+                    <div className="flex justify-end">
+                        <SaveButton
+                            onClick={handleSaveBank}
+                            loading={saving === "bank"}
+                            label="Save Bank Details"
+                        />
+                    </div>
+                }
             >
-                <div className="flex items-center gap-2 mb-2">
-                    <CreditCard className="w-5 h-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">Bank Details</h2>
-                </div>
-                <p className="text-xs text-gray-500 -mt-2">
-                    This information is used for payouts and is stored securely.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <Label>Account Holder Name</Label>
                         <Input
@@ -412,42 +442,33 @@ const VendorSettingsPage: React.FC = () => {
                         />
                     </div>
                 </div>
-                <div className="flex justify-end pt-2">
-                    <Button
-                        onClick={handleSaveBank}
-                        disabled={saving === "bank"}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-                    >
-                        {saving === "bank" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Save Bank Details
-                    </Button>
-                </div>
-            </motion.div>
+            </SectionCard>
 
-            {/* Operating Hours — two-column */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="bg-white rounded-xl border border-gray-200 p-6"
+            {/* Operating Hours */}
+            <SectionCard
+                title="Operating Hours"
+                description="Set your weekly schedule. Customers see these times on your storefront."
+                icon={<Clock className="h-5 w-5" />}
+                footer={
+                    <div className="flex justify-end">
+                        <SaveButton
+                            onClick={handleSaveRestaurant}
+                            loading={saving === "restaurant"}
+                            disabled={!selectedRestaurantId}
+                            label="Save Hours"
+                        />
+                    </div>
+                }
             >
-                <div className="flex items-center gap-2 mb-4">
-                    <Clock className="w-5 h-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">Operating Hours</h2>
-                </div>
-                <div className="editor-grid">
+                <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
                     {/* Left: weekly grid */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                         {operatingHours.map((h, i) => (
                             <div
                                 key={h.day}
-                                className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted"
                             >
-                                <span className="w-24 text-sm font-medium text-gray-700">
+                                <span className="w-24 text-sm font-medium text-foreground">
                                     {h.day}
                                 </span>
                                 {h.isOpen ? (
@@ -458,60 +479,50 @@ const VendorSettingsPage: React.FC = () => {
                                             onChange={(e) =>
                                                 updateDayHours(i, "openTime", e.target.value)
                                             }
-                                            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                                            className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                         />
-                                        <span className="text-gray-400">to</span>
+                                        <span className="text-muted-foreground">to</span>
                                         <input
                                             type="time"
                                             value={h.closeTime}
                                             onChange={(e) =>
                                                 updateDayHours(i, "closeTime", e.target.value)
                                             }
-                                            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                                            className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                         />
                                     </div>
                                 ) : (
-                                    <span className="text-sm text-gray-400 italic">Closed</span>
-                                )}
-                                <label className="ml-auto flex items-center gap-1.5 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={!h.isOpen}
-                                        onChange={(e) =>
-                                            updateDayHours(i, "isOpen", !e.target.checked)
-                                        }
-                                        className="sr-only peer"
-                                    />
-                                    <span className="text-xs text-gray-400 peer-checked:text-red-500">
+                                    <span className="text-sm italic text-muted-foreground">
                                         Closed
+                                    </span>
+                                )}
+                                <div className="ml-auto flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">
+                                        {h.isOpen ? "Open" : "Closed"}
                                     </span>
                                     <Switch
                                         checked={h.isOpen}
                                         onCheckedChange={(v) => updateDayHours(i, "isOpen", v)}
                                     />
-                                </label>
+                                </div>
                             </div>
                         ))}
                     </div>
 
                     {/* Right: live preview */}
-                    <div className="editor-preview-pane">
-                        <p className="editor-preview-label">Live Preview</p>
-                        <p className="text-sm font-semibold text-gray-900 mb-3">
+                    <div className="rounded-xl border border-border bg-muted p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Live Preview
+                        </p>
+                        <p className="mb-3 mt-1 text-sm font-semibold text-foreground">
                             Opening Hours
                         </p>
                         <HoursPreview hours={operatingHours} />
 
                         {/* Inconsistency warning */}
-                        {operatingHours.some(
-                            (h) =>
-                                h.isOpen &&
-                                h.openTime &&
-                                h.closeTime &&
-                                h.openTime >= h.closeTime,
-                        ) && (
-                            <div className="mt-4 flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-3">
-                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        {hasInvalidHours && (
+                            <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                                 <span>
                                     Some days have close time before or equal to open time.
                                     This will show as closed to customers.
@@ -520,146 +531,118 @@ const VendorSettingsPage: React.FC = () => {
                         )}
                     </div>
                 </div>
-                <div className="flex justify-end pt-4 border-t border-gray-100 mt-4">
-                    <Button
-                        onClick={handleSaveRestaurant}
-                        disabled={saving === "restaurant" || !selectedRestaurantId}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-                    >
-                        {saving === "restaurant" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Save Hours
-                    </Button>
-                </div>
-            </motion.div>
+            </SectionCard>
 
             {/* Restaurant Status Override */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.18 }}
-                className="bg-white rounded-xl border border-gray-200 p-6"
-            >
-                <div className="flex items-center gap-2 mb-4">
-                    <Store className="w-5 h-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">
-                        Restaurant Status
-                    </h2>
-                </div>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-gray-900">
-                            Temporarily Closed
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            Override your schedule — customers will see your restaurant
-                            as closed regardless of operating hours.
-                        </p>
-                    </div>
-                    <Switch
-                        checked={isTemporarilyClosed}
-                        onCheckedChange={setIsTemporarilyClosed}
-                    />
-                </div>
-                {isTemporarilyClosed && (
-                    <div className="mt-3">
-                        <Label>Reason (visible to customers)</Label>
-                        <Input
-                            value={closureReason}
-                            onChange={(e) => setClosureReason(e.target.value)}
-                            placeholder="e.g. Renovation works, will reopen next week"
-                            className="mt-1"
+            <SectionCard
+                title="Restaurant Status"
+                description="Override your schedule for unexpected closures."
+                icon={<Store className="h-5 w-5" />}
+                actions={
+                    isTemporarilyClosed ? (
+                        <StatusBadge label="Temporarily closed" tone="warning" />
+                    ) : (
+                        <StatusBadge label="Open as scheduled" tone="success" />
+                    )
+                }
+                footer={
+                    <div className="flex justify-end">
+                        <SaveButton
+                            onClick={handleSaveRestaurant}
+                            loading={saving === "restaurant"}
+                            disabled={!selectedRestaurantId}
+                            label="Save Status"
                         />
                     </div>
-                )}
-                <div className="flex justify-end pt-4">
-                    <Button
-                        onClick={handleSaveRestaurant}
-                        disabled={saving === "restaurant" || !selectedRestaurantId}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-                    >
-                        {saving === "restaurant" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Save Status
-                    </Button>
+                }
+            >
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-foreground">
+                                Temporarily Closed
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                Override your schedule — customers will see your restaurant
+                                as closed regardless of operating hours.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={isTemporarilyClosed}
+                            onCheckedChange={setIsTemporarilyClosed}
+                        />
+                    </div>
+                    {isTemporarilyClosed && (
+                        <div>
+                            <Label>Reason (visible to customers)</Label>
+                            <Input
+                                value={closureReason}
+                                onChange={(e) => setClosureReason(e.target.value)}
+                                placeholder="e.g. Renovation works, will reopen next week"
+                                className="mt-1"
+                            />
+                        </div>
+                    )}
                 </div>
-            </motion.div>
+            </SectionCard>
 
             {/* Notification Preferences & Auto-accept */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-xl border border-gray-200 p-6 space-y-5"
-            >
-                <div className="flex items-center gap-2 mb-2">
-                    <Bell className="w-5 h-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">
-                        Notification Preferences
-                    </h2>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-gray-900">
-                            Auto-accept Orders
-                        </p>
-                        <p className="text-xs text-gray-500">
-                            Automatically confirm incoming orders without manual approval.
-                        </p>
-                    </div>
-                    <Switch
-                        checked={autoAcceptOrders}
-                        onCheckedChange={setAutoAcceptOrders}
-                    />
-                </div>
-
-                {(
-                    [
-                        { key: "emailOnNewOrder", label: "Email on new order" },
-                        { key: "lowStockAlerts", label: "Low stock alerts" },
-                        { key: "reviewAlerts", label: "New review alerts" },
-                        {
-                            key: "promotionPerformance",
-                            label: "Promotion performance reports",
-                        },
-                    ] as { key: keyof VendorNotificationSettings; label: string }[]
-                ).map((item) => (
-                    <div
-                        key={item.key}
-                        className="flex items-center justify-between"
-                    >
-                        <p className="text-sm text-gray-700">{item.label}</p>
-                        <Switch
-                            checked={notifications[item.key] as boolean}
-                            onCheckedChange={(v) =>
-                                setNotifications({ ...notifications, [item.key]: v })
-                            }
+            <SectionCard
+                title="Notification Preferences"
+                description="Choose how you receive order and performance updates."
+                icon={<Bell className="h-5 w-5" />}
+                footer={
+                    <div className="flex justify-end">
+                        <SaveButton
+                            onClick={handleSaveNotifications}
+                            loading={saving === "notifications"}
+                            label="Save Preferences"
                         />
                     </div>
-                ))}
+                }
+            >
+                <div className="divide-y divide-border">
+                    <div className="flex items-center justify-between pb-4">
+                        <div>
+                            <p className="text-sm font-medium text-foreground">
+                                Auto-accept Orders
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Automatically confirm incoming orders without manual approval.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={autoAcceptOrders}
+                            onCheckedChange={setAutoAcceptOrders}
+                        />
+                    </div>
 
-                <div className="flex justify-end pt-2 border-t border-gray-100">
-                    <Button
-                        onClick={handleSaveNotifications}
-                        disabled={saving === "notifications"}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-                    >
-                        {saving === "notifications" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Save Preferences
-                    </Button>
+                    {(
+                        [
+                            { key: "emailOnNewOrder", label: "Email on new order" },
+                            { key: "lowStockAlerts", label: "Low stock alerts" },
+                            { key: "reviewAlerts", label: "New review alerts" },
+                            {
+                                key: "promotionPerformance",
+                                label: "Promotion performance reports",
+                            },
+                        ] as { key: keyof VendorNotificationSettings; label: string }[]
+                    ).map((item) => (
+                        <div
+                            key={item.key}
+                            className="flex items-center justify-between py-3"
+                        >
+                            <p className="text-sm text-foreground">{item.label}</p>
+                            <Switch
+                                checked={notifications[item.key] as boolean}
+                                onCheckedChange={(v) =>
+                                    setNotifications({ ...notifications, [item.key]: v })
+                                }
+                            />
+                        </div>
+                    ))}
                 </div>
-            </motion.div>
+            </SectionCard>
         </div>
     );
 };

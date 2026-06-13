@@ -1,15 +1,23 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader, SectionCard } from "@/components/vendor";
 import { useToast } from "@/hooks/use-toast";
 import supportService from "@/services/supportService";
 import type { TicketType, TicketPriority } from "@/types/support";
+import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -63,6 +71,7 @@ export default function VendorCreateTicketPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<TicketFormData>({
     resolver: zodResolver(ticketSchema),
@@ -100,37 +109,50 @@ export default function VendorCreateTicketPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <button
-          onClick={() => navigate("/vendor/support")}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Support
-        </button>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        <PageHeader
+          title="Create Support Ticket"
+          actions={
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/vendor/support")}
+              className="text-muted-foreground"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Support
+            </Button>
+          }
+        />
 
-        <h1 className="text-xl font-bold text-gray-900 mb-6">
-          Create Support Ticket
-        </h1>
-
-        <Card className="p-6">
+        <SectionCard>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="type">Category</Label>
-              <select
-                id="type"
-                {...register("type")}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none bg-white"
-              >
-                {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                control={control}
+                name="type"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="type">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.type && (
-                <p className="text-red-500 text-sm">{errors.type.message}</p>
+                <p className="text-sm text-destructive">{errors.type.message}</p>
               )}
             </div>
 
@@ -140,10 +162,10 @@ export default function VendorCreateTicketPage() {
                 id="subject"
                 placeholder="Brief description of your issue"
                 {...register("subject")}
-                className={errors.subject ? "border-red-500" : ""}
+                className={errors.subject ? "border-destructive" : ""}
               />
               {errors.subject && (
-                <p className="text-red-500 text-sm">{errors.subject.message}</p>
+                <p className="text-sm text-destructive">{errors.subject.message}</p>
               )}
             </div>
 
@@ -154,17 +176,17 @@ export default function VendorCreateTicketPage() {
                 rows={6}
                 placeholder="Describe your issue in detail..."
                 {...register("message")}
-                className={errors.message ? "border-red-500" : ""}
+                className={errors.message ? "border-destructive" : ""}
               />
               {errors.message && (
-                <p className="text-red-500 text-sm">{errors.message.message}</p>
+                <p className="text-sm text-destructive">{errors.message.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="orderId">
                 Order Number{" "}
-                <span className="text-gray-400 font-normal">(optional)</span>
+                <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="orderId"
@@ -181,14 +203,19 @@ export default function VendorCreateTicketPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setPriority(opt.value)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    className={cn(
+                      "rounded-xl border-2 p-3 text-left transition-all",
                       priority === opt.value
-                        ? "border-orange-500 bg-orange-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
+                        ? "border-primary bg-accent"
+                        : "border-border hover:border-muted-foreground/40",
+                    )}
                   >
-                    <p className="text-sm font-medium text-gray-900">{opt.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {opt.label}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {opt.description}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -197,7 +224,8 @@ export default function VendorCreateTicketPage() {
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full bg-orange-500 hover:bg-orange-600 py-6"
+              variant="brand"
+              className="w-full py-6"
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -212,7 +240,7 @@ export default function VendorCreateTicketPage() {
               )}
             </Button>
           </form>
-        </Card>
+        </SectionCard>
       </motion.div>
     </div>
   );

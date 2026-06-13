@@ -402,5 +402,87 @@ export interface VendorOrdersParams {
   sortBy?: string;
 }
 
+// ── Earnings & Payouts ─────────────────────────────────────────
+
+export interface VendorEarningsSeriesPoint {
+  date: string;
+  gross: number;
+  net: number;
+  orders: number;
+}
+
+export interface VendorEarnings {
+  period: string;
+  commissionRate: number;
+  availableBalance: number;
+  pendingPayout: number;
+  totalEarnings: number;
+  lifetimeGross: number;
+  lifetimeNet: number;
+  lifetimeOrders: number;
+  periodGross: number;
+  periodNet: number;
+  periodOrders: number;
+  totalRefunded: number;
+  series: VendorEarningsSeriesPoint[];
+}
+
+export type VendorPayoutStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed';
+
+export interface VendorPayout {
+  _id: string;
+  amount: number;
+  periodStart: string;
+  periodEnd: string;
+  status: VendorPayoutStatus;
+  method: string;
+  orderCount: number;
+  commissionTotal: number;
+  transactionRef?: string;
+  processedAt?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VendorPayoutsParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+}
+
+// ── Customers (insights) ───────────────────────────────────────
+
+export type VendorCustomerSegment = 'new' | 'returning' | 'vip';
+
+export interface VendorCustomer {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  orders: number;
+  totalSpent: number;
+  lastOrder: string;
+  firstOrder: string;
+  segment: VendorCustomerSegment;
+}
+
+export interface VendorCustomersSummary {
+  totalCustomers: number;
+  newCustomers: number;
+  repeatRate: number;
+  avgOrdersPerCustomer: number;
+}
+
+export interface VendorCustomersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
 // Re-export menu types for convenience
 export type { MenuCategory, MenuItem };

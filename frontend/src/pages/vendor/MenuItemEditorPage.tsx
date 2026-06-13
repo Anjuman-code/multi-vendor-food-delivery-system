@@ -2,12 +2,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { PageHeader, SectionCard, VendorEmptyState } from "@/components/vendor";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
 import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
+import { formatCurrency } from "@/utils/format";
 import {
     ArrowLeft,
     Check,
@@ -16,6 +25,7 @@ import {
     Plus,
     Save,
     ShoppingCart,
+    Store,
     X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,18 +50,18 @@ const MenuCardPreview: React.FC<{
     stockStatus: StockStatus;
 }> = ({ name, description, price, image, dietaryTags, variants, stockStatus }) => {
     const displayName = name || "Item Name";
-    const displayPrice = price ? `৳${Number(price).toLocaleString("en-BD")}` : "৳0";
+    const displayPrice = price ? formatCurrency(price) : formatCurrency(0);
     const displayDesc = description || "Description will appear here...";
 
     const stockLabel = useMemo(() => {
         if (stockStatus === "out_of_stock") return { text: "Out of Stock", color: "bg-amber-100 text-amber-700" };
-        if (stockStatus === "hidden") return { text: "Hidden", color: "bg-gray-100 text-gray-500" };
+        if (stockStatus === "hidden") return { text: "Hidden", color: "bg-muted text-muted-foreground" };
         return { text: "Available", color: "bg-emerald-100 text-emerald-700" };
     }, [stockStatus]);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm max-w-xs">
-            <div className="relative h-36 bg-gray-100">
+        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm max-w-xs">
+            <div className="relative h-36 bg-muted">
                 <img
                     src={image || foodFallbackSVG}
                     alt=""
@@ -61,27 +71,27 @@ const MenuCardPreview: React.FC<{
             </div>
             <div className="p-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-900 text-sm">{displayName}</h4>
-                    <span className="font-bold text-gray-900 text-sm whitespace-nowrap">{displayPrice}</span>
+                    <h4 className="font-semibold text-foreground text-sm">{displayName}</h4>
+                    <span className="font-bold text-foreground text-sm whitespace-nowrap">{displayPrice}</span>
                 </div>
-                <p className="text-xs text-gray-500 line-clamp-2 mb-2">{displayDesc}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{displayDesc}</p>
                 {dietaryTags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
                         {dietaryTags.map((tag) => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium">{tag}</span>
+                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent text-primary font-medium">{tag}</span>
                         ))}
                     </div>
                 )}
                 {variants.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
                         {variants.filter((v) => v.name.trim()).map((v) => (
-                            <span key={v.name} className="text-[10px] px-1.5 py-0.5 rounded-full border border-gray-200 text-gray-600">
-                                {v.name}{v.price && ` +৳${v.price}`}
+                            <span key={v.name} className="text-[10px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground">
+                                {v.name}{v.price && ` +${formatCurrency(v.price)}`}
                             </span>
                         ))}
                     </div>
                 )}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${stockLabel.color}`}>{stockLabel.text}</span>
                 </div>
             </div>
@@ -107,8 +117,8 @@ const CartRowPreview: React.FC<{
     const unitTotal = (basePrice + variantPrice + addonTotal) * quantity;
 
     return (
-        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
-            <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+        <div className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
+            <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
                 <img
                     src={image || foodFallbackSVG}
                     alt=""
@@ -118,19 +128,19 @@ const CartRowPreview: React.FC<{
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-orange-100 text-orange-600 text-[10px] font-bold">{quantity}</span>
-                    <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-accent text-primary text-[10px] font-bold">{quantity}</span>
+                    <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                 </div>
                 {selectedVariant && (
-                    <p className="text-xs text-gray-500 ml-6">{selectedVariant.name}</p>
+                    <p className="text-xs text-muted-foreground ml-6">{selectedVariant.name}</p>
                 )}
                 {addons.filter((a) => a.name.trim()).length > 0 && (
-                    <p className="text-xs text-gray-400 ml-6">
+                    <p className="text-xs text-muted-foreground ml-6">
                         + {addons.filter((a) => a.name.trim()).map((a) => a.name).join(", ")}
                     </p>
                 )}
             </div>
-            <span className="text-sm font-semibold text-gray-900">৳{unitTotal.toLocaleString("en-BD")}</span>
+            <span className="text-sm font-semibold text-foreground">{formatCurrency(unitTotal)}</span>
         </div>
     );
 };
@@ -290,10 +300,22 @@ const MenuItemEditorPage: React.FC = () => {
         setSaving(false);
     };
 
+    const handleBack = async () => {
+        if (dirty) {
+            const ok = await confirm({ description: "You have unsaved changes. Leave anyway?", confirmLabel: "Leave" });
+            if (!ok) return;
+        }
+        navigate("/vendor/menu");
+    };
+
     if (!selectedRestaurantId) {
         return (
-            <div className="text-center py-16 text-gray-500">
-                Select a restaurant from the sidebar first.
+            <div className="max-w-6xl mx-auto py-8">
+                <VendorEmptyState
+                    icon={Store}
+                    title="No restaurant selected"
+                    description="Select a restaurant from the sidebar to start editing menu items."
+                />
             </div>
         );
     }
@@ -301,185 +323,198 @@ const MenuItemEditorPage: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto pb-28">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                    <button
-                        type="button"
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        onClick={async () => {
-                            if (dirty) {
-                                const ok = await confirm({ description: "You have unsaved changes. Leave anyway?", confirmLabel: "Leave" });
-                                if (!ok) return;
-                            }
-                            navigate("/vendor/menu");
-                        }}
-                    >
-                        <ArrowLeft className="w-5 h-5 text-gray-500" />
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-gray-900">
-                            {isEdit ? "Edit Item" : "New Menu Item"}
-                        </h1>
-                        {dirty && (
-                            <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                                Unsaved changes
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <PageHeader
+                className="mb-6"
+                title={
+                    <span className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            className="p-2 -ml-2 hover:bg-muted rounded-lg transition-colors"
+                            onClick={handleBack}
+                        >
+                            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+                        </button>
+                        {isEdit ? "Edit Item" : "New Item"}
+                    </span>
+                }
+                subtitle={
+                    dirty ? (
+                        <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                            Unsaved changes
+                        </span>
+                    ) : undefined
+                }
+            />
 
             {/* Two-column editor */}
             <div className="editor-grid">
                 {/* Left: Form */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-                    {/* Name */}
-                    <div>
-                        <Label>Item Name *</Label>
-                        <Input
-                            value={name}
-                            onChange={(e) => { setName(e.target.value); markDirty(); }}
-                            placeholder="e.g. Chicken Biryani"
-                            className={`mt-1 ${errors.name ? "border-red-300" : ""}`}
-                        />
-                        {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
-                    </div>
+                <div className="space-y-5">
+                    {/* Basics */}
+                    <SectionCard title="Basics" description="Name and description shown to customers.">
+                        <div className="space-y-5">
+                            {/* Name */}
+                            <div>
+                                <Label>Item Name *</Label>
+                                <Input
+                                    value={name}
+                                    onChange={(e) => { setName(e.target.value); markDirty(); }}
+                                    placeholder="e.g. Chicken Biryani"
+                                    className={`mt-1 ${errors.name ? "border-destructive" : ""}`}
+                                />
+                                {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+                            </div>
 
-                    {/* Description */}
-                    <div>
-                        <Label>Description *</Label>
-                        <Textarea
-                            value={description}
-                            onChange={(e) => { setDescription(e.target.value); markDirty(); }}
-                            placeholder="Describe the dish..."
-                            rows={2}
-                            className={`mt-1 ${errors.description ? "border-red-300" : ""}`}
-                        />
-                        {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
-                    </div>
-
-                    {/* Price + Prep Time */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label>Price (৳) *</Label>
-                            <Input
-                                type="number"
-                                value={price}
-                                onChange={(e) => { setPrice(e.target.value); markDirty(); }}
-                                placeholder="0"
-                                className={`mt-1 ${errors.price ? "border-red-300" : ""}`}
-                            />
-                            {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price}</p>}
+                            {/* Description */}
+                            <div>
+                                <Label>Description *</Label>
+                                <Textarea
+                                    value={description}
+                                    onChange={(e) => { setDescription(e.target.value); markDirty(); }}
+                                    placeholder="Describe the dish..."
+                                    rows={2}
+                                    className={`mt-1 ${errors.description ? "border-destructive" : ""}`}
+                                />
+                                {errors.description && <p className="text-xs text-destructive mt-1">{errors.description}</p>}
+                            </div>
                         </div>
-                        <div>
-                            <Label>Prep Time (min)</Label>
-                            <Input
-                                type="number"
-                                value={prepTime}
-                                onChange={(e) => { setPrepTime(e.target.value); markDirty(); }}
-                                placeholder="15"
-                                className={`mt-1 ${errors.prepTime ? "border-red-300" : ""}`}
-                            />
-                            {errors.prepTime && <p className="text-xs text-red-500 mt-1">{errors.prepTime}</p>}
-                        </div>
-                    </div>
+                    </SectionCard>
 
-                    {/* Image URL */}
-                    <div>
-                        <Label>Image URL</Label>
-                        <Input
-                            value={image}
-                            onChange={(e) => { setImage(e.target.value); markDirty(); }}
-                            placeholder="https://example.com/item.jpg"
-                            className="mt-1"
-                        />
-                    </div>
+                    {/* Pricing */}
+                    <SectionCard title="Pricing" description="Base price and preparation time.">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Price (৳) *</Label>
+                                <Input
+                                    type="number"
+                                    value={price}
+                                    onChange={(e) => { setPrice(e.target.value); markDirty(); }}
+                                    placeholder="0"
+                                    className={`mt-1 ${errors.price ? "border-destructive" : ""}`}
+                                />
+                                {errors.price && <p className="text-xs text-destructive mt-1">{errors.price}</p>}
+                            </div>
+                            <div>
+                                <Label>Prep Time (min)</Label>
+                                <Input
+                                    type="number"
+                                    value={prepTime}
+                                    onChange={(e) => { setPrepTime(e.target.value); markDirty(); }}
+                                    placeholder="15"
+                                    className={`mt-1 ${errors.prepTime ? "border-destructive" : ""}`}
+                                />
+                                {errors.prepTime && <p className="text-xs text-destructive mt-1">{errors.prepTime}</p>}
+                            </div>
+                        </div>
+                    </SectionCard>
+
+                    {/* Image */}
+                    <SectionCard title="Image" description="A direct link to the dish photo.">
+                        <div>
+                            <Label>Image URL</Label>
+                            <Input
+                                value={image}
+                                onChange={(e) => { setImage(e.target.value); markDirty(); }}
+                                placeholder="https://example.com/item.jpg"
+                                className="mt-1"
+                            />
+                        </div>
+                    </SectionCard>
 
                     {/* Category + Stock status */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label>Category</Label>
-                            <div className="flex gap-1.5 mt-1">
-                                <select
-                                    value={categoryId}
-                                    onChange={(e) => { setCategoryId(e.target.value); markDirty(); }}
-                                    className="flex-1 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                                >
-                                    <option value="">Uncategorized</option>
-                                    {categories.map((c) => (
-                                        <option key={c._id} value={c._id}>{c.name}</option>
-                                    ))}
-                                </select>
-                                <button
-                                    type="button"
-                                    title="Create new category"
-                                    onClick={() => { setShowNewCategory((v) => !v); setNewCategoryName(""); }}
-                                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-orange-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                </button>
-                            </div>
-                            {showNewCategory && (
-                                <div className="flex gap-1.5 mt-1.5">
-                                    <Input
-                                        autoFocus
-                                        value={newCategoryName}
-                                        onChange={(e) => setNewCategoryName(e.target.value)}
-                                        onKeyDown={async (e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault();
-                                                await handleCreateCategory();
-                                            } else if (e.key === "Escape") {
-                                                setShowNewCategory(false);
-                                            }
-                                        }}
-                                        placeholder="New category name"
-                                        className="flex-1 text-sm h-8"
-                                    />
+                    <SectionCard title="Category & Availability" description="How the item is grouped and whether it's orderable.">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Category</Label>
+                                <div className="flex gap-1.5 mt-1">
+                                    <Select
+                                        value={categoryId || "__none"}
+                                        onValueChange={(v) => { setCategoryId(v === "__none" ? "" : v); markDirty(); }}
+                                    >
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue placeholder="Uncategorized" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none">Uncategorized</SelectItem>
+                                            {categories.map((c) => (
+                                                <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <button
                                         type="button"
-                                        disabled={creatingCategory || !newCategoryName.trim()}
-                                        onClick={handleCreateCategory}
-                                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                                        title="Create new category"
+                                        onClick={() => { setShowNewCategory((v) => !v); setNewCategoryName(""); }}
+                                        className="shrink-0 w-10 h-10 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:border-primary hover:text-primary hover:bg-accent transition-colors"
                                     >
-                                        {creatingCategory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewCategory(false)}
-                                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <X className="w-3.5 h-3.5" />
+                                        <Plus className="w-4 h-4" />
                                     </button>
                                 </div>
-                            )}
+                                {showNewCategory && (
+                                    <div className="flex gap-1.5 mt-1.5">
+                                        <Input
+                                            autoFocus
+                                            value={newCategoryName}
+                                            onChange={(e) => setNewCategoryName(e.target.value)}
+                                            onKeyDown={async (e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    await handleCreateCategory();
+                                                } else if (e.key === "Escape") {
+                                                    setShowNewCategory(false);
+                                                }
+                                            }}
+                                            placeholder="New category name"
+                                            className="flex-1 text-sm h-8"
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={creatingCategory || !newCategoryName.trim()}
+                                            onClick={handleCreateCategory}
+                                            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                        >
+                                            {creatingCategory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewCategory(false)}
+                                            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <Label>Stock Status</Label>
+                                <Select
+                                    value={stockStatus}
+                                    onValueChange={(v) => { setStockStatus(v as StockStatus); markDirty(); }}
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="available">Available</SelectItem>
+                                        <SelectItem value="out_of_stock">Out of Stock (visible)</SelectItem>
+                                        <SelectItem value="hidden">Hidden (not visible)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div>
-                            <Label>Stock Status</Label>
-                            <select
-                                value={stockStatus}
-                                onChange={(e) => { setStockStatus(e.target.value as StockStatus); markDirty(); }}
-                                className="w-full mt-1 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                            >
-                                <option value="available">Available</option>
-                                <option value="out_of_stock">Out of Stock (visible)</option>
-                                <option value="hidden">Hidden (not visible)</option>
-                            </select>
-                        </div>
-                    </div>
+                    </SectionCard>
 
                     {/* Dietary Tags */}
-                    <div className="pt-2 border-t border-gray-100">
-                        <Label>Dietary Tags</Label>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
+                    <SectionCard title="Dietary Tags" description="Help customers filter by dietary needs.">
+                        <div className="flex flex-wrap gap-1.5">
                             {DIETARY_TAGS.map((tag) => (
                                 <button
                                     key={tag}
@@ -487,20 +522,18 @@ const MenuItemEditorPage: React.FC = () => {
                                     onClick={() => toggleDietaryTag(tag)}
                                     className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
                                         dietaryTags.includes(tag)
-                                            ? "bg-orange-100 border-orange-300 text-orange-700"
-                                            : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                                            ? "border-primary bg-accent text-primary"
+                                            : "bg-card border-border text-muted-foreground hover:border-foreground/30"
                                     }`}
                                 >
                                     {tag}
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </SectionCard>
 
                     {/* Variants */}
-                    <div className="pt-2 border-t border-gray-100">
-                        <Label>Sizes / Variants</Label>
-                        <p className="text-xs text-gray-500 mb-2">Different sizes with price adjustments.</p>
+                    <SectionCard title="Sizes / Variants" description="Different sizes with price adjustments.">
                         {variants.map((v, i) => (
                             <div key={i} className="flex gap-2 mb-2">
                                 <Input
@@ -525,7 +558,7 @@ const MenuItemEditorPage: React.FC = () => {
                                 <Button
                                     variant="ghost"
                                     type="button"
-                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 h-auto"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2 h-auto"
                                     onClick={() => { setVariants(variants.filter((_, j) => j !== i)); markDirty(); }}
                                 >
                                     <X className="w-4 h-4" />
@@ -537,16 +570,14 @@ const MenuItemEditorPage: React.FC = () => {
                             type="button"
                             size="sm"
                             onClick={() => { setVariants([...variants, { name: "", price: "" }]); markDirty(); }}
-                            className="mt-1 w-full text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+                            className="mt-1 w-full text-xs text-primary border-border hover:bg-accent"
                         >
                             <Plus className="w-3 h-3 mr-1" /> Add Variant
                         </Button>
-                    </div>
+                    </SectionCard>
 
                     {/* Add-ons */}
-                    <div className="pt-2 border-t border-gray-100">
-                        <Label>Add-ons / Sides</Label>
-                        <p className="text-xs text-gray-500 mb-2">Optional extras with additional price.</p>
+                    <SectionCard title="Add-ons / Sides" description="Optional extras with additional price.">
                         {addons.map((a, i) => (
                             <div key={i} className="flex gap-2 mb-2">
                                 <Input
@@ -571,7 +602,7 @@ const MenuItemEditorPage: React.FC = () => {
                                 <Button
                                     variant="ghost"
                                     type="button"
-                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 h-auto"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2 h-auto"
                                     onClick={() => { setAddons(addons.filter((_, j) => j !== i)); markDirty(); }}
                                 >
                                     <X className="w-4 h-4" />
@@ -583,24 +614,25 @@ const MenuItemEditorPage: React.FC = () => {
                             type="button"
                             size="sm"
                             onClick={() => { setAddons([...addons, { name: "", price: "" }]); markDirty(); }}
-                            className="mt-1 w-full text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+                            className="mt-1 w-full text-xs text-primary border-border hover:bg-accent"
                         >
                             <Plus className="w-3 h-3 mr-1" /> Add Option
                         </Button>
-                    </div>
+                    </SectionCard>
                 </div>
 
                 {/* Right: Live Preview */}
                 <div className="space-y-6">
                     {/* Menu card preview */}
-                    <div className="editor-preview-pane">
-                        <p className="editor-preview-label">
-                            <Eye className="w-3 h-3 inline mr-1" />
-                            Menu Card Preview
-                        </p>
-                        <p className="text-xs text-gray-400 mb-4">
-                            How this item appears in the customer menu
-                        </p>
+                    <SectionCard
+                        title={
+                            <span className="flex items-center gap-1.5">
+                                <Eye className="w-3.5 h-3.5" />
+                                Menu Card Preview
+                            </span>
+                        }
+                        description="How this item appears in the customer menu"
+                    >
                         <div className="flex justify-center">
                             <MenuCardPreview
                                 name={name}
@@ -612,17 +644,18 @@ const MenuItemEditorPage: React.FC = () => {
                                 stockStatus={stockStatus}
                             />
                         </div>
-                    </div>
+                    </SectionCard>
 
                     {/* Cart row preview */}
-                    <div className="editor-preview-pane">
-                        <p className="editor-preview-label">
-                            <ShoppingCart className="w-3 h-3 inline mr-1" />
-                            Cart Row Preview
-                        </p>
-                        <p className="text-xs text-gray-400 mb-4">
-                            How this item appears in the customer's cart
-                        </p>
+                    <SectionCard
+                        title={
+                            <span className="flex items-center gap-1.5">
+                                <ShoppingCart className="w-3.5 h-3.5" />
+                                Cart Row Preview
+                            </span>
+                        }
+                        description="How this item appears in the customer's cart"
+                    >
                         <CartRowPreview
                             name={name}
                             price={price}
@@ -631,30 +664,30 @@ const MenuItemEditorPage: React.FC = () => {
                             addons={addons}
                         />
                         {addons.filter((a) => a.name.trim() && a.price).length > 0 && (
-                            <div className="mt-3 bg-blue-50 rounded-lg p-3 text-xs text-blue-700">
-                                <p className="font-medium mb-1">Cart total calculation:</p>
-                                <p>Base: ৳{Number(price || 0).toLocaleString("en-BD")}</p>
+                            <div className="mt-3 bg-muted rounded-lg p-3 text-xs text-muted-foreground">
+                                <p className="font-medium mb-1 text-foreground">Cart total calculation:</p>
+                                <p>Base: {formatCurrency(Number(price || 0))}</p>
                                 {variants.filter((v) => v.name.trim() && v.price).map((v) => (
-                                    <p key={v.name}>+ {v.name}: ৳{Number(v.price).toLocaleString("en-BD")}</p>
+                                    <p key={v.name}>+ {v.name}: {formatCurrency(Number(v.price))}</p>
                                 ))}
                                 {addons.filter((a) => a.name.trim() && a.price).map((a) => (
-                                    <p key={a.name}>+ {a.name}: ৳{Number(a.price).toLocaleString("en-BD")}</p>
+                                    <p key={a.name}>+ {a.name}: {formatCurrency(Number(a.price))}</p>
                                 ))}
-                                <p className="font-semibold mt-1 pt-1 border-t border-blue-200">
-                                    Total: ৳{(
+                                <p className="font-semibold mt-1 pt-1 border-t border-border text-foreground">
+                                    Total: {formatCurrency(
                                         Number(price || 0) +
                                         variants.filter((v) => v.name.trim() && v.price).reduce((s, v) => s + Number(v.price), 0) +
                                         addons.filter((a) => a.name.trim() && a.price).reduce((s, a) => s + Number(a.price), 0)
-                                    ).toLocaleString("en-BD")}
+                                    )}
                                 </p>
                             </div>
                         )}
-                    </div>
+                    </SectionCard>
                 </div>
             </div>
 
             {/* Sticky save bar */}
-            <div className="editor-save-bar -mx-0">
+            <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-t border-border bg-card px-6 py-3 shadow-[0_-1px_3px_rgba(0,0,0,0.04)]">
                 <div className="flex items-center gap-3">
                     {dirty && (
                         <span className="text-xs text-amber-600">You have unsaved changes</span>
@@ -663,21 +696,16 @@ const MenuItemEditorPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <Button
                         variant="outline"
-                        onClick={async () => {
-                            if (dirty) {
-                                const ok = await confirm({ description: "You have unsaved changes. Leave anyway?", confirmLabel: "Leave" });
-                                if (!ok) return;
-                            }
-                            navigate("/vendor/menu");
-                        }}
+                        onClick={handleBack}
                         className="rounded-lg"
                     >
                         Cancel
                     </Button>
                     <Button
+                        variant="brand"
                         onClick={handleSave}
                         disabled={saving}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
+                        className="rounded-lg gap-2"
                     >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         {isEdit ? "Update Item" : "Create Item"}

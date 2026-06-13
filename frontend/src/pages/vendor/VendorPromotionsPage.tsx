@@ -1,29 +1,47 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  FormDialog,
+  PageHeader,
+  StatCard,
+  StatusBadge,
+  VendorEmptyState,
+  type StatusTone,
+} from "@/components/vendor";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
-import type { CouponStats, VendorCoupon } from "@/types/vendor";
-import { AnimatePresence, motion } from "framer-motion";
+import type {
+  CouponStats,
+  CreateCouponPayload,
+  UpdateCouponPayload,
+  VendorCoupon,
+} from "@/types/vendor";
+import { cn } from "@/utils/cn";
 import {
-    AlertTriangle,
-    BarChart3,
-    Calendar,
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    Clock,
-    DollarSign,
-    Edit,
-    Loader2,
-    Percent,
-    Plus,
-    Sparkles,
-    Tag,
-    Trash2,
-    X,
+  formatCurrency,
+  formatDate,
+  formatNumber,
+} from "@/utils/format";
+import {
+  AlertTriangle,
+  BarChart3,
+  Calendar,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  DollarSign,
+  Edit,
+  Loader2,
+  Percent,
+  Plus,
+  Sparkles,
+  Tag,
+  Trash2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
@@ -74,10 +92,11 @@ const daysRemaining = (dateStr: string): number => {
 const isExpiredDate = (dateStr: string): boolean =>
   new Date(dateStr) < new Date();
 
+// Expiry-countdown urgency colour, routed through tokens.
 const getExpiryColor = (days: number): string => {
-  if (days < 3) return "text-red-600 bg-red-50 border-red-200";
-  if (days < 7) return "text-amber-600 bg-amber-50 border-amber-200";
-  return "text-green-600 bg-green-50 border-green-200";
+  if (days < 3) return "text-destructive";
+  if (days < 7) return "text-amber-600";
+  return "text-emerald-600";
 };
 
 const getExpiryLabel = (
@@ -89,7 +108,7 @@ const getExpiryLabel = (
   if (isExpiredDate(end))
     return {
       text: "Expired",
-      color: "text-gray-500 bg-gray-100 border-gray-200",
+      color: "text-muted-foreground",
     };
   return {
     text: `${days} day${days !== 1 ? "s" : ""} remaining`,
@@ -102,6 +121,17 @@ const getUsagePercent = (coupon: VendorCoupon): number => {
   const used = coupon.usedCount ?? coupon.currentUses ?? 0;
   if (!limit) return 0;
   return Math.min(100, Math.round((used / limit) * 100));
+};
+
+// Coupon status pill: active → success, paused → neutral, expired → danger.
+const getStatusBadge = (
+  coupon: VendorCoupon,
+): { label: string; tone: StatusTone } => {
+  const end = coupon.endDate || coupon.validTo;
+  if (isExpiredDate(end)) return { label: "Expired", tone: "danger" };
+  return coupon.isActive
+    ? { label: "Active", tone: "success" }
+    : { label: "Paused", tone: "neutral" };
 };
 
 // ── Main Component ───────────────────────────────────────────────────
@@ -316,7 +346,7 @@ const VendorPromotionsPage: React.FC = () => {
 
     setWizardSaving(true);
 
-    const payload: Record<string, unknown> = {
+    const payload: CreateCouponPayload = {
       code: wizardData.code.toUpperCase(),
       type: wizardData.type,
       value: wizardData.value,
@@ -335,7 +365,10 @@ const VendorPromotionsPage: React.FC = () => {
     };
 
     const res = editCouponId
-      ? await vendorService.updateCoupon(editCouponId, payload)
+      ? await vendorService.updateCoupon(
+          editCouponId,
+          payload as UpdateCouponPayload,
+        )
       : await vendorService.createCoupon(payload);
 
     if (res.success) {
@@ -360,7 +393,7 @@ const VendorPromotionsPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -369,45 +402,31 @@ const VendorPromotionsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Promotions</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Create and manage coupons and discount offers
-          </p>
-        </div>
-        <Button
-          onClick={openCreateWizard}
-          className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2 shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Create Coupon
-        </Button>
-      </div>
+      <PageHeader
+        title="Promotions"
+        description="Create and manage coupons and discount offers"
+        actions={
+          <Button onClick={openCreateWizard} variant="brand" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Coupon
+          </Button>
+        }
+      />
 
       {/* Coupons List */}
       {coupons.length === 0 ? (
-        /* ── Empty state ── */
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No coupons yet
-          </h3>
-          <p className="text-gray-500 mb-6">
-            Create your first promotion to attract more customers.
-          </p>
-          <Button
-            onClick={openCreateWizard}
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Create First Coupon
-          </Button>
-        </div>
+        <VendorEmptyState
+          icon={Tag}
+          title="No coupons yet"
+          description="Create your first promotion to attract more customers."
+          action={{
+            label: "Create First Coupon",
+            onClick: openCreateWizard,
+            icon: Plus,
+          }}
+        />
       ) : (
-        /* ── Coupon cards grid ── */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {coupons.map((coupon) => (
             <CouponCard
               key={coupon._id}
@@ -423,24 +442,21 @@ const VendorPromotionsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Wizard Modal */}
-      <AnimatePresence>
-        {showWizard && (
-          <CouponWizardModal
-            isEdit={editCouponId !== null}
-            currentStep={wizardStep}
-            data={wizardData}
-            errors={wizardErrors}
-            saving={wizardSaving}
-            restaurants={restaurants}
-            onFieldChange={updateWizardField}
-            onNext={handleWizardNext}
-            onBack={handleWizardBack}
-            onSubmit={handleWizardSubmit}
-            onClose={() => setShowWizard(false)}
-          />
-        )}
-      </AnimatePresence>
+      {/* Wizard */}
+      <CouponWizardModal
+        open={showWizard}
+        isEdit={editCouponId !== null}
+        currentStep={wizardStep}
+        data={wizardData}
+        errors={wizardErrors}
+        saving={wizardSaving}
+        restaurants={restaurants}
+        onFieldChange={updateWizardField}
+        onNext={handleWizardNext}
+        onBack={handleWizardBack}
+        onSubmit={handleWizardSubmit}
+        onClose={() => setShowWizard(false)}
+      />
     </div>
   );
 };
@@ -470,112 +486,100 @@ const CouponCard: React.FC<{
   const limit = coupon.usageLimit ?? coupon.maxUses ?? 0;
   const used = coupon.usedCount ?? coupon.currentUses ?? 0;
   const expiryInfo = getExpiryLabel(coupon);
+  const status = getStatusBadge(coupon);
 
   const statOrders = stats?.stats?.totalOrders ?? stats?.totalUses ?? 0;
   const statRevenue = stats?.stats?.totalRevenue ?? stats?.totalRevenue ?? 0;
-  const statDiscount =
-    stats?.stats?.totalDiscount ?? stats?.totalDiscount ?? 0;
   const redemptionRate =
     limit > 0 ? `${Math.round((used / limit) * 100)}%` : "—";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
-    >
-      {/* Top row: code + status toggle */}
-      <div className="flex items-start justify-between mb-3">
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+      {/* Top row: code + status */}
+      <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div
-            className={`p-2.5 rounded-xl ${
-              coupon.type === "percentage" ? "bg-purple-100" : "bg-green-100"
-            }`}
-          >
+          <div className="rounded-xl bg-accent p-2.5 text-primary">
             {coupon.type === "percentage" ? (
-              <Percent className="w-5 h-5 text-purple-600" />
+              <Percent className="h-5 w-5" />
             ) : (
-              <DollarSign className="w-5 h-5 text-green-600" />
+              <DollarSign className="h-5 w-5" />
             )}
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 tracking-wider font-mono">
+            <h3 className="font-mono font-bold tracking-wider text-foreground">
               {coupon.code}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               {coupon.type === "percentage"
-                ? `${coupon.value}% off`
-                : `৳${coupon.value} off`}
+                ? `${formatNumber(coupon.value)}% off`
+                : `${formatCurrency(coupon.value)} off`}
               {coupon.minimumOrderAmount || coupon.minOrderAmount
-                ? ` · Min ৳${
-                    coupon.minimumOrderAmount ?? coupon.minOrderAmount
-                  }`
+                ? ` · Min ${formatCurrency(
+                    coupon.minimumOrderAmount ?? coupon.minOrderAmount,
+                  )}`
                 : ""}
             </p>
           </div>
         </div>
 
-        {/* Pause / Resume toggle pill */}
+        {/* Pause / Resume toggle via StatusBadge */}
         {!expired ? (
           <button
+            type="button"
             onClick={onToggleActive}
-            className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-              coupon.isActive
-                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
-            }`}
             title={coupon.isActive ? "Click to pause" : "Click to resume"}
+            className="rounded-full transition-opacity hover:opacity-80"
           >
-            {coupon.isActive ? "Active" : "Paused"}
+            <StatusBadge label={status.label} tone={status.tone} icon={false} />
           </button>
         ) : (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
-            Expired
-          </span>
+          <StatusBadge label="Expired" tone="danger" icon={false} />
         )}
       </div>
 
       {/* Expiry countdown */}
       <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${expiryInfo.color} mb-3`}
+        className={cn(
+          "mb-3 inline-flex items-center gap-1.5 text-xs font-medium",
+          expiryInfo.color,
+        )}
       >
-        <Clock className="w-3.5 h-3.5" />
+        <Clock className="h-3.5 w-3.5" />
         {expiryInfo.text}
         {!expired && daysRemaining(endDate) < 3 && (
-          <AlertTriangle className="w-3.5 h-3.5" />
+          <AlertTriangle className="h-3.5 w-3.5" />
         )}
       </div>
 
       {/* Date range */}
-      <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+      <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Calendar className="w-3.5 h-3.5" />
-          {new Date(
-            coupon.startDate || coupon.validFrom,
-          ).toLocaleDateString()}
+          <Calendar className="h-3.5 w-3.5" />
+          {formatDate(coupon.startDate || coupon.validFrom)}
           {" – "}
-          {new Date(endDate).toLocaleDateString()}
+          {formatDate(endDate)}
         </span>
       </div>
 
       {/* Usage progress bar */}
       {limit > 0 && (
         <div className="mb-3">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
             <span>Usage</span>
             <span>
               {used}/{limit}
             </span>
           </div>
-          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
                 usagePct >= 90
-                  ? "bg-red-500"
+                  ? "bg-destructive"
                   : usagePct >= 70
-                    ? "bg-orange-500"
-                    : "bg-orange-400"
-              }`}
+                    ? "bg-primary"
+                    : "bg-primary/70",
+              )}
               style={{ width: `${usagePct}%` }}
             />
           </div>
@@ -584,61 +588,57 @@ const CouponCard: React.FC<{
 
       {/* Stats section (loaded on demand) */}
       {stats && (
-        <div className="bg-gray-50 rounded-lg p-3 mb-3 grid grid-cols-3 gap-2 text-center text-sm border border-gray-100">
-          <div>
-            <p className="font-bold text-gray-900">{statOrders}</p>
-            <p className="text-xs text-gray-500">Orders</p>
-          </div>
-          <div>
-            <p className="font-bold text-gray-900">৳{statRevenue}</p>
-            <p className="text-xs text-gray-500">Revenue</p>
-          </div>
-          <div>
-            <p className="font-bold text-gray-900">{redemptionRate}</p>
-            <p className="text-xs text-gray-500">Redemption</p>
-          </div>
+        <div className="mb-3 grid grid-cols-3 gap-3">
+          <StatCard label="Orders" value={formatNumber(statOrders)} />
+          <StatCard label="Revenue" value={formatCurrency(statRevenue)} />
+          <StatCard label="Redemption" value={redemptionRate} />
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+      <div className="flex items-center gap-2 border-t border-border pt-3">
         <button
+          type="button"
           onClick={onToggleStats}
-          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          className="rounded-lg p-1.5 transition-colors hover:bg-muted"
           title="View statistics"
         >
           {statsLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           ) : (
             <BarChart3
-              className={`w-4 h-4 ${
-                stats ? "text-orange-500" : "text-gray-500"
-              }`}
+              className={cn(
+                "h-4 w-4",
+                stats ? "text-primary" : "text-muted-foreground",
+              )}
             />
           )}
         </button>
         <button
+          type="button"
           onClick={onEdit}
-          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          className="rounded-lg p-1.5 transition-colors hover:bg-muted"
           title="Edit coupon"
         >
-          <Edit className="w-4 h-4 text-gray-500" />
+          <Edit className="h-4 w-4 text-muted-foreground" />
         </button>
         <button
+          type="button"
           onClick={onDelete}
-          className="p-1.5 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+          className="ml-auto rounded-lg p-1.5 transition-colors hover:bg-destructive/10"
           title="Delete coupon"
         >
-          <Trash2 className="w-4 h-4 text-red-400 hover:text-red-500" />
+          <Trash2 className="h-4 w-4 text-destructive" />
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
 // ── Wizard Modal ─────────────────────────────────────────────────────
 
 const CouponWizardModal: React.FC<{
+  open: boolean;
   isEdit: boolean;
   currentStep: number;
   data: WizardData;
@@ -654,6 +654,7 @@ const CouponWizardModal: React.FC<{
   onSubmit: () => void;
   onClose: () => void;
 }> = ({
+  open,
   isEdit,
   currentStep,
   data,
@@ -694,126 +695,97 @@ const CouponWizardModal: React.FC<{
     }
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+  const footer = (
+    <div className="flex w-full items-center justify-between">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={currentStep === 1 ? onClose : onBack}
+        className="gap-1.5"
+        disabled={saving}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {isEdit ? "Edit Coupon" : "Create Coupon"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+        <ChevronLeft className="h-4 w-4" />
+        {currentStep === 1 ? "Cancel" : "Back"}
+      </Button>
 
-        {/* ── Step Progress Indicator ── */}
-        <div className="relative flex items-center justify-between w-full max-w-md mx-auto mb-8">
-          {/* Background line */}
-          <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 rounded" />
-          {/* Animated progress line */}
-          <div
-            className="absolute top-5 left-0 h-0.5 bg-orange-500 rounded transition-all duration-500 ease-in-out"
-            style={{
-              width: `${
-                ((currentStep - 1) / (STEPS.length - 1)) * 100
-              }%`,
-            }}
-          />
-
-          {STEPS.map((step) => {
-            const isCompleted = step.num < currentStep;
-            const isCurrent = step.num === currentStep;
-
-            return (
-              <div key={step.num} className="flex flex-col items-center z-10">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300 ${
-                    isCompleted
-                      ? "bg-green-500 border-green-500 text-white shadow-md shadow-green-200"
-                      : isCurrent
-                        ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-200"
-                        : "bg-white border-gray-300 text-gray-400"
-                  }`}
-                >
-                  {isCompleted ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    step.num
-                  )}
-                </div>
-                <span
-                  className={`text-xs mt-1.5 font-medium whitespace-nowrap ${
-                    isCurrent
-                      ? "text-orange-600"
-                      : isCompleted
-                        ? "text-green-600"
-                        : "text-gray-400"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Step content */}
-        <div className="min-h-[220px]">{renderStep()}</div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-6">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={currentStep === 1 ? onClose : onBack}
-            className="rounded-lg gap-1.5"
-            disabled={saving}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            {currentStep === 1 ? "Cancel" : "Back"}
-          </Button>
-
-          {isLastStep ? (
-            <Button
-              onClick={onSubmit}
-              disabled={saving}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2 shadow-sm"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              {isEdit ? "Update Coupon" : "Create Coupon"}
-            </Button>
+      {isLastStep ? (
+        <Button onClick={onSubmit} disabled={saving} variant="brand" className="gap-2">
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Button
-              onClick={onNext}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg gap-1.5 shadow-sm"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+            <Sparkles className="h-4 w-4" />
           )}
-        </div>
-      </motion.div>
-    </motion.div>
+          {isEdit ? "Update Coupon" : "Create Coupon"}
+        </Button>
+      ) : (
+        <Button onClick={onNext} className="gap-1.5">
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+
+  return (
+    <FormDialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+      title={isEdit ? "Edit Coupon" : "Create Coupon"}
+      size="lg"
+      footer={footer}
+    >
+      {/* ── Step Progress Indicator ── */}
+      <div className="relative mx-auto mb-8 flex w-full max-w-md items-center justify-between">
+        {/* Background line */}
+        <div className="absolute left-0 right-0 top-5 h-0.5 rounded bg-border" />
+        {/* Animated progress line */}
+        <div
+          className="absolute left-0 top-5 h-0.5 rounded bg-primary transition-all duration-500 ease-in-out"
+          style={{
+            width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%`,
+          }}
+        />
+
+        {STEPS.map((step) => {
+          const isCompleted = step.num < currentStep;
+          const isCurrent = step.num === currentStep;
+
+          return (
+            <div key={step.num} className="z-10 flex flex-col items-center">
+              <div
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-all duration-300",
+                  isCompleted
+                    ? "border-emerald-500 bg-emerald-500 text-white shadow-md"
+                    : isCurrent
+                      ? "border-primary bg-primary text-primary-foreground shadow-md"
+                      : "border-border bg-card text-muted-foreground",
+                )}
+              >
+                {isCompleted ? <Check className="h-5 w-5" /> : step.num}
+              </div>
+              <span
+                className={cn(
+                  "mt-1.5 whitespace-nowrap text-xs font-medium",
+                  isCurrent
+                    ? "text-primary"
+                    : isCompleted
+                      ? "text-emerald-600"
+                      : "text-muted-foreground",
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Step content */}
+      <div className="min-h-[220px]">{renderStep()}</div>
+    </FormDialog>
   );
 };
 
@@ -829,11 +801,11 @@ const StepDiscountType: React.FC<{
 }> = ({ data, errors, onChange }) => (
   <div className="space-y-5">
     <div>
-      <p className="text-xs font-medium text-orange-600 uppercase tracking-wider mb-1">
+      <p className="mb-1 text-xs font-medium uppercase tracking-wider text-primary">
         Step 1 of 4
       </p>
-      <h3 className="text-lg font-semibold text-gray-900">Discount Type</h3>
-      <p className="text-sm text-gray-500 mt-1">
+      <h3 className="text-lg font-semibold text-foreground">Discount Type</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
         Define the coupon code and how much customers save.
       </p>
     </div>
@@ -846,18 +818,17 @@ const StepDiscountType: React.FC<{
         value={data.code}
         onChange={(e) => onChange("code", e.target.value.toUpperCase())}
         placeholder="SAVE20"
-        className={`mt-1 uppercase tracking-wider font-mono ${
-          errors.code
-            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-            : ""
-        }`}
+        className={cn(
+          "mt-1 font-mono uppercase tracking-wider",
+          errors.code && "border-destructive focus-visible:ring-destructive/20",
+        )}
         maxLength={20}
       />
       {errors.code && (
-        <p className="text-xs text-red-500 mt-1">{errors.code}</p>
+        <p className="mt-1 text-xs text-destructive">{errors.code}</p>
       )}
       {!errors.code && data.code && (
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="mt-1 text-xs text-muted-foreground">
           Customers will enter this code at checkout
         </p>
       )}
@@ -866,35 +837,34 @@ const StepDiscountType: React.FC<{
     {/* Discount Type selector */}
     <div>
       <Label>Discount Type</Label>
-      <div className="grid grid-cols-2 gap-3 mt-1.5">
+      <div className="mt-1.5 grid grid-cols-2 gap-3">
         {(["percentage", "fixed"] as const).map((type) => (
           <button
             key={type}
             type="button"
             onClick={() => onChange("type", type)}
-            className={`flex items-center gap-2 p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 rounded-lg border-2 p-3 text-sm font-medium transition-all",
               data.type === type
-                ? type === "percentage"
-                  ? "border-purple-500 bg-purple-50 text-purple-700"
-                  : "border-green-500 bg-green-50 text-green-700"
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-            }`}
+                ? "border-primary bg-accent text-primary"
+                : "border-border bg-card text-muted-foreground hover:border-input",
+            )}
           >
             {type === "percentage" ? (
-              <Percent className="w-5 h-5" />
+              <Percent className="h-5 w-5" />
             ) : (
-              <DollarSign className="w-5 h-5" />
+              <DollarSign className="h-5 w-5" />
             )}
             <div className="text-left">
               <p className="font-medium">
                 {type === "percentage" ? "Percentage" : "Fixed Amount"}
               </p>
-              <p className="text-xs opacity-75 font-normal">
+              <p className="text-xs font-normal opacity-75">
                 {type === "percentage" ? "% off total" : "৳ off total"}
               </p>
             </div>
             {data.type === type && (
-              <Check className="w-4 h-4 ml-auto shrink-0" />
+              <Check className="ml-auto h-4 w-4 shrink-0" />
             )}
           </button>
         ))}
@@ -904,12 +874,11 @@ const StepDiscountType: React.FC<{
     {/* Value */}
     <div>
       <Label htmlFor="value">
-        Discount Value{" "}
-        {data.type === "percentage" ? "(%)" : "(৳)"}
+        Discount Value {data.type === "percentage" ? "(%)" : "(৳)"}
       </Label>
       <div className="relative mt-1">
         {data.type === "fixed" && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
             ৳
           </span>
         )}
@@ -927,29 +896,30 @@ const StepDiscountType: React.FC<{
             )
           }
           placeholder={data.type === "percentage" ? "e.g. 20" : "e.g. 100"}
-          className={`mt-0 ${data.type === "fixed" ? "pl-7" : ""} ${
-            errors.value
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-              : ""
-          }`}
+          className={cn(
+            "mt-0",
+            data.type === "fixed" && "pl-7",
+            errors.value &&
+              "border-destructive focus-visible:ring-destructive/20",
+          )}
         />
         {data.type === "percentage" && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
             %
           </span>
         )}
       </div>
       {errors.value && (
-        <p className="text-xs text-red-500 mt-1">{errors.value}</p>
+        <p className="mt-1 text-xs text-destructive">{errors.value}</p>
       )}
       {data.type === "percentage" && data.value > 0 && (
-        <p className="text-xs text-gray-400 mt-1">
-          Customer saves {data.value}% on their order total
+        <p className="mt-1 text-xs text-muted-foreground">
+          Customer saves {formatNumber(data.value)}% on their order total
         </p>
       )}
       {data.type === "fixed" && data.value > 0 && (
-        <p className="text-xs text-gray-400 mt-1">
-          Customer saves ৳{data.value} on their order total
+        <p className="mt-1 text-xs text-muted-foreground">
+          Customer saves {formatCurrency(data.value)} on their order total
         </p>
       )}
     </div>
@@ -997,11 +967,11 @@ const StepConditions: React.FC<{
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium text-orange-600 uppercase tracking-wider mb-1">
+        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-primary">
           Step 2 of 4
         </p>
-        <h3 className="text-lg font-semibold text-gray-900">Conditions</h3>
-        <p className="text-sm text-gray-500 mt-1">
+        <h3 className="text-lg font-semibold text-foreground">Conditions</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
           Set order minimums and choose where the coupon applies.
         </p>
       </div>
@@ -1010,7 +980,7 @@ const StepConditions: React.FC<{
       <div>
         <Label htmlFor="minOrder">Minimum Order Amount (৳)</Label>
         <div className="relative mt-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
             ৳
           </span>
           <Input
@@ -1024,7 +994,7 @@ const StepConditions: React.FC<{
             className="pl-7"
           />
         </div>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="mt-1 text-xs text-muted-foreground">
           Leave empty for no minimum order requirement
         </p>
       </div>
@@ -1032,11 +1002,9 @@ const StepConditions: React.FC<{
       {/* Max Discount (only for percentage coupons) */}
       {data.type === "percentage" && (
         <div>
-          <Label htmlFor="maxDiscount">
-            Maximum Discount Amount (৳)
-          </Label>
+          <Label htmlFor="maxDiscount">Maximum Discount Amount (৳)</Label>
           <div className="relative mt-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
               ৳
             </span>
             <Input
@@ -1050,7 +1018,7 @@ const StepConditions: React.FC<{
               className="pl-7"
             />
           </div>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="mt-1 text-xs text-muted-foreground">
             Cap the discount amount for percentage-based coupons
           </p>
         </div>
@@ -1064,15 +1032,15 @@ const StepConditions: React.FC<{
             <button
               type="button"
               onClick={toggleAllRestaurants}
-              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+              className="text-xs font-medium text-primary hover:text-primary/80"
             >
               {allSelected ? "Deselect All" : "Select All"}
             </button>
           )}
         </div>
-        <div className="mt-2 space-y-1 max-h-44 overflow-y-auto border border-gray-100 rounded-lg p-1">
+        <div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-border p-1">
           {restaurants.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">
+            <p className="py-4 text-center text-sm text-muted-foreground">
               No restaurants available
             </p>
           ) : (
@@ -1081,21 +1049,20 @@ const StepConditions: React.FC<{
               return (
                 <label
                   key={r._id}
-                  className={`flex items-center gap-2.5 cursor-pointer text-sm p-2 rounded-lg transition-colors ${
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2.5 rounded-lg p-2 text-sm transition-colors",
                     selected
-                      ? "bg-orange-50 text-orange-800"
-                      : "hover:bg-gray-50 text-gray-700"
-                  }`}
+                      ? "bg-accent text-primary"
+                      : "text-foreground hover:bg-muted",
+                  )}
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selected}
-                    onChange={() => toggleRestaurant(r._id)}
-                    className="rounded text-orange-500 focus:ring-orange-500"
+                    onCheckedChange={() => toggleRestaurant(r._id)}
                   />
                   <span className="flex-1">{r.name}</span>
                   {selected && (
-                    <Check className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                    <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
                   )}
                 </label>
               );
@@ -1103,11 +1070,11 @@ const StepConditions: React.FC<{
           )}
         </div>
         {errors.applicableRestaurants && (
-          <p className="text-xs text-red-500 mt-1">
+          <p className="mt-1 text-xs text-destructive">
             {errors.applicableRestaurants}
           </p>
         )}
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="mt-1 text-xs text-muted-foreground">
           {data.applicableRestaurants.length} of {restaurants.length} restaurant
           {restaurants.length !== 1 ? "s" : ""} selected
         </p>
@@ -1128,13 +1095,13 @@ const StepDuration: React.FC<{
 }> = ({ data, errors, onChange }) => (
   <div className="space-y-5">
     <div>
-      <p className="text-xs font-medium text-orange-600 uppercase tracking-wider mb-1">
+      <p className="mb-1 text-xs font-medium uppercase tracking-wider text-primary">
         Step 3 of 4
       </p>
-      <h3 className="text-lg font-semibold text-gray-900">
+      <h3 className="text-lg font-semibold text-foreground">
         Duration &amp; Limits
       </h3>
-      <p className="text-sm text-gray-500 mt-1">
+      <p className="mt-1 text-sm text-muted-foreground">
         Set the validity period and usage restrictions.
       </p>
     </div>
@@ -1148,14 +1115,14 @@ const StepDuration: React.FC<{
           type="date"
           value={data.validFrom}
           onChange={(e) => onChange("validFrom", e.target.value)}
-          className={`mt-1 ${
-            errors.validFrom
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-              : ""
-          }`}
+          className={cn(
+            "mt-1",
+            errors.validFrom &&
+              "border-destructive focus-visible:ring-destructive/20",
+          )}
         />
         {errors.validFrom && (
-          <p className="text-xs text-red-500 mt-1">{errors.validFrom}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.validFrom}</p>
         )}
       </div>
       <div>
@@ -1166,14 +1133,14 @@ const StepDuration: React.FC<{
           value={data.validTo}
           onChange={(e) => onChange("validTo", e.target.value)}
           min={data.validFrom || undefined}
-          className={`mt-1 ${
-            errors.validTo
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-              : ""
-          }`}
+          className={cn(
+            "mt-1",
+            errors.validTo &&
+              "border-destructive focus-visible:ring-destructive/20",
+          )}
         />
         {errors.validTo && (
-          <p className="text-xs text-red-500 mt-1">{errors.validTo}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.validTo}</p>
         )}
       </div>
     </div>
@@ -1182,7 +1149,7 @@ const StepDuration: React.FC<{
     <div>
       <Label htmlFor="usageLimit">
         Usage Limit{" "}
-        <span className="text-gray-400 font-normal">(optional)</span>
+        <span className="font-normal text-muted-foreground">(optional)</span>
       </Label>
       <Input
         id="usageLimit"
@@ -1194,7 +1161,7 @@ const StepDuration: React.FC<{
         placeholder="Unlimited"
         className="mt-1"
       />
-      <p className="text-xs text-gray-400 mt-1">
+      <p className="mt-1 text-xs text-muted-foreground">
         Maximum number of times this coupon can be used. Leave empty for
         unlimited.
       </p>
@@ -1202,22 +1169,14 @@ const StepDuration: React.FC<{
 
     {/* Duration preview */}
     {data.validFrom && data.validTo && (
-      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-        <p className="text-xs font-medium text-blue-800 mb-1">
+      <div className="rounded-lg border border-border bg-muted p-3">
+        <p className="mb-1 text-xs font-medium text-foreground">
           Duration Preview
         </p>
-        <p className="text-sm text-blue-700">
-          {new Date(data.validFrom).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
+        <p className="text-sm text-muted-foreground">
+          {formatDate(data.validFrom)}
           {" – "}
-          {new Date(data.validTo).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
+          {formatDate(data.validTo)}
           {data.usageLimit &&
             ` · ${data.usageLimit} use${
               Number(data.usageLimit) !== 1 ? "s" : ""
@@ -1248,95 +1207,87 @@ const StepReview: React.FC<{
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium text-orange-600 uppercase tracking-wider mb-1">
+        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-primary">
           Step 4 of 4
         </p>
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-foreground">
           Review &amp; Confirm
         </h3>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="mt-1 text-sm text-muted-foreground">
           Verify all details below before{" "}
           {data.code ? "creating" : "saving"} the coupon.
         </p>
       </div>
 
-      <div className="bg-gray-50 rounded-xl border border-gray-200 divide-y divide-gray-200">
+      <div className="divide-y divide-border rounded-xl border border-border bg-muted">
         {/* Discount section */}
         <div className="p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Percent className="w-3.5 h-3.5" />
+          <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <Percent className="h-3.5 w-3.5" />
             Discount
           </p>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Code</span>
-            <span className="text-sm font-bold text-gray-900 font-mono tracking-wider">
+            <span className="text-sm text-muted-foreground">Code</span>
+            <span className="font-mono text-sm font-bold tracking-wider text-foreground">
               {data.code || "—"}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-gray-600">Type</span>
-            <span className="text-sm font-medium text-gray-900">
-              {data.type === "percentage"
-                ? `Percentage`
-                : `Fixed Amount`}
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Type</span>
+            <span className="text-sm font-medium text-foreground">
+              {data.type === "percentage" ? `Percentage` : `Fixed Amount`}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-gray-600">Value</span>
-            <span
-              className={`text-sm font-semibold ${
-                data.type === "percentage"
-                  ? "text-purple-700"
-                  : "text-green-700"
-              }`}
-            >
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Value</span>
+            <span className="text-sm font-semibold text-primary">
               {data.type === "percentage"
-                ? `${data.value}% off`
-                : `৳${data.value} off`}
+                ? `${formatNumber(data.value)}% off`
+                : `${formatCurrency(data.value)} off`}
             </span>
           </div>
         </div>
 
         {/* Conditions section */}
         <div className="p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Conditions
           </p>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Minimum Order</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm text-muted-foreground">Minimum Order</span>
+            <span className="text-sm font-medium text-foreground">
               {data.minimumOrderAmount
-                ? `৳${data.minimumOrderAmount}`
+                ? formatCurrency(data.minimumOrderAmount)
                 : "None"}
             </span>
           </div>
           {data.type === "percentage" && data.maxDiscount && (
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-sm text-gray-600">Max Discount</span>
-              <span className="text-sm font-medium text-gray-900">
-                ৳{data.maxDiscount}
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Max Discount</span>
+              <span className="text-sm font-medium text-foreground">
+                {formatCurrency(data.maxDiscount)}
               </span>
             </div>
           )}
           <div className="mt-3">
-            <span className="text-sm text-gray-600">Applicable to</span>
+            <span className="text-sm text-muted-foreground">Applicable to</span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {selectedRestaurantNames.length > 0 ? (
                 selectedRestaurantNames.map((name, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-xs font-medium"
+                    className="inline-flex items-center rounded-md bg-accent px-2 py-0.5 text-xs font-medium text-primary"
                   >
                     {name}
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-red-500">
+                <span className="text-sm text-destructive">
                   No restaurants selected
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1.5">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {data.applicableRestaurants.length} of {restaurants.length}{" "}
               restaurant{restaurants.length !== 1 ? "s" : ""} selected
             </p>
@@ -1345,37 +1296,25 @@ const StepReview: React.FC<{
 
         {/* Duration & Limits section */}
         <div className="p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" />
+          <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5" />
             Duration &amp; Limits
           </p>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Valid From</span>
-            <span className="text-sm font-medium text-gray-900">
-              {data.validFrom
-                ? new Date(data.validFrom).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })
-                : "—"}
+            <span className="text-sm text-muted-foreground">Valid From</span>
+            <span className="text-sm font-medium text-foreground">
+              {data.validFrom ? formatDate(data.validFrom) : "—"}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-gray-600">Valid To</span>
-            <span className="text-sm font-medium text-gray-900">
-              {data.validTo
-                ? new Date(data.validTo).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })
-                : "—"}
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Valid To</span>
+            <span className="text-sm font-medium text-foreground">
+              {data.validTo ? formatDate(data.validTo) : "—"}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-gray-600">Usage Limit</span>
-            <span className="text-sm font-medium text-gray-900">
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Usage Limit</span>
+            <span className="text-sm font-medium text-foreground">
               {data.usageLimit ? `${data.usageLimit} uses` : "Unlimited"}
             </span>
           </div>
@@ -1384,13 +1323,13 @@ const StepReview: React.FC<{
 
       {/* Validation summary */}
       {!hasRequiredFields && (
-        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <div>
             <p className="text-sm font-medium text-amber-800">
               Incomplete coupon
             </p>
-            <p className="text-xs text-amber-700 mt-0.5">
+            <p className="mt-0.5 text-xs text-amber-700">
               Please go back and ensure all required fields are filled before
               creating.
             </p>

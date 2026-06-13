@@ -12,6 +12,12 @@ import type {
   VendorCoupon,
   CouponStats,
   VendorReview,
+  VendorEarnings,
+  VendorPayout,
+  VendorPayoutsParams,
+  VendorCustomer,
+  VendorCustomersSummary,
+  VendorCustomersParams,
   CreateRestaurantPayload,
   UpdateRestaurantPayload,
   CreateMenuItemPayload,
@@ -594,6 +600,100 @@ const vendorService = {
       return res.data;
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{ review: VendorReview }>;
+    }
+  },
+
+  // ── Earnings & Payouts ─────────────────────────────────────────
+
+  async getEarnings(
+    period: string = "30d",
+  ): Promise<ApiResponse<VendorEarnings>> {
+    try {
+      const res = await httpClient.get<ApiResponse<VendorEarnings>>(
+        `/api/vendor/earnings?period=${period}`,
+      );
+      return res.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<VendorEarnings>;
+    }
+  },
+
+  async getPayouts(params: VendorPayoutsParams = {}): Promise<
+    ApiResponse<{
+      payouts: VendorPayout[];
+      pagination: { page: number; limit: number; total: number; pages: number };
+    }>
+  > {
+    try {
+      const query = new URLSearchParams();
+      if (params.page) query.set("page", String(params.page));
+      if (params.limit) query.set("limit", String(params.limit));
+      if (params.status) query.set("status", params.status);
+
+      const res = await httpClient.get<
+        ApiResponse<{
+          payouts: VendorPayout[];
+          pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            pages: number;
+          };
+        }>
+      >(`/api/vendor/payouts?${query}`);
+      return res.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        payouts: VendorPayout[];
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          pages: number;
+        };
+      }>;
+    }
+  },
+
+  // ── Customers (insights) ───────────────────────────────────────
+
+  async getCustomers(params: VendorCustomersParams = {}): Promise<
+    ApiResponse<{
+      customers: VendorCustomer[];
+      pagination: { page: number; limit: number; total: number; pages: number };
+      summary: VendorCustomersSummary;
+    }>
+  > {
+    try {
+      const query = new URLSearchParams();
+      if (params.page) query.set("page", String(params.page));
+      if (params.limit) query.set("limit", String(params.limit));
+      if (params.search) query.set("search", params.search);
+
+      const res = await httpClient.get<
+        ApiResponse<{
+          customers: VendorCustomer[];
+          pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            pages: number;
+          };
+          summary: VendorCustomersSummary;
+        }>
+      >(`/api/vendor/customers?${query}`);
+      return res.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        customers: VendorCustomer[];
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          pages: number;
+        };
+        summary: VendorCustomersSummary;
+      }>;
     }
   },
 };

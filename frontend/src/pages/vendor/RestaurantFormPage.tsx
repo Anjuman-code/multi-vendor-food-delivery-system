@@ -4,6 +4,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PageHeader, SectionCard } from '@/components/vendor';
 import { useVendor } from '@/contexts/VendorContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -12,9 +13,20 @@ import {
 } from '@/lib/vendorValidation';
 import vendorService from '@/services/vendorService';
 import type { CreateRestaurantPayload } from '@/types/vendor';
+import { cn } from '@/utils/cn';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ImagePlus, Loader2, Save } from 'lucide-react';
+import {
+  ArrowLeft,
+  Bike,
+  Clock,
+  ImagePlus,
+  Info,
+  Loader2,
+  MapPin,
+  Phone,
+  Save,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -258,40 +270,41 @@ const RestaurantFormPage: React.FC = () => {
   if (loadingData) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isEdit ? 'Edit Restaurant' : 'Create Restaurant'}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {isEdit
-              ? 'Update your restaurant details'
-              : 'Fill in the details to create a new restaurant'}
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-3xl pb-28">
+      <PageHeader
+        title={isEdit ? 'Edit Restaurant' : 'New Restaurant'}
+        description={
+          isEdit
+            ? 'Update your restaurant details'
+            : 'Fill in the details to create a new restaurant'
+        }
+        actions={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="gap-2 text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        }
+      />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
         {submitErrors.length > 0 && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="text-sm font-semibold text-red-700">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <p className="text-sm font-semibold text-destructive">
               Please fix the following issues:
             </p>
-            <ul className="mt-2 space-y-1 text-sm text-red-700 list-disc pl-5">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-destructive">
               {submitErrors.map((error) => (
                 <li key={error}>{error}</li>
               ))}
@@ -303,64 +316,71 @@ const RestaurantFormPage: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-900">
-            Basic Information
-          </h2>
-          <div>
-            <Label htmlFor="name">Restaurant Name</Label>
-            <Input
-              id="name"
-              {...register('name')}
-              placeholder="e.g. The Golden Spoon"
-              className="mt-1"
-            />
-            {errors.name && (
-              <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              {...register('description')}
-              placeholder="Tell customers about your restaurant..."
-              rows={3}
-              className="mt-1"
-            />
-            {errors.description && (
-              <p className="text-sm text-red-500 mt-1">
-                {errors.description.message}
-              </p>
-            )}
-          </div>
+          <SectionCard
+            title="Basic Information"
+            description="The essentials customers see first."
+            icon={<Info className="h-4 w-4" />}
+          >
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Restaurant Name</Label>
+                <Input
+                  id="name"
+                  {...register('name')}
+                  placeholder="e.g. The Golden Spoon"
+                  className="mt-1"
+                />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  {...register('description')}
+                  placeholder="Tell customers about your restaurant..."
+                  rows={3}
+                  className="mt-1"
+                />
+                {errors.description && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
 
-          {/* Cuisine Type */}
-          <div>
-            <Label>Cuisine Types</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {CUISINE_OPTIONS.map((cuisine) => (
-                <button
-                  key={cuisine}
-                  type="button"
-                  onClick={() => toggleCuisine(cuisine)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    selectedCuisines.includes(cuisine)
-                      ? 'bg-orange-500 text-white border-orange-500'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-orange-300'
-                  }`}
-                >
-                  {cuisine}
-                </button>
-              ))}
+              {/* Cuisine Type */}
+              <div>
+                <Label>Cuisine Types</Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CUISINE_OPTIONS.map((cuisine) => (
+                    <button
+                      key={cuisine}
+                      type="button"
+                      onClick={() => toggleCuisine(cuisine)}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                        selectedCuisines.includes(cuisine)
+                          ? 'border-primary bg-accent text-primary'
+                          : 'border-border bg-card text-muted-foreground hover:border-primary/50',
+                      )}
+                    >
+                      {cuisine}
+                    </button>
+                  ))}
+                </div>
+                {errors.cuisineType && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.cuisineType.message}
+                  </p>
+                )}
+              </div>
             </div>
-            {errors.cuisineType && (
-              <p className="text-sm text-red-500 mt-1">
-                {errors.cuisineType.message}
-              </p>
-            )}
-          </div>
+          </SectionCard>
         </motion.div>
 
         {/* Restaurant Photos */}
@@ -368,81 +388,80 @@ const RestaurantFormPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.04 }}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-900">Photos</h2>
-          <p className="text-sm text-gray-500">
-            Add a logo and cover photo. You can upload files or paste image
-            URLs.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="images.logo">Logo</Label>
-              <div className="h-32 rounded-lg border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex items-center justify-center">
-                {logoPreview ? (
-                  <img
-                    src={logoPreview}
-                    alt="Logo preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <ImagePlus className="w-5 h-5 mx-auto mb-1" />
-                    <p className="text-xs">Logo preview</p>
-                  </div>
+          <SectionCard
+            title="Photos"
+            description="Add a logo and cover photo. You can upload files or paste image URLs."
+            icon={<ImagePlus className="h-4 w-4" />}
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="images.logo">Logo</Label>
+                <div className="flex h-32 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted">
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt="Logo preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <ImagePlus className="mx-auto mb-1 h-5 w-5" />
+                      <p className="text-xs">Logo preview</p>
+                    </div>
+                  )}
+                </div>
+                <Input
+                  id="images.logo"
+                  {...register('images.logo')}
+                  placeholder="https://example.com/logo.jpg"
+                />
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e, 'images.logo')}
+                />
+                {errors.images?.logo && (
+                  <p className="text-sm text-destructive">
+                    {errors.images.logo.message}
+                  </p>
                 )}
               </div>
-              <Input
-                id="images.logo"
-                {...register('images.logo')}
-                placeholder="https://example.com/logo.jpg"
-              />
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageUpload(e, 'images.logo')}
-              />
-              {errors.images?.logo && (
-                <p className="text-sm text-red-500">
-                  {errors.images.logo.message}
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="images.coverPhoto">Cover Photo</Label>
-              <div className="h-32 rounded-lg border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex items-center justify-center">
-                {coverPreview ? (
-                  <img
-                    src={coverPreview}
-                    alt="Cover photo preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <ImagePlus className="w-5 h-5 mx-auto mb-1" />
-                    <p className="text-xs">Cover preview</p>
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="images.coverPhoto">Cover Photo</Label>
+                <div className="flex h-32 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted">
+                  {coverPreview ? (
+                    <img
+                      src={coverPreview}
+                      alt="Cover photo preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <ImagePlus className="mx-auto mb-1 h-5 w-5" />
+                      <p className="text-xs">Cover preview</p>
+                    </div>
+                  )}
+                </div>
+                <Input
+                  id="images.coverPhoto"
+                  {...register('images.coverPhoto')}
+                  placeholder="https://example.com/cover.jpg"
+                />
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e, 'images.coverPhoto')}
+                />
+                {errors.images?.coverPhoto && (
+                  <p className="text-sm text-destructive">
+                    {errors.images.coverPhoto.message}
+                  </p>
                 )}
               </div>
-              <Input
-                id="images.coverPhoto"
-                {...register('images.coverPhoto')}
-                placeholder="https://example.com/cover.jpg"
-              />
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageUpload(e, 'images.coverPhoto')}
-              />
-              {errors.images?.coverPhoto && (
-                <p className="text-sm text-red-500">
-                  {errors.images.coverPhoto.message}
-                </p>
-              )}
             </div>
-          </div>
+          </SectionCard>
         </motion.div>
 
         {/* Contact */}
@@ -450,56 +469,58 @@ const RestaurantFormPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-900">
-            Contact Information
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                {...register('phone')}
-                placeholder="+880 1XXX-XXXXXX"
-                className="mt-1"
-              />
-              {errors.phone && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.phone.message}
-                </p>
-              )}
+          <SectionCard
+            title="Contact Information"
+            description="How customers and the platform can reach you."
+            icon={<Phone className="h-4 w-4" />}
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  {...register('phone')}
+                  placeholder="+880 1XXX-XXXXXX"
+                  className="mt-1"
+                />
+                {errors.phone && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.phone.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...register('email')}
+                  placeholder="restaurant@example.com"
+                  className="mt-1"
+                />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.email.message}
+                  </p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="website">Website (optional)</Label>
+                <Input
+                  id="website"
+                  {...register('website')}
+                  placeholder="https://restaurant.com"
+                  className="mt-1"
+                />
+                {errors.website && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.website.message}
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register('email')}
-                placeholder="restaurant@example.com"
-                className="mt-1"
-              />
-              {errors.email && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="website">Website (optional)</Label>
-              <Input
-                id="website"
-                {...register('website')}
-                placeholder="https://restaurant.com"
-                className="mt-1"
-              />
-              {errors.website && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.website.message}
-                </p>
-              )}
-            </div>
-          </div>
+          </SectionCard>
         </motion.div>
 
         {/* Address */}
@@ -507,68 +528,76 @@ const RestaurantFormPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-900">Address</h2>
-          <div>
-            <Label htmlFor="address.street">Street</Label>
-            <Input
-              id="address.street"
-              {...register('address.street')}
-              placeholder="e.g. Zinda Bazar Road"
-              className="mt-1"
-            />
-            {errors.address?.street && (
-              <p className="text-sm text-red-500 mt-1">
-                {errors.address.street.message}
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>District</Label>
-              <div className="mt-1">
-                <Combobox
-                  options={DISTRICT_DATA.map((d) => ({
-                    value: d.district,
-                    label: d.district,
-                  }))}
-                  value={watch('address.district') || ''}
-                  onValueChange={(val) => {
-                    setValue('address.district', val, {
-                      shouldValidate: true,
-                    });
-                    setValue('address.area', '', { shouldValidate: false });
-                  }}
-                  placeholder="Select district"
+          <SectionCard
+            title="Address"
+            description="Where your restaurant is located."
+            icon={<MapPin className="h-4 w-4" />}
+          >
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="address.street">Street</Label>
+                <Input
+                  id="address.street"
+                  {...register('address.street')}
+                  placeholder="e.g. Zinda Bazar Road"
+                  className="mt-1"
                 />
+                {errors.address?.street && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.address.street.message}
+                  </p>
+                )}
               </div>
-              {errors.address?.district && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.address.district.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label>Area</Label>
-              <div className="mt-1">
-                <Combobox
-                  options={getAreasByDistrict(watch('address.district') || '')}
-                  value={watch('address.area') || ''}
-                  onValueChange={(val) =>
-                    setValue('address.area', val, { shouldValidate: true })
-                  }
-                  placeholder="Select area"
-                  disabled={!watch('address.district')}
-                />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <Label>District</Label>
+                  <div className="mt-1">
+                    <Combobox
+                      options={DISTRICT_DATA.map((d) => ({
+                        value: d.district,
+                        label: d.district,
+                      }))}
+                      value={watch('address.district') || ''}
+                      onValueChange={(val) => {
+                        setValue('address.district', val, {
+                          shouldValidate: true,
+                        });
+                        setValue('address.area', '', { shouldValidate: false });
+                      }}
+                      placeholder="Select district"
+                    />
+                  </div>
+                  {errors.address?.district && (
+                    <p className="mt-1 text-sm text-destructive">
+                      {errors.address.district.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>Area</Label>
+                  <div className="mt-1">
+                    <Combobox
+                      options={getAreasByDistrict(
+                        watch('address.district') || '',
+                      )}
+                      value={watch('address.area') || ''}
+                      onValueChange={(val) =>
+                        setValue('address.area', val, { shouldValidate: true })
+                      }
+                      placeholder="Select area"
+                      disabled={!watch('address.district')}
+                    />
+                  </div>
+                  {errors.address?.area && (
+                    <p className="mt-1 text-sm text-destructive">
+                      {errors.address.area.message}
+                    </p>
+                  )}
+                </div>
               </div>
-              {errors.address?.area && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.address.area.message}
-                </p>
-              )}
             </div>
-          </div>
+          </SectionCard>
         </motion.div>
 
         {/* Opening Hours */}
@@ -576,53 +605,57 @@ const RestaurantFormPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-900">Opening Hours</h2>
-          <div className="space-y-3">
-            {DAYS.map((day, idx) => {
-              const isClosed = openingHours[idx]?.isClosed;
-              return (
-                <div
-                  key={day}
-                  className="flex items-center gap-4 py-2 border-b border-gray-50 last:border-0"
-                >
-                  <label className="w-28 text-sm font-medium text-gray-700">
-                    {day}
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isClosed}
-                      onChange={(e) =>
-                        setValue(
-                          `openingHours.${idx}.isClosed`,
-                          e.target.checked,
-                        )
-                      }
-                      className="rounded text-orange-500 focus:ring-orange-500"
-                    />
-                    Closed
-                  </label>
-                  {!isClosed && (
-                    <>
-                      <Input
-                        type="time"
-                        {...register(`openingHours.${idx}.open`)}
-                        className="w-32"
+          <SectionCard
+            title="Opening Hours"
+            description="Set daily availability for your restaurant."
+            icon={<Clock className="h-4 w-4" />}
+          >
+            <div className="space-y-3">
+              {DAYS.map((day, idx) => {
+                const isClosed = openingHours[idx]?.isClosed;
+                return (
+                  <div
+                    key={day}
+                    className="flex items-center gap-4 border-b border-border py-2 last:border-0"
+                  >
+                    <label className="w-28 text-sm font-medium text-foreground">
+                      {day}
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={isClosed}
+                        onChange={(e) =>
+                          setValue(
+                            `openingHours.${idx}.isClosed`,
+                            e.target.checked,
+                          )
+                        }
+                        className="rounded border-border text-primary focus:ring-primary"
                       />
-                      <span className="text-gray-400">to</span>
-                      <Input
-                        type="time"
-                        {...register(`openingHours.${idx}.close`)}
-                        className="w-32"
-                      />
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                      Closed
+                    </label>
+                    {!isClosed && (
+                      <>
+                        <Input
+                          type="time"
+                          {...register(`openingHours.${idx}.open`)}
+                          className="w-32"
+                        />
+                        <span className="text-muted-foreground">to</span>
+                        <Input
+                          type="time"
+                          {...register(`openingHours.${idx}.close`)}
+                          className="w-32"
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
         </motion.div>
 
         {/* Delivery Settings */}
@@ -630,100 +663,99 @@ const RestaurantFormPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-900">
-            Delivery Settings
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="minimumOrder">Minimum Order (৳)</Label>
-              <Input
-                id="minimumOrder"
-                type="number"
-                {...register('minimumOrder', {
-                  setValueAs: (value) =>
-                    value === '' ? undefined : Number(value),
-                })}
-                placeholder="0"
-                className="mt-1"
-              />
-              {errors.minimumOrder && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.minimumOrder.message}
-                </p>
-              )}
+          <SectionCard
+            title="Delivery Settings"
+            description="Order thresholds, fees and timing."
+            icon={<Bike className="h-4 w-4" />}
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <Label htmlFor="minimumOrder">Minimum Order (৳)</Label>
+                <Input
+                  id="minimumOrder"
+                  type="number"
+                  {...register('minimumOrder', {
+                    setValueAs: (value) =>
+                      value === '' ? undefined : Number(value),
+                  })}
+                  placeholder="0"
+                  className="mt-1"
+                />
+                {errors.minimumOrder && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.minimumOrder.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="deliveryFee">Delivery Fee (৳)</Label>
+                <Input
+                  id="deliveryFee"
+                  type="number"
+                  {...register('deliveryFee', {
+                    setValueAs: (value) =>
+                      value === '' ? undefined : Number(value),
+                  })}
+                  placeholder="0"
+                  className="mt-1"
+                />
+                {errors.deliveryFee && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.deliveryFee.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="estimatedDeliveryTime">
+                  Est. Delivery Time (min)
+                </Label>
+                <Input
+                  id="estimatedDeliveryTime"
+                  type="number"
+                  {...register('estimatedDeliveryTime', {
+                    setValueAs: (value) =>
+                      value === '' ? undefined : Number(value),
+                  })}
+                  placeholder="30"
+                  className="mt-1"
+                />
+                {errors.estimatedDeliveryTime && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {errors.estimatedDeliveryTime.message}
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <Label htmlFor="deliveryFee">Delivery Fee (৳)</Label>
-              <Input
-                id="deliveryFee"
-                type="number"
-                {...register('deliveryFee', {
-                  setValueAs: (value) =>
-                    value === '' ? undefined : Number(value),
-                })}
-                placeholder="0"
-                className="mt-1"
-              />
-              {errors.deliveryFee && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.deliveryFee.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="estimatedDeliveryTime">
-                Est. Delivery Time (min)
-              </Label>
-              <Input
-                id="estimatedDeliveryTime"
-                type="number"
-                {...register('estimatedDeliveryTime', {
-                  setValueAs: (value) =>
-                    value === '' ? undefined : Number(value),
-                })}
-                placeholder="30"
-                className="mt-1"
-              />
-              {errors.estimatedDeliveryTime && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.estimatedDeliveryTime.message}
-                </p>
-              )}
-            </div>
-          </div>
+          </SectionCard>
         </motion.div>
 
-        {/* Submit */}
-        <div className="flex items-center justify-end gap-3 pb-6">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(-1)}
-            disabled={submitting}
-            className="rounded-lg"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg gap-2"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {submitting
-              ? isEdit
-                ? 'Updating...'
-                : 'Creating...'
-              : isEdit
-                ? 'Update Restaurant'
-                : 'Create Restaurant'}
-          </Button>
+        {/* Sticky save bar */}
+        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <div className="mx-auto flex max-w-3xl items-center justify-end gap-3 px-4 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(-1)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="brand" disabled={submitting} className="gap-2">
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {submitting
+                ? isEdit
+                  ? 'Updating...'
+                  : 'Creating...'
+                : isEdit
+                  ? 'Update Restaurant'
+                  : 'Create Restaurant'}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

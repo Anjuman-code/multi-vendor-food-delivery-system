@@ -18,6 +18,8 @@ import {
   deleteMyRestaurant,
   getDashboardStats,
   getAnalytics,
+  getVendorEarnings,
+  getVendorCustomers,
   replyToReview,
 } from "../controllers/vendor.controller";
 
@@ -68,6 +70,8 @@ router.use(authenticate, authorize(UserRole.VENDOR));
 // ── Dashboard & Analytics ──────────────────────────────────────
 router.get("/dashboard", getDashboardStats);
 router.get("/analytics", getAnalytics);
+router.get("/earnings", getVendorEarnings);
+router.get("/customers", getVendorCustomers);
 
 // ── Profile ────────────────────────────────────────────────────
 router.get("/profile", getProfile);

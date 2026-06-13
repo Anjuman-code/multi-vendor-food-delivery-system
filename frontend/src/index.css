@@ -129,52 +129,12 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
-   Dashboard component classes (admin/vendor). Retained until those
-   surfaces are migrated to React primitives; not used by public pages.
+   Dashboard helpers. The vendor surfaces now use the React primitives
+   in components/vendor/ (StatCard, StatusBadge, PageHeader, …); only
+   the two-column editor grid remains as a utility class.
    ─────────────────────────────────────────────────────────────────── */
 @layer components {
-  .page-header {
-    @apply flex items-center justify-between pb-6;
-  }
-  .page-header-title {
-    @apply text-2xl font-semibold text-gray-900;
-  }
-  .page-header-subtitle {
-    @apply text-sm text-gray-500 mt-1;
-  }
-
-  .kpi-card {
-    @apply bg-white rounded-xl border border-gray-100 p-5 shadow-card h-full;
-  }
-  .kpi-card-label {
-    @apply text-xs font-medium text-gray-500 uppercase tracking-wide;
-  }
-  .kpi-card-value {
-    @apply text-2xl font-bold text-gray-900 mt-1;
-  }
-  .kpi-card-delta {
-    @apply text-xs font-medium mt-1.5 inline-flex items-center gap-0.5;
-  }
-
   .editor-grid {
     @apply grid grid-cols-1 lg:grid-cols-[55%_45%] gap-6;
   }
-  .editor-preview-pane {
-    @apply bg-stone-50 rounded-xl border border-gray-200 p-6;
-  }
-  .editor-preview-label {
-    @apply text-xs font-medium uppercase tracking-wide text-gray-400 mb-4;
-  }
-  .editor-save-bar {
-    @apply sticky bottom-0 -mx-6 px-6 py-4 bg-white border-t border-gray-200 flex items-center justify-between rounded-b-xl mt-6;
-  }
-
-  .status-pill {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-  }
-  .status-pill-success { @apply bg-emerald-50 text-emerald-700; }
-  .status-pill-warning { @apply bg-amber-50 text-amber-700; }
-  .status-pill-danger  { @apply bg-red-50 text-red-700; }
-  .status-pill-info    { @apply bg-blue-50 text-blue-700; }
-  .status-pill-neutral { @apply bg-gray-50 text-gray-700; }
 }

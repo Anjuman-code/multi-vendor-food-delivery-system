@@ -1,9 +1,17 @@
 import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  PageHeader,
+  SegmentedTabs,
+  StatusBadge,
+  VendorEmptyState,
+  type DataTableColumn,
+} from "@/components/vendor";
 import { useSocketContext } from "@/contexts/SocketContext";
-import { useVendor } from "@/contexts/VendorContext";
 import { useToast } from "@/hooks/use-toast";
 import vendorService from "@/services/vendorService";
 import type { VendorOrder, VendorOrderStatus } from "@/types/vendor";
+import { formatCurrency } from "@/utils/format";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
@@ -31,43 +39,13 @@ const UPCOMING_STATUSES: VendorOrderStatus[] = [
   "picked_up",
 ];
 
-const TABS: {
-  id: TabId;
-  label: string;
-  statuses: VendorOrderStatus[];
-  color: string;
-}[] = [
-  {
-    id: "live",
-    label: "Live",
-    statuses: UPCOMING_STATUSES,
-    color: "border-orange-500 text-orange-600",
-  },
-  {
-    id: "incoming",
-    label: "Incoming",
-    statuses: ["pending"],
-    color: "border-blue-500 text-blue-600",
-  },
-  {
-    id: "history",
-    label: "History",
-    statuses: ["delivered", "cancelled"],
-    color: "border-gray-400 text-gray-600",
-  },
+const TABS: { id: TabId; label: string; statuses: VendorOrderStatus[] }[] = [
+  { id: "live", label: "Live", statuses: UPCOMING_STATUSES },
+  { id: "incoming", label: "Incoming", statuses: ["pending"] },
+  { id: "history", label: "History", statuses: ["delivered", "cancelled"] },
 ];
 
 const LIVE_STATUSES: VendorOrderStatus[] = UPCOMING_STATUSES;
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  confirmed: "bg-blue-100 text-blue-700",
-  preparing: "bg-orange-100 text-orange-700",
-  ready: "bg-emerald-100 text-emerald-700",
-  picked_up: "bg-purple-100 text-purple-700",
-  delivered: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
-};
 
 // Single-action button: the "next logical step" for each status
 const NEXT_ACTION: Record<string, { label: string; status: string } | null> = {
@@ -139,15 +117,22 @@ const ElapsedTimer: React.FC<{ createdAt: string }> = ({ createdAt }) => {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs font-mono ${isUrgent ? "text-red-600" : "text-gray-500"}`}
+      className={`inline-flex items-center gap-1 font-mono text-xs ${
+        isUrgent ? "text-red-600" : "text-muted-foreground"
+      }`}
     >
-      <Timer className="w-3 h-3" />
+      <Timer className="h-3 w-3" />
       {mins}:{secs.toString().padStart(2, "0")}
     </span>
   );
 };
 
-// ── Order Card ──────────────────────────────────────────────────
+const customerNameOf = (order: VendorOrder): string =>
+  typeof order.customerId === "object"
+    ? `${order.customerId.firstName} ${order.customerId.lastName}`.trim()
+    : order.customer?.name || "—";
+
+// ── Order Card (live / incoming) ─────────────────────────────────
 
 const OrderCard: React.FC<{
   order: VendorOrder;
@@ -155,68 +140,63 @@ const OrderCard: React.FC<{
   expanded: boolean;
   onToggleExpand: () => void;
 }> = ({ order, onStatusUpdate, expanded, onToggleExpand }) => {
-  const customerName =
-    typeof order.customerId === "object"
-      ? `${order.customerId.firstName} ${order.customerId.lastName}`.trim()
-      : order.customer?.name || "—";
-
+  const customerName = customerNameOf(order);
   const action = NEXT_ACTION[order.status];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-colors overflow-hidden"
+      className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-brand-300"
     >
       {/* Summary row */}
       <div
-        className="flex items-center gap-4 px-5 py-4 cursor-pointer"
+        className="flex cursor-pointer items-center gap-4 px-5 py-4"
         onClick={onToggleExpand}
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
             <Link
               to={`/vendor/orders/${order._id}`}
-              className="font-semibold text-orange-600 hover:underline text-sm"
+              className="text-sm font-semibold text-primary hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               {order.orderNumber}
             </Link>
-            <span className={`status-pill ${STATUS_COLORS[order.status]}`}>
-              {order.status.replace(/_/g, " ")}
-            </span>
+            <StatusBadge status={order.status} size="sm" />
             {LIVE_STATUSES.includes(order.status) && (
               <ElapsedTimer createdAt={order.createdAt} />
             )}
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             {customerName} · {order.items?.length || 0} item
-            {(order.items?.length || 0) !== 1 ? "s" : ""} · ৳
-            {order.total.toLocaleString("en-BD")}
+            {(order.items?.length || 0) !== 1 ? "s" : ""} ·{" "}
+            {formatCurrency(order.total)}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           {action && (
             <Button
               size="sm"
+              variant="brand"
               onClick={(e) => {
                 e.stopPropagation();
                 onStatusUpdate(order._id, action.status);
               }}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs h-8 px-3"
+              className="h-8"
             >
               {order.status === "pending" ? (
-                <Package className="w-3.5 h-3.5 mr-1" />
+                <Package className="mr-1 h-3.5 w-3.5" />
               ) : (
-                <Clock className="w-3.5 h-3.5 mr-1" />
+                <Clock className="mr-1 h-3.5 w-3.5" />
               )}
               {action.label}
             </Button>
           )}
           {expanded ? (
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           )}
         </div>
       </div>
@@ -230,36 +210,35 @@ const OrderCard: React.FC<{
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-100 px-5 py-3 space-y-2 bg-gray-50/50">
+            <div className="space-y-2 border-t border-border bg-muted/40 px-5 py-3">
               {order.items.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-gray-800">
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-foreground">
                       {item.quantity}x {item.name}
                     </span>
                     {item.variants && item.variants.length > 0 && (
-                      <span className="text-gray-400 ml-1">
+                      <span className="ml-1 text-muted-foreground">
                         ({item.variants.map((v) => v.name).join(", ")})
                       </span>
                     )}
                     {item.specialInstructions && (
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {item.specialInstructions}
                       </p>
                     )}
                   </div>
-                  <span className="text-gray-600 ml-4">৳{item.itemTotal}</span>
+                  <span className="ml-4 text-muted-foreground">
+                    {formatCurrency(item.itemTotal)}
+                  </span>
                 </div>
               ))}
-              <div className="flex justify-between text-sm font-medium pt-2 border-t border-gray-200">
+              <div className="flex justify-between border-t border-border pt-2 text-sm font-medium text-foreground">
                 <span>Total</span>
-                <span>৳{order.total.toLocaleString("en-BD")}</span>
+                <span>{formatCurrency(order.total)}</span>
               </div>
               {order.specialInstructions && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Note: {order.specialInstructions}
                 </p>
               )}
@@ -274,14 +253,9 @@ const OrderCard: React.FC<{
 // ── Main page ────────────────────────────────────────────────────
 
 const VendorOrdersPage: React.FC = () => {
-  const { restaurants } = useVendor();
   const { toast } = useToast();
   const { newOrderCount } = useSocketContext();
-  const {
-    audioEnabled,
-    toggle: toggleAudio,
-    playChime,
-  } = useAudioNotification();
+  const { audioEnabled, toggle: toggleAudio, playChime } = useAudioNotification();
   const [activeTab, setActiveTab] = useState<TabId>("live");
   const [orders, setOrders] = useState<VendorOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -347,11 +321,7 @@ const VendorOrdersPage: React.FC = () => {
       );
       toast({ title: "Success", description: `Order status updated` });
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: res.message, variant: "destructive" });
     }
   };
 
@@ -364,66 +334,113 @@ const VendorOrdersPage: React.FC = () => {
     });
   };
 
+  const historyColumns: DataTableColumn<VendorOrder>[] = [
+    {
+      key: "orderNumber",
+      header: "Order",
+      render: (o) => (
+        <Link
+          to={`/vendor/orders/${o._id}`}
+          className="font-semibold text-primary hover:underline"
+        >
+          {o.orderNumber}
+        </Link>
+      ),
+    },
+    { key: "customer", header: "Customer", render: (o) => customerNameOf(o) },
+    {
+      key: "items",
+      header: "Items",
+      align: "right",
+      render: (o) => o.items?.length || 0,
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      render: (o) => (
+        <span className="font-semibold text-foreground">{formatCurrency(o.total)}</span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (o) => <StatusBadge status={o.status} />,
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Tabs + Audio toggle */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex bg-gray-100 rounded-lg p-0.5">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                activeTab === tab.id
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab.label}
-              {tab.id === "incoming" && newOrderCount > 0 && (
-                <span className="ml-1.5 min-w-[18px] h-4.5 px-1 bg-orange-500 text-white text-[10px] font-bold rounded-full inline-flex items-center justify-center">
-                  {newOrderCount > 9 ? "9+" : newOrderCount}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={toggleAudio}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-            audioEnabled
-              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-              : "bg-gray-50 border-gray-200 text-gray-500"
-          }`}
-        >
-          {audioEnabled ? (
-            <Bell className="w-3.5 h-3.5" />
-          ) : (
-            <BellOff className="w-3.5 h-3.5" />
-          )}
-          {audioEnabled ? "Alert On" : "Alert Off"}
-        </button>
-      </div>
+      <PageHeader
+        title="Orders"
+        description="Confirm, prepare and track orders in real time."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleAudio}
+            className={
+              audioEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""
+            }
+            aria-pressed={audioEnabled}
+          >
+            {audioEnabled ? (
+              <Bell className="mr-1.5 h-3.5 w-3.5" />
+            ) : (
+              <BellOff className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {audioEnabled ? "Alerts on" : "Alerts off"}
+          </Button>
+        }
+      />
 
-      {/* Orders list */}
-      {loading ? (
+      <SegmentedTabs<TabId>
+        value={activeTab}
+        onChange={setActiveTab}
+        options={TABS.map((t) => ({
+          value: t.id,
+          label: t.label,
+          count:
+            t.id === "incoming" && newOrderCount > 0 ? newOrderCount : undefined,
+        }))}
+      />
+
+      {/* History tab → table; live/incoming → card stream */}
+      {activeTab === "history" ? (
+        <DataTable
+          columns={historyColumns}
+          data={orders}
+          getRowId={(o) => o._id}
+          loading={loading}
+          pagination={{
+            page: pagination.page,
+            pages: pagination.pages,
+            total: pagination.total,
+            onPageChange: (p) => loadOrders(p),
+          }}
+          emptyState={
+            <VendorEmptyState
+              icon={ClipboardList}
+              title="No completed orders yet"
+              description="Delivered and cancelled orders will appear here."
+              className="border-0"
+            />
+          }
+        />
+      ) : loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No {activeTab} orders
-          </h3>
-          <p className="text-gray-500">
-            {activeTab === "live"
+        <VendorEmptyState
+          icon={ClipboardList}
+          title={`No ${activeTab} orders`}
+          description={
+            activeTab === "live"
               ? "No upcoming orders right now."
-              : activeTab === "incoming"
-                ? "No new orders waiting."
-                : "No completed orders yet."}
-          </p>
-        </div>
+              : "No new orders waiting."
+          }
+        />
       ) : (
         <div className="space-y-3">
           {orders.map((order) => (
@@ -436,12 +453,10 @@ const VendorOrdersPage: React.FC = () => {
             />
           ))}
 
-          {/* Pagination */}
           {pagination.pages > 1 && (
             <div className="flex items-center justify-between pt-2">
-              <p className="text-sm text-gray-500">
-                Page {pagination.page} of {pagination.pages} ·{" "}
-                {pagination.total} total
+              <p className="text-sm text-muted-foreground">
+                Page {pagination.page} of {pagination.pages} · {pagination.total} total
               </p>
               <div className="flex gap-2">
                 <Button

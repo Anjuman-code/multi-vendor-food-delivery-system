@@ -1,14 +1,22 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+  VendorEmptyState,
+  type StatusTone,
+} from "@/components/vendor";
 import { useToast } from "@/hooks/use-toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus } from "@/types/support";
+import type { SupportTicket, TicketStatus, TicketPriority } from "@/types/support";
 import {
   TICKET_PRIORITY_LABELS,
   TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
 } from "@/types/support";
+import { cn } from "@/utils/cn";
+import { formatDateTime, formatRelativeTime } from "@/utils/format";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -21,35 +29,21 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: "bg-amber-100 text-amber-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  waiting_on_user: "bg-orange-100 text-orange-700",
-  resolved: "bg-emerald-100 text-emerald-700",
-  closed: "bg-gray-100 text-gray-500",
+// Status semantics preserved from STATUS_COLORS, rendered via StatusBadge tones.
+const STATUS_TONES: Record<TicketStatus, StatusTone> = {
+  open: "warning",
+  in_progress: "info",
+  waiting_on_user: "warning",
+  resolved: "success",
+  closed: "neutral",
 };
 
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "bg-red-100 text-red-700",
-  high: "bg-orange-100 text-orange-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-gray-100 text-gray-500",
+const PRIORITY_TONES: Record<TicketPriority, StatusTone> = {
+  urgent: "danger",
+  high: "warning",
+  medium: "warning",
+  low: "neutral",
 };
-
-const fmtDateTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
-
-const fmtTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
 
 export default function VendorTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -107,12 +101,27 @@ export default function VendorTicketDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!ticket) return null;
+  if (!ticket) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <VendorEmptyState
+          icon={MessageSquare}
+          variant="error"
+          title="Ticket not found"
+          description="This ticket may have been removed or is no longer available."
+          action={{
+            label: "Back to Support",
+            onClick: () => navigate("/vendor/support"),
+          }}
+        />
+      </div>
+    );
+  }
 
   const isSender = (senderId: SupportTicket["messages"][0]["senderId"]) => {
     if (typeof senderId === "object" && senderId._id) {
@@ -126,108 +135,125 @@ export default function VendorTicketDetailPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <button
-          onClick={() => navigate("/vendor/support")}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Support
-        </button>
-
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            {ticket.ticketNumber && (
-              <span className="text-xs font-mono text-gray-400">
-                {ticket.ticketNumber}
-              </span>
-            )}
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[ticket.status]}`}
-            >
-              {TICKET_STATUS_LABELS[ticket.status]}
+    <div className="mx-auto max-w-3xl space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        <PageHeader
+          title={ticket.subject}
+          subtitle={
+            <span className="flex flex-wrap items-center gap-2">
+              {ticket.ticketNumber && (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {ticket.ticketNumber}
+                </span>
+              )}
+              <StatusBadge
+                label={TICKET_STATUS_LABELS[ticket.status]}
+                tone={STATUS_TONES[ticket.status]}
+              />
+              <StatusBadge
+                label={TICKET_PRIORITY_LABELS[ticket.priority]}
+                tone={PRIORITY_TONES[ticket.priority]}
+              />
             </span>
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${PRIORITY_COLORS[ticket.priority]}`}
+          }
+          description={`${TICKET_TYPE_LABELS[ticket.type]} · Created ${formatDateTime(
+            ticket.createdAt,
+          )}`}
+          actions={
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/vendor/support")}
+              className="text-muted-foreground"
             >
-              {TICKET_PRIORITY_LABELS[ticket.priority]}
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">{ticket.subject}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {TICKET_TYPE_LABELS[ticket.type]} · Created {fmtDateTime(ticket.createdAt)}
-          </p>
-        </div>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Support
+            </Button>
+          }
+        />
 
         {ticket.resolution && (
-          <Card className="p-4 mb-6 bg-emerald-50 border-emerald-200">
+          <SectionCard className="border-emerald-200 bg-emerald-50">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
               <div>
-                <p className="text-sm font-semibold text-emerald-800">Resolution</p>
-                <p className="text-sm text-emerald-700 mt-1">{ticket.resolution}</p>
+                <p className="text-sm font-semibold text-emerald-800">
+                  Resolution
+                </p>
+                <p className="mt-1 text-sm text-emerald-700">
+                  {ticket.resolution}
+                </p>
               </div>
             </div>
-          </Card>
+          </SectionCard>
         )}
 
         {ticket.status === "waiting_on_user" && (
-          <Card className="p-4 mb-6 bg-orange-50 border-orange-200">
+          <SectionCard className="border-amber-200 bg-amber-50">
             <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+              <Clock className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
               <div>
-                <p className="text-sm font-semibold text-orange-800">
+                <p className="text-sm font-semibold text-amber-800">
                   Support is waiting for your response
                 </p>
-                <p className="text-sm text-orange-700 mt-1">
+                <p className="mt-1 text-sm text-amber-700">
                   Please reply below to continue.
                 </p>
               </div>
             </div>
-          </Card>
+          </SectionCard>
         )}
 
-        <div className="space-y-4 mb-6">
-          {ticket.messages.map((msg, idx) => {
-            const mine = isSender(msg.senderId);
-            return (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.03 }}
-                className={`flex ${mine ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    mine ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-900"
-                  }`}
+        <SectionCard title="Conversation" icon={<MessageSquare className="h-4 w-4" />}>
+          <div className="space-y-4">
+            {ticket.messages.map((msg, idx) => {
+              const mine = isSender(msg.senderId);
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.03 }}
+                  className={cn("flex", mine ? "justify-end" : "justify-start")}
                 >
-                  {!mine && (
-                    <p className="text-xs font-semibold text-gray-500 mb-1">
-                      {typeof msg.senderId === "object" && msg.senderId
-                        ? `${msg.senderId.firstName} ${msg.senderId.lastName}`
-                        : "Support Agent"}
-                    </p>
-                  )}
-                  <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      mine ? "text-orange-100" : "text-gray-400"
-                    }`}
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-2xl px-4 py-3",
+                      mine
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-muted text-foreground",
+                    )}
                   >
-                    {fmtTime(msg.createdAt)}
-                  </p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                    {!mine && (
+                      <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                        {typeof msg.senderId === "object" && msg.senderId
+                          ? `${msg.senderId.firstName} ${msg.senderId.lastName}`
+                          : "Support Agent"}
+                      </p>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+                    <p
+                      className={cn(
+                        "mt-1 text-xs",
+                        mine
+                          ? "text-accent-foreground/70"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {formatRelativeTime(msg.createdAt)}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </SectionCard>
 
         {ticket.status !== "closed" && ticket.status !== "resolved" && (
-          <Card className="p-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">Add a reply</p>
+          <SectionCard title="Add a reply">
             <Textarea
               rows={3}
               placeholder="Type your reply..."
@@ -239,26 +265,29 @@ export default function VendorTicketDetailPage() {
               <Button
                 onClick={handleReply}
                 disabled={!replyText.trim() || sending}
-                className="bg-orange-500 hover:bg-orange-600"
+                variant="brand"
               >
                 {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className="mr-2 h-4 w-4" />
                 )}
                 Send Reply
               </Button>
             </div>
-          </Card>
+          </SectionCard>
         )}
 
         {ticket.status === "closed" && (
-          <Card className="p-6 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto text-gray-300 mb-3" />
-            <p className="text-sm text-gray-500">
-              This ticket has been closed. Create a new ticket if you need further assistance.
-            </p>
-          </Card>
+          <SectionCard>
+            <div className="py-2 text-center">
+              <MessageSquare className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                This ticket has been closed. Create a new ticket if you need
+                further assistance.
+              </p>
+            </div>
+          </SectionCard>
         )}
       </motion.div>
     </div>

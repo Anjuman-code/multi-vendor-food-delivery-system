@@ -173,6 +173,10 @@ export const processPayout = async (
     if (status === "failed" && payout.status === PayoutStatus.COMPLETED) {
       throw new ValidationError("Completed payouts cannot be failed");
     }
+    if (status === "failed" && payout.status === PayoutStatus.FAILED) {
+      // Guard against re-failing — would restore pendingPayout a second time.
+      throw new ValidationError("Payout has already failed");
+    }
 
     payout.status = status as PayoutStatus;
     if (transactionRef) payout.transactionRef = transactionRef;
@@ -222,10 +226,30 @@ export const getVendorPayouts = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const payouts = await Payout.find({ vendorId: authReq.user._id })
-      .sort("-createdAt");
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(req.query.limit as string) || 10),
+    );
+    const status = req.query.status as string | undefined;
 
-    successResponse(res, { payouts, count: payouts.length });
+    const filter: Record<string, unknown> = { vendorId: authReq.user._id };
+    if (status && Object.values(PayoutStatus).includes(status as PayoutStatus)) {
+      filter.status = status;
+    }
+
+    const [payouts, total] = await Promise.all([
+      Payout.find(filter)
+        .sort("-createdAt")
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Payout.countDocuments(filter),
+    ]);
+
+    successResponse(res, {
+      payouts,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     next(error);
   }

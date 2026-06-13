@@ -5,7 +5,7 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import VendorProfile from "../models/VendorProfile";
 import Restaurant from "../models/Restaurant";
-import Order, { OrderStatus } from "../models/Order";
+import Order, { OrderStatus, PaymentStatus } from "../models/Order";
 import MenuItem from "../models/MenuItem";
 import Review from "../models/Review";
 import Notification, { NotificationType } from "../models/Notification";
@@ -236,7 +236,7 @@ export const createMyRestaurant = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { profile } = await getVendorProfile(req);
+    const { authReq, profile } = await getVendorProfile(req);
     const data = req.body as CreateRestaurantInput;
 
     const restaurant = new Restaurant({
@@ -732,6 +732,310 @@ export const replyToReview = async (
     });
 
     successResponse(res, { review }, "Reply posted");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Earnings & Payouts (read)
+// ────────────────────────────────────────────────────────────────
+
+const round2 = (n: number) => Math.round((n || 0) * 100) / 100;
+
+/**
+ * GET /api/vendor/earnings?period=7d|30d|90d|12m
+ * Earnings summary + time series for the vendor's restaurants.
+ *
+ * Earnings are the vendor's share of delivered + paid orders after platform
+ * commission, computed on order `subtotal` (excludes tax + delivery fee). This
+ * must match utils/vendor-stats.util (the denormalized accrual on delivery).
+ */
+export const getVendorEarnings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { profile } = await getVendorProfile(req);
+    const restaurantIds = profile.restaurantIds;
+    const period = (req.query.period as string) || "30d";
+    const commissionRate = profile.commissionRate || 0;
+    const netFactor = 1 - commissionRate / 100;
+
+    const emptyPayload = {
+      period,
+      commissionRate,
+      availableBalance: round2(profile.pendingPayout),
+      pendingPayout: round2(profile.pendingPayout),
+      totalEarnings: round2(profile.totalEarnings),
+      lifetimeGross: 0,
+      lifetimeNet: 0,
+      lifetimeOrders: 0,
+      periodGross: 0,
+      periodNet: 0,
+      periodOrders: 0,
+      totalRefunded: 0,
+      series: [] as { date: string; gross: number; net: number; orders: number }[],
+    };
+
+    if (restaurantIds.length === 0) {
+      successResponse(res, emptyPayload);
+      return;
+    }
+
+    const now = new Date();
+    let startDate: Date;
+    let groupFormat: string;
+    switch (period) {
+      case "7d":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%m-%d";
+        break;
+      case "90d":
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%U";
+        break;
+      case "12m":
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%m";
+        break;
+      default: // 30d
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        groupFormat = "%Y-%m-%d";
+    }
+
+    const deliveredPaid = {
+      restaurantId: { $in: restaurantIds },
+      status: OrderStatus.DELIVERED,
+      paymentStatus: PaymentStatus.PAID,
+    };
+
+    const [lifetimeAgg, periodAgg, seriesAgg, refundAgg] = await Promise.all([
+      Order.aggregate([
+        { $match: deliveredPaid },
+        { $group: { _id: null, gross: { $sum: "$subtotal" }, orders: { $sum: 1 } } },
+      ]),
+      Order.aggregate([
+        { $match: { ...deliveredPaid, createdAt: { $gte: startDate } } },
+        { $group: { _id: null, gross: { $sum: "$subtotal" }, orders: { $sum: 1 } } },
+      ]),
+      Order.aggregate([
+        { $match: { ...deliveredPaid, createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: groupFormat, date: "$createdAt" } },
+            gross: { $sum: "$subtotal" },
+            orders: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+      Order.aggregate([
+        { $match: { restaurantId: { $in: restaurantIds } } },
+        { $unwind: "$refundLineItems" },
+        {
+          $group: {
+            _id: null,
+            refunded: { $sum: "$refundLineItems.refundAmount" },
+          },
+        },
+      ]),
+    ]);
+
+    const lifetimeGross = lifetimeAgg[0]?.gross || 0;
+    const periodGross = periodAgg[0]?.gross || 0;
+
+    successResponse(res, {
+      period,
+      commissionRate,
+      availableBalance: round2(profile.pendingPayout),
+      pendingPayout: round2(profile.pendingPayout),
+      totalEarnings: round2(profile.totalEarnings),
+      lifetimeGross: round2(lifetimeGross),
+      lifetimeNet: round2(lifetimeGross * netFactor),
+      lifetimeOrders: lifetimeAgg[0]?.orders || 0,
+      periodGross: round2(periodGross),
+      periodNet: round2(periodGross * netFactor),
+      periodOrders: periodAgg[0]?.orders || 0,
+      totalRefunded: round2(refundAgg[0]?.refunded || 0),
+      series: seriesAgg.map((s: { _id: string; gross: number; orders: number }) => ({
+        date: s._id,
+        gross: round2(s.gross),
+        net: round2(s.gross * netFactor),
+        orders: s.orders,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// Customers (insights)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/vendor/customers?page=&limit=&search=&period=
+ * Aggregated customer insights across the vendor's restaurants.
+ */
+export const getVendorCustomers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { profile } = await getVendorProfile(req);
+    const restaurantIds = profile.restaurantIds;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const search = (req.query.search as string | undefined)?.trim();
+
+    if (restaurantIds.length === 0) {
+      successResponse(res, {
+        customers: [],
+        pagination: { page, limit, total: 0, pages: 0 },
+        summary: {
+          totalCustomers: 0,
+          newCustomers: 0,
+          repeatRate: 0,
+          avgOrdersPerCustomer: 0,
+        },
+      });
+      return;
+    }
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const baseMatch = {
+      restaurantId: { $in: restaurantIds },
+      status: { $ne: OrderStatus.CANCELLED },
+    };
+
+    // Per-customer roll-up (with user join + optional name search).
+    const grouped = await Order.aggregate([
+      { $match: baseMatch },
+      {
+        $group: {
+          _id: "$customerId",
+          orders: { $sum: 1 },
+          totalSpent: { $sum: "$total" },
+          lastOrder: { $max: "$createdAt" },
+          firstOrder: { $min: "$createdAt" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  { "user.firstName": { $regex: search, $options: "i" } },
+                  { "user.lastName": { $regex: search, $options: "i" } },
+                  { "user.email": { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+        : []),
+      { $sort: { totalSpent: -1 } },
+      {
+        $facet: {
+          rows: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+          count: [{ $count: "total" }],
+        },
+      },
+    ]);
+
+    const rows = grouped[0]?.rows || [];
+    const total = grouped[0]?.count?.[0]?.total || 0;
+
+    const customers = rows.map(
+      (r: {
+        _id: unknown;
+        orders: number;
+        totalSpent: number;
+        lastOrder: Date;
+        firstOrder: Date;
+        user?: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string };
+      }) => {
+        const name =
+          `${r.user?.firstName ?? ""} ${r.user?.lastName ?? ""}`.trim() || "Guest";
+        const segment =
+          r.orders >= 5 || r.totalSpent >= 5000
+            ? "vip"
+            : r.orders <= 1
+              ? "new"
+              : "returning";
+        return {
+          _id: String(r._id),
+          name,
+          email: r.user?.email,
+          phone: r.user?.phoneNumber,
+          orders: r.orders,
+          totalSpent: round2(r.totalSpent),
+          lastOrder: r.lastOrder,
+          firstOrder: r.firstOrder,
+          segment,
+        };
+      },
+    );
+
+    // Lightweight summary across the full (unpaginated) customer set.
+    const summaryAgg = await Order.aggregate([
+      { $match: baseMatch },
+      {
+        $group: {
+          _id: "$customerId",
+          orders: { $sum: 1 },
+          firstOrder: { $min: "$createdAt" },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCustomers: { $sum: 1 },
+          totalOrders: { $sum: "$orders" },
+          repeatCustomers: {
+            $sum: { $cond: [{ $gt: ["$orders", 1] }, 1, 0] },
+          },
+          newCustomers: {
+            $sum: { $cond: [{ $gte: ["$firstOrder", thirtyDaysAgo] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    const s = summaryAgg[0] || {
+      totalCustomers: 0,
+      totalOrders: 0,
+      repeatCustomers: 0,
+      newCustomers: 0,
+    };
+
+    successResponse(res, {
+      customers,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      summary: {
+        totalCustomers: s.totalCustomers,
+        newCustomers: s.newCustomers,
+        repeatRate:
+          s.totalCustomers > 0
+            ? Math.round((s.repeatCustomers / s.totalCustomers) * 1000) / 10
+            : 0,
+        avgOrdersPerCustomer:
+          s.totalCustomers > 0
+            ? Math.round((s.totalOrders / s.totalCustomers) * 10) / 10
+            : 0,
+      },
+    });
   } catch (error) {
     next(error);
   }

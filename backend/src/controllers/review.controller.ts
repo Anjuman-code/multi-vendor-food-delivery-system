@@ -7,6 +7,7 @@ import Review from "../models/Review";
 import Order, { OrderStatus } from "../models/Order";
 import Restaurant from "../models/Restaurant";
 import { successResponse } from "../utils/response.util";
+import { recomputeVendorRating } from "../utils/vendor-stats.util";
 import ReviewVote from "../models/ReviewVote";
 import {
   AuthenticationError,
@@ -88,6 +89,13 @@ export const createReview = async (
           count: stats[0].count,
         },
       });
+    }
+
+    // Keep the vendor's denormalized averageRating in sync (best-effort).
+    try {
+      await recomputeVendorRating(order.restaurantId);
+    } catch (statErr) {
+      console.error("[vendor-stats] recomputeVendorRating failed", statErr);
     }
 
     successResponse(res, { review }, "Review submitted", 201);
@@ -206,6 +214,12 @@ export const deleteReview = async (
         : { average: 0, count: 0 };
 
     await Restaurant.findByIdAndUpdate(restaurantId, { rating: newRating });
+
+    try {
+      await recomputeVendorRating(restaurantId);
+    } catch (statErr) {
+      console.error("[vendor-stats] recomputeVendorRating failed", statErr);
+    }
 
     successResponse(res, null, "Review deleted");
   } catch (error) {

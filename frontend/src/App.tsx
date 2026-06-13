@@ -59,6 +59,8 @@ const VendorOrderDetailPage = lazy(() => import("./pages/vendor/VendorOrderDetai
 const VendorReviewsPage = lazy(() => import("./pages/vendor/VendorReviewsPage"));
 const VendorPromotionsPage = lazy(() => import("./pages/vendor/VendorPromotionsPage"));
 const VendorAnalyticsPage = lazy(() => import("./pages/vendor/VendorAnalyticsPage"));
+const VendorEarningsPage = lazy(() => import("./pages/vendor/VendorEarningsPage"));
+const VendorCustomersPage = lazy(() => import("./pages/vendor/VendorCustomersPage"));
 const VendorSettingsPage = lazy(() => import("./pages/vendor/VendorSettingsPage"));
 const VendorSupportPage = lazy(() => import("./pages/vendor/VendorSupportPage"));
 const VendorCreateTicketPage = lazy(() => import("./pages/vendor/VendorCreateTicketPage"));
@@ -177,6 +179,8 @@ function App(): React.ReactElement {
                     <Route path="/vendor/reviews" element={<VendorReviewsPage />} />
                     <Route path="/vendor/promotions" element={<VendorPromotionsPage />} />
                     <Route path="/vendor/analytics" element={<VendorAnalyticsPage />} />
+                    <Route path="/vendor/earnings" element={<VendorEarningsPage />} />
+                    <Route path="/vendor/customers" element={<VendorCustomersPage />} />
                     <Route path="/vendor/settings" element={<VendorSettingsPage />} />
                     <Route path="/vendor/support" element={<VendorSupportPage />} />
                     <Route path="/vendor/support/new" element={<VendorCreateTicketPage />} />
