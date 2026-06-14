@@ -1,53 +1,94 @@
-import { Badge } from "@/components/ui/badge";
+import { EmptyState, PageHeader } from "@/components/rider";
 import { Button } from "@/components/ui/button";
+import { useRider } from "@/contexts/RiderContext";
 import { useToast } from "@/hooks/use-toast";
 import riderService, { type RiderOrder } from "@/services/riderService";
+import { formatCurrency } from "@/utils/format";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    Clock,
-    MapPin,
-    Package,
-    RefreshCw,
-    Store,
-    Truck
+  Clock,
+  MapPin,
+  Navigation,
+  Package,
+  RefreshCw,
+  Store,
+  Truck,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const fmt = (n: number) => `৳${n.toLocaleString("en-BD")}`;
 const fmtTime = (d: string) =>
   new Date(d).toLocaleTimeString("en-BD", { hour: "2-digit", minute: "2-digit" });
+
+/** Haversine distance in km between two [lat,lng] points. */
+const distanceKm = (
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number => {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+const tripDistance = (order: RiderOrder): number | null => {
+  const r =
+    typeof order.restaurantId === "object"
+      ? order.restaurantId.location?.coordinates
+      : null;
+  const c = order.deliveryAddress?.coordinates;
+  if (!r || !c) return null;
+  // restaurant location is GeoJSON [lng, lat]; delivery is {latitude, longitude}
+  return distanceKm(
+    { lat: r[1], lng: r[0] },
+    { lat: c.latitude, lng: c.longitude },
+  );
+};
 
 const AvailableDeliveriesPage: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { profile, activeOrder, refresh } = useRider();
   const [orders, setOrders] = useState<RiderOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accepting, setAccepting] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchOrders = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    try {
-      const res = await riderService.getAvailableOrders();
-      const d = (res as { data: { data: { orders: RiderOrder[] } } }).data;
-      setOrders(d.data?.orders ?? []);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      if (!silent) {
-        toast({ variant: "destructive", title: msg ?? "Failed to load available orders" });
+  const fetchOrders = useCallback(
+    async (silent = false) => {
+      if (silent) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const res = await riderService.getAvailableOrders();
+        setOrders(
+          (res as unknown as { data: { data: { orders: RiderOrder[] } } }).data
+            .data?.orders ?? [],
+        );
+      } catch (err: unknown) {
+        if (!silent) {
+          const msg = (err as { response?: { data?: { message?: string } } })
+            ?.response?.data?.message;
+          toast({
+            variant: "destructive",
+            title: msg ?? "Failed to load available orders",
+          });
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [toast]);
+    },
+    [toast],
+  );
 
   useEffect(() => {
     void fetchOrders();
-    // Auto-refresh every 15 seconds
     intervalRef.current = setInterval(() => void fetchOrders(true), 15_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -58,14 +99,19 @@ const AvailableDeliveriesPage: React.FC = () => {
     setAccepting(orderId);
     try {
       await riderService.acceptOrder(orderId);
-      toast({ title: "Order accepted!", description: "Head to the restaurant to pick up." });
+      await refresh();
+      toast({
+        title: "Order accepted",
+        description: "Head to the restaurant to pick it up.",
+      });
       navigate("/rider/active");
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
       toast({
         variant: "destructive",
         title: msg ?? "Order no longer available",
-        description: "It may have been accepted by another driver.",
+        description: "It may have been taken by another rider.",
       });
       void fetchOrders(true);
     } finally {
@@ -73,146 +119,164 @@ const AvailableDeliveriesPage: React.FC = () => {
     }
   };
 
+  const refreshBtn = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => void fetchOrders(true)}
+      disabled={refreshing}
+      className="gap-2"
+    >
+      <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+      Refresh
+    </Button>
+  );
+
   if (loading) {
     return (
-      <div className="p-6 space-y-3">
+      <div className="mx-auto max-w-2xl space-y-3 p-4 sm:p-6">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
+          <div key={i} className="h-44 animate-pulse rounded-xl bg-muted" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Available Deliveries</h1>
-          <p className="text-sm text-gray-500">
-            {orders.length} order{orders.length !== 1 ? "s" : ""} waiting
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void fetchOrders(true)}
-          disabled={refreshing}
-          className="gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
+      <PageHeader
+        title="Available deliveries"
+        subtitle={`${orders.length} order${orders.length !== 1 ? "s" : ""} ready for pickup`}
+        actions={refreshBtn}
+      />
 
-      {/* Empty state */}
-      {orders.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-20"
-        >
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-            <Package className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="font-semibold text-gray-700">No orders available</p>
-          <p className="text-sm text-gray-400 mt-1">
-            Refreshes automatically every 15 seconds
-          </p>
-        </motion.div>
-      )}
+      {/* Guards */}
+      {activeOrder ? (
+        <EmptyState
+          icon={Truck}
+          title="You're on a delivery"
+          description="Finish your current delivery before picking up another order."
+          action={{
+            label: "Go to active delivery",
+            onClick: () => navigate("/rider/active"),
+          }}
+        />
+      ) : profile && !profile.isAvailable ? (
+        <EmptyState
+          icon={Package}
+          title="You're offline"
+          description="Go online from the top bar to start accepting deliveries."
+        />
+      ) : orders.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="No orders right now"
+          description="New deliveries appear here automatically. We refresh every 15 seconds."
+        />
+      ) : (
+        <AnimatePresence initial={false}>
+          {orders.map((order) => {
+            const restaurant =
+              typeof order.restaurantId === "object"
+                ? order.restaurantId
+                : null;
+            const payout = (order.deliveryFee ?? 0) + (order.tipAmount ?? 0);
+            const dist = tripDistance(order);
+            const isCod = order.paymentMethod === "cash_on_delivery";
 
-      {/* Order cards */}
-      <AnimatePresence initial={false}>
-        {orders.map((order) => {
-          const restaurant =
-            typeof order.restaurantId === "object" ? order.restaurantId : null;
-          const earnings = (order.deliveryFee ?? 0) + (order.tipAmount ?? 0);
-
-          return (
-            <motion.div
-              key={order._id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
-            >
-              {/* Restaurant row */}
-              <div className="flex items-center gap-3 p-4 border-b border-gray-50">
-                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
-                  <Store className="w-5 h-5 text-orange-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">
-                    {restaurant?.name ?? "Restaurant"}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {typeof restaurant?.address === "object" && restaurant?.address
-                      ? String((restaurant.address as Record<string, unknown>).area ?? "")
-                      : ""}
-                  </p>
-                </div>
-                <Badge variant="secondary" className="shrink-0">
-                  <Clock className="w-3 h-3 mr-1" />
-                  {fmtTime(order.createdAt)}
-                </Badge>
-              </div>
-
-              {/* Delivery details */}
-              <div className="p-4 space-y-3">
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                  <span>
-                    {order.deliveryAddress?.area}
-                    {order.deliveryAddress?.district
-                      ? `, ${order.deliveryAddress.district}`
-                      : ""}
+            return (
+              <motion.div
+                key={order._id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+              >
+                {/* Restaurant + payout header */}
+                <div className="flex items-center gap-3 border-b border-border p-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-brand-600">
+                    <Store className="h-5 w-5" />
                   </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-foreground">
+                      {restaurant?.name ?? "Restaurant"}
+                    </p>
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      Ready at {fmtTime(order.createdAt)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-emerald-600">
+                      {formatCurrency(payout)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">payout</p>
+                  </div>
                 </div>
 
-                {/* Items summary */}
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Package className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span>
-                    {(order.items ?? []).length} item
-                    {(order.items ?? []).length !== 1 ? "s" : ""}
-                  </span>
-                </div>
+                {/* Trip details */}
+                <div className="space-y-2.5 p-4">
+                  <div className="flex items-start gap-2 text-sm text-foreground">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span>
+                      {order.deliveryAddress?.area}
+                      {order.deliveryAddress?.district
+                        ? `, ${order.deliveryAddress.district}`
+                        : ""}
+                    </span>
+                  </div>
 
-                {/* Earnings row */}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                  <div>
-                    <p className="text-xs text-gray-400">Delivery fee</p>
-                    <p className="text-lg font-bold text-green-600">{fmt(earnings)}</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Package className="h-3.5 w-3.5" />
+                      {(order.items ?? []).length} item
+                      {(order.items ?? []).length !== 1 ? "s" : ""}
+                    </span>
+                    {dist != null && (
+                      <span className="inline-flex items-center gap-1">
+                        <Navigation className="h-3.5 w-3.5" />
+                        {dist.toFixed(1)} km trip
+                      </span>
+                    )}
+                    {isCod && (
+                      <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+                        Collect {formatCurrency(order.total)} cash
+                      </span>
+                    )}
                     {(order.tipAmount ?? 0) > 0 && (
-                      <p className="text-xs text-green-500 mt-0.5">
-                        Includes {fmt(order.tipAmount!)} tip
-                      </p>
+                      <span className="font-medium text-emerald-600">
+                        +{formatCurrency(order.tipAmount!)} tip
+                      </span>
                     )}
                   </div>
+
                   <Button
                     onClick={() => void handleAccept(order._id)}
-                    disabled={accepting === order._id}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={
+                      accepting === order._id ||
+                      (profile && !profile.isAvailable) ||
+                      !!activeOrder
+                    }
+                    className="mt-1 w-full"
                   >
                     {accepting === order._id ? (
                       <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                         Accepting…
                       </>
                     ) : (
                       <>
-                        <Truck className="w-4 h-4 mr-2" />
-                        Accept
+                        <Truck className="mr-2 h-4 w-4" />
+                        Accept delivery
                       </>
                     )}
                   </Button>
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      )}
     </div>
   );
 };

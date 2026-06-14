@@ -33,6 +33,28 @@ export interface DriverProfile {
   };
 }
 
+/** Fine-grained courier progress within an active delivery. */
+export type DeliveryStage =
+  | 'heading_to_store'
+  | 'at_store'
+  | 'picked_up'
+  | 'heading_to_customer'
+  | 'arrived';
+
+/** Ordered courier stages — drives the active-delivery stepper. */
+export const DELIVERY_STAGE_SEQUENCE: DeliveryStage[] = [
+  'heading_to_store',
+  'at_store',
+  'picked_up',
+  'heading_to_customer',
+  'arrived',
+];
+
+export interface GeoPoint {
+  latitude: number;
+  longitude: number;
+}
+
 export interface RiderOrder {
   _id: string;
   orderNumber: string;
@@ -40,6 +62,7 @@ export interface RiderOrder {
     _id: string;
     name: string;
     address?: Record<string, unknown>;
+    location?: { type?: string; coordinates?: [number, number] };
   };
   customerId: {
     _id: string;
@@ -48,20 +71,25 @@ export interface RiderOrder {
     phoneNumber?: string;
   };
   deliveryAddress: {
+    street?: string;
+    apartment?: string;
     area?: string;
     district?: string;
     fullAddress?: string;
-    coordinates?: { lat: number; lng: number };
+    coordinates?: GeoPoint;
   };
   items: { name: string; quantity: number }[];
   deliveryFee: number;
   tipAmount?: number;
+  subtotal?: number;
   total: number;
   status: string;
+  deliveryStage?: DeliveryStage;
   paymentMethod?: string;
   paymentStatus?: string;
   codCollected?: boolean;
   driverId?: string;
+  estimatedDeliveryTime?: string;
   actualDeliveryTime?: string;
   createdAt: string;
 }
@@ -71,6 +99,7 @@ export interface EarningsPeriod {
   deliveries: number;
   fees: number;
   tips: number;
+  cashCollected: number;
 }
 
 export interface EarningsData {
@@ -119,6 +148,11 @@ const riderService = {
     ),
   getActiveDelivery: () =>
     httpClient.get<{ order: RiderOrder | null }>('/api/driver/orders/active'),
+  advanceStage: (orderId: string, deliveryStage: DeliveryStage) =>
+    httpClient.patch<{ order: RiderOrder }>(
+      `/api/driver/orders/${orderId}/stage`,
+      { deliveryStage },
+    ),
   updateDeliveryStatus: (
     orderId: string,
     data: {
@@ -131,6 +165,15 @@ const riderService = {
       `/api/driver/orders/${orderId}/status`,
       data,
     ),
+  uploadDeliveryProof: (orderId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('document', file);
+    return httpClient.post<{ photoUrl: string }>(
+      `/api/driver/orders/${orderId}/proof`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
 
   // Location
   sendLocation: (data: {

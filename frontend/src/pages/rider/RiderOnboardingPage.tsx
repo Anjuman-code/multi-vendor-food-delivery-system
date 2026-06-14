@@ -59,7 +59,7 @@ const onboardingSchema = z.object({
   bankName: z.string().optional(),
   accountNumber: z.string().optional(),
   accountHolderName: z.string().optional(),
-  mobileMoneyNumber: optionalBdPhoneSchema,
+  mobileMoneyNumber: optionalBdPhoneSchema as unknown as z.ZodOptional<z.ZodString>,
   mobileMoneyProvider: z.string().optional(),
 });
 

@@ -1,5 +1,5 @@
+import { SectionCard, StatusBadge } from "@/components/rider";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import supportService from "@/services/supportService";
@@ -9,7 +9,8 @@ import {
   TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
 } from "@/types/support";
-import { motion } from "framer-motion";
+import { formatDateTime } from "@/utils/format";
+import { cn } from "@/utils/cn";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -21,35 +22,18 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: "bg-amber-100 text-amber-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  waiting_on_user: "bg-orange-100 text-orange-700",
-  resolved: "bg-emerald-100 text-emerald-700",
-  closed: "bg-gray-100 text-gray-500",
+const STATUS_TONE: Record<TicketStatus, "warning" | "info" | "brand" | "success" | "neutral"> = {
+  open: "warning",
+  in_progress: "info",
+  waiting_on_user: "brand",
+  resolved: "success",
+  closed: "neutral",
 };
-
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "bg-red-100 text-red-700",
-  high: "bg-orange-100 text-orange-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-gray-100 text-gray-500",
-};
-
-const fmtDateTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
 
 const fmtTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
+  new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(
+    new Date(d),
+  );
 
 export default function RiderTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,9 +48,8 @@ export default function RiderTicketDetailPage() {
     if (!id) return;
     setLoading(true);
     const res = await supportService.getMyTicket(id);
-    if (res.success && res.data) {
-      setTicket(res.data.ticket);
-    } else {
+    if (res.success && res.data) setTicket(res.data.ticket);
+    else {
       toast({
         title: "Error",
         description: res.message || "Ticket not found.",
@@ -78,7 +61,7 @@ export default function RiderTicketDetailPage() {
   }, [id, toast, navigate]);
 
   useEffect(() => {
-    fetchTicket();
+    void fetchTicket();
   }, [fetchTicket]);
 
   const handleReply = async () => {
@@ -107,11 +90,10 @@ export default function RiderTicketDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
       </div>
     );
   }
-
   if (!ticket) return null;
 
   const isSender = (senderId: SupportTicket["messages"][0]["senderId"]) => {
@@ -125,142 +107,135 @@ export default function RiderTicketDetailPage() {
       : false;
   };
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <button
-          onClick={() => navigate("/rider/support")}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Support
-        </button>
+  const closed = ticket.status === "closed";
+  const resolved = ticket.status === "resolved";
 
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            {ticket.ticketNumber && (
-              <span className="text-xs font-mono text-gray-400">
-                {ticket.ticketNumber}
-              </span>
-            )}
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[ticket.status]}`}
-            >
-              {TICKET_STATUS_LABELS[ticket.status]}
+  return (
+    <div className="mx-auto max-w-3xl p-4 sm:p-6">
+      <button
+        onClick={() => navigate("/rider/support")}
+        className="mb-5 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to support
+      </button>
+
+      <div className="mb-5">
+        <div className="mb-2 flex items-center gap-2">
+          {ticket.ticketNumber && (
+            <span className="font-mono text-xs text-muted-foreground">
+              {ticket.ticketNumber}
             </span>
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${PRIORITY_COLORS[ticket.priority]}`}
-            >
-              {TICKET_PRIORITY_LABELS[ticket.priority]}
-            </span>
+          )}
+          <StatusBadge
+            label={TICKET_STATUS_LABELS[ticket.status]}
+            tone={STATUS_TONE[ticket.status]}
+            icon={false}
+          />
+          <StatusBadge
+            label={TICKET_PRIORITY_LABELS[ticket.priority]}
+            tone="neutral"
+            icon={false}
+          />
+        </div>
+        <h1 className="text-xl font-bold text-foreground">{ticket.subject}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {TICKET_TYPE_LABELS[ticket.type]} · Created{" "}
+          {formatDateTime(ticket.createdAt)}
+        </p>
+      </div>
+
+      {ticket.resolution && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Resolution</p>
+            <p className="mt-1 text-sm text-emerald-700">{ticket.resolution}</p>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{ticket.subject}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {TICKET_TYPE_LABELS[ticket.type]} · Created {fmtDateTime(ticket.createdAt)}
+        </div>
+      )}
+
+      {ticket.status === "waiting_on_user" && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-brand-200 bg-accent p-4">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Support is waiting for your response
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Reply below to continue.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-5 space-y-4">
+        {ticket.messages.map((msg, idx) => {
+          const mine = isSender(msg.senderId);
+          return (
+            <div
+              key={idx}
+              className={cn("flex", mine ? "justify-end" : "justify-start")}
+            >
+              <div
+                className={cn(
+                  "max-w-[80%] rounded-2xl px-4 py-3",
+                  mine
+                    ? "bg-brand-500 text-white"
+                    : "bg-muted text-foreground",
+                )}
+              >
+                {!mine && (
+                  <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                    {typeof msg.senderId === "object" && msg.senderId
+                      ? `${msg.senderId.firstName} ${msg.senderId.lastName}`
+                      : "Support agent"}
+                  </p>
+                )}
+                <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+                <p
+                  className={cn(
+                    "mt-1 text-xs",
+                    mine ? "text-white/70" : "text-muted-foreground",
+                  )}
+                >
+                  {fmtTime(msg.createdAt)}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!closed && !resolved ? (
+        <SectionCard>
+          <p className="mb-3 text-sm font-medium text-foreground">Add a reply</p>
+          <Textarea
+            rows={3}
+            placeholder="Type your reply…"
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            className="mb-3"
+          />
+          <div className="flex justify-end">
+            <Button onClick={handleReply} disabled={!replyText.trim() || sending}>
+              {sending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Send reply
+            </Button>
+          </div>
+        </SectionCard>
+      ) : (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center">
+          <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">
+            This ticket is {closed ? "closed" : "resolved"}. Create a new ticket
+            if you need more help.
           </p>
         </div>
-
-        {ticket.resolution && (
-          <Card className="p-4 mb-6 bg-emerald-50 border-emerald-200">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-800">Resolution</p>
-                <p className="text-sm text-emerald-700 mt-1">{ticket.resolution}</p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {ticket.status === "waiting_on_user" && (
-          <Card className="p-4 mb-6 bg-orange-50 border-orange-200">
-            <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-orange-800">
-                  Support is waiting for your response
-                </p>
-                <p className="text-sm text-orange-700 mt-1">
-                  Please reply below to continue.
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        <div className="space-y-4 mb-6">
-          {ticket.messages.map((msg, idx) => {
-            const mine = isSender(msg.senderId);
-            return (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.03 }}
-                className={`flex ${mine ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    mine ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-900"
-                  }`}
-                >
-                  {!mine && (
-                    <p className="text-xs font-semibold text-gray-500 mb-1">
-                      {typeof msg.senderId === "object" && msg.senderId
-                        ? `${msg.senderId.firstName} ${msg.senderId.lastName}`
-                        : "Support Agent"}
-                    </p>
-                  )}
-                  <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      mine ? "text-orange-100" : "text-gray-400"
-                    }`}
-                  >
-                    {fmtTime(msg.createdAt)}
-                  </p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {ticket.status !== "closed" && ticket.status !== "resolved" && (
-          <Card className="p-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">Add a reply</p>
-            <Textarea
-              rows={3}
-              placeholder="Type your reply..."
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              className="mb-3"
-            />
-            <div className="flex justify-end">
-              <Button
-                onClick={handleReply}
-                disabled={!replyText.trim() || sending}
-                className="bg-orange-500 hover:bg-orange-600"
-              >
-                {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                Send Reply
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {ticket.status === "closed" && (
-          <Card className="p-6 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto text-gray-300 mb-3" />
-            <p className="text-sm text-gray-500">
-              This ticket has been closed. Create a new ticket if you need further assistance.
-            </p>
-          </Card>
-        )}
-      </motion.div>
+      )}
     </div>
   );
 }

@@ -1,17 +1,23 @@
+import { SectionCard } from "@/components/rider";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import type { TicketPriority, TicketType } from "@/types/support";
 import supportService from "@/services/supportService";
-import type { TicketType, TicketPriority } from "@/types/support";
-import { motion } from "framer-motion";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 const ticketSchema = z.object({
@@ -23,31 +29,24 @@ const ticketSchema = z.object({
     "driver_complaint",
     "general",
   ]),
-  subject: z
-    .string()
-    .min(5, "Subject must be at least 5 characters")
-    .max(200, "Subject must be at most 200 characters"),
-  message: z
-    .string()
-    .min(10, "Message must be at least 10 characters")
-    .max(2000, "Message must be at most 2000 characters"),
+  subject: z.string().min(5, "At least 5 characters").max(200),
+  message: z.string().min(10, "At least 10 characters").max(2000),
   orderId: z.string().optional(),
 });
-
 type TicketFormData = z.infer<typeof ticketSchema>;
+
+const TYPE_OPTIONS: { value: TicketType; label: string }[] = [
+  { value: "order_issue", label: "Delivery issue" },
+  { value: "refund_request", label: "Payment problem" },
+  { value: "account_issue", label: "Account issue" },
+  { value: "general", label: "General inquiry" },
+];
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string; description: string }[] = [
   { value: "low", label: "Low", description: "General question" },
-  { value: "medium", label: "Medium", description: "Issue affecting deliveries" },
+  { value: "medium", label: "Medium", description: "Affecting deliveries" },
   { value: "high", label: "High", description: "Urgent problem" },
-  { value: "urgent", label: "Urgent", description: "Critical — needs immediate attention" },
-];
-
-const TYPE_OPTIONS: { value: TicketType; label: string }[] = [
-  { value: "order_issue", label: "Delivery Issue" },
-  { value: "refund_request", label: "Payment Problem" },
-  { value: "account_issue", label: "Account Issue" },
-  { value: "general", label: "General Inquiry" },
+  { value: "urgent", label: "Urgent", description: "Needs immediate help" },
 ];
 
 export default function RiderCreateTicketPage() {
@@ -57,18 +56,19 @@ export default function RiderCreateTicketPage() {
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [submitting, setSubmitting] = useState(false);
 
-  const prefillType = searchParams.get("type") as TicketType | null;
-
+  const prefill = searchParams.get("type") as TicketType | null;
   const {
+    control,
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<TicketFormData>({
     resolver: zodResolver(ticketSchema),
     defaultValues: {
-      type: prefillType && TYPE_OPTIONS.some((o) => o.value === prefillType)
-        ? prefillType
-        : "general",
+      type:
+        prefill && TYPE_OPTIONS.some((o) => o.value === prefill)
+          ? prefill
+          : "general",
     },
   });
 
@@ -81,10 +81,7 @@ export default function RiderCreateTicketPage() {
         orderId: data.orderId || undefined,
       });
       if (res.success && res.data) {
-        toast({
-          title: "Ticket Created",
-          description: "Your support ticket has been submitted.",
-        });
+        toast({ title: "Ticket created", description: "We'll be in touch." });
         navigate(`/rider/support/${res.data.ticket._id}`);
       } else {
         toast({
@@ -99,120 +96,113 @@ export default function RiderCreateTicketPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <button
-          onClick={() => navigate("/rider/support")}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Support
-        </button>
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
+      <button
+        onClick={() => navigate("/rider/support")}
+        className="mb-5 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to support
+      </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          Create Support Ticket
-        </h1>
+      <h1 className="mb-5 text-xl font-bold text-foreground">
+        Create support ticket
+      </h1>
 
-        <Card className="p-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="type">Category</Label>
-              <select
-                id="type"
-                {...register("type")}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none bg-white"
-              >
-                {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              {errors.type && (
-                <p className="text-red-500 text-sm">{errors.type.message}</p>
+      <SectionCard>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Controller
+              control={control}
+              name="type"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-            </div>
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                placeholder="Brief description of your issue"
-                {...register("subject")}
-                className={errors.subject ? "border-red-500" : ""}
-              />
-              {errors.subject && (
-                <p className="text-red-500 text-sm">{errors.subject.message}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="subject">Subject</Label>
+            <Input
+              id="subject"
+              placeholder="Brief description"
+              {...register("subject")}
+            />
+            {errors.subject && (
+              <p className="text-sm text-red-600">{errors.subject.message}</p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="message">Message</Label>
-              <Textarea
-                id="message"
-                rows={6}
-                placeholder="Describe your issue in detail..."
-                {...register("message")}
-                className={errors.message ? "border-red-500" : ""}
-              />
-              {errors.message && (
-                <p className="text-red-500 text-sm">{errors.message.message}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="message">Message</Label>
+            <Textarea
+              id="message"
+              rows={6}
+              placeholder="Describe your issue in detail…"
+              {...register("message")}
+            />
+            {errors.message && (
+              <p className="text-sm text-red-600">{errors.message.message}</p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="orderId">
-                Order Number{" "}
-                <span className="text-gray-400 font-normal">(optional)</span>
-              </Label>
-              <Input
-                id="orderId"
-                placeholder="e.g. ORD-12345"
-                {...register("orderId")}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="orderId">
+              Order number{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
+            <Input id="orderId" placeholder="e.g. ORD-12345" {...register("orderId")} />
+          </div>
 
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {PRIORITY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPriority(opt.value)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
-                      priority === opt.value
-                        ? "border-orange-500 bg-orange-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-gray-900">{opt.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <Label>Priority</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {PRIORITY_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setPriority(o.value)}
+                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
+                    priority === o.value
+                      ? "border-brand-500 bg-accent"
+                      : "border-border hover:border-brand-200"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-foreground">{o.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {o.description}
+                  </p>
+                </button>
+              ))}
             </div>
+          </div>
 
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-orange-500 hover:bg-orange-600 py-6"
-            >
-              {submitting ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Send className="h-4 w-4" />
-                  Submit Ticket
-                </span>
-              )}
-            </Button>
-          </form>
-        </Card>
-      </motion.div>
+          <Button type="submit" disabled={submitting} className="w-full">
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" /> Submit ticket
+              </>
+            )}
+          </Button>
+        </form>
+      </SectionCard>
     </div>
   );
 }

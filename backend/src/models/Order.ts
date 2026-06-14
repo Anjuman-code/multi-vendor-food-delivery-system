@@ -72,6 +72,19 @@ export enum PaymentMethod {
   UPI = 'upi',
 }
 
+/**
+ * Fine-grained courier progress within the delivery leg. Purely rider-facing —
+ * it does NOT replace `OrderStatus` (which the customer/vendor consume), it
+ * enriches it so the rider app can show DoorDash/Uber-style step granularity.
+ */
+export enum DeliveryStage {
+  HEADING_TO_STORE = 'heading_to_store',
+  AT_STORE = 'at_store',
+  PICKED_UP = 'picked_up',
+  HEADING_TO_CUSTOMER = 'heading_to_customer',
+  ARRIVED = 'arrived',
+}
+
 export interface IOrder {
   orderNumber: string;
   customerId: Types.ObjectId;
@@ -81,6 +94,7 @@ export interface IOrder {
   items: IOrderItem[];
   deliveryAddress: IDeliveryAddress;
   status: OrderStatus;
+  deliveryStage?: DeliveryStage;
   statusHistory: IStatusHistoryEntry[];
   paymentMethod: string;
   paymentStatus: PaymentStatus;
@@ -236,6 +250,10 @@ const orderSchema = new Schema<IOrder>(
       type: String,
       enum: Object.values(OrderStatus),
       default: OrderStatus.PENDING,
+    },
+    deliveryStage: {
+      type: String,
+      enum: Object.values(DeliveryStage),
     },
     statusHistory: {
       type: [statusHistorySchema],

@@ -1,342 +1,256 @@
+import { PageHeader, SectionCard, StatCard } from "@/components/rider";
+import { useRider } from "@/contexts/RiderContext";
 import { useToast } from "@/hooks/use-toast";
 import riderService, {
   type EarningsData,
-  type RiderOrder,
+  type EarningsPeriod,
 } from "@/services/riderService";
+import { formatCurrency } from "@/utils/format";
 import { motion } from "framer-motion";
-import { DollarSign, MapPin, Star, TrendingUp, Truck } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import { Banknote, Coins, Star, TrendingUp, Truck, Wallet } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  LineChart,
-  Line,
-  Tooltip as RechartsTooltip,
+  Bar,
+  BarChart,
   ResponsiveContainer,
+  Tooltip as RechartsTooltip,
   XAxis,
 } from "recharts";
 
-const fmt = (n: number) => `৳${n.toLocaleString("en-BD")}`;
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString("en-BD", { month: "short", day: "numeric" });
-const fmtDateTime = (d: string) =>
-  new Date(d).toLocaleDateString("en-BD", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-const PeriodCard: React.FC<{
-  label: string;
-  earnings: number;
-  deliveries: number;
-  fees: number;
-  tips: number;
-  accent?: string;
-}> = ({
+const PeriodCard: React.FC<{ label: string; data: EarningsPeriod }> = ({
   label,
-  earnings,
-  deliveries,
-  fees,
-  tips,
-  accent = "bg-orange-500",
+  data,
 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 12 }}
+    initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+    className="rounded-xl border border-border bg-card p-5 shadow-sm"
   >
-    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
       {label}
     </p>
-    <p className="text-3xl font-bold text-gray-900">{fmt(earnings)}</p>
-    <p className="text-sm text-gray-500 mt-1">{deliveries} deliveries</p>
-    <div className="mt-3 pt-3 border-t border-gray-50 flex gap-4 text-xs text-gray-500">
+    <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+      {formatCurrency(data.earnings)}
+    </p>
+    <p className="mt-0.5 text-sm text-muted-foreground">
+      {data.deliveries} deliver{data.deliveries === 1 ? "y" : "ies"}
+    </p>
+    <div className="mt-3 flex gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
       <span>
-        Fees: <strong className="text-gray-700">{fmt(fees)}</strong>
+        Fees{" "}
+        <strong className="text-foreground">{formatCurrency(data.fees)}</strong>
       </span>
       <span>
-        Tips: <strong className="text-gray-700">{fmt(tips)}</strong>
+        Tips{" "}
+        <strong className="text-foreground">{formatCurrency(data.tips)}</strong>
       </span>
-    </div>
-    {/* Progress bar — visual only */}
-    <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-      <div
-        className={`h-full ${accent} rounded-full`}
-        style={{ width: `${Math.min(100, (earnings / 5000) * 100)}%` }}
-      />
     </div>
   </motion.div>
 );
 
 const RiderEarningsPage: React.FC = () => {
   const { toast } = useToast();
+  const { profile } = useRider();
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
-  const [history, setHistory] = useState<RiderOrder[]>([]);
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyTotal, setHistoryTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  const loadEarnings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await riderService.getEarnings();
-      const d = (res as { data: { data: EarningsData } }).data;
-      setEarnings(d.data ?? null);
-    } catch {
-      toast({ variant: "destructive", title: "Failed to load earnings" });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  const loadHistory = useCallback(
-    async (page: number) => {
-      setHistoryLoading(true);
-      try {
-        const res = await riderService.getDeliveryHistory({ page, limit: 20 });
-        const d = (
-          res as {
-            data: {
-              data: { deliveries: RiderOrder[]; pagination: { total: number } };
-            };
-          }
-        ).data;
-        setHistory(d.data?.deliveries ?? []);
-        setHistoryTotal(d.data?.pagination?.total ?? 0);
-        setHistoryPage(page);
-      } catch {
-        toast({
-          variant: "destructive",
-          title: "Failed to load delivery history",
-        });
-      } finally {
-        setHistoryLoading(false);
-      }
-    },
-    [toast],
-  );
 
   useEffect(() => {
-    void loadEarnings();
-    void loadHistory(1);
-  }, [loadEarnings, loadHistory]);
+    riderService
+      .getEarnings()
+      .then((res) =>
+        setEarnings(
+          (res as unknown as { data: { data: EarningsData } }).data.data ??
+            null,
+        ),
+      )
+      .catch(() =>
+        toast({ variant: "destructive", title: "Failed to load earnings" }),
+      )
+      .finally(() => setLoading(false));
+  }, [toast]);
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+          <div key={i} className="h-32 animate-pulse rounded-xl bg-muted" />
         ))}
       </div>
     );
   }
 
-  // Weekly chart — bar chart using raw divs
-  const maxDayEarnings = Math.max(
-    ...(earnings?.weeklyBreakdown ?? []).map((d) => d.earnings),
-    1,
-  );
+  if (!earnings) return null;
+
+  const chartData = earnings.weeklyBreakdown.map((d) => ({
+    ...d,
+    day: new Date(d.date).toLocaleDateString("en-BD", { weekday: "short" }),
+  }));
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Earnings</h1>
+    <div className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6">
+      <PageHeader
+        title="Earnings"
+        subtitle="Your delivery income and cash reconciliation"
+        actions={
+          <Link
+            to="/rider/history"
+            className="text-sm font-medium text-brand-600 hover:text-brand-700"
+          >
+            Delivery history
+          </Link>
+        }
+      />
 
-      {/* Period cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {earnings && (
-          <>
-            <PeriodCard
-              label="Today"
-              accent="bg-blue-500"
-              {...earnings.today}
-            />
-            <PeriodCard
-              label="This Week"
-              accent="bg-orange-500"
-              {...earnings.thisWeek}
-            />
-            <PeriodCard
-              label="This Month"
-              accent="bg-purple-500"
-              {...earnings.thisMonth}
-            />
-          </>
-        )}
+      {/* Period breakdown */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <PeriodCard label="Today" data={earnings.today} />
+        <PeriodCard label="This week" data={earnings.thisWeek} />
+        <PeriodCard label="This month" data={earnings.thisMonth} />
       </div>
 
-      {/* All-time summary */}
-      {earnings && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            {
-              label: "Total Earned",
-              value: fmt(earnings.allTime.earnings),
-              icon: DollarSign,
-              color: "text-green-600 bg-green-50",
-            },
-            {
-              label: "Total Deliveries",
-              value: String(earnings.allTime.deliveries),
-              icon: Truck,
-              color: "text-blue-600 bg-blue-50",
-            },
-          ].map((stat) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3"
-            >
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}
-              >
-                <stat.icon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-xs text-gray-500">{stat.label}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+      {/* Lifetime + rating */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label="Lifetime earnings"
+          value={formatCurrency(earnings.allTime.earnings)}
+          icon={Wallet}
+          accent="brand"
+        />
+        <StatCard
+          label="Total deliveries"
+          value={earnings.allTime.deliveries}
+          icon={Truck}
+        />
+        <StatCard
+          label="Rating"
+          value={
+            profile?.rating.count ? profile.rating.average.toFixed(1) : "—"
+          }
+          icon={Star}
+          hint={`${profile?.rating.count ?? 0} ratings`}
+        />
+        <StatCard
+          label="Cash today"
+          value={formatCurrency(earnings.today.cashCollected)}
+          icon={Coins}
+          hint="COD to deposit"
+        />
+      </div>
 
-      {/* Weekly line chart */}
-      {earnings && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-orange-500" />
-            This Week
-          </h3>
-          <div className="h-32 w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={earnings.weeklyBreakdown.map((d) => ({
-                  ...d,
-                  day: new Date(d.date).toLocaleDateString("en-BD", {
-                    weekday: "short",
-                  }),
-                }))}
-              >
-                <XAxis
-                  dataKey="day"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  dy={10}
-                />
-                <RechartsTooltip
-                  formatter={(value: number) => [fmt(value), "Earnings"]}
-                  labelStyle={{ display: "none" }}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "none",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    fontSize: 12,
-                    padding: "8px 12px",
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="earnings"
-                  stroke="#ea580c"
-                  strokeWidth={3}
-                  dot={{ r: 3, fill: "#ea580c", strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: "#c2410c" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* Cash reconciliation */}
+      {earnings.thisWeek.cashCollected > 0 && (
+        <SectionCard
+          title="Cash to deposit"
+          icon={<Banknote className="h-4 w-4 text-amber-600" />}
+          description="Cash you collected on COD orders that belongs to the platform."
+        >
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-3xl font-bold text-foreground">
+                {formatCurrency(earnings.thisWeek.cashCollected)}
+              </p>
+              <p className="text-sm text-muted-foreground">collected this week</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Today:{" "}
+              <strong className="text-foreground">
+                {formatCurrency(earnings.today.cashCollected)}
+              </strong>
+            </p>
           </div>
-        </div>
+        </SectionCard>
       )}
 
-      {/* Delivery history */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Delivery History</h3>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {historyTotal} completed deliveries
-          </p>
-        </div>
-
-        {historyLoading ? (
-          <div className="p-5 space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className="h-12 bg-gray-100 rounded-lg animate-pulse"
+      {/* Weekly chart */}
+      <SectionCard
+        title="This week"
+        icon={<TrendingUp className="h-4 w-4 text-brand-500" />}
+      >
+        <div className="h-40 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <XAxis
+                dataKey="day"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                dy={6}
               />
-            ))}
+              <RechartsTooltip
+                cursor={{ fill: "hsl(var(--muted))" }}
+                formatter={(value) => [formatCurrency(value), "Earnings"]}
+                labelStyle={{ display: "none" }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid hsl(var(--border))",
+                  fontSize: 12,
+                  padding: "6px 10px",
+                }}
+              />
+              <Bar
+                dataKey="earnings"
+                fill="hsl(var(--primary))"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={40}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </SectionCard>
+
+      {/* Payout method summary */}
+      <SectionCard
+        title="Payout method"
+        actions={
+          <Link
+            to="/rider/profile"
+            className="text-sm font-medium text-brand-600 hover:text-brand-700"
+          >
+            Manage
+          </Link>
+        }
+      >
+        {profile?.bankDetails?.mobileMoneyNumber ? (
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-brand-600">
+              <Wallet className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {profile.bankDetails.mobileMoneyProvider
+                  ? profile.bankDetails.mobileMoneyProvider.toUpperCase()
+                  : "Mobile money"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {profile.bankDetails.mobileMoneyNumber}
+              </p>
+            </div>
           </div>
-        ) : history.length === 0 ? (
-          <div className="p-12 text-center">
-            <Star className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No deliveries yet</p>
+        ) : profile?.bankDetails?.accountNumber ? (
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-brand-600">
+              <Banknote className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {profile.bankDetails.bankName ?? "Bank account"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                •••• {profile.bankDetails.accountNumber.slice(-4)}
+              </p>
+            </div>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-50">
-            {history.map((order) => {
-              const restaurant =
-                typeof order.restaurantId === "object"
-                  ? order.restaurantId
-                  : null;
-              return (
-                <li
-                  key={order._id}
-                  className="flex items-center gap-4 px-5 py-3.5"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      #{order.orderNumber}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {restaurant?.name ?? ""}
-                      {order.deliveryAddress?.area
-                        ? ` → ${order.deliveryAddress.area}`
-                        : ""}
-                      {order.actualDeliveryTime
-                        ? ` • ${fmtDateTime(order.actualDeliveryTime)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold text-green-600 shrink-0">
-                    {fmt((order.deliveryFee ?? 0) + (order.tipAmount ?? 0))}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
+          <p className="text-sm text-muted-foreground">
+            No payout method set.{" "}
+            <Link to="/rider/profile" className="font-medium text-brand-600">
+              Add one
+            </Link>{" "}
+            to get paid.
+          </p>
         )}
-
-        {/* Pagination */}
-        {historyTotal > 20 && (
-          <div className="p-4 flex justify-center gap-3 border-t border-gray-50">
-            <button
-              disabled={historyPage === 1 || historyLoading}
-              onClick={() => void loadHistory(historyPage - 1)}
-              className="px-4 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 text-sm text-gray-500">
-              Page {historyPage} of {Math.ceil(historyTotal / 20)}
-            </span>
-            <button
-              disabled={
-                historyPage >= Math.ceil(historyTotal / 20) || historyLoading
-              }
-              onClick={() => void loadHistory(historyPage + 1)}
-              className="px-4 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
-      </div>
+      </SectionCard>
     </div>
   );
 };

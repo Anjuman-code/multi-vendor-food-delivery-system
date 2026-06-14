@@ -2,6 +2,7 @@ import { Router } from "express";
 import { UserRole } from "../config/constants";
 import {
     acceptOrder,
+    advanceDeliveryStage,
     completeDriverOnboarding,
     completeOnboardingWithDetails,
     getActiveDelivery,
@@ -13,6 +14,7 @@ import {
     updateDeliveryStatus,
     updateLocation,
     updateProfile,
+    uploadDeliveryProof,
     uploadDocument,
 } from "../controllers/driver.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
@@ -36,7 +38,9 @@ router.post("/documents/upload", uploadDriverDocument, uploadDocument);
 router.get("/orders/available", getAvailableOrders);
 router.get("/orders/active", getActiveDelivery);
 router.post("/orders/:orderId/accept", acceptOrder);
+router.patch("/orders/:orderId/stage", advanceDeliveryStage);
 router.patch("/orders/:orderId/status", updateDeliveryStatus);
+router.post("/orders/:orderId/proof", uploadDriverDocument, uploadDeliveryProof);
 
 // Location
 router.post("/location", updateLocation);

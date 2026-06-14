@@ -1,5 +1,13 @@
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import {
+  DeliveryMap,
+  DeliveryStageStepper,
+  EmptyState,
+  SectionCard,
+  StatusBadge,
+  nextStageAction,
+  type LatLng,
+} from "@/components/rider";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,385 +15,465 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import riderService, { type RiderOrder } from '@/services/riderService';
-import { motion } from 'framer-motion';
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useRider } from "@/contexts/RiderContext";
+import { useToast } from "@/hooks/use-toast";
+import { useDriverLocationBroadcast } from "@/hooks/useDriverLocationBroadcast";
+import riderService, { type RiderOrder } from "@/services/riderService";
+import { formatCurrency } from "@/utils/format";
+import { motion } from "framer-motion";
 import {
   Banknote,
+  Camera,
   CheckCircle,
+  Loader2,
   MapPin,
+  Navigation,
   Package,
   Phone,
-  RefreshCw,
+  Radio,
   Store,
   Truck,
-} from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+  X,
+} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
-const DELIVERY_STATUSES = [
-  { status: 'confirmed', label: 'Order Confirmed' },
-  { status: 'preparing', label: 'Being Prepared' },
-  { status: 'ready', label: 'Ready for Pickup' },
-  { status: 'picked_up', label: 'Picked Up — En Route' },
-  { status: 'delivered', label: 'Delivered' },
-] as const;
-
-const NEXT_STATUS: Record<string, string | null> = {
-  ready: 'picked_up',
-  picked_up: 'delivered',
+const storePoint = (order: RiderOrder): LatLng | null => {
+  const loc =
+    typeof order.restaurantId === "object"
+      ? order.restaurantId.location?.coordinates
+      : null;
+  return loc ? { lat: loc[1], lng: loc[0] } : null;
 };
-
-const NEXT_LABEL: Record<string, string> = {
-  ready: 'Confirm Pickup',
-  picked_up: 'Mark as Delivered',
+const customerPoint = (order: RiderOrder): LatLng | null => {
+  const c = order.deliveryAddress?.coordinates;
+  return c ? { lat: c.latitude, lng: c.longitude } : null;
 };
 
 const ActiveDeliveryPage: React.FC = () => {
   const { toast } = useToast();
-  const [order, setOrder] = useState<RiderOrder | null>(null);
+  const { activeOrder, setActiveOrder, refresh } = useRider();
+  const [order, setOrder] = useState<RiderOrder | null>(activeOrder);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const [codDialogOpen, setCodDialogOpen] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
+
+  // Complete-delivery dialog state
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [codCollected, setCodCollected] = useState<boolean | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchActive = useCallback(async () => {
     setLoading(true);
     try {
       const res = await riderService.getActiveDelivery();
-      const d = (res as { data: { data: { order: RiderOrder | null } } }).data;
-      setOrder(d.data?.order ?? null);
+      const o =
+        (res as unknown as { data: { data: { order: RiderOrder | null } } })
+          .data.data?.order ?? null;
+      setOrder(o);
+      setActiveOrder(o);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setActiveOrder]);
 
   useEffect(() => {
     void fetchActive();
   }, [fetchActive]);
 
-  const handleStatusUpdate = async (codCollected?: boolean) => {
-    if (!order) return;
-    const nextStatus = NEXT_STATUS[order.status];
-    if (!nextStatus) return;
+  const delivered = order?.status === "delivered";
+  // Broadcast GPS to the customer for the whole active leg.
+  const broadcast = useDriverLocationBroadcast(
+    order?._id,
+    !!order && !delivered,
+  );
 
-    // For COD orders being marked delivered, require explicit confirmation
-    if (
-      nextStatus === 'delivered' &&
-      order.paymentMethod === 'cash_on_delivery' &&
-      codCollected === undefined
-    ) {
-      setCodDialogOpen(true);
+  const stage = order?.deliveryStage;
+  const beforePickup =
+    !stage || stage === "heading_to_store" || stage === "at_store";
+
+  const points = useMemo(() => {
+    if (!order) return { store: null, customer: null, driver: null };
+    const driver = broadcast.position
+      ? { lat: broadcast.position.latitude, lng: broadcast.position.longitude }
+      : null;
+    return { store: storePoint(order), customer: customerPoint(order), driver };
+  }, [order, broadcast.position]);
+
+  const action = order ? nextStageAction(stage, delivered) : null;
+
+  const handleAdvance = async () => {
+    if (!order || !action) return;
+    if (action.target === "deliver") {
+      setCompleteOpen(true);
       return;
     }
-
-    setUpdating(true);
+    setAdvancing(true);
     try {
-      await riderService.updateDeliveryStatus(order._id, {
-        status: nextStatus,
-        ...(nextStatus === 'delivered' &&
-        order.paymentMethod === 'cash_on_delivery'
-          ? { codCollected: codCollected ?? false }
-          : {}),
-      });
-      setOrder((o) => (o ? { ...o, status: nextStatus } : o));
+      const res = await riderService.advanceStage(order._id, action.target);
+      const updated = (
+        res as unknown as { data: { data: { order: RiderOrder } } }
+      ).data.data.order;
+      setOrder(updated);
+      setActiveOrder(updated);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      toast({ variant: "destructive", title: msg ?? "Couldn't update step" });
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  const onPickProof = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+  };
+
+  const clearProof = () => {
+    setProofFile(null);
+    if (proofPreview) URL.revokeObjectURL(proofPreview);
+    setProofPreview(null);
+  };
+
+  const handleComplete = async () => {
+    if (!order) return;
+    const isCod = order.paymentMethod === "cash_on_delivery";
+    if (isCod && codCollected === null) {
       toast({
-        title:
-          nextStatus === 'delivered' ? 'Delivery completed!' : 'Status updated',
-        description:
-          nextStatus === 'delivered'
-            ? "Great work! You're now available for new orders."
-            : `Order status set to ${nextStatus.replace(/_/g, ' ')}.`,
+        variant: "destructive",
+        title: "Confirm whether you collected the cash",
+      });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let photoUrl: string | undefined;
+      if (proofFile) {
+        const up = await riderService.uploadDeliveryProof(order._id, proofFile);
+        photoUrl = (
+          up as unknown as { data: { data: { photoUrl: string } } }
+        ).data.data.photoUrl;
+      }
+      await riderService.updateDeliveryStatus(order._id, {
+        status: "delivered",
+        ...(photoUrl
+          ? { deliveryProof: { photoUrl, note: note || undefined } }
+          : {}),
+        ...(isCod ? { codCollected: codCollected === true } : {}),
+      });
+      setOrder((o) => (o ? { ...o, status: "delivered" } : o));
+      setCompleteOpen(false);
+      clearProof();
+      await refresh();
+      toast({
+        title: "Delivery completed",
+        description: "Nice work — you're available for new orders.",
       });
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      toast({
-        variant: 'destructive',
-        title: msg ?? 'Failed to update status',
-      });
+      toast({ variant: "destructive", title: msg ?? "Failed to complete" });
     } finally {
-      setUpdating(false);
+      setSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
-        <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
-        <div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />
+      <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
+        <div className="h-56 animate-pulse rounded-xl bg-muted" />
+        <div className="h-40 animate-pulse rounded-xl bg-muted" />
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] p-6">
-        <div className="max-w-sm text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
-            <Truck className="w-8 h-8 text-gray-400" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900">
-            No Active Delivery
-          </h2>
-          <p className="text-gray-500 text-sm">
-            You don't have an active delivery right now. Head over to available
-            orders to pick one up.
-          </p>
-          <Button
-            asChild
-            className="bg-orange-500 hover:bg-orange-600 text-white"
-          >
-            <Link to="/rider/available">View Available Orders</Link>
-          </Button>
-        </div>
+      <div className="mx-auto max-w-2xl p-4 sm:p-6">
+        <EmptyState
+          icon={Truck}
+          title="No active delivery"
+          description="You don't have a delivery in progress. Pick one up to get going."
+          action={{
+            label: "Find deliveries",
+            onClick: () => (window.location.href = "/rider/available"),
+          }}
+        />
       </div>
     );
   }
 
   const restaurant =
-    typeof order.restaurantId === 'object' ? order.restaurantId : null;
+    typeof order.restaurantId === "object" ? order.restaurantId : null;
   const customer =
-    typeof order.customerId === 'object' ? order.customerId : null;
-  const currentStatusIdx = DELIVERY_STATUSES.findIndex(
-    (s) => s.status === order.status,
-  );
-  const nextStatus = NEXT_STATUS[order.status];
+    typeof order.customerId === "object" ? order.customerId : null;
+  const restaurantPhone =
+    restaurant?.address && typeof restaurant.address === "object"
+      ? (restaurant.address as Record<string, unknown>).phone
+      : undefined;
+  const isCod = order.paymentMethod === "cash_on_delivery";
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Active Delivery</h1>
-          <p className="text-sm text-gray-500">Order #{order.orderNumber}</p>
+    <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold text-foreground">Active delivery</h1>
+          <p className="text-sm text-muted-foreground">
+            Order #{order.orderNumber}
+          </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void fetchActive()}
-          className="gap-2"
+        <StatusBadge status={delivered ? "delivered" : "picked_up"} />
+      </div>
+
+      {/* Live map */}
+      <DeliveryMap
+        className="h-60"
+        store={points.store}
+        customer={points.customer}
+        driver={points.driver}
+        navigateTo={beforePickup ? points.store : points.customer}
+      />
+
+      {/* GPS broadcast indicator */}
+      {!delivered && (
+        <div
+          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+            broadcast.error
+              ? "border-amber-200 bg-amber-50 text-amber-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
         >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </Button>
-      </div>
+          <Radio className={`h-3.5 w-3.5 ${broadcast.error ? "" : "animate-pulse"}`} />
+          {broadcast.error ?? "Sharing your live location with the customer."}
+        </div>
+      )}
 
-      {/* Status timeline */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-4">Delivery Progress</h3>
-        <ol className="space-y-3">
-          {DELIVERY_STATUSES.map((step, idx) => {
-            const isDone = idx <= currentStatusIdx;
-            const isCurrent = idx === currentStatusIdx;
-            return (
-              <motion.li
-                key={step.status}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="flex items-center gap-3"
-              >
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                    isDone
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-100 text-gray-300'
-                  }`}
-                >
-                  {isDone ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    <span className="w-2 h-2 rounded-full bg-current" />
-                  )}
-                </div>
-                <span
-                  className={`text-sm ${
-                    isCurrent
-                      ? 'font-semibold text-gray-900'
-                      : isDone
-                        ? 'text-gray-600'
-                        : 'text-gray-400'
-                  }`}
-                >
-                  {step.label}
-                </span>
-                {isCurrent && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-auto text-xs bg-orange-50 text-orange-600 border-0"
-                  >
-                    Current
-                  </Badge>
-                )}
-              </motion.li>
-            );
-          })}
-        </ol>
-      </div>
+      {/* Progress + action */}
+      <SectionCard title="Delivery progress">
+        <DeliveryStageStepper current={stage} delivered={delivered} />
+        {!delivered && action && (
+          <Button
+            onClick={() => void handleAdvance()}
+            disabled={advancing}
+            size="lg"
+            className="mt-2 h-12 w-full text-base font-semibold"
+          >
+            {advancing ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <CheckCircle className="mr-2 h-5 w-5" />
+            )}
+            {action.label}
+          </Button>
+        )}
+      </SectionCard>
 
-      {/* Restaurant */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Store className="w-4 h-4 text-orange-500" />
-          Restaurant
-        </h3>
-        <p className="font-medium text-gray-800">{restaurant?.name ?? '—'}</p>
-        {typeof restaurant?.address === 'object' && restaurant?.address && (
-          <p className="text-sm text-gray-500 mt-0.5">
+      {delivered && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center"
+        >
+          <CheckCircle className="mx-auto mb-2 h-10 w-10 text-emerald-500" />
+          <p className="font-semibold text-emerald-800">Delivery completed!</p>
+          <p className="mt-1 text-sm text-emerald-600">
+            You're now available for new orders.
+          </p>
+          <Button asChild className="mt-4">
+            <Link to="/rider/available">Find next delivery</Link>
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Pickup */}
+      <SectionCard
+        title="Pickup"
+        icon={<Store className="h-4 w-4 text-brand-500" />}
+      >
+        <p className="font-medium text-foreground">{restaurant?.name ?? "—"}</p>
+        {restaurant?.address && typeof restaurant.address === "object" && (
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {String(
-              (restaurant.address as Record<string, unknown>).fullAddress ?? '',
+              (restaurant.address as Record<string, unknown>).fullAddress ??
+                (restaurant.address as Record<string, unknown>).area ??
+                "",
             )}
           </p>
         )}
-        {typeof restaurant?.address === 'object' &&
-          (restaurant?.address as Record<string, unknown>)?.phone && (
-            <a
-              href={`tel:${(restaurant.address as Record<string, unknown>).phone}`}
-              className="inline-flex items-center gap-2 mt-2 text-sm text-orange-500 hover:text-orange-600"
-            >
-              <Phone className="w-4 h-4" />
-              Call restaurant
-            </a>
-          )}
-      </div>
-
-      {/* Delivery address */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-orange-500" />
-          Deliver to
-        </h3>
-        <p className="text-sm text-gray-700">
-          {order.deliveryAddress?.area}
-          {order.deliveryAddress?.district
-            ? `, ${order.deliveryAddress.district}`
-            : ''}
-        </p>
-        {order.deliveryAddress?.fullAddress && (
-          <p className="text-sm text-gray-500 mt-0.5">
-            {order.deliveryAddress.fullAddress}
-          </p>
+        {typeof restaurantPhone === "string" && (
+          <a
+            href={`tel:${restaurantPhone}`}
+            className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-brand-600"
+          >
+            <Phone className="h-4 w-4" /> Call restaurant
+          </a>
         )}
+      </SectionCard>
+
+      {/* Drop-off */}
+      <SectionCard
+        title="Drop-off"
+        icon={<MapPin className="h-4 w-4 text-emerald-600" />}
+      >
+        <p className="text-sm text-foreground">
+          {[order.deliveryAddress?.street, order.deliveryAddress?.area, order.deliveryAddress?.district]
+            .filter(Boolean)
+            .join(", ")}
+        </p>
         {customer && (
-          <div className="mt-3 pt-3 border-t border-gray-50">
-            <p className="text-sm font-medium text-gray-800">
+          <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+            <p className="text-sm font-medium text-foreground">
               {customer.firstName} {customer.lastName}
             </p>
             {customer.phoneNumber && (
               <a
                 href={`tel:${customer.phoneNumber}`}
-                className="inline-flex items-center gap-2 mt-1 text-sm text-orange-500 hover:text-orange-600"
+                className="inline-flex items-center gap-2 text-sm font-medium text-brand-600"
               >
-                <Phone className="w-4 h-4" />
-                {customer.phoneNumber}
+                <Phone className="h-4 w-4" /> Call
               </a>
             )}
           </div>
         )}
-      </div>
+      </SectionCard>
 
-      {/* Items */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Package className="w-4 h-4 text-orange-500" />
-          Order items
-        </h3>
+      {/* Order summary */}
+      <SectionCard
+        title="Order"
+        icon={<Package className="h-4 w-4 text-muted-foreground" />}
+      >
         <ul className="space-y-1.5">
           {order.items.map((item, i) => (
             <li
               key={i}
-              className="flex items-center justify-between text-sm text-gray-700"
+              className="flex items-center justify-between text-sm text-foreground"
             >
               <span>{item.name}</span>
-              <span className="text-gray-500">×{item.quantity}</span>
+              <span className="text-muted-foreground">×{item.quantity}</span>
             </li>
           ))}
         </ul>
-      </div>
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
+          <span className="text-muted-foreground">
+            {isCod ? "Collect cash" : "Prepaid"}
+          </span>
+          <span className="font-semibold text-foreground">
+            {formatCurrency(order.total)}
+          </span>
+        </div>
+      </SectionCard>
 
-      {/* Action button */}
-      {nextStatus && (
-        <Button
-          onClick={() => void handleStatusUpdate()}
-          disabled={updating}
-          size="lg"
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-base font-semibold h-14"
-        >
-          {updating ? (
-            <>
-              <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-              Updating…
-            </>
-          ) : (
-            <>
-              <CheckCircle className="w-5 h-5 mr-2" />
-              {NEXT_LABEL[order.status]}
-            </>
-          )}
-        </Button>
-      )}
-
-      {order.status === 'delivered' && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center"
-        >
-          <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
-          <p className="font-semibold text-green-800">Delivery Completed!</p>
-          <p className="text-sm text-green-600 mt-1">
-            Great work! You're now available for new orders.
-          </p>
-          <Button
-            asChild
-            className="mt-4 bg-green-500 hover:bg-green-600 text-white"
-          >
-            <Link to="/rider/available">Find Next Delivery</Link>
-          </Button>
-        </motion.div>
-      )}
-
-      {/* COD cash collection confirmation dialog */}
-      <Dialog open={codDialogOpen} onOpenChange={setCodDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+      {/* Complete-delivery dialog */}
+      <Dialog open={completeOpen} onOpenChange={(o) => !submitting && setCompleteOpen(o)}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-amber-600" />
-              Confirm Cash Collection
-            </DialogTitle>
+            <DialogTitle>Complete delivery</DialogTitle>
             <DialogDescription>
-              This is a cash on delivery order. Did the customer pay you in
-              cash?
+              Add proof of delivery{isCod ? " and confirm cash collection" : ""}.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2">
-            <p className="text-sm text-gray-600">
-              Order total:{' '}
-              <strong className="text-gray-900">
-                ৳{order?.total?.toFixed(2) ?? '—'}
-              </strong>
-            </p>
+
+          <div className="space-y-4">
+            {/* Proof photo */}
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-foreground">
+                Photo{" "}
+                <span className="font-normal text-muted-foreground">
+                  (recommended)
+                </span>
+              </p>
+              {proofPreview ? (
+                <div className="relative">
+                  <img
+                    src={proofPreview}
+                    alt="Delivery proof"
+                    className="h-40 w-full rounded-lg border border-border object-cover"
+                  />
+                  <button
+                    onClick={clearProof}
+                    className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
+                    aria-label="Remove photo"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border text-muted-foreground hover:border-brand-300 hover:text-brand-600"
+                >
+                  <Camera className="h-6 w-6" />
+                  <span className="text-sm">Take / upload photo</span>
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={onPickProof}
+              />
+            </div>
+
+            {/* Note */}
+            <Textarea
+              rows={2}
+              placeholder="Note (e.g. left at door)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+
+            {/* COD */}
+            {isCod && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
+                  <Banknote className="h-4 w-4" />
+                  Collect {formatCurrency(order.total)} in cash
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={codCollected === true ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCodCollected(true)}
+                  >
+                    Cash collected
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={codCollected === false ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCodCollected(false)}
+                  >
+                    Not collected
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+
+          <DialogFooter>
             <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                setCodDialogOpen(false);
-                void handleStatusUpdate(false);
-              }}
+              onClick={() => void handleComplete()}
+              disabled={submitting}
+              className="w-full"
             >
-              Not Collected
-            </Button>
-            <Button
-              className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
-              onClick={() => {
-                setCodDialogOpen(false);
-                void handleStatusUpdate(true);
-              }}
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Cash Collected
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Navigation className="mr-2 h-4 w-4" />
+              )}
+              Complete delivery
             </Button>
           </DialogFooter>
         </DialogContent>

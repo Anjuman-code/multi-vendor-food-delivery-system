@@ -73,6 +73,7 @@ const RiderDashboardPage = lazy(() => import("./pages/rider/RiderDashboardPage")
 const AvailableDeliveriesPage = lazy(() => import("./pages/rider/AvailableDeliveriesPage"));
 const ActiveDeliveryPage = lazy(() => import("./pages/rider/ActiveDeliveryPage"));
 const RiderEarningsPage = lazy(() => import("./pages/rider/RiderEarningsPage"));
+const RiderHistoryPage = lazy(() => import("./pages/rider/RiderHistoryPage"));
 const RiderProfilePage = lazy(() => import("./pages/rider/RiderProfilePage"));
 const RiderSupportPage = lazy(() => import("./pages/rider/RiderSupportPage"));
 const RiderCreateTicketPage = lazy(() => import("./pages/rider/RiderCreateTicketPage"));
@@ -197,7 +198,7 @@ function App(): React.ReactElement {
                     <Route path="/rider/available" element={<AvailableDeliveriesPage />} />
                     <Route path="/rider/active" element={<ActiveDeliveryPage />} />
                     <Route path="/rider/earnings" element={<RiderEarningsPage />} />
-                    <Route path="/rider/history" element={<RiderEarningsPage />} />
+                    <Route path="/rider/history" element={<RiderHistoryPage />} />
                     <Route path="/rider/profile" element={<RiderProfilePage />} />
                     <Route path="/rider/support" element={<RiderSupportPage />} />
                     <Route path="/rider/support/new" element={<RiderCreateTicketPage />} />

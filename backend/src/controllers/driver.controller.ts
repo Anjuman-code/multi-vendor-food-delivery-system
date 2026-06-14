@@ -8,7 +8,7 @@ import DriverLocationEvent from '../models/DriverLocationEvent';
 import DriverProfile from '../models/DriverProfile';
 import DriverRating from '../models/DriverRating';
 import Notification, { NotificationType } from '../models/Notification';
-import Order, { OrderStatus, PaymentStatus } from '../models/Order';
+import Order, { DeliveryStage, OrderStatus, PaymentStatus } from '../models/Order';
 import { getIO } from '../socket';
 import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
@@ -23,10 +23,12 @@ import { removeLocalFile, uploadImageToCloud } from '../middleware/uploads/uploa
 
 // ── Helpers ────────────────────────────────────────────────────
 
-const driverOnly = (req: Request): AuthRequest => {
+type AuthedRequest = AuthRequest & { user: NonNullable<AuthRequest['user']> };
+
+const driverOnly = (req: Request): AuthedRequest => {
   const authReq = req as AuthRequest;
   if (!authReq.user) throw new AuthenticationError();
-  return authReq;
+  return authReq as AuthedRequest;
 };
 
 // ── Profile ────────────────────────────────────────────────────
@@ -88,6 +90,18 @@ export const updateAvailability = async (
     const { isAvailable } = req.body as { isAvailable: boolean };
     if (typeof isAvailable !== 'boolean')
       throw new ValidationError('isAvailable must be a boolean');
+
+    // Can't go back online while a delivery is still in progress.
+    if (isAvailable) {
+      const active = await Order.findOne({
+        driverId: user._id,
+        status: { $in: [OrderStatus.READY, OrderStatus.PICKED_UP] },
+      }).select('_id');
+      if (active)
+        throw new ConflictError(
+          'Finish your active delivery before going back online',
+        );
+    }
 
     const profile = await DriverProfile.findOneAndUpdate(
       { userId: user._id, applicationStatus: 'approved' },
@@ -261,10 +275,10 @@ export const getAvailableOrders = async (
     })
       .sort({ createdAt: 1 })
       .limit(20)
-      .populate('restaurantId', 'name address')
+      .populate('restaurantId', 'name address location')
       .select(
-        'orderNumber restaurantId deliveryAddress.area deliveryAddress.district ' +
-          'items deliveryFee tipAmount total createdAt estimatedDeliveryTime',
+        'orderNumber restaurantId deliveryAddress items deliveryFee tipAmount ' +
+          'total paymentMethod createdAt estimatedDeliveryTime',
       );
 
     successResponse(res, { orders });
@@ -289,7 +303,20 @@ export const acceptOrder = async (
     });
     if (!profile) throw new NotFoundError('Approved driver profile not found');
 
-    // Atomic: only claim if still unassigned and in READY status
+    // Block a rider from juggling two deliveries at once.
+    const existingActive = await Order.findOne({
+      driverId: user._id,
+      status: { $in: [OrderStatus.READY, OrderStatus.PICKED_UP] },
+    }).select('_id');
+    if (existingActive)
+      throw new ConflictError(
+        'Finish your current delivery before accepting a new one',
+      );
+
+    // Atomic: only claim if still unassigned and in READY status. The order
+    // stays READY (the food is still at the restaurant) — we only attach the
+    // driver and start the courier's `deliveryStage`. The status advances to
+    // PICKED_UP later, when the rider actually collects the food.
     const order = await Order.findOneAndUpdate(
       {
         _id: orderId,
@@ -298,16 +325,7 @@ export const acceptOrder = async (
       },
       {
         driverId: user._id,
-        status: OrderStatus.PICKED_UP,
-        $push: {
-          statusHistory: {
-            status: OrderStatus.PICKED_UP,
-            timestamp: new Date(),
-            actorId: user._id,
-            actorRole: user.role,
-            note: 'Driver assigned and en route to restaurant',
-          },
-        },
+        deliveryStage: DeliveryStage.HEADING_TO_STORE,
       },
       { new: true },
     ).populate('restaurantId', 'name address contactInfo');
@@ -319,25 +337,16 @@ export const acceptOrder = async (
 
     try {
       const io = getIO();
-      // Notify customer
-      io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', {
+      const payload = {
         _id: order._id.toString(),
         orderNumber: order.orderNumber,
-        newStatus: OrderStatus.PICKED_UP,
-        previousStatus: OrderStatus.READY,
-        updatedAt: order.updatedAt,
         driverId: user._id.toString(),
-      });
-      // Notify vendor
-      io.to(`vendor:${order.restaurantId.toString()}`).emit(
-        'orderStatusUpdate',
-        {
-          _id: order._id.toString(),
-          orderNumber: order.orderNumber,
-          newStatus: OrderStatus.PICKED_UP,
-          updatedAt: order.updatedAt,
-        },
-      );
+        deliveryStage: DeliveryStage.HEADING_TO_STORE,
+        updatedAt: order.updatedAt,
+      };
+      // Tell the customer a rider is assigned and en route to the restaurant.
+      io.to(`user:${order.customerId.toString()}`).emit('order:riderAssigned', payload);
+      io.to(`vendor:${order.restaurantId.toString()}`).emit('order:riderAssigned', payload);
     } catch {
       /* non-blocking */
     }
@@ -390,6 +399,150 @@ export const getActiveDelivery = async (
       .populate('customerId', 'firstName lastName phoneNumber');
 
     successResponse(res, { order: order ?? null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Ordered courier stages — index defines the only legal forward path. */
+const STAGE_SEQUENCE: DeliveryStage[] = [
+  DeliveryStage.HEADING_TO_STORE,
+  DeliveryStage.AT_STORE,
+  DeliveryStage.PICKED_UP,
+  DeliveryStage.HEADING_TO_CUSTOMER,
+  DeliveryStage.ARRIVED,
+];
+
+/**
+ * PATCH /api/driver/orders/:orderId/stage — advance the courier stage by one
+ * step. When the rider reaches PICKED_UP the order's `OrderStatus` flips to
+ * PICKED_UP (the food has physically left the restaurant).
+ */
+export const advanceDeliveryStage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { user } = driverOnly(req);
+    const { orderId } = req.params;
+    const { deliveryStage } = req.body as { deliveryStage: DeliveryStage };
+
+    if (!STAGE_SEQUENCE.includes(deliveryStage))
+      throw new ValidationError('Invalid delivery stage');
+
+    const order = await Order.findOne({ _id: orderId, driverId: user._id });
+    if (!order)
+      throw new NotFoundError('Order not found or not assigned to you');
+    if (
+      order.status === OrderStatus.DELIVERED ||
+      order.status === OrderStatus.CANCELLED
+    )
+      throw new ConflictError('This delivery is already closed');
+
+    const currentIdx = order.deliveryStage
+      ? STAGE_SEQUENCE.indexOf(order.deliveryStage)
+      : -1;
+    const targetIdx = STAGE_SEQUENCE.indexOf(deliveryStage);
+    if (targetIdx !== currentIdx + 1)
+      throw new ValidationError('Delivery stages must advance one step at a time');
+
+    order.deliveryStage = deliveryStage;
+
+    // Crossing into PICKED_UP is the real "food collected" moment.
+    const justPickedUp = deliveryStage === DeliveryStage.PICKED_UP;
+    if (justPickedUp && order.status === OrderStatus.READY) {
+      order.status = OrderStatus.PICKED_UP;
+      order.statusHistory.push({
+        status: OrderStatus.PICKED_UP,
+        timestamp: new Date(),
+        actorId: user._id,
+        actorRole: user.role,
+        note: 'Rider collected the order from the restaurant',
+      });
+    }
+
+    await order.save();
+
+    try {
+      const io = getIO();
+      const base = {
+        _id: order._id.toString(),
+        orderNumber: order.orderNumber,
+        deliveryStage,
+        updatedAt: order.updatedAt,
+      };
+      io.to(`user:${order.customerId.toString()}`).emit('order:stageUpdate', base);
+      if (justPickedUp) {
+        io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', {
+          ...base,
+          newStatus: OrderStatus.PICKED_UP,
+          previousStatus: OrderStatus.READY,
+        });
+        io.to(`vendor:${order.restaurantId.toString()}`).emit('orderStatusUpdate', {
+          ...base,
+          newStatus: OrderStatus.PICKED_UP,
+          previousStatus: OrderStatus.READY,
+        });
+      }
+    } catch {
+      /* non-blocking */
+    }
+
+    if (justPickedUp) {
+      await Notification.create({
+        userId: order.customerId,
+        type: NotificationType.ORDER_UPDATE,
+        title: 'Order picked up',
+        message: `Your order ${order.orderNumber} is on the way!`,
+        data: { orderId: order._id.toString() },
+      });
+    }
+
+    successResponse(res, { order }, 'Delivery stage updated');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/driver/orders/:orderId/proof — upload a proof-of-delivery photo.
+ * Returns the stored URL; the rider then attaches it when marking delivered.
+ */
+export const uploadDeliveryProof = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { user } = driverOnly(req);
+    const { orderId } = req.params;
+
+    const order = await Order.findOne({ _id: orderId, driverId: user._id }).select(
+      '_id',
+    );
+    if (!order)
+      throw new NotFoundError('Order not found or not assigned to you');
+
+    const file = req.file;
+    if (!file) throw new ValidationError('Proof photo is required');
+
+    let fileUrl = `/uploads/driver-docs/${file.filename}`;
+    try {
+      const cloudUrl = await uploadImageToCloud(
+        file.path,
+        'driver-docs',
+        String(orderId),
+      );
+      if (cloudUrl) {
+        fileUrl = cloudUrl;
+        removeLocalFile(file.path);
+      }
+    } catch {
+      // Keep local file
+    }
+
+    successResponse(res, { photoUrl: fileUrl }, 'Proof uploaded');
   } catch (error) {
     next(error);
   }
@@ -492,6 +645,7 @@ export const updateDeliveryStatus = async (
 
     if (status === OrderStatus.DELIVERED) {
       order.actualDeliveryTime = new Date();
+      order.deliveryStage = undefined;
       if (deliveryProof) {
         order.deliveryProof = {
           photoUrl: deliveryProof.photoUrl,
@@ -588,10 +742,14 @@ export const getEarnings = async (
       Order.find({ driverId: user._id, status: OrderStatus.DELIVERED })
         .sort({ actualDeliveryTime: -1 })
         .select(
-          'orderNumber restaurantId deliveryAddress.area deliveryFee tipAmount actualDeliveryTime createdAt',
+          'orderNumber restaurantId deliveryAddress.area deliveryFee tipAmount ' +
+            'total paymentMethod codCollected actualDeliveryTime createdAt',
         )
         .populate('restaurantId', 'name'),
     ]);
+
+    const isCodCash = (o: (typeof allDeliveries)[number]) =>
+      o.paymentMethod === 'cash_on_delivery' && o.codCollected === true;
 
     const calcPeriod = (from: Date) =>
       allDeliveries
@@ -602,8 +760,11 @@ export const getEarnings = async (
             deliveries: acc.deliveries + 1,
             fees: acc.fees + (o.deliveryFee ?? 0),
             tips: acc.tips + (o.tipAmount ?? 0),
+            // Cash the rider physically collected on COD orders (owed to the
+            // platform, net of their own earnings).
+            cashCollected: acc.cashCollected + (isCodCash(o) ? o.total ?? 0 : 0),
           }),
-          { earnings: 0, deliveries: 0, fees: 0, tips: 0 },
+          { earnings: 0, deliveries: 0, fees: 0, tips: 0, cashCollected: 0 },
         );
 
     // Day-by-day breakdown for the current week
