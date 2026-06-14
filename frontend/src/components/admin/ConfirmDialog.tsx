@@ -1,20 +1,38 @@
 /**
- * Confirmation dialog for destructive admin actions.
+ * Confirmation dialog for admin actions, built on the shadcn Dialog primitive
+ * (focus-trap, Esc-to-close and focus-restore for free). Optionally collects a
+ * required reason — used by suspend / ban / refund / reject flows.
  */
-import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, X } from "lucide-react";
-import { useState } from "react";
+import * as React from "react";
+import { AlertTriangle } from "lucide-react";
 
-interface ConfirmDialogProps {
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+export interface ConfirmDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (reason?: string) => Promise<void>;
+  onConfirm: (reason?: string) => Promise<void> | void;
   title: string;
-  description: string;
+  description: React.ReactNode;
   confirmLabel?: string;
   requireReason?: boolean;
   reasonPlaceholder?: string;
+  reasonLabel?: string;
+  /** Minimum reason length when `requireReason` is set. */
+  minReasonLength?: number;
   destructive?: boolean;
+  /** Extra content rendered above the actions (e.g. an amount input). */
+  children?: React.ReactNode;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -25,85 +43,79 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   description,
   confirmLabel = "Confirm",
   requireReason = false,
-  reasonPlaceholder = "Enter reason…",
+  reasonPlaceholder = "Add a reason for the audit log…",
+  reasonLabel = "Reason",
+  minReasonLength = 5,
   destructive = true,
+  children,
 }) => {
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [reason, setReason] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  // Reset the reason whenever the dialog is (re)opened.
+  React.useEffect(() => {
+    if (open) setReason("");
+  }, [open]);
+
+  const canSubmit = !requireReason || reason.trim().length >= minReasonLength;
 
   const handleConfirm = async () => {
+    if (!canSubmit) return;
     setLoading(true);
     try {
-      await onConfirm(requireReason ? reason : undefined);
-      setReason("");
+      await onConfirm(requireReason ? reason.trim() : undefined);
       onClose();
     } finally {
       setLoading(false);
     }
   };
 
-  const canSubmit = !requireReason || reason.trim().length >= 5;
-
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.95, y: 8 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.95, y: 8 }}
-            transition={{ duration: 0.15 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
-            onClick={(e) => e.stopPropagation()}
+    <Dialog open={open} onOpenChange={(o) => !o && !loading && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div
+            className={`mb-1 flex h-10 w-10 items-center justify-center rounded-xl ${
+              destructive ? "bg-red-50 text-red-600" : "bg-accent text-accent-foreground"
+            }`}
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-2 rounded-xl ${destructive ? "bg-red-50" : "bg-amber-50"}`}>
-                <AlertTriangle className={`w-5 h-5 ${destructive ? "text-red-500" : "text-amber-500"}`} />
-              </div>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
 
-            <h3 className="text-base font-bold text-gray-900 mb-1">{title}</h3>
-            <p className="text-sm text-gray-500 mb-4">{description}</p>
+        {children}
 
-            {requireReason && (
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder={reasonPlaceholder}
-                rows={3}
-                className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none mb-4"
-              />
-            )}
+        {requireReason && (
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-reason">{reasonLabel}</Label>
+            <Textarea
+              id="confirm-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={reasonPlaceholder}
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+        )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={!canSubmit || loading}
-                className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  destructive ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"
-                }`}
-              >
-                {loading ? "Processing…" : confirmLabel}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            variant={destructive ? "destructive" : "brand"}
+            onClick={handleConfirm}
+            disabled={!canSubmit || loading}
+          >
+            {loading ? "Processing…" : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
+
+export default ConfirmDialog;

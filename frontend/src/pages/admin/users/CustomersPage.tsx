@@ -1,11 +1,27 @@
-import { AdminTable, Column } from "@/components/admin/AdminTable";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  exportToCsv,
+  FilterBar,
+  PageHeader,
+  StatusBadge,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { Ban, CheckCircle, Search, UserX } from "lucide-react";
+import { formatDate } from "@/utils/format";
+import { Ban, CheckCircle2, Download, Mail, ShieldCheck, UserX, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface Customer {
   _id: string;
@@ -28,155 +44,157 @@ interface ApiResponse {
   };
 }
 
-const statusBadge = (c: Customer) => {
-  if (c.isBanned)
-    return <span className="px-2 py-0.5 text-xs font-semibold bg-red-50 text-red-600 rounded-full">Banned</span>;
-  if (c.isSuspended)
-    return <span className="px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-600 rounded-full">Suspended</span>;
-  if (!c.isActive)
-    return <span className="px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-500 rounded-full">Inactive</span>;
-  return <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-600 rounded-full">Active</span>;
-};
+type DialogType = "suspend" | "ban" | "unsuspend" | "unban";
+
+const statusOf = (c: Customer) =>
+  c.isBanned
+    ? { label: "Banned", tone: "danger" as const }
+    : c.isSuspended
+      ? { label: "Suspended", tone: "warning" as const }
+      : !c.isActive
+        ? { label: "Inactive", tone: "neutral" as const }
+        : { label: "Active", tone: "success" as const };
 
 export default function CustomersPage() {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState(params.get("status") ?? "all");
   const [selected, setSelected] = useState<Customer | null>(null);
-  const [dialog, setDialog] = useState<"suspend" | "ban" | "unsuspend" | "unban" | null>(null);
-  const { toast } = useToast();
-  const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dialog, setDialog] = useState<DialogType | null>(null);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchCustomers = useCallback(
     async (p = 1, q = search, status = filterStatus) => {
       setLoading(true);
       try {
-        const params: Record<string, unknown> = { page: p, limit: 20 };
-        if (q) params.search = q;
-        if (status === "banned") params.isBanned = true;
-        else if (status === "suspended") params.isSuspended = true;
-        else if (status === "inactive") params.isActive = false;
-        const res = await adminService.listCustomers(params);
+        const query: Record<string, unknown> = { page: p, limit: 20 };
+        if (q) query.search = q;
+        if (status === "banned") query.isBanned = true;
+        else if (status === "suspended") query.isSuspended = true;
+        else if (status === "inactive") query.isActive = false;
+        const res = await adminService.listCustomers(query);
         const d = (res.data as ApiResponse).data;
         setCustomers(d.customers);
         setTotal(d.pagination.total);
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
+      } catch {
+        toast({ title: "Failed to load customers", variant: "destructive" });
       } finally {
         setLoading(false);
       }
     },
-    [search, filterStatus],
+    [search, filterStatus, toast],
   );
 
   useEffect(() => {
-    if (searchRef.current) clearTimeout(searchRef.current);
-    searchRef.current = setTimeout(() => fetchCustomers(1), 300);
-    return () => { if (searchRef.current) clearTimeout(searchRef.current); };
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => fetchCustomers(1), 300);
+    return () => {
+      if (debounce.current) clearTimeout(debounce.current);
+    };
   }, [search, filterStatus, fetchCustomers]);
 
+  const onStatusChange = (v: string) => {
+    setFilterStatus(v);
+    if (v === "all") params.delete("status");
+    else params.set("status", v);
+    setParams(params, { replace: true });
+  };
+
   const handleAction = async (reason?: string) => {
-    if (!selected) return;
+    if (!selected || !dialog) return;
+    const map = {
+      suspend: () => adminService.suspendCustomer(selected._id, { reason: reason! }),
+      unsuspend: () => adminService.unsuspendCustomer(selected._id, { reason: reason! }),
+      ban: () => adminService.banCustomer(selected._id, { reason: reason! }),
+      unban: () => adminService.unbanCustomer(selected._id, { reason: reason! }),
+    };
     try {
-      if (dialog === "suspend") await adminService.suspendCustomer(selected._id, { reason: reason! });
-      else if (dialog === "unsuspend") await adminService.unsuspendCustomer(selected._id, { reason: reason! });
-      else if (dialog === "ban") await adminService.banCustomer(selected._id, { reason: reason! });
-      else if (dialog === "unban") await adminService.unbanCustomer(selected._id, { reason: reason! });
-      toast({ title: "Done", description: "Customer updated successfully." });
+      await map[dialog]();
+      toast({ title: "Customer updated" });
       fetchCustomers(page);
     } catch {
-      toast({ title: "Error", description: "Action failed. Please try again.", variant: "destructive" });
+      toast({ title: "Action failed", variant: "destructive" });
       throw new Error("action failed");
     }
   };
 
-  const columns: Column<Customer>[] = [
+  const exportCsv = () =>
+    exportToCsv("customers", customers, [
+      { key: "name", header: "Name", value: (c) => `${c.firstName} ${c.lastName}` },
+      { key: "email", header: "Email", value: (c) => c.email },
+      { key: "phone", header: "Phone", value: (c) => c.phoneNumber ?? "" },
+      { key: "status", header: "Status", value: (c) => statusOf(c).label },
+      { key: "verified", header: "Email Verified", value: (c) => (c.isEmailVerified ? "yes" : "no") },
+      { key: "joined", header: "Joined", value: (c) => formatDate(c.createdAt) },
+    ]);
+
+  const columns: DataTableColumn<Customer>[] = [
     {
       key: "name",
       header: "Customer",
       render: (c) => (
-        <Link to={`/admin/users/customers/${c._id}`} className="group flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-200 to-violet-200 rounded-full flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0">
-            {c.firstName.charAt(0)}{c.lastName.charAt(0)}
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+            {c.firstName.charAt(0)}
+            {c.lastName.charAt(0)}
           </div>
-          <div>
-            <p className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">
               {c.firstName} {c.lastName}
             </p>
-            <p className="text-xs text-gray-400">{c.email}</p>
+            <p className="truncate text-xs text-muted-foreground">{c.email}</p>
           </div>
-        </Link>
+        </div>
       ),
     },
-    {
-      key: "phone",
-      header: "Phone",
-      render: (c) => <span className="text-gray-600">{c.phoneNumber ?? "—"}</span>,
-    },
+    { key: "phone", header: "Phone", render: (c) => c.phoneNumber ?? "—" },
     {
       key: "verified",
       header: "Verified",
+      align: "center",
       render: (c) =>
         c.isEmailVerified ? (
-          <CheckCircle className="w-4 h-4 text-emerald-500" />
+          <Mail className="mx-auto h-4 w-4 text-emerald-500" aria-label="Verified" />
         ) : (
-          <span className="text-gray-300">—</span>
+          <span className="text-muted-foreground">—</span>
         ),
     },
-    {
-      key: "status",
-      header: "Status",
-      render: statusBadge,
-    },
-    {
-      key: "joined",
-      header: "Joined",
-      render: (c) => <span className="text-gray-500 text-xs">{new Date(c.createdAt).toLocaleDateString()}</span>,
-    },
+    { key: "status", header: "Status", render: (c) => <StatusBadge {...statusOf(c)} /> },
+    { key: "joined", header: "Joined", render: (c) => <span className="text-muted-foreground">{formatDate(c.createdAt)}</span> },
     {
       key: "actions",
       header: "",
+      align: "right",
       render: (c) => (
-        <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           {!c.isBanned && !c.isSuspended && (
-            <button
-              onClick={() => { setSelected(c); setDialog("suspend"); }}
-              title="Suspend"
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-            >
-              <UserX className="w-4 h-4" />
-            </button>
+            <IconBtn title="Suspend" tone="amber" onClick={() => { setSelected(c); setDialog("suspend"); }}>
+              <UserX className="h-4 w-4" />
+            </IconBtn>
           )}
           {c.isSuspended && (
-            <button
-              onClick={() => { setSelected(c); setDialog("unsuspend"); }}
-              title="Unsuspend"
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
+            <IconBtn title="Unsuspend" tone="emerald" onClick={() => { setSelected(c); setDialog("unsuspend"); }}>
+              <ShieldCheck className="h-4 w-4" />
+            </IconBtn>
           )}
-          {!c.isBanned && (
-            <button
-              onClick={() => { setSelected(c); setDialog("ban"); }}
-              title="Ban"
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-            >
-              <Ban className="w-4 h-4" />
-            </button>
-          )}
-          {c.isBanned && (
-            <button
-              onClick={() => { setSelected(c); setDialog("unban"); }}
-              title="Unban"
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
+          {!c.isBanned ? (
+            <IconBtn title="Ban" tone="red" onClick={() => { setSelected(c); setDialog("ban"); }}>
+              <Ban className="h-4 w-4" />
+            </IconBtn>
+          ) : (
+            <IconBtn title="Unban" tone="emerald" onClick={() => { setSelected(c); setDialog("unban"); }}>
+              <CheckCircle2 className="h-4 w-4" />
+            </IconBtn>
           )}
         </div>
       ),
@@ -185,62 +203,54 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Customers</h1>
-          <p className="text-sm text-gray-500">{total} total customers</p>
-        </div>
-      </motion.div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or email…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white"
-        >
-          <option value="">All statuses</option>
-          <option value="banned">Banned</option>
-          <option value="suspended">Suspended</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-
-      <AdminTable
-        columns={columns}
-        data={customers}
-        loading={loading}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={(p) => fetchCustomers(p)}
-        total={total}
-        limit={20}
-        emptyMessage="No customers found."
+      <PageHeader
+        title="Customers"
+        description={`${total} total customers`}
+        actions={
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!customers.length}>
+            <Download className="mr-1.5 h-4 w-4" /> Export CSV
+          </Button>
+        }
       />
 
-      {/* Dialogs */}
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by name or email…"
+      >
+        <Select value={filterStatus} onValueChange={onStatusChange}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="banned">Banned</SelectItem>
+            <SelectItem value="suspended">Suspended</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      <DataTable
+        columns={columns}
+        data={customers}
+        getRowId={(c) => c._id}
+        loading={loading}
+        onRowClick={(c) => navigate(`/admin/users/customers/${c._id}`)}
+        emptyState={
+          <EmptyState icon={Users} title="No customers found" description="Try adjusting your search or filters." className="border-0" />
+        }
+        pagination={{ page, pages: totalPages, total, onPageChange: (p) => fetchCustomers(p) }}
+      />
+
       <ConfirmDialog
         open={dialog === "suspend"}
         onClose={() => setDialog(null)}
         onConfirm={handleAction}
         title={`Suspend ${selected?.firstName}?`}
-        description="This will prevent the customer from placing orders until unsuspended."
+        description="The customer cannot place orders until unsuspended."
         confirmLabel="Suspend Customer"
         requireReason
-        reasonPlaceholder="Reason for suspension…"
         destructive={false}
       />
       <ConfirmDialog
@@ -251,7 +261,6 @@ export default function CustomersPage() {
         description="The customer will regain full access to the platform."
         confirmLabel="Unsuspend"
         requireReason
-        reasonPlaceholder="Reason for lifting suspension…"
         destructive={false}
       />
       <ConfirmDialog
@@ -259,10 +268,9 @@ export default function CustomersPage() {
         onClose={() => setDialog(null)}
         onConfirm={handleAction}
         title={`Permanently ban ${selected?.firstName}?`}
-        description="This is a permanent action. The customer will be completely blocked from the platform."
+        description="This blocks the customer from the platform entirely."
         confirmLabel="Ban Customer"
         requireReason
-        reasonPlaceholder="Detailed reason for ban…"
         destructive
       />
       <ConfirmDialog
@@ -273,9 +281,30 @@ export default function CustomersPage() {
         description="The customer will regain full access to the platform."
         confirmLabel="Unban"
         requireReason
-        reasonPlaceholder="Reason for lifting ban…"
         destructive={false}
       />
     </div>
   );
 }
+
+const toneClass = {
+  amber: "hover:bg-amber-50 hover:text-amber-600",
+  red: "hover:bg-red-50 hover:text-red-600",
+  emerald: "hover:bg-emerald-50 hover:text-emerald-600",
+} as const;
+
+const IconBtn: React.FC<{
+  title: string;
+  tone: keyof typeof toneClass;
+  onClick: () => void;
+  children: React.ReactNode;
+}> = ({ title, tone, onClick, children }) => (
+  <button
+    onClick={onClick}
+    title={title}
+    aria-label={title}
+    className={`rounded-lg p-1.5 text-muted-foreground transition-colors ${toneClass[tone]}`}
+  >
+    {children}
+  </button>
+);

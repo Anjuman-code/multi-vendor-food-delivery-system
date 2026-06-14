@@ -1,34 +1,46 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
 import authService from "@/services/authService";
+import { cn } from "@/utils/cn";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    AlertTriangle,
-    BarChart3,
-    ChevronLeft,
-    ChevronRight,
-    ClipboardList,
-    Command,
-    FileText,
-    Globe,
-    LayoutDashboard,
-    LogOut,
-    Package,
-    Search,
-    Settings,
-    Shield,
-    Star,
-    Store,
-    Tag,
-    Users,
-    Wallet,
-    X,
-    Gavel,
+  AlertTriangle,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Command,
+  FileText,
+  Gavel,
+  Globe,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  Menu,
+  Package,
+  Search,
+  Settings,
+  Shield,
+  Star,
+  Store,
+  Tag,
+  Users,
+  Wallet,
+  X,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+
 // ── Navigation definition ────────────────────────────────────────
 
 interface NavItem {
@@ -45,9 +57,7 @@ interface NavGroup {
 const navGroups: NavGroup[] = [
   {
     label: "Overview",
-    items: [
-      { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
-    ],
+    items: [{ name: "Dashboard", path: "/admin", icon: LayoutDashboard }],
   },
   {
     label: "Users",
@@ -104,26 +114,31 @@ const getBreadcrumbs = (pathname: string) => {
     return pathname.startsWith(i.path);
   });
   if (active && active.path !== "/admin") {
-    crumbs.push({ label: active.name });
+    crumbs.push({ label: active.name, href: active.path });
   }
-  // Sub-page labels
   if (pathname.match(/\/admin\/users\/customers\/[^/]+$/)) crumbs.push({ label: "Customer Detail" });
   if (pathname.match(/\/admin\/users\/vendors\/[^/]+$/)) crumbs.push({ label: "Vendor Detail" });
   if (pathname.match(/\/admin\/users\/drivers\/[^/]+$/)) crumbs.push({ label: "Driver Detail" });
-  if (pathname.match(/\/admin\/restaurants\/[^/]+$/)) crumbs.push({ label: "Restaurant Detail" });
+  if (pathname.match(/\/admin\/restaurants\/[^/]+$/) && !pathname.endsWith("approval-queue"))
+    crumbs.push({ label: "Restaurant Detail" });
   if (pathname.match(/\/admin\/orders\/[^/]+$/)) crumbs.push({ label: "Order Detail" });
   if (pathname.match(/\/admin\/support\/[^/]+$/)) crumbs.push({ label: "Ticket Detail" });
-  if (pathname === "/admin/disputes") crumbs.push({ label: "Disputes" });
   return crumbs;
 };
 
-// ── Global Search Panel ──────────────────────────────────────────
+// ── Global Search Palette (Cmd/Ctrl-K) ───────────────────────────
 
 interface SearchResult {
   users: Array<{ _id: string; firstName: string; lastName: string; email: string; role: string }>;
   restaurants: Array<{ _id: string; name: string; approvalStatus: string }>;
   orders: Array<{ _id: string; orderNumber: string; status: string; total: number }>;
 }
+
+const detailPathForRole = (id: string, role: string) => {
+  if (role === "vendor") return `/admin/users/vendors/${id}`;
+  if (role === "driver") return `/admin/users/drivers/${id}`;
+  return `/admin/users/customers/${id}`;
+};
 
 const GlobalSearch: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [query, setQuery] = useState("");
@@ -138,13 +153,16 @@ const GlobalSearch: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (query.length < 2) { setResults(null); return; }
+      if (query.trim().length < 2) {
+        setResults(null);
+        return;
+      }
       setLoading(true);
       try {
-        const res = await adminService.search(query);
+        const res = await adminService.search(query.trim());
         setResults((res.data as { data: SearchResult }).data);
       } catch {
-        // ignore
+        setResults(null);
       } finally {
         setLoading(false);
       }
@@ -152,109 +170,111 @@ const GlobalSearch: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const go = (path: string) => { navigate(path); onClose(); };
+  const go = (path: string) => {
+    navigate(path);
+    onClose();
+  };
+
+  const empty =
+    results &&
+    results.users.length === 0 &&
+    results.restaurants.length === 0 &&
+    results.orders.length === 0;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/30 p-4 pt-[14vh] backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.96, y: -8 }}
+        initial={{ scale: 0.97, y: -8 }}
         animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.96, y: -8 }}
+        exit={{ scale: 0.97, y: -8 }}
         transition={{ duration: 0.15 }}
-        className="bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+        className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Global search"
       >
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-          <Search className="w-4 h-4 text-gray-400 shrink-0" />
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search users, restaurants, orders…"
-            className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
-          <button onClick={onClose} className="text-gray-600 hover:text-gray-400 transition-colors">
-            <X className="w-4 h-4" />
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-brand-500" />}
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close search"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="max-h-96 overflow-y-auto">
-          {loading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-5 h-5 border-2 border-indigo-500/40 border-t-indigo-500 rounded-full animate-spin" />
-            </div>
-          )}
-          {results && !loading && (
-            <div className="p-2">
+        <div className="max-h-[60vh] overflow-y-auto p-2">
+          {results && !empty && (
+            <>
               {results.users.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-3 py-1.5">Users</p>
+                <SearchGroup label="Users">
                   {results.users.map((u) => (
-                    <button
+                    <SearchRow
                       key={u._id}
-                      onClick={() => go(`/admin/users/customers/${u._id}`)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.05] text-left transition-colors"
-                    >
-                      <Users className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <div>
-                        <p className="text-sm text-white">{u.firstName} {u.lastName}</p>
-                        <p className="text-xs text-gray-500">{u.email} · {u.role}</p>
-                      </div>
-                    </button>
+                      icon={Users}
+                      title={`${u.firstName} ${u.lastName}`}
+                      subtitle={`${u.email} · ${u.role}`}
+                      onClick={() => go(detailPathForRole(u._id, u.role))}
+                    />
                   ))}
-                </div>
+                </SearchGroup>
               )}
               {results.restaurants.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-3 py-1.5">Restaurants</p>
+                <SearchGroup label="Restaurants">
                   {results.restaurants.map((r) => (
-                    <button
+                    <SearchRow
                       key={r._id}
+                      icon={Store}
+                      title={r.name}
+                      subtitle={r.approvalStatus}
                       onClick={() => go(`/admin/restaurants/${r._id}`)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.05] text-left transition-colors"
-                    >
-                      <Store className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <div>
-                        <p className="text-sm text-white">{r.name}</p>
-                        <p className="text-xs text-gray-500">{r.approvalStatus}</p>
-                      </div>
-                    </button>
+                    />
                   ))}
-                </div>
+                </SearchGroup>
               )}
               {results.orders.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-3 py-1.5">Orders</p>
+                <SearchGroup label="Orders">
                   {results.orders.map((o) => (
-                    <button
+                    <SearchRow
                       key={o._id}
+                      icon={ClipboardList}
+                      title={`#${o.orderNumber}`}
+                      subtitle={`${o.status} · ৳${o.total}`}
                       onClick={() => go(`/admin/orders/${o._id}`)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.05] text-left transition-colors"
-                    >
-                      <ClipboardList className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div>
-                        <p className="text-sm text-white">#{o.orderNumber}</p>
-                        <p className="text-xs text-gray-500">{o.status} · ৳{o.total}</p>
-                      </div>
-                    </button>
+                    />
                   ))}
-                </div>
+                </SearchGroup>
               )}
-              {results.users.length === 0 && results.restaurants.length === 0 && results.orders.length === 0 && (
-                <p className="text-center text-gray-500 text-sm py-8">No results for "{query}"</p>
-              )}
-            </div>
+            </>
           )}
-          {!results && !loading && query.length === 0 && (
-            <div className="py-8 text-center">
-              <p className="text-gray-600 text-sm">Start typing to search across all entities</p>
-              <p className="text-gray-700 text-xs mt-1">Users, restaurants, and orders</p>
+          {empty && !loading && (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              No results for “{query}”
+            </p>
+          )}
+          {!results && !loading && (
+            <div className="py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                Search across all entities
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                Users, restaurants, and orders
+              </p>
             </div>
           )}
         </div>
@@ -263,10 +283,142 @@ const GlobalSearch: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+const SearchGroup: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => (
+  <div className="mb-2 last:mb-0">
+    <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+      {label}
+    </p>
+    {children}
+  </div>
+);
+
+const SearchRow: React.FC<{
+  icon: React.ElementType;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}> = ({ icon: Icon, title, subtitle, onClick }) => (
+  <button
+    onClick={onClick}
+    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted"
+  >
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+      <Icon className="h-4 w-4" />
+    </span>
+    <div className="min-w-0">
+      <p className="truncate text-sm font-medium text-foreground">{title}</p>
+      <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+    </div>
+  </button>
+);
+
+// ── Sidebar (shared between desktop rail & mobile drawer) ─────────
+
+const SidebarContent: React.FC<{
+  collapsed: boolean;
+  isActive: (path: string) => boolean;
+  onNavigate?: () => void;
+}> = ({ collapsed, isActive, onNavigate }) => (
+  <>
+    <Link
+      to="/admin"
+      onClick={onNavigate}
+      className="flex h-16 items-center gap-3 border-b border-border px-4"
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-red-500">
+        <Shield className="h-5 w-5 text-white" />
+      </div>
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <p className="whitespace-nowrap text-base font-bold leading-none text-foreground">
+              Food Rush
+            </p>
+            <p className="mt-1 text-[10px] font-semibold uppercase leading-none tracking-widest text-primary">
+              Admin
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Link>
+
+    <nav className="flex-1 space-y-5 overflow-y-auto px-2.5 py-3" style={{ scrollbarWidth: "none" }}>
+      {navGroups.map((group) => (
+        <div key={group.label}>
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+              >
+                {group.label}
+              </motion.p>
+            )}
+          </AnimatePresence>
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={onNavigate}
+                  title={collapsed ? item.name : undefined}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "group/nav relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+                    active
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    collapsed && "justify-center",
+                  )}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+                  )}
+                  <Icon
+                    className={cn(
+                      "h-[18px] w-[18px] shrink-0",
+                      active ? "text-primary" : "text-muted-foreground group-hover/nav:text-foreground",
+                    )}
+                  />
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="whitespace-nowrap"
+                      >
+                        {item.name}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  </>
+);
+
 // ── Main Layout ──────────────────────────────────────────────────
 
 const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -274,7 +426,6 @@ const AdminLayout: React.FC = () => {
   const confirm = useConfirm();
   const { toast } = useToast();
 
-  // Keyboard shortcut for search
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -286,6 +437,11 @@ const AdminLayout: React.FC = () => {
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, []);
+
+  // Close the mobile drawer on navigation.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const isActive = (path: string) => {
     if (path === "/admin") return location.pathname === "/admin";
@@ -312,14 +468,12 @@ const AdminLayout: React.FC = () => {
     ? `${user.firstName?.charAt(0) ?? ""}${user.lastName?.charAt(0) ?? ""}`.toUpperCase()
     : "A";
 
-  const breadcrumbs = getBreadcrumbs(location.pathname);
+  const breadcrumbs = useMemo(() => getBreadcrumbs(location.pathname), [location.pathname]);
 
-  const tierLabel = (user as unknown as { adminTier?: string })?.adminTier
-    ?.replace("_", " ")
-    .toUpperCase() ?? "ADMIN";
-
-  const tierColor =
-    tierLabel.includes("SUPER") ? "text-red-400" : tierLabel === "ADMIN" ? "text-indigo-400" : "text-gray-400";
+  const tierLabel =
+    (user as unknown as { adminTier?: string })?.adminTier?.replace("_", " ").toUpperCase() ??
+    "ADMIN";
+  const tierTone = tierLabel.includes("SUPER") ? "text-red-600" : "text-primary";
 
   return (
     <>
@@ -327,121 +481,39 @@ const AdminLayout: React.FC = () => {
         {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
       </AnimatePresence>
 
-      <div className="flex h-screen bg-gray-50">
-        {/* ── Sidebar ─────────────────────────────────────────── */}
+      <div className="flex h-screen bg-muted/40">
+        {/* ── Desktop sidebar ─────────────────────────────────── */}
         <motion.aside
           animate={{ width: collapsed ? 72 : 256 }}
           transition={{ duration: 0.2, ease: "easeInOut" }}
-          className="fixed left-0 top-0 bottom-0 z-40 bg-[#0a0f1a] text-white flex flex-col"
-          style={{ boxShadow: "1px 0 0 0 rgba(255,255,255,0.05)" }}
+          aria-label="Admin navigation"
+          className="fixed bottom-0 left-0 top-0 z-40 hidden flex-col border-r border-border bg-card lg:flex"
         >
-          {/* Logo */}
-          <Link
-            to="/admin"
-            className="flex items-center gap-3 px-4 h-16 border-b border-white/[0.05]"
-          >
-            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-2 rounded-xl shrink-0">
-              <Shield className="h-5 w-5 text-white" />
-            </div>
-            <AnimatePresence>
-              {!collapsed && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <p className="text-base font-bold whitespace-nowrap">Food Rush</p>
-                  <p className="text-[10px] text-indigo-400 font-semibold tracking-widest uppercase leading-none">
-                    Admin
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Link>
+          <SidebarContent collapsed={collapsed} isActive={isActive} />
 
-          {/* Nav */}
-          <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4"
-            style={{ scrollbarWidth: "none" }}>
-            {navGroups.map((group) => (
-              <div key={group.label}>
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-600 mb-1 px-2"
-                    >
-                      {group.label}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.path);
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        title={collapsed ? item.name : undefined}
-                        className={`flex items-center gap-3 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 relative group/nav ${
-                          active
-                            ? "bg-indigo-600/20 text-white"
-                            : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200"
-                        } ${collapsed ? "justify-center" : ""}`}
-                      >
-                        {active && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-indigo-500 rounded-r-full" />
-                        )}
-                        <Icon
-                          className={`w-[18px] h-[18px] shrink-0 ${
-                            active ? "text-indigo-400" : "text-gray-600 group-hover/nav:text-gray-400"
-                          }`}
-                        />
-                        <AnimatePresence>
-                          {!collapsed && (
-                            <motion.span
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="whitespace-nowrap"
-                            >
-                              {item.name}
-                            </motion.span>
-                          )}
-                        </AnimatePresence>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-
-          {/* Collapse toggle */}
-          <div className="px-2.5 py-2 border-t border-white/[0.05]">
+          <div className="border-t border-border px-2.5 py-2">
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className={`flex items-center gap-3 w-full px-2.5 py-2 rounded-xl text-[13px] text-gray-600 hover:bg-white/[0.05] hover:text-gray-400 transition-all ${
-                collapsed ? "justify-center" : ""
-              }`}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                collapsed && "justify-center",
+              )}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? (
-                <ChevronRight className="w-4 h-4 shrink-0" />
+                <ChevronRight className="h-4 w-4 shrink-0" />
               ) : (
                 <>
-                  <ChevronLeft className="w-4 h-4 shrink-0" />
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
                   <span>Collapse</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* User section */}
-          <div className="px-2.5 py-3 border-t border-white/[0.05]">
-            <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0">
+          <div className="border-t border-border px-2.5 py-3">
+            <div className={cn("flex items-center gap-2.5", collapsed && "justify-center")}>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-red-500 text-xs font-bold text-white">
                 {initials}
               </div>
               <AnimatePresence>
@@ -450,12 +522,12 @@ const AdminLayout: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex-1 min-w-0"
+                    className="min-w-0 flex-1"
                   >
-                    <p className="text-[13px] font-semibold text-gray-200 truncate">
+                    <p className="truncate text-[13px] font-semibold leading-tight text-foreground">
                       {user?.firstName} {user?.lastName}
                     </p>
-                    <p className={`text-[10px] font-bold ${tierColor}`}>{tierLabel}</p>
+                    <p className={cn("text-[10px] font-bold", tierTone)}>{tierLabel}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -463,55 +535,151 @@ const AdminLayout: React.FC = () => {
                 <button
                   onClick={handleLogout}
                   title="Log out"
-                  className="shrink-0 p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  aria-label="Log out"
+                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
           </div>
         </motion.aside>
 
+        {/* ── Mobile drawer ──────────────────────────────────── */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden"
+                onClick={() => setMobileOpen(false)}
+              />
+              <motion.aside
+                initial={{ x: -288 }}
+                animate={{ x: 0 }}
+                exit={{ x: -288 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="fixed bottom-0 left-0 top-0 z-50 flex w-72 flex-col border-r border-border bg-card lg:hidden"
+                aria-label="Admin navigation"
+              >
+                <SidebarContent
+                  collapsed={false}
+                  isActive={isActive}
+                  onNavigate={() => setMobileOpen(false)}
+                />
+                <div className="border-t border-border px-2.5 py-3">
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    Log out
+                  </button>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* ── Main area ─────────────────────────────────────── */}
         <div
-          className="flex-1 flex flex-col transition-all duration-200 min-w-0"
-          style={{ marginLeft: collapsed ? 72 : 256 }}
+          className="flex min-w-0 flex-1 flex-col transition-[padding] duration-200 lg:pl-[var(--admin-sidebar)]"
+          style={{ ["--admin-sidebar" as string]: `${collapsed ? 72 : 256}px` } as React.CSSProperties}
         >
-          {/* Top bar */}
-          <header className="sticky top-0 z-30 h-16 bg-white/90 backdrop-blur-lg border-b border-gray-200 flex items-center justify-between px-6 gap-4">
-            {/* Breadcrumbs */}
-            <nav className="flex items-center gap-1.5 text-sm min-w-0">
-              {breadcrumbs.map((crumb, i) => (
-                <React.Fragment key={crumb.label}>
-                  {i > 0 && <span className="text-gray-300">/</span>}
-                  {crumb.href ? (
-                    <Link to={crumb.href} className="text-gray-500 hover:text-gray-700 transition-colors truncate">
-                      {crumb.label}
-                    </Link>
-                  ) : (
-                    <span className="text-gray-900 font-medium truncate">{crumb.label}</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </nav>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 backdrop-blur-lg sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  onClick={() => setMobileOpen(true)}
+                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+                  aria-label="Open navigation"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+                <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
+                  {breadcrumbs.map((crumb, i) => (
+                    <React.Fragment key={`${crumb.label}-${i}`}>
+                      {i > 0 && <span className="text-border">/</span>}
+                      {crumb.href && i < breadcrumbs.length - 1 ? (
+                        <Link
+                          to={crumb.href}
+                          className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {crumb.label}
+                        </Link>
+                      ) : (
+                        <span className="truncate font-medium text-foreground">{crumb.label}</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </nav>
+              </div>
 
-            {/* Search trigger */}
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg text-sm transition-colors"
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/70"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  <span className="hidden sm:block">Search…</span>
+                  <kbd className="hidden items-center gap-0.5 rounded border border-border bg-card px-1 text-xs text-muted-foreground sm:flex">
+                    <Command className="h-2.5 w-2.5" />K
+                  </kbd>
+                </button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex items-center rounded-lg p-1 transition-colors hover:bg-muted"
+                      aria-label="Account menu"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-red-500 text-xs font-semibold text-white">
+                        {initials}
+                      </div>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <p className="text-sm font-medium text-foreground">
+                        {user?.firstName} {user?.lastName}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{user?.email}</p>
+                      <p className={cn("mt-1 text-[10px] font-bold", tierTone)}>{tierLabel}</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => navigate("/admin/settings")}>
+                      <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Platform Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => navigate("/admin/audit-log")}>
+                      <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Audit Log
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={handleLogout}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </header>
+
+            <motion.main
+              key={location.pathname}
+              className="flex-1 overflow-y-auto p-4 sm:p-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">Search…</span>
-              <kbd className="hidden sm:flex items-center gap-0.5 text-xs text-gray-400 bg-white border border-gray-200 rounded px-1">
-                <Command className="w-2.5 h-2.5" />K
-              </kbd>
-            </button>
-          </header>
-
-          {/* Page content */}
-          <main className="flex-1 overflow-y-auto p-6">
-            <Outlet />
-          </main>
+              <Outlet />
+            </motion.main>
+          </div>
         </div>
       </div>
     </>

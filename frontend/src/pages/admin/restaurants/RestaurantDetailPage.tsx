@@ -1,102 +1,220 @@
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DataTable,
+  type DataTableColumn,
+  DetailHeader,
+  EmptyState,
+  FormDialog,
+  KeyValueList,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Store } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { formatCurrency, formatNumber } from "@/utils/format";
+import {
+  CheckCircle2,
+  DoorOpen,
+  Eye,
+  EyeOff,
+  PackageX,
+  ShoppingBag,
+  Star,
+  Store,
+  Trash2,
+  Utensils,
+  XCircle,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 interface RestaurantDetail {
   _id: string;
   name: string;
   description?: string;
   address?: { street?: string; area?: string; district?: string };
+  contactInfo?: { phone?: string; email?: string; website?: string };
   cuisineType: string[];
   tags: string[];
   approvalStatus: "pending" | "approved" | "rejected";
-  isOpen: boolean;
   isTemporarilyClosed: boolean;
   isFeatured: boolean;
   isActive: boolean;
   rating?: { average: number; count: number };
-  totalOrders?: number;
-  totalRevenue?: number;
-  images?: { coverPhoto?: string };
-  vendor?: { firstName: string; lastName: string; email: string };
-  menu?: { _id: string; name: string; price: number; isAvailable: boolean; category?: string }[];
+  rejectionReason?: string;
+  closureReason?: string;
+  images?: { logo?: string; coverPhoto?: string };
 }
+
+interface OrderStats {
+  totalOrders: number;
+  totalRevenue: number;
+  cancelled: number;
+  delivered: number;
+}
+
+interface MenuItem {
+  _id: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  category?: string;
+}
+
+interface Vendor {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+type DialogType = "approve" | "reject" | "close" | "reopen" | "deactivate" | null;
+
+const approvalTone: Record<RestaurantDetail["approvalStatus"], StatusTone> = {
+  approved: "success",
+  pending: "warning",
+  rejected: "danger",
+};
 
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [restaurant, setRestaurant] = useState<RestaurantDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [menuItems, setMenuItems] = useState<RestaurantDetail["menu"]>([]);
-  const [dialog, setDialog] = useState<"approve" | "reject" | "close" | "deactivate" | null>(null);
   const { toast } = useToast();
 
-  const load = () => {
+  const [restaurant, setRestaurant] = useState<RestaurantDetail | null>(null);
+  const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
+  const [menuItemCount, setMenuItemCount] = useState(0);
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState<DialogType>(null);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [approving, setApproving] = useState(false);
+
+  const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    Promise.all([
-      adminService.getRestaurant(id),
-      adminService.getRestaurantMenu(id),
-    ]).then(([rRes, mRes]) => {
-      const rData = (rRes.data as {
-        data: {
-          restaurant: Omit<RestaurantDetail, "vendor" | "totalOrders" | "totalRevenue"> & {
-            rating?: { average: number; count: number };
-            images?: { coverPhoto?: string };
+    try {
+      const [rRes, mRes] = await Promise.all([
+        adminService.getRestaurant(id),
+        adminService.getRestaurantMenu(id),
+      ]);
+      const rData = (
+        rRes.data as {
+          data: {
+            restaurant: RestaurantDetail;
+            orderStats: OrderStats;
+            menuItemCount: number;
+            vendor: Vendor | null;
           };
-          orderStats: { totalOrders: number; totalRevenue: number };
-          vendor: { firstName: string; lastName: string; email: string } | null;
-        };
-      }).data;
-      const mData = (mRes.data as { data: { menuItems: { _id: string; name: string; price: number; isAvailable: boolean; categoryId?: { name: string } }[] } }).data;
+        }
+      ).data;
+      const mData = (
+        mRes.data as {
+          data: {
+            menuItems: Array<{
+              _id: string;
+              name: string;
+              price: number;
+              isAvailable: boolean;
+              categoryId?: { name: string };
+            }>;
+          };
+        }
+      ).data;
 
-      setRestaurant({
-        ...rData.restaurant,
-        totalOrders: rData.orderStats.totalOrders,
-        totalRevenue: rData.orderStats.totalRevenue,
-        vendor: rData.vendor ?? undefined,
-      });
+      setRestaurant(rData.restaurant);
+      setOrderStats(rData.orderStats);
+      setMenuItemCount(rData.menuItemCount);
+      setVendor(rData.vendor);
       setMenuItems(
-        mData.menuItems.map((item) => ({
-          _id: item._id,
-          name: item.name,
-          price: item.price,
-          isAvailable: item.isAvailable,
-          category: item.categoryId?.name,
+        mData.menuItems.map((m) => ({
+          _id: m._id,
+          name: m.name,
+          price: m.price,
+          isAvailable: m.isAvailable,
+          category: m.categoryId?.name,
         })),
       );
-    }).catch(() => {
-      toast({ title: "Error", description: "Failed to load restaurant details.", variant: "destructive" });
-    }).finally(() => setLoading(false));
-  };
+    } catch {
+      toast({ title: "Failed to load restaurant", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [id, toast]);
 
-  useEffect(load, [id]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const handleApprove = async (reason?: string) => {
+  // Approve takes an OPTIONAL welcome message — its OWN field, NOT the reject reason.
+  const handleApprove = async () => {
     if (!id) return;
-      await adminService.approveRestaurant(id, { welcomeMessage: reason });
-    toast({ title: "Approved" });
-    setDialog(null);
-    setRestaurant((r) => r ? { ...r, approvalStatus: "approved" } : r);
+    setApproving(true);
+    try {
+      const msg = welcomeMessage.trim();
+      await adminService.approveRestaurant(id, msg ? { welcomeMessage: msg } : undefined);
+      toast({ title: "Restaurant approved" });
+      setDialog(null);
+      setWelcomeMessage("");
+      await load();
+    } catch {
+      toast({ title: "Approval failed", variant: "destructive" });
+    } finally {
+      setApproving(false);
+    }
   };
 
   const handleReject = async (reason?: string) => {
     if (!id) return;
-    await adminService.rejectRestaurant(id, { reason: reason! });
-    toast({ title: "Rejected" });
-    setDialog(null);
-    setRestaurant((r) => r ? { ...r, approvalStatus: "rejected" } : r);
+    try {
+      await adminService.rejectRestaurant(id, { reason: reason! });
+      toast({ title: "Restaurant rejected" });
+      await load();
+    } catch {
+      toast({ title: "Rejection failed", variant: "destructive" });
+      throw new Error("failed");
+    }
   };
 
   const handleClose = async (reason?: string) => {
     if (!id) return;
-    await adminService.closeRestaurant(id, { reason: reason! });
-    toast({ title: "Restaurant Closed" });
-    setDialog(null);
-    setRestaurant((r) => r ? { ...r, isTemporarilyClosed: true } : r);
+    try {
+      await adminService.closeRestaurant(id, { reason: reason! });
+      toast({ title: "Restaurant temporarily closed" });
+      await load();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("failed");
+    }
+  };
+
+  const handleReopen = async () => {
+    if (!id) return;
+    try {
+      await adminService.reopenRestaurant(id);
+      toast({ title: "Restaurant reopened" });
+      await load();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("failed");
+    }
+  };
+
+  const handleDeactivate = async (reason?: string) => {
+    if (!id) return;
+    try {
+      await adminService.deactivateRestaurant(id, { reason: reason! });
+      toast({ title: "Restaurant deactivated" });
+      await load();
+    } catch {
+      toast({ title: "Deactivation failed", variant: "destructive" });
+      throw new Error("failed");
+    }
   };
 
   const handleFeatureToggle = async () => {
@@ -104,180 +222,328 @@ export default function RestaurantDetailPage() {
     try {
       await adminService.featureRestaurant(id);
       toast({ title: restaurant.isFeatured ? "Unfeatured" : "Featured" });
-      setRestaurant((r) => r ? { ...r, isFeatured: !r.isFeatured } : r);
+      await load();
     } catch {
-      toast({ title: "Error", variant: "destructive" } as Parameters<typeof toast>[0]);
+      toast({ title: "Action failed", variant: "destructive" });
     }
   };
 
-  const handleToggleMenuItem = async (itemId: string, current: boolean) => {
+  const handleToggleMenuItem = async (item: MenuItem) => {
     if (!id) return;
     try {
-      await adminService.toggleMenuItemVisibility(id, itemId);
-      setMenuItems((prev) => prev?.map((m) => m._id === itemId ? { ...m, isAvailable: !current } : m));
+      await adminService.toggleMenuItemVisibility(id, item._id);
+      toast({ title: item.isAvailable ? "Item hidden" : "Item shown" });
+      await load();
     } catch {
-      toast({ title: "Error", description: "Failed to toggle item.", variant: "destructive" });
+      toast({ title: "Failed to toggle item", variant: "destructive" });
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="space-y-5">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
       </div>
     );
   }
 
-  if (!restaurant) return <p className="text-gray-500">Restaurant not found.</p>;
+  if (!restaurant) {
+    return (
+      <EmptyState
+        icon={Store}
+        title="Restaurant not found"
+        description="This restaurant may have been removed."
+        action={{ label: "Back to restaurants", onClick: () => history.back() }}
+      />
+    );
+  }
 
-  const statusMap = {
-    pending: "bg-amber-50 text-amber-600",
-    approved: "bg-emerald-50 text-emerald-600",
-    rejected: "bg-red-50 text-red-600",
+  const status = {
+    label: restaurant.approvalStatus.charAt(0).toUpperCase() + restaurant.approvalStatus.slice(1),
+    tone: approvalTone[restaurant.approvalStatus],
   };
 
+  const menuColumns: DataTableColumn<MenuItem>[] = [
+    {
+      key: "name",
+      header: "Item",
+      render: (m) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{m.name}</p>
+          {m.category && <p className="truncate text-xs text-muted-foreground">{m.category}</p>}
+        </div>
+      ),
+    },
+    {
+      key: "price",
+      header: "Price",
+      align: "right",
+      render: (m) => <span className="font-medium text-foreground">{formatCurrency(m.price)}</span>,
+    },
+    {
+      key: "visibility",
+      header: "Visibility",
+      align: "right",
+      render: (m) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleToggleMenuItem(m)}
+          className={
+            m.isAvailable
+              ? "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+              : "text-muted-foreground"
+          }
+        >
+          {m.isAvailable ? <Eye className="mr-1.5 h-3.5 w-3.5" /> : <EyeOff className="mr-1.5 h-3.5 w-3.5" />}
+          {m.isAvailable ? "Visible" : "Hidden"}
+        </Button>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-5 max-w-4xl">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-        <Link to="/admin/restaurants" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Restaurants
-        </Link>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-3">
-            {restaurant.images?.coverPhoto ? (
-              <img src={restaurant.images.coverPhoto} alt="" className="w-14 h-14 rounded-xl object-cover border border-gray-100" />
-            ) : (
-              <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
-                <Store className="w-6 h-6 text-gray-400" />
-              </div>
-            )}
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{restaurant.name}</h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${statusMap[restaurant.approvalStatus]}`}>
-                  {restaurant.approvalStatus}
-                </span>
-                {restaurant.isFeatured && (
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-600">★ Featured</span>
-                )}
-                {restaurant.isTemporarilyClosed && (
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-50 text-orange-600">Temporarily Closed</span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
+    <div className="space-y-5">
+      <DetailHeader
+        backTo="/admin/restaurants"
+        backLabel="Restaurants"
+        title={restaurant.name}
+        subtitle={
+          restaurant.address
+            ? [restaurant.address.street, restaurant.address.area, restaurant.address.district]
+                .filter(Boolean)
+                .join(", ")
+            : undefined
+        }
+        avatar={
+          restaurant.images?.logo ? (
+            <img
+              src={restaurant.images.logo}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-xl border border-border object-cover"
+            />
+          ) : (
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <Store className="h-6 w-6" />
+            </span>
+          )
+        }
+        badges={
+          <>
+            <StatusBadge label={status.label} tone={status.tone} />
+            {restaurant.isFeatured && <StatusBadge label="Featured" tone="brand" icon={Star} />}
+            {restaurant.isTemporarilyClosed && <StatusBadge label="Temporarily Closed" tone="warning" />}
+            {!restaurant.isActive && <StatusBadge label="Inactive" tone="neutral" />}
+          </>
+        }
+        actions={
+          <>
             {restaurant.approvalStatus === "pending" && (
               <>
-                <button onClick={() => setDialog("approve")}
-                  className="px-3 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                  Approve
-                </button>
-                <button onClick={() => setDialog("reject")}
-                  className="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
-                  Reject
-                </button>
+                <Button variant="brand" size="sm" onClick={() => setDialog("approve")}>
+                  <CheckCircle2 className="mr-1.5 h-4 w-4" /> Approve
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setDialog("reject")}>
+                  <XCircle className="mr-1.5 h-4 w-4" /> Reject
+                </Button>
               </>
             )}
-            {restaurant.approvalStatus === "approved" && !restaurant.isTemporarilyClosed && (
-              <button onClick={() => setDialog("close")}
-                className="px-3 py-2 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors">
-                Temporarily Close
-              </button>
-            )}
-            <button onClick={handleFeatureToggle}
-              className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">
+            {restaurant.approvalStatus === "approved" &&
+              (restaurant.isTemporarilyClosed ? (
+                <Button variant="brand" size="sm" onClick={() => setDialog("reopen")}>
+                  <DoorOpen className="mr-1.5 h-4 w-4" /> Reopen
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setDialog("close")}>
+                  <XCircle className="mr-1.5 h-4 w-4" /> Temporarily Close
+                </Button>
+              ))}
+            <Button variant="outline" size="sm" onClick={handleFeatureToggle}>
+              <Star className={`mr-1.5 h-4 w-4 ${restaurant.isFeatured ? "fill-current" : ""}`} />
               {restaurant.isFeatured ? "Unfeature" : "Feature"}
-            </button>
-          </div>
-        </div>
-      </motion.div>
+            </Button>
+            {restaurant.isActive && (
+              <Button variant="destructive" size="sm" onClick={() => setDialog("deactivate")}>
+                <Trash2 className="mr-1.5 h-4 w-4" /> Deactivate
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Rating", value: restaurant.rating?.average ? `${restaurant.rating.average.toFixed(1)} ★` : "—" },
-          { label: "Reviews", value: restaurant.rating?.count?.toLocaleString() ?? "—" },
-          { label: "Total Orders", value: restaurant.totalOrders?.toLocaleString() ?? "—" },
-          { label: "Total Revenue", value: restaurant.totalRevenue ? `৳${restaurant.totalRevenue.toLocaleString()}` : "—" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs text-gray-500">{s.label}</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{s.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard
+          label="Rating"
+          value={restaurant.rating?.count ? `${restaurant.rating.average.toFixed(1)} ★` : "—"}
+          hint={restaurant.rating?.count ? `${formatNumber(restaurant.rating.count)} reviews` : "No reviews"}
+          icon={Star}
+        />
+        <StatCard label="Menu Items" value={formatNumber(menuItemCount)} icon={Utensils} />
+        <StatCard
+          label="Delivered Orders"
+          value={formatNumber(orderStats?.delivered ?? 0)}
+          icon={ShoppingBag}
+          accent="brand"
+        />
+        <StatCard
+          label="Cancelled Orders"
+          value={formatNumber(orderStats?.cancelled ?? 0)}
+          icon={PackageX}
+        />
       </div>
 
-      {/* Info */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Details</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          {restaurant.vendor && (
-            <div>
-              <span className="text-gray-400">Owner</span>
-              <p className="text-gray-800 font-medium">{restaurant.vendor.firstName} {restaurant.vendor.lastName}</p>
-              <p className="text-xs text-gray-400">{restaurant.vendor.email}</p>
-            </div>
-          )}
-          <div>
-            <span className="text-gray-400">Address</span>
-            <p className="text-gray-800">{restaurant.address?.street}, {restaurant.address?.area}, {restaurant.address?.district}</p>
-          </div>
-          {restaurant.cuisineType.length > 0 && (
-            <div>
-              <span className="text-gray-400">Cuisines</span>
-              <p className="text-gray-800">{restaurant.cuisineType.join(", ")}</p>
-            </div>
-          )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <SectionCard title="Details" className="lg:col-span-1">
+          <KeyValueList
+            columns={1}
+            items={[
+              {
+                label: "Owner",
+                value: vendor ? (
+                  <span>
+                    {vendor.firstName} {vendor.lastName}
+                    <span className="block text-xs font-normal text-muted-foreground">{vendor.email}</span>
+                  </span>
+                ) : (
+                  "—"
+                ),
+              },
+              { label: "Phone", value: restaurant.contactInfo?.phone ?? "—" },
+              { label: "Email", value: restaurant.contactInfo?.email ?? "—" },
+              {
+                label: "Cuisine",
+                value: restaurant.cuisineType?.length ? restaurant.cuisineType.join(", ") : "—",
+              },
+              {
+                label: "Total Orders",
+                value: formatNumber(orderStats?.totalOrders ?? 0),
+              },
+              {
+                label: "Total Revenue",
+                value: formatCurrency(orderStats?.totalRevenue ?? 0),
+              },
+            ]}
+          />
           {restaurant.description && (
-            <div className="sm:col-span-2">
-              <span className="text-gray-400">Description</span>
-              <p className="text-gray-700">{restaurant.description}</p>
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</p>
+              <p className="mt-1 text-sm text-foreground">{restaurant.description}</p>
             </div>
           )}
+          {restaurant.approvalStatus === "rejected" && restaurant.rejectionReason && (
+            <div className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">
+              <p className="mb-1 font-bold">Rejection reason</p>
+              <p>{restaurant.rejectionReason}</p>
+            </div>
+          )}
+          {restaurant.isTemporarilyClosed && restaurant.closureReason && (
+            <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+              <p className="mb-1 font-bold">Closure reason</p>
+              <p>{restaurant.closureReason}</p>
+            </div>
+          )}
+        </SectionCard>
+
+        <div className="lg:col-span-2">
+          <SectionCard title={`Menu Items (${menuItems.length})`} flush>
+            {menuItems.length ? (
+              <DataTable
+                columns={menuColumns}
+                data={menuItems}
+                getRowId={(m) => m._id}
+                className="rounded-none border-0"
+              />
+            ) : (
+              <EmptyState icon={Utensils} title="No menu items" className="border-0 py-10" />
+            )}
+          </SectionCard>
         </div>
       </div>
 
-      {/* Menu Items */}
-      {menuItems && menuItems.length > 0 && (
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-          <h2 className="text-sm font-bold text-gray-700 mb-3">Menu Items ({menuItems.length})</h2>
-          <div className="divide-y divide-gray-50">
-            {menuItems.map((item) => (
-              <div key={item._id} className="flex items-center justify-between py-2.5">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                  {item.category && <p className="text-xs text-gray-400">{item.category}</p>}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-gray-700">৳{item.price.toLocaleString()}</span>
-                  <button
-                    onClick={() => handleToggleMenuItem(item._id, item.isAvailable)}
-                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
-                      item.isAvailable
-                        ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                    }`}
-                  >
-                    {item.isAvailable ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                    {item.isAvailable ? "Visible" : "Hidden"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Approve — welcome message is its OWN optional field, NOT the reject reason. */}
+      <FormDialog
+        open={dialog === "approve"}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDialog(null);
+            setWelcomeMessage("");
+          }
+        }}
+        title="Approve this restaurant?"
+        description="The restaurant will be listed on the platform immediately."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDialog(null)} disabled={approving}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={handleApprove} disabled={approving}>
+              {approving ? "Approving…" : "Approve"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="welcome-msg">Welcome message (optional)</Label>
+          <Textarea
+            id="welcome-msg"
+            rows={3}
+            className="resize-none"
+            placeholder="Optional message to send the vendor…"
+            value={welcomeMessage}
+            onChange={(e) => setWelcomeMessage(e.target.value)}
+          />
         </div>
-      )}
+      </FormDialog>
 
-      <ConfirmDialog open={dialog === "approve"} onClose={() => setDialog(null)} onConfirm={handleApprove}
-        title="Approve this restaurant?" description="The restaurant will be listed on the platform immediately."
-        confirmLabel="Approve" destructive={false} />
-      <ConfirmDialog open={dialog === "reject"} onClose={() => setDialog(null)} onConfirm={handleReject}
-        title="Reject this restaurant?" description="The vendor will be notified with your reason."
-        confirmLabel="Reject" requireReason reasonPlaceholder="Reason for rejection…" destructive />
-      <ConfirmDialog open={dialog === "close"} onClose={() => setDialog(null)} onConfirm={handleClose}
-        title="Temporarily close restaurant?" description="The restaurant will be unavailable for orders until reopened."
-        confirmLabel="Close" requireReason reasonPlaceholder="Reason…" destructive />
+      <ConfirmDialog
+        open={dialog === "reject"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleReject}
+        title="Reject this restaurant?"
+        description="The vendor will be notified with your reason."
+        confirmLabel="Reject"
+        requireReason
+        reasonPlaceholder="Reason for rejection…"
+        destructive
+      />
+      <ConfirmDialog
+        open={dialog === "close"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleClose}
+        title="Temporarily close restaurant?"
+        description="The restaurant will be unavailable for orders until reopened."
+        confirmLabel="Close"
+        requireReason
+        reasonPlaceholder="Reason for closure…"
+        destructive={false}
+      />
+      <ConfirmDialog
+        open={dialog === "reopen"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleReopen}
+        title="Reopen restaurant?"
+        description="The restaurant will become available to customers again."
+        confirmLabel="Reopen"
+        destructive={false}
+      />
+      <ConfirmDialog
+        open={dialog === "deactivate"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleDeactivate}
+        title={`Deactivate ${restaurant.name}?`}
+        description="This removes the restaurant from the platform (super-admin only). Provide a reason for the audit log."
+        confirmLabel="Deactivate"
+        requireReason
+        reasonPlaceholder="Reason for deactivation…"
+        destructive
+      />
     </div>
   );
 }

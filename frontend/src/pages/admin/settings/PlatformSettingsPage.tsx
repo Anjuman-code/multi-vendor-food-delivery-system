@@ -1,8 +1,30 @@
+import { PageHeader, SectionCard } from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
 import { Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+interface FeatureFlags {
+  scheduledOrders: boolean;
+  referralProgram: boolean;
+  loyaltyTiers: boolean;
+  campaignAutoApply: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+}
 
 interface PlatformSettings {
   platformName: string;
@@ -13,195 +35,389 @@ interface PlatformSettings {
   maxDeliveryRadiusKm: number;
   currency: string;
   locale: string;
-  payoutSchedule: string;
+  payoutSchedule: "weekly" | "biweekly" | "monthly";
   minimumPayoutThreshold: number;
-  featureFlags: {
-    scheduledOrders: boolean;
-    referralProgram: boolean;
-    loyaltyTiers: boolean;
-    campaignAutoApply: boolean;
-    maintenanceMode: boolean;
-    maintenanceMessage: string;
-  };
+  featureFlags: FeatureFlags;
 }
 
-const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 pt-5 border-t border-gray-100 first:border-t-0 first:pt-0">
-    {children}
-  </h2>
-);
+/** Editable numeric fields are kept as strings so empty input is distinguishable from NaN. */
+type NumericKey =
+  | "defaultCommissionRate"
+  | "defaultDeliveryFee"
+  | "minimumOrderValue"
+  | "maxDeliveryRadiusKm"
+  | "minimumPayoutThreshold";
 
-const Field: React.FC<{
-  label: string;
-  value: string | number;
-  type?: string;
-  onChange: (v: string) => void;
-  suffix?: string;
-}> = ({ label, value, type = "text", onChange, suffix }) => (
-  <div>
-    <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>
-    <div className="relative">
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-      />
-      {suffix && (
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">{suffix}</span>
-      )}
-    </div>
-  </div>
-);
+const NUMERIC_KEYS: NumericKey[] = [
+  "defaultCommissionRate",
+  "defaultDeliveryFee",
+  "minimumOrderValue",
+  "maxDeliveryRadiusKm",
+  "minimumPayoutThreshold",
+];
 
-const Toggle: React.FC<{ label: string; description?: string; value: boolean; onChange: (v: boolean) => void }> = ({
-  label, description, value, onChange,
-}) => (
-  <div className="flex items-start gap-4">
-    <div className="flex-1">
-      <p className="text-sm font-medium text-gray-700">{label}</p>
-      {description && <p className="text-xs text-gray-400">{description}</p>}
-    </div>
-    <button
-      onClick={() => onChange(!value)}
-      className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${value ? "bg-indigo-600" : "bg-gray-200"}`}
-    >
-      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${value ? "translate-x-5" : ""}`} />
-    </button>
-  </div>
-);
+interface FormState {
+  platformName: string;
+  contactEmail: string;
+  currency: string;
+  locale: string;
+  payoutSchedule: PlatformSettings["payoutSchedule"];
+  featureFlags: FeatureFlags;
+  // numeric-as-string
+  defaultCommissionRate: string;
+  defaultDeliveryFee: string;
+  minimumOrderValue: string;
+  maxDeliveryRadiusKm: string;
+  minimumPayoutThreshold: string;
+}
+
+const toForm = (s: PlatformSettings): FormState => ({
+  platformName: s.platformName ?? "",
+  contactEmail: s.contactEmail ?? "",
+  currency: s.currency ?? "",
+  locale: s.locale ?? "",
+  payoutSchedule: s.payoutSchedule ?? "weekly",
+  featureFlags: {
+    scheduledOrders: !!s.featureFlags?.scheduledOrders,
+    referralProgram: !!s.featureFlags?.referralProgram,
+    loyaltyTiers: !!s.featureFlags?.loyaltyTiers,
+    campaignAutoApply: !!s.featureFlags?.campaignAutoApply,
+    maintenanceMode: !!s.featureFlags?.maintenanceMode,
+    maintenanceMessage: s.featureFlags?.maintenanceMessage ?? "",
+  },
+  defaultCommissionRate: String(s.defaultCommissionRate ?? ""),
+  defaultDeliveryFee: String(s.defaultDeliveryFee ?? ""),
+  minimumOrderValue: String(s.minimumOrderValue ?? ""),
+  maxDeliveryRadiusKm: String(s.maxDeliveryRadiusKm ?? ""),
+  minimumPayoutThreshold: String(s.minimumPayoutThreshold ?? ""),
+});
+
+type Errors = Partial<Record<NumericKey | "contactEmail" | "platformName", string>>;
+
+const validate = (f: FormState): Errors => {
+  const errs: Errors = {};
+
+  if (!f.platformName.trim()) errs.platformName = "Platform name is required.";
+  if (!f.contactEmail.trim()) errs.contactEmail = "Contact email is required.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.contactEmail.trim()))
+    errs.contactEmail = "Enter a valid email address.";
+
+  for (const key of NUMERIC_KEYS) {
+    const raw = f[key].trim();
+    if (raw === "") {
+      errs[key] = "Required.";
+      continue;
+    }
+    const n = parseFloat(raw);
+    if (Number.isNaN(n)) {
+      errs[key] = "Must be a number.";
+      continue;
+    }
+    if (key === "defaultCommissionRate") {
+      if (n < 0 || n > 100) errs[key] = "Must be between 0 and 100.";
+    } else if (key === "maxDeliveryRadiusKm") {
+      if (n < 1) errs[key] = "Must be at least 1.";
+    } else if (n < 0) {
+      errs[key] = "Cannot be negative.";
+    }
+  }
+  return errs;
+};
 
 export default function PlatformSettingsPage() {
-  const [settings, setSettings] = useState<PlatformSettings | null>(null);
+  const { toast } = useToast();
+  const [baseline, setBaseline] = useState<FormState | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
-    adminService.getSettings()
-      .then((res) => setSettings((res.data as { data: { settings: PlatformSettings } }).data.settings))
+    adminService
+      .getSettings()
+      .then((res) => {
+        const s = (res.data as { data: { settings: PlatformSettings } }).data.settings;
+        const f = toForm(s);
+        setForm(f);
+        setBaseline(f);
+      })
+      .catch(() => toast({ title: "Failed to load settings", variant: "destructive" }))
       .finally(() => setLoading(false));
   }, []);
 
+  const errors = useMemo(() => (form ? validate(form) : {}), [form]);
+  const hasErrors = Object.keys(errors).length > 0;
+
+  const dirty = useMemo(
+    () => !!form && !!baseline && JSON.stringify(form) !== JSON.stringify(baseline),
+    [form, baseline],
+  );
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const setFlag = <K extends keyof FeatureFlags>(key: K, value: FeatureFlags[K]) =>
+    setForm((prev) =>
+      prev ? { ...prev, featureFlags: { ...prev.featureFlags, [key]: value } } : prev,
+    );
+
   const handleSave = async () => {
-    if (!settings) return;
+    if (!form || hasErrors) return;
     setSaving(true);
     try {
-      await adminService.updateSettings(settings as unknown as Record<string, unknown>);
-      toast({ title: "Saved", description: "Platform settings updated." });
+      const patch: Record<string, unknown> = {
+        platformName: form.platformName.trim(),
+        contactEmail: form.contactEmail.trim(),
+        currency: form.currency.trim(),
+        locale: form.locale.trim(),
+        payoutSchedule: form.payoutSchedule,
+        featureFlags: form.featureFlags,
+        defaultCommissionRate: parseFloat(form.defaultCommissionRate),
+        defaultDeliveryFee: parseFloat(form.defaultDeliveryFee),
+        minimumOrderValue: parseFloat(form.minimumOrderValue),
+        maxDeliveryRadiusKm: parseFloat(form.maxDeliveryRadiusKm),
+        minimumPayoutThreshold: parseFloat(form.minimumPayoutThreshold),
+      };
+      const res = await adminService.updateSettings(patch);
+      const s = (res.data as { data: { settings: PlatformSettings } }).data.settings;
+      const next = toForm(s);
+      setForm(next);
+      setBaseline(next);
+      toast({ title: "Settings saved" });
     } catch {
-      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+      toast({ title: "Failed to save settings", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  const set = <K extends keyof PlatformSettings>(key: K, value: PlatformSettings[K]) =>
-    setSettings((prev) => prev ? { ...prev, [key]: value } : prev);
-
-  const setFlag = (key: keyof PlatformSettings["featureFlags"], value: boolean) =>
-    setSettings((prev) => prev ? { ...prev, featureFlags: { ...prev.featureFlags, [key]: value } } : prev);
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="max-w-3xl space-y-5">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
       </div>
     );
   }
 
-  if (!settings) return null;
+  if (!form) return null;
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Platform Settings</h1>
-          <p className="text-sm text-gray-500">System-wide configuration</p>
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        >
-          <Save className="w-4 h-4" />
-          {saving ? "Saving…" : "Save Changes"}
-        </button>
-      </motion.div>
+    <div className="max-w-3xl space-y-5">
+      <PageHeader
+        title="Platform Settings"
+        description="System-wide configuration."
+        actions={
+          <Button variant="brand" size="sm" onClick={handleSave} disabled={!dirty || hasErrors || saving}>
+            <Save className="mr-1.5 h-4 w-4" />
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        }
+      />
 
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
-        <SectionLabel>General</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Platform Name" value={settings.platformName} onChange={(v) => set("platformName", v)} />
-          <Field label="Contact Email" value={settings.contactEmail} type="email" onChange={(v) => set("contactEmail", v)} />
-          <Field label="Currency" value={settings.currency} onChange={(v) => set("currency", v)} />
-          <Field label="Locale" value={settings.locale} onChange={(v) => set("locale", v)} />
-        </div>
-
-        <SectionLabel>Financial</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Default Commission Rate" value={settings.defaultCommissionRate} type="number"
-            onChange={(v) => set("defaultCommissionRate", parseFloat(v))} suffix="%" />
-          <Field label="Default Delivery Fee" value={settings.defaultDeliveryFee} type="number"
-            onChange={(v) => set("defaultDeliveryFee", parseFloat(v))} suffix="BDT" />
-          <Field label="Minimum Order Value" value={settings.minimumOrderValue} type="number"
-            onChange={(v) => set("minimumOrderValue", parseFloat(v))} suffix="BDT" />
-          <Field label="Minimum Payout Threshold" value={settings.minimumPayoutThreshold} type="number"
-            onChange={(v) => set("minimumPayoutThreshold", parseFloat(v))} suffix="BDT" />
-        </div>
-
-        <SectionLabel>Delivery</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Max Delivery Radius" value={settings.maxDeliveryRadiusKm} type="number"
-            onChange={(v) => set("maxDeliveryRadiusKm", parseFloat(v))} suffix="km" />
-          <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Payout Schedule</label>
-            <select
-              value={settings.payoutSchedule}
-              onChange={(e) => set("payoutSchedule", e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
-            >
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Bi-weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-        </div>
-
-        <SectionLabel>Feature Flags</SectionLabel>
-        <div className="space-y-3">
-          <Toggle label="Scheduled Orders" description="Allow customers to schedule future orders"
-            value={settings.featureFlags.scheduledOrders} onChange={(v) => setFlag("scheduledOrders", v)} />
-          <Toggle label="Referral Program" description="Enable referral codes and rewards"
-            value={settings.featureFlags.referralProgram} onChange={(v) => setFlag("referralProgram", v)} />
-          <Toggle label="Loyalty Tiers" description="Bronze / Silver / Gold tier progression"
-            value={settings.featureFlags.loyaltyTiers} onChange={(v) => setFlag("loyaltyTiers", v)} />
-          <Toggle label="Campaign Auto-Apply" description="Automatically apply eligible campaigns at checkout"
-            value={settings.featureFlags.campaignAutoApply} onChange={(v) => setFlag("campaignAutoApply", v)} />
-        </div>
-
-        <SectionLabel>Maintenance Mode</SectionLabel>
-        <div className="space-y-3">
-          <Toggle
-            label="Maintenance Mode"
-            description="Take the platform offline for all non-whitelisted users"
-            value={settings.featureFlags.maintenanceMode}
-            onChange={(v) => setFlag("maintenanceMode", v)}
+      {/* General */}
+      <SectionCard title="General">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field
+            id="platformName"
+            label="Platform name"
+            value={form.platformName}
+            onChange={(v) => set("platformName", v)}
+            error={errors.platformName}
           />
-          {settings.featureFlags.maintenanceMode && (
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Maintenance Message</label>
-              <textarea
-                value={settings.featureFlags.maintenanceMessage}
-                onChange={(e) => setFlag("maintenanceMessage" as keyof PlatformSettings["featureFlags"] & string, e.target.value as unknown as boolean)}
+          <Field
+            id="contactEmail"
+            label="Contact email"
+            type="email"
+            value={form.contactEmail}
+            onChange={(v) => set("contactEmail", v)}
+            error={errors.contactEmail}
+          />
+          <Field
+            id="currency"
+            label="Currency"
+            value={form.currency}
+            onChange={(v) => set("currency", v)}
+          />
+          <Field
+            id="locale"
+            label="Locale"
+            value={form.locale}
+            onChange={(v) => set("locale", v)}
+          />
+        </div>
+      </SectionCard>
+
+      {/* Commerce */}
+      <SectionCard title="Commerce">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field
+            id="defaultCommissionRate"
+            label="Default commission rate"
+            type="number"
+            suffix="%"
+            value={form.defaultCommissionRate}
+            onChange={(v) => set("defaultCommissionRate", v)}
+            error={errors.defaultCommissionRate}
+          />
+          <Field
+            id="defaultDeliveryFee"
+            label="Default delivery fee"
+            type="number"
+            suffix="৳"
+            value={form.defaultDeliveryFee}
+            onChange={(v) => set("defaultDeliveryFee", v)}
+            error={errors.defaultDeliveryFee}
+          />
+          <Field
+            id="minimumOrderValue"
+            label="Minimum order value"
+            type="number"
+            suffix="৳"
+            value={form.minimumOrderValue}
+            onChange={(v) => set("minimumOrderValue", v)}
+            error={errors.minimumOrderValue}
+          />
+          <Field
+            id="maxDeliveryRadiusKm"
+            label="Max delivery radius"
+            type="number"
+            suffix="km"
+            value={form.maxDeliveryRadiusKm}
+            onChange={(v) => set("maxDeliveryRadiusKm", v)}
+            error={errors.maxDeliveryRadiusKm}
+          />
+        </div>
+      </SectionCard>
+
+      {/* Payouts */}
+      <SectionCard title="Payouts">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="payoutSchedule">Payout schedule</Label>
+            <Select
+              value={form.payoutSchedule}
+              onValueChange={(v) =>
+                set("payoutSchedule", v as PlatformSettings["payoutSchedule"])
+              }
+            >
+              <SelectTrigger id="payoutSchedule">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Field
+            id="minimumPayoutThreshold"
+            label="Minimum payout threshold"
+            type="number"
+            suffix="৳"
+            value={form.minimumPayoutThreshold}
+            onChange={(v) => set("minimumPayoutThreshold", v)}
+            error={errors.minimumPayoutThreshold}
+          />
+        </div>
+      </SectionCard>
+
+      {/* Feature Flags */}
+      <SectionCard title="Feature Flags">
+        <div className="space-y-1">
+          <Toggle
+            label="Scheduled orders"
+            description="Allow customers to schedule future orders."
+            value={form.featureFlags.scheduledOrders}
+            onChange={(v) => setFlag("scheduledOrders", v)}
+          />
+          <Toggle
+            label="Referral program"
+            description="Enable referral codes and rewards."
+            value={form.featureFlags.referralProgram}
+            onChange={(v) => setFlag("referralProgram", v)}
+          />
+          <Toggle
+            label="Loyalty tiers"
+            description="Bronze / Silver / Gold tier progression."
+            value={form.featureFlags.loyaltyTiers}
+            onChange={(v) => setFlag("loyaltyTiers", v)}
+          />
+          <Toggle
+            label="Campaign auto-apply"
+            description="Automatically apply eligible campaigns at checkout."
+            value={form.featureFlags.campaignAutoApply}
+            onChange={(v) => setFlag("campaignAutoApply", v)}
+          />
+          <div className="border-t border-border pt-1">
+            <Toggle
+              label="Maintenance mode"
+              description="Take the platform offline for all non-whitelisted users."
+              value={form.featureFlags.maintenanceMode}
+              onChange={(v) => setFlag("maintenanceMode", v)}
+            />
+          </div>
+          {form.featureFlags.maintenanceMode && (
+            <div className="space-y-1.5 pt-3">
+              <Label htmlFor="maintenanceMessage">Maintenance message</Label>
+              <Textarea
+                id="maintenanceMessage"
+                value={form.featureFlags.maintenanceMessage}
+                onChange={(e) => setFlag("maintenanceMessage", e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-red-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none"
+                className="resize-none"
                 placeholder="We're down for maintenance. Back soon!"
               />
             </div>
           )}
         </div>
-      </div>
+      </SectionCard>
     </div>
   );
 }
+
+const Field: React.FC<{
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  suffix?: string;
+  error?: string;
+}> = ({ id, label, value, onChange, type = "text", suffix, error }) => (
+  <div className="space-y-1.5">
+    <Label htmlFor={id}>{label}</Label>
+    <div className="relative">
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={suffix ? "pr-10" : undefined}
+        aria-invalid={!!error}
+      />
+      {suffix && (
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          {suffix}
+        </span>
+      )}
+    </div>
+    {error && <p className="text-xs text-red-600">{error}</p>}
+  </div>
+);
+
+const Toggle: React.FC<{
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}> = ({ label, description, value, onChange }) => (
+  <div className="flex items-start justify-between gap-4 py-2.5">
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-foreground">{label}</p>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+    </div>
+    <Switch checked={value} onCheckedChange={onChange} />
+  </div>
+);

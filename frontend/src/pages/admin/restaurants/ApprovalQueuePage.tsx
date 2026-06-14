@@ -1,159 +1,312 @@
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  EmptyState,
+  PageHeader,
+  SectionCard,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { CheckCircle, Clock, Store, XCircle } from "lucide-react";
+import { formatRelativeTime } from "@/utils/format";
+import {
+  CheckCircle2,
+  Clock,
+  Mail,
+  MapPin,
+  Phone,
+  Store,
+  XCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
+interface OperatingHour {
+  day: string;
+  openTime: string;
+  closeTime: string;
+  isOpen?: boolean;
+}
 
 interface QueueItem {
   _id: string;
   name: string;
   cuisineType: string[];
-  address: { area: string; district: string };
+  address: { street?: string; area: string; district: string };
+  contactInfo?: { phone?: string; email?: string; website?: string };
+  images?: { logo?: string; coverPhoto?: string };
+  operatingHours?: OperatingHour[];
   createdAt: string;
-  owner?: { firstName: string; lastName: string; email: string };
 }
 
+const daysSince = (d: string) =>
+  Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
+
 export default function ApprovalQueuePage() {
+  const { toast } = useToast();
   const [items, setItems] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<QueueItem | null>(null);
-  const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
-  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [target, setTarget] = useState<QueueItem | null>(null);
+  const [dialog, setDialog] = useState<"approve" | "reject" | "bulk" | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await adminService.getApprovalQueue();
       setItems((res.data as { data: { restaurants: QueueItem[] } }).data.restaurants);
+      setSelectedIds(new Set());
+    } catch {
+      toast({ title: "Failed to load approval queue", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
+
+  const toggleSelect = (id: string, checked: boolean) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const toggleSelectAll = (checked: boolean) =>
+    setSelectedIds(checked ? new Set(items.map((i) => i._id)) : new Set());
 
   const handleApprove = async () => {
-    if (!selected) return;
+    if (!target) return;
     try {
-      await adminService.approveRestaurant(selected._id);
-      toast({ title: "Approved", description: `${selected.name} is now live.` });
-      load();
+      await adminService.approveRestaurant(target._id);
+      toast({ title: "Approved", description: `${target.name} is now live.` });
+      await load();
     } catch {
-      toast({ title: "Error", description: "Failed.", variant: "destructive" });
+      toast({ title: "Approval failed", variant: "destructive" });
       throw new Error("failed");
     }
   };
 
   const handleReject = async (reason?: string) => {
-    if (!selected) return;
+    if (!target) return;
     try {
-      await adminService.rejectRestaurant(selected._id, { reason: reason! });
+      await adminService.rejectRestaurant(target._id, { reason: reason! });
       toast({ title: "Rejected", description: "Application rejected." });
-      load();
+      await load();
     } catch {
-      toast({ title: "Error", description: "Failed.", variant: "destructive" });
+      toast({ title: "Rejection failed", variant: "destructive" });
       throw new Error("failed");
     }
   };
 
-  const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  const handleBulkApprove = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setBusy(true);
+    let ok = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await adminService.approveRestaurant(id);
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBusy(false);
+    setDialog(null);
+    toast({
+      title: `Approved ${ok} of ${ids.length}`,
+      description: failed ? `${failed} could not be approved.` : undefined,
+      variant: failed ? "destructive" : undefined,
+    });
+    await load();
+  };
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-xl font-bold text-gray-900">Restaurant Approval Queue</h1>
-        <p className="text-sm text-gray-500">{items.length} applications pending review</p>
-      </motion.div>
+      <PageHeader
+        title="Restaurant Approval Queue"
+        description={`${items.length} application${items.length === 1 ? "" : "s"} pending review`}
+        actions={
+          items.length > 0 ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleSelectAll(!allSelected)}
+                disabled={loading}
+              >
+                {allSelected ? "Clear selection" : "Select all"}
+              </Button>
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={() => setDialog("bulk")}
+                disabled={selectedIds.size === 0}
+              >
+                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                Approve selected ({selectedIds.size})
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
-              <div className="h-5 bg-gray-100 rounded w-3/4 mb-3" />
-              <div className="h-4 bg-gray-100 rounded w-1/2 mb-2" />
-              <div className="h-4 bg-gray-100 rounded w-2/3" />
-            </div>
+            <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <CheckCircle className="w-12 h-12 text-emerald-400 mb-3" />
-          <h2 className="text-lg font-bold text-gray-700">All caught up!</h2>
-          <p className="text-gray-400 text-sm">No pending restaurant applications.</p>
-        </div>
+        <EmptyState
+          icon={CheckCircle2}
+          title="All caught up!"
+          description="No pending restaurant applications."
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {items.map((item, i) => (
-            <motion.div
-              key={item._id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Store className="w-5 h-5 text-orange-500" />
-                  </div>
-                  <div>
-                    <Link to={`/admin/restaurants/${item._id}`} className="font-bold text-gray-900 hover:text-indigo-600 transition-colors text-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((item) => {
+            const age = daysSince(item.createdAt);
+            const checked = selectedIds.has(item._id);
+            return (
+              <SectionCard key={item._id} className={checked ? "ring-2 ring-brand-500" : undefined}>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => toggleSelect(item._id, c === true)}
+                    aria-label={`Select ${item.name}`}
+                    className="mt-1"
+                  />
+                  {item.images?.logo ? (
+                    <img
+                      src={item.images.logo}
+                      alt=""
+                      className="h-11 w-11 shrink-0 rounded-xl border border-border object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                      <Store className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      to={`/admin/restaurants/${item._id}`}
+                      className="truncate text-sm font-bold text-foreground hover:text-brand-500"
+                    >
                       {item.name}
                     </Link>
-                    <p className="text-xs text-gray-400">{item.address?.area}, {item.address?.district}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">
+                        {item.address?.area}
+                        {item.address?.district ? `, ${item.address.district}` : ""}
+                      </span>
+                    </p>
                   </div>
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      age > 3 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+                    }`}
+                    title={`Submitted ${formatRelativeTime(item.createdAt)}`}
+                  >
+                    <Clock className="h-3 w-3" />
+                    {age}d
+                  </span>
                 </div>
-                <span className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                  daysSince(item.createdAt) > 3 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
-                }`}>
-                  <Clock className="w-3 h-3" />
-                  {daysSince(item.createdAt)}d
-                </span>
-              </div>
 
-              {item.cuisineType?.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {item.cuisineType.slice(0, 3).map((c) => (
-                    <span key={c} className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">{c}</span>
-                  ))}
+                {item.cuisineType?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {item.cuisineType.slice(0, 4).map((c) => (
+                      <span key={c} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                  {item.contactInfo?.phone && (
+                    <p className="flex items-center gap-1.5">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      {item.contactInfo.phone}
+                    </p>
+                  )}
+                  {item.contactInfo?.email && (
+                    <p className="flex items-center gap-1.5">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{item.contactInfo.email}</span>
+                    </p>
+                  )}
+                  {item.operatingHours && item.operatingHours.length > 0 && (
+                    <p className="flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      {item.operatingHours.length} day
+                      {item.operatingHours.length === 1 ? "" : "s"} of hours set
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {item.owner && (
-                <p className="text-xs text-gray-400 mb-4">
-                  Owner: <span className="text-gray-600">{item.owner.firstName} {item.owner.lastName}</span>
-                </p>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setSelected(item); setDialog("approve"); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors"
-                >
-                  <CheckCircle className="w-4 h-4" /> Approve
-                </button>
-                <button
-                  onClick={() => { setSelected(item); setDialog("reject"); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors"
-                >
-                  <XCircle className="w-4 h-4" /> Reject
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                    onClick={() => { setTarget(item); setDialog("approve"); }}
+                  >
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" /> Approve
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => { setTarget(item); setDialog("reject"); }}
+                  >
+                    <XCircle className="mr-1.5 h-4 w-4" /> Reject
+                  </Button>
+                </div>
+              </SectionCard>
+            );
+          })}
         </div>
       )}
 
-      <ConfirmDialog open={dialog === "approve"} onClose={() => setDialog(null)} onConfirm={handleApprove}
-        title={`Approve ${selected?.name}?`}
+      <ConfirmDialog
+        open={dialog === "approve"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleApprove}
+        title={`Approve ${target?.name}?`}
         description="The restaurant will go live and customers can place orders."
-        confirmLabel="Approve Restaurant" destructive={false} />
-      <ConfirmDialog open={dialog === "reject"} onClose={() => setDialog(null)} onConfirm={handleReject}
-        title={`Reject ${selected?.name}?`}
+        confirmLabel="Approve Restaurant"
+        destructive={false}
+      />
+      <ConfirmDialog
+        open={dialog === "reject"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleReject}
+        title={`Reject ${target?.name}?`}
         description="Please provide a reason that will be communicated to the vendor."
-        confirmLabel="Reject" requireReason reasonPlaceholder="Reason for rejection…" destructive />
+        confirmLabel="Reject"
+        requireReason
+        reasonPlaceholder="Reason for rejection…"
+        destructive
+      />
+      <ConfirmDialog
+        open={dialog === "bulk"}
+        onClose={() => !busy && setDialog(null)}
+        onConfirm={handleBulkApprove}
+        title={`Approve ${selectedIds.size} restaurant${selectedIds.size === 1 ? "" : "s"}?`}
+        description="Each selected application will go live and customers can place orders."
+        confirmLabel={busy ? "Approving…" : "Approve all"}
+        destructive={false}
+      />
     </div>
   );
 }

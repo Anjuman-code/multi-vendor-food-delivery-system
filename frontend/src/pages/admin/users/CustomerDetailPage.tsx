@@ -1,12 +1,34 @@
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DetailHeader,
+  EmptyState,
+  FormDialog,
+  KeyValueList,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
+import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/utils/format";
 import {
-    ArrowLeft, Ban, CheckCircle, Gift, Mail, Package, Phone, Shield, ShoppingBag, Star, UserX,
+  Ban,
+  CheckCircle2,
+  Gift,
+  Mail,
+  Package,
+  ShieldCheck,
+  ShoppingBag,
+  Star,
+  UserX,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 interface CustomerDetail {
   user: {
@@ -23,14 +45,12 @@ interface CustomerDetail {
     suspendedReason?: string;
     createdAt: string;
     lastLogin?: string;
-    profileImage?: string;
   };
   customerProfile?: {
     loyaltyPoints: number;
     totalOrders: number;
     totalSpent: number;
     tier: string;
-    savedAddresses?: unknown[];
   };
   recentOrders?: Array<{
     _id: string;
@@ -46,7 +66,6 @@ type DialogType = "suspend" | "unsuspend" | "ban" | "unban" | "loyalty";
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [detail, setDetail] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,42 +80,52 @@ export default function CustomerDetailPage() {
     try {
       const res = await adminService.getCustomer(id);
       setDetail((res.data as { data: CustomerDetail }).data);
+    } catch {
+      toast({ title: "Failed to load customer", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
 
   const handleAction = async (reason?: string) => {
-    if (!id) return;
+    if (!id || !dialog) return;
+    const map: Record<string, () => Promise<unknown>> = {
+      suspend: () => adminService.suspendCustomer(id, { reason: reason! }),
+      unsuspend: () => adminService.unsuspendCustomer(id, { reason: reason! }),
+      ban: () => adminService.banCustomer(id, { reason: reason! }),
+      unban: () => adminService.unbanCustomer(id, { reason: reason! }),
+    };
     try {
-      if (dialog === "suspend") await adminService.suspendCustomer(id, { reason: reason! });
-      else if (dialog === "unsuspend") await adminService.unsuspendCustomer(id, { reason: reason! });
-      else if (dialog === "ban") await adminService.banCustomer(id, { reason: reason! });
-      else if (dialog === "unban") await adminService.unbanCustomer(id, { reason: reason! });
-      toast({ title: "Success", description: "Customer updated." });
+      await map[dialog]();
+      toast({ title: "Customer updated" });
       await load();
     } catch {
-      toast({ title: "Error", description: "Action failed.", variant: "destructive" });
+      toast({ title: "Action failed", variant: "destructive" });
       throw new Error("failed");
     }
   };
 
   const handleLoyalty = async () => {
     if (!id) return;
-    const pts = parseInt(loyaltyPoints);
-    if (isNaN(pts) || pts === 0 || !loyaltyReason.trim()) return;
+    const pts = parseInt(loyaltyPoints, 10);
+    if (Number.isNaN(pts) || pts === 0 || loyaltyReason.trim().length < 3) {
+      toast({ title: "Enter a non-zero amount and a reason", variant: "destructive" });
+      return;
+    }
     setLoyaltyLoading(true);
     try {
-      await adminService.adjustLoyalty(id, { points: pts, reason: loyaltyReason });
-      toast({ title: "Success", description: `Loyalty points adjusted by ${pts > 0 ? "+" : ""}${pts}.` });
+      await adminService.adjustLoyalty(id, { points: pts, reason: loyaltyReason.trim() });
+      toast({ title: `Loyalty adjusted by ${pts > 0 ? "+" : ""}${pts}` });
       setLoyaltyPoints("");
       setLoyaltyReason("");
       setDialog(null);
       await load();
     } catch {
-      toast({ title: "Error", description: "Failed to adjust points.", variant: "destructive" });
+      toast({ title: "Failed to adjust points", variant: "destructive" });
     } finally {
       setLoyaltyLoading(false);
     }
@@ -104,286 +133,222 @@ export default function CustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="space-y-5">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-64 lg:col-span-1" />
+          <Skeleton className="h-64 lg:col-span-2" />
+        </div>
       </div>
     );
   }
-  if (!detail) return <p className="text-center text-gray-400 mt-12">Customer not found.</p>;
+
+  if (!detail) {
+    return (
+      <EmptyState
+        icon={UserX}
+        title="Customer not found"
+        description="This customer may have been removed."
+        action={{ label: "Back to customers", onClick: () => history.back() }}
+      />
+    );
+  }
 
   const { user, customerProfile, recentOrders } = detail;
   const fullName = `${user.firstName} ${user.lastName}`;
+  const status: { label: string; tone: StatusTone } = user.isBanned
+    ? { label: "Banned", tone: "danger" }
+    : user.isSuspended
+      ? { label: "Suspended", tone: "warning" }
+      : user.isActive
+        ? { label: "Active", tone: "success" }
+        : { label: "Inactive", tone: "neutral" };
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{fullName}</h1>
-          <p className="text-sm text-gray-400">{user.email}</p>
-        </div>
-        <div className="ml-auto flex gap-2">
-          {!user.isBanned && !user.isSuspended && (
-            <button
-              onClick={() => setDialog("suspend")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl transition-colors"
-            >
-              <UserX className="w-3.5 h-3.5" /> Suspend
-            </button>
-          )}
-          {user.isSuspended && (
-            <button
-              onClick={() => setDialog("unsuspend")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors"
-            >
-              <CheckCircle className="w-3.5 h-3.5" /> Unsuspend
-            </button>
-          )}
-          {!user.isBanned ? (
-            <button
-              onClick={() => setDialog("ban")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors"
-            >
-              <Ban className="w-3.5 h-3.5" /> Ban
-            </button>
-          ) : (
-            <button
-              onClick={() => setDialog("unban")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors"
-            >
-              <CheckCircle className="w-3.5 h-3.5" /> Unban
-            </button>
-          )}
-        </div>
-      </motion.div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Profile card */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
-        >
-          <div className="flex flex-col items-center text-center mb-5">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-200 to-violet-200 rounded-2xl flex items-center justify-center text-2xl font-bold text-indigo-700 mb-3">
-              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-            </div>
-            <h2 className="font-bold text-gray-900">{fullName}</h2>
-            <span className={`mt-1 px-2.5 py-0.5 text-xs font-semibold rounded-full ${
-              user.isBanned ? "bg-red-50 text-red-600" :
-              user.isSuspended ? "bg-amber-50 text-amber-600" :
-              user.isActive ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
-            }`}>
-              {user.isBanned ? "Banned" : user.isSuspended ? "Suspended" : user.isActive ? "Active" : "Inactive"}
-            </span>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Mail className="w-4 h-4 text-gray-400" />
-              <span className="truncate">{user.email}</span>
-              {user.isEmailVerified && <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-            </div>
-            {user.phoneNumber && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Phone className="w-4 h-4 text-gray-400" />
-                <span>{user.phoneNumber}</span>
-              </div>
+      <DetailHeader
+        backTo="/admin/users/customers"
+        backLabel="Customers"
+        title={fullName}
+        subtitle={user.email}
+        avatar={
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-lg font-bold text-accent-foreground">
+            {user.firstName.charAt(0)}
+            {user.lastName.charAt(0)}
+          </span>
+        }
+        badges={<StatusBadge label={status.label} tone={status.tone} />}
+        actions={
+          <>
+            {!user.isBanned && !user.isSuspended && (
+              <Button variant="outline" size="sm" onClick={() => setDialog("suspend")}>
+                <UserX className="mr-1.5 h-4 w-4" /> Suspend
+              </Button>
             )}
-            <div className="flex items-center gap-2 text-gray-600">
-              <Shield className="w-4 h-4 text-gray-400" />
-              <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-            </div>
-            {user.lastLogin && (
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
-                <span>Last login: {new Date(user.lastLogin).toLocaleString()}</span>
-              </div>
+            {user.isSuspended && (
+              <Button variant="outline" size="sm" onClick={() => setDialog("unsuspend")}>
+                <ShieldCheck className="mr-1.5 h-4 w-4" /> Unsuspend
+              </Button>
             )}
-          </div>
+            {!user.isBanned ? (
+              <Button variant="destructive" size="sm" onClick={() => setDialog("ban")}>
+                <Ban className="mr-1.5 h-4 w-4" /> Ban
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setDialog("unban")}>
+                <CheckCircle2 className="mr-1.5 h-4 w-4" /> Unban
+              </Button>
+            )}
+          </>
+        }
+      />
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <SectionCard title="Profile" className="lg:col-span-1">
+          <KeyValueList
+            columns={1}
+            items={[
+              {
+                label: "Email",
+                value: (
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    {user.email}
+                    {user.isEmailVerified && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
+                  </span>
+                ),
+              },
+              { label: "Phone", value: user.phoneNumber ?? "—" },
+              { label: "Joined", value: formatDate(user.createdAt) },
+              { label: "Last login", value: user.lastLogin ? formatDateTime(user.lastLogin) : "Never" },
+              { label: "Tier", value: customerProfile?.tier ?? "—" },
+            ]}
+          />
           {(user.bannedReason || user.suspendedReason) && (
-            <div className="mt-4 p-3 bg-red-50 rounded-xl text-xs text-red-600">
-              <p className="font-bold mb-1">{user.isBanned ? "Ban Reason" : "Suspension Reason"}</p>
-              <p>{user.bannedReason ?? user.suspendedReason}</p>
+            <div className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">
+              <p className="mb-1 font-bold">{user.isBanned ? "Ban reason" : "Suspension reason"}</p>
+              <p>{user.isBanned ? user.bannedReason : user.suspendedReason}</p>
             </div>
           )}
-        </motion.div>
+        </SectionCard>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="lg:col-span-2 space-y-4"
-        >
-          {/* Loyalty card */}
+        <div className="space-y-4 lg:col-span-2">
           {customerProfile && (
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-gray-700">Loyalty & Stats</h3>
-                <button
-                  onClick={() => setDialog("loyalty")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
-                >
-                  <Gift className="w-3.5 h-3.5" /> Adjust Points
-                </button>
+            <SectionCard
+              title="Loyalty & Lifetime Value"
+              actions={
+                <Button variant="outline" size="sm" onClick={() => setDialog("loyalty")}>
+                  <Gift className="mr-1.5 h-4 w-4" /> Adjust Points
+                </Button>
+              }
+            >
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard label="Loyalty Points" value={formatNumber(customerProfile.loyaltyPoints)} icon={Star} accent="brand" />
+                <StatCard label="Total Orders" value={formatNumber(customerProfile.totalOrders)} icon={ShoppingBag} />
+                <StatCard label="Total Spent" value={formatCurrency(customerProfile.totalSpent)} icon={Gift} />
+                <StatCard label="Tier" value={customerProfile.tier} icon={ShieldCheck} />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { label: "Loyalty Points", value: customerProfile.loyaltyPoints.toLocaleString(), icon: Star, color: "text-amber-500" },
-                  { label: "Total Orders", value: customerProfile.totalOrders.toLocaleString(), icon: ShoppingBag, color: "text-indigo-500" },
-                  { label: "Total Spent", value: `৳${customerProfile.totalSpent.toLocaleString()}`, icon: Gift, color: "text-emerald-500" },
-                  { label: "Tier", value: customerProfile.tier, icon: Shield, color: "text-violet-500" },
-                ].map((s) => (
-                  <div key={s.label} className="text-center p-3 bg-gray-50 rounded-xl">
-                    <s.icon className={`w-5 h-5 ${s.color} mx-auto mb-1`} />
-                    <p className="text-lg font-bold text-gray-900">{s.value}</p>
-                    <p className="text-xs text-gray-500">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </SectionCard>
           )}
 
-          {/* Recent orders */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-700">Recent Orders</h3>
-              {recentOrders && recentOrders.length > 0 && (
-                <Link
-                  to="/admin/orders"
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-                >
-                  View all &rarr;
+          <SectionCard
+            title="Recent Orders"
+            actions={
+              recentOrders?.length ? (
+                <Link to="/admin/orders" className="text-xs font-medium text-primary hover:underline">
+                  View all →
                 </Link>
-              )}
-            </div>
-            {recentOrders && recentOrders.length > 0 ? (
-              <div className="space-y-1.5">
-                {recentOrders.map((o, i) => (
-                  <motion.div
+              ) : undefined
+            }
+            flush={!!recentOrders?.length}
+          >
+            {recentOrders?.length ? (
+              <div className="divide-y divide-border">
+                {recentOrders.map((o) => (
+                  <Link
                     key={o._id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
+                    to={`/admin/orders/${o._id}`}
+                    className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-muted/50"
                   >
-                    <Link
-                      to={`/admin/orders/${o._id}`}
-                      className="flex items-center gap-3 px-3.5 py-3 rounded-xl hover:bg-gray-50 transition-all text-sm border border-gray-100 group"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-semibold text-gray-800 text-xs">
-                            #{o.orderNumber}
-                          </span>
-                          {o.restaurantId?.name && (
-                            <span className="text-gray-400 text-xs truncate">
-                              {o.restaurantId.name}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          {new Date(o.createdAt).toLocaleDateString(undefined, {
-                            month: "short", day: "numeric", year: "numeric",
-                          })}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded-full capitalize ${
-                        o.status === "delivered" ? "bg-emerald-50 text-emerald-600" :
-                        o.status === "cancelled" ? "bg-red-50 text-red-600" :
-                        o.status === "pending" ? "bg-yellow-50 text-yellow-600" :
-                        o.status === "confirmed" ? "bg-blue-50 text-blue-600" :
-                        o.status === "preparing" ? "bg-indigo-50 text-indigo-600" :
-                        o.status === "ready" || o.status === "ready_for_pickup" ? "bg-violet-50 text-violet-600" :
-                        o.status === "picked_up" || o.status === "on_the_way" ? "bg-purple-50 text-purple-600" :
-                        "bg-gray-100 text-gray-600"
-                      }`}>
-                        {o.status.replace(/_/g, " ")}
-                      </span>
-                      <span className="shrink-0 font-semibold text-gray-800 text-sm w-20 text-right">
-                        ৳{o.total.toLocaleString()}
-                      </span>
-                      <span className="shrink-0 text-gray-300 group-hover:text-indigo-400 transition-colors">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </span>
-                    </Link>
-                  </motion.div>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-mono text-xs font-semibold text-foreground">#{o.orderNumber}</span>
+                      {o.restaurantId?.name && (
+                        <span className="ml-2 truncate text-xs text-muted-foreground">{o.restaurantId.name}</span>
+                      )}
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{formatDate(o.createdAt)}</p>
+                    </div>
+                    <StatusBadge status={o.status} size="sm" />
+                    <span className="w-20 shrink-0 text-right font-semibold text-foreground">
+                      {formatCurrency(o.total)}
+                    </span>
+                  </Link>
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center py-8 text-gray-400">
-                <Package className="w-8 h-8 mb-2" />
-                <p className="text-sm">No orders yet</p>
-              </div>
+              <EmptyState icon={Package} title="No orders yet" className="border-0 py-8" />
             )}
-          </div>
-        </motion.div>
+          </SectionCard>
+        </div>
       </div>
 
-      {/* Action Dialogs */}
+      {/* Action dialogs */}
       <ConfirmDialog open={dialog === "suspend"} onClose={() => setDialog(null)} onConfirm={handleAction}
-        title={`Suspend ${user.firstName}?`}
-        description="The customer will be blocked from placing orders until unsuspended."
-        confirmLabel="Suspend" requireReason reasonPlaceholder="Reason for suspension…" destructive={false} />
+        title={`Suspend ${user.firstName}?`} description="Blocks the customer from placing orders until unsuspended."
+        confirmLabel="Suspend" requireReason destructive={false} />
       <ConfirmDialog open={dialog === "unsuspend"} onClose={() => setDialog(null)} onConfirm={handleAction}
-        title="Lift Suspension?" description="The customer will regain full access."
-        confirmLabel="Unsuspend" requireReason reasonPlaceholder="Reason…" destructive={false} />
+        title="Lift suspension?" description="The customer regains full access."
+        confirmLabel="Unsuspend" requireReason destructive={false} />
       <ConfirmDialog open={dialog === "ban"} onClose={() => setDialog(null)} onConfirm={handleAction}
-        title={`Permanently ban ${user.firstName}?`}
-        description="This cannot be undone easily. The customer will be permanently blocked."
-        confirmLabel="Ban Customer" requireReason reasonPlaceholder="Detailed reason for ban…" destructive />
+        title={`Permanently ban ${user.firstName}?`} description="Blocks the customer from the platform entirely."
+        confirmLabel="Ban Customer" requireReason destructive />
       <ConfirmDialog open={dialog === "unban"} onClose={() => setDialog(null)} onConfirm={handleAction}
-        title="Lift Ban?" description="The customer will regain access."
-        confirmLabel="Unban" requireReason reasonPlaceholder="Reason for lifting ban…" destructive={false} />
+        title="Lift ban?" description="The customer regains access to the platform."
+        confirmLabel="Unban" requireReason destructive={false} />
 
-      {/* Loyalty adjustment modal */}
-      {dialog === "loyalty" && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDialog(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900 mb-4">Adjust Loyalty Points</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Points (+ to add, - to deduct)</label>
-                <input
-                  type="number"
-                  value={loyaltyPoints}
-                  onChange={(e) => setLoyaltyPoints(e.target.value)}
-                  placeholder="e.g. 100 or -50"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Reason</label>
-                <input
-                  value={loyaltyReason}
-                  onChange={(e) => setLoyaltyReason(e.target.value)}
-                  placeholder="Reason for adjustment…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setDialog(null)} className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleLoyalty}
-                disabled={loyaltyLoading || !loyaltyPoints || !loyaltyReason.trim()}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-colors"
-              >
-                {loyaltyLoading ? "Saving…" : "Apply"}
-              </button>
-            </div>
+      {/* Loyalty adjustment */}
+      <FormDialog
+        open={dialog === "loyalty"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Adjust Loyalty Points"
+        description="Use a positive value to grant points, negative to deduct."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDialog(null)} disabled={loyaltyLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="brand"
+              onClick={handleLoyalty}
+              disabled={loyaltyLoading || !loyaltyPoints || loyaltyReason.trim().length < 3}
+            >
+              {loyaltyLoading ? "Saving…" : "Apply"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="pts">Points (+ to add, − to deduct)</Label>
+            <Input
+              id="pts"
+              type="number"
+              value={loyaltyPoints}
+              onChange={(e) => setLoyaltyPoints(e.target.value)}
+              placeholder="e.g. 100 or -50"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason">Reason</Label>
+            <Input
+              id="reason"
+              value={loyaltyReason}
+              onChange={(e) => setLoyaltyReason(e.target.value)}
+              placeholder="Reason for adjustment…"
+            />
           </div>
         </div>
-      )}
+      </FormDialog>
     </div>
   );
 }

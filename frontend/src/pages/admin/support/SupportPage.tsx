@@ -1,162 +1,238 @@
-import { AdminTable, Column } from "@/components/admin/AdminTable";
-import httpClient from "@/lib/httpClient";
-import { motion } from "framer-motion";
+import {
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  exportToCsv,
+  FilterBar,
+  PageHeader,
+  SegmentedTabs,
+  StatusBadge,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import supportService from "@/services/supportService";
+import type { SupportTicket } from "@/types/support";
+import {
+  TICKET_PRIORITY_LABELS,
+  TICKET_TYPE_LABELS,
+} from "@/types/support";
+import { formatDate, formatRelativeTime } from "@/utils/format";
+import { Download, LifeBuoy } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
-interface SupportTicket {
-  _id: string;
-  ticketNumber?: string;
-  subject: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
-  priority: "low" | "medium" | "high" | "urgent";
-  category?: string;
-  createdAt: string;
-  updatedAt: string;
-  userId?: { firstName: string; lastName: string; email: string } | string;
-}
+const STATUS_TABS = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "waiting_on_user", label: "Waiting on User" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
 
-const statusBadge = (t: SupportTicket) => {
-  const map = {
-    open: "bg-amber-50 text-amber-600",
-    in_progress: "bg-blue-50 text-blue-600",
-    resolved: "bg-emerald-50 text-emerald-600",
-    closed: "bg-gray-100 text-gray-500",
-  };
-  return (
-    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${map[t.status]}`}>
-      {t.status.replace(/_/g, " ")}
-    </span>
-  );
-};
+const customerOf = (t: SupportTicket) =>
+  typeof t.userId === "object" && t.userId
+    ? { name: `${t.userId.firstName} ${t.userId.lastName}`, email: t.userId.email }
+    : { name: "—", email: "" };
 
-const priorityBadge = (t: SupportTicket) => {
-  const map = {
-    urgent: "bg-red-50 text-red-600",
-    high: "bg-orange-50 text-orange-600",
-    medium: "bg-amber-50 text-amber-600",
-    low: "bg-gray-100 text-gray-500",
-  };
-  return (
-    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${map[t.priority]}`}>
-      {t.priority}
-    </span>
-  );
-};
+const assignedOf = (t: SupportTicket) =>
+  typeof t.assignedTo === "object" && t.assignedTo
+    ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}`
+    : null;
 
 export default function SupportPage() {
+  const { toast } = useToast();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterPriority, setFilterPriority] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState(params.get("status") ?? "all");
+  const [priority, setPriority] = useState("all");
 
-  const fetch = useCallback(async (p = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(p), limit: "20" });
-      if (filterStatus) params.set("status", filterStatus);
-      if (filterPriority) params.set("priority", filterPriority);
-      const res = await httpClient.get(`/api/admin/tickets?${params}`);
-      const d = (res.data as { data: { tickets: SupportTicket[]; pagination: { total: number; pages: number; page: number } } }).data;
-      setTickets(d.tickets);
-      setTotal(d.pagination.total);
-      setTotalPages(d.pagination.pages);
-      setPage(d.pagination.page);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterStatus, filterPriority]);
+  const fetchTickets = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      try {
+        const res = await supportService.getAllTickets({
+          page: p,
+          limit: 20,
+          status: status === "all" ? undefined : status,
+          priority: priority === "all" ? undefined : priority,
+        });
+        if (res.success && res.data) {
+          setTickets(res.data.tickets);
+          setTotal(res.data.pagination.total);
+          setTotalPages(res.data.pagination.pages);
+          setPage(res.data.pagination.page);
+        } else {
+          toast({ title: "Failed to load tickets", variant: "destructive" });
+        }
+      } catch {
+        toast({ title: "Failed to load tickets", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [status, priority, toast],
+  );
 
-  useEffect(() => { fetch(1); }, [filterStatus, filterPriority, fetch]);
+  useEffect(() => {
+    fetchTickets(1);
+  }, [status, priority]);
 
-  const customerName = (t: SupportTicket) =>
-    typeof t.userId === "object" && t.userId
-      ? `${t.userId.firstName} ${t.userId.lastName}`
-      : "—";
+  const onStatusChange = (v: string) => {
+    setStatus(v);
+    if (v === "all") params.delete("status");
+    else params.set("status", v);
+    setParams(params, { replace: true });
+  };
 
-  const columns: Column<SupportTicket>[] = [
+  // Client-side search across subject / customer (backend list has no search param).
+  const filtered = search.trim()
+    ? tickets.filter((t) => {
+        const q = search.trim().toLowerCase();
+        const c = customerOf(t);
+        return (
+          t.subject.toLowerCase().includes(q) ||
+          (t.ticketNumber ?? "").toLowerCase().includes(q) ||
+          c.name.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q)
+        );
+      })
+    : tickets;
+
+  const exportCsv = () =>
+    exportToCsv("support-tickets", filtered, [
+      { key: "ticket", header: "Ticket #", value: (t) => t.ticketNumber ?? t._id },
+      { key: "subject", header: "Subject", value: (t) => t.subject },
+      { key: "type", header: "Type", value: (t) => TICKET_TYPE_LABELS[t.type] },
+      { key: "customer", header: "Customer", value: (t) => customerOf(t).name },
+      { key: "email", header: "Email", value: (t) => customerOf(t).email },
+      { key: "status", header: "Status", value: (t) => t.status },
+      { key: "priority", header: "Priority", value: (t) => TICKET_PRIORITY_LABELS[t.priority] },
+      { key: "assigned", header: "Assigned To", value: (t) => assignedOf(t) ?? "Unassigned" },
+      { key: "created", header: "Created", value: (t) => formatDate(t.createdAt) },
+    ]);
+
+  const columns: DataTableColumn<SupportTicket>[] = [
     {
       key: "ticket",
       header: "Ticket",
       render: (t) => (
-        <div>
-          {t.ticketNumber && <p className="text-xs font-mono text-gray-400">{t.ticketNumber}</p>}
-          <p className="text-sm font-medium text-gray-900">{t.subject}</p>
-          {t.category && <p className="text-xs text-gray-400 capitalize">{t.category}</p>}
+        <div className="min-w-0">
+          {t.ticketNumber && (
+            <p className="font-mono text-[11px] text-muted-foreground">{t.ticketNumber}</p>
+          )}
+          <p className="truncate font-medium text-foreground">{t.subject}</p>
+          <p className="truncate text-xs text-muted-foreground">{TICKET_TYPE_LABELS[t.type]}</p>
         </div>
       ),
     },
     {
       key: "customer",
       header: "Customer",
-      render: (t) => (
-        <div>
-          <p className="text-sm text-gray-700">{customerName(t)}</p>
-          {typeof t.userId === "object" && t.userId && (
-            <p className="text-xs text-gray-400">{t.userId.email}</p>
-          )}
-        </div>
-      ),
+      render: (t) => {
+        const c = customerOf(t);
+        return (
+          <div className="min-w-0">
+            <p className="truncate text-sm text-foreground">{c.name}</p>
+            {c.email && <p className="truncate text-xs text-muted-foreground">{c.email}</p>}
+          </div>
+        );
+      },
     },
-    { key: "status", header: "Status", render: statusBadge },
-    { key: "priority", header: "Priority", render: priorityBadge },
+    { key: "status", header: "Status", render: (t) => <StatusBadge status={t.status} /> },
+    {
+      key: "priority",
+      header: "Priority",
+      render: (t) => <StatusBadge status={t.priority} size="sm" />,
+    },
+    {
+      key: "assigned",
+      header: "Assigned",
+      render: (t) => {
+        const a = assignedOf(t);
+        return a ? (
+          <span className="text-sm text-foreground">{a}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Unassigned</span>
+        );
+      },
+    },
     {
       key: "updated",
-      header: "Last Updated",
-      render: (t) => <span className="text-xs text-gray-400">{new Date(t.updatedAt).toLocaleDateString()}</span>,
-    },
-    {
-      key: "created",
-      header: "Created",
-      render: (t) => <span className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</span>,
-    },
-    {
-      key: "actions",
-      header: "",
+      header: "Updated",
       render: (t) => (
-        <button
-          onClick={(e) => { e.preventDefault(); navigate(`/admin/support/${t._id}`); }}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
-        >
-          View
-        </button>
+        <span className="text-muted-foreground">{formatRelativeTime(t.updatedAt)}</span>
       ),
     },
   ];
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Support Tickets</h1>
-          <p className="text-sm text-gray-500">{total} tickets</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white">
-            <option value="">All Statuses</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="resolved">Resolved</option>
-            <option value="closed">Closed</option>
-          </select>
-          <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white">
-            <option value="">All Priorities</option>
-            <option value="urgent">Urgent</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-      </motion.div>
+      <PageHeader
+        title="Support Tickets"
+        description={`${total} total tickets`}
+        actions={
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
+            <Download className="mr-1.5 h-4 w-4" /> Export CSV
+          </Button>
+        }
+      />
 
-      <AdminTable columns={columns} data={tickets} loading={loading} page={page} totalPages={totalPages}
-        onPageChange={(p) => fetch(p)} total={total} limit={20} emptyMessage="No support tickets found." />
+      <SegmentedTabs value={status} onChange={onStatusChange} options={STATUS_TABS} />
+
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search subject, customer or ticket #…"
+      >
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All priorities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All priorities</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      <DataTable
+        columns={columns}
+        data={filtered}
+        getRowId={(t) => t._id}
+        loading={loading}
+        onRowClick={(t) => navigate(`/admin/support/${t._id}`)}
+        emptyState={
+          <EmptyState
+            icon={LifeBuoy}
+            title="No support tickets found"
+            description="Try adjusting your search or filters."
+            className="border-0"
+          />
+        }
+        pagination={
+          search.trim()
+            ? undefined
+            : { page, pages: totalPages, total, onPageChange: (p) => fetchTickets(p) }
+        }
+      />
     </div>
   );
 }

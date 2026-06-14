@@ -1,152 +1,486 @@
-import { AdminTable, Column } from "@/components/admin/AdminTable";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  exportToCsv,
+  FormDialog,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { CheckCircle } from "lucide-react";
+import { formatCurrency, formatDate } from "@/utils/format";
+import { Banknote, CheckCircle2, Download, Wallet } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 interface Payout {
   _id: string;
-  vendorId: { firstName: string; lastName: string; email: string } | string;
-  vendorProfile?: { businessName: string };
+  vendorId: { _id?: string; firstName: string; lastName: string; email: string } | string;
   amount: number;
   status: "pending" | "processing" | "completed" | "failed";
-  requestedAt: string;
+  method?: string;
+  createdAt: string;
   processedAt?: string;
   transactionRef?: string;
 }
 
-const statusBadge = (p: Payout) => {
-  const map = {
-    pending: "bg-yellow-50 text-yellow-600",
-    processing: "bg-blue-50 text-blue-600",
-    completed: "bg-emerald-50 text-emerald-600",
-    failed: "bg-red-50 text-red-600",
+interface PendingVendor {
+  _id: string;
+  businessName?: string;
+  pendingPayout: number;
+  totalEarnings: number;
+  userId: { _id: string; firstName: string; lastName: string; email: string } | string;
+}
+
+interface ApiResponse {
+  data: {
+    payouts: Payout[];
+    pagination: { page: number; pages: number; total: number; limit: number };
+    pendingVendors: PendingVendor[];
+    pendingTotal: number;
   };
-  return (
-    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${map[p.status]}`}>
-      {p.status}
-    </span>
-  );
+}
+
+const PAYOUT_STATUSES = ["pending", "processing", "completed", "failed"];
+
+const payoutVendor = (p: Payout) =>
+  typeof p.vendorId === "object" && p.vendorId
+    ? {
+        name: `${p.vendorId.firstName} ${p.vendorId.lastName}`.trim(),
+        email: p.vendorId.email,
+      }
+    : { name: "—", email: "" };
+
+const pendingVendorInfo = (v: PendingVendor) => {
+  const user = typeof v.userId === "object" && v.userId ? v.userId : null;
+  return {
+    id: user?._id ?? (typeof v.userId === "string" ? v.userId : ""),
+    name:
+      v.businessName ||
+      (user ? `${user.firstName} ${user.lastName}`.trim() : "Unknown vendor"),
+    email: user?.email ?? "",
+  };
 };
 
 export default function PayoutsPage() {
+  const { toast } = useToast();
+
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [pendingVendors, setPendingVendors] = useState<PendingVendor[]>([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [selected, setSelected] = useState<Payout | null>(null);
-  const [processOpen, setProcessOpen] = useState(false);
-  const [pendingTotal, setPendingTotal] = useState(0);
-  const { toast } = useToast();
+  const [status, setStatus] = useState("all");
 
-  const fetch = useCallback(async (p = 1) => {
-    setLoading(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [initiatingId, setInitiatingId] = useState<string | null>(null);
+
+  // Single-process dialog
+  const [processTarget, setProcessTarget] = useState<Payout | null>(null);
+  const [processRef, setProcessRef] = useState("");
+
+  // Batch-process dialog
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchRef, setBatchRef] = useState("");
+
+  const fetchPayouts = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      try {
+        const params: Record<string, unknown> = { page: p, limit: 20 };
+        if (status !== "all") params.status = status;
+        const res = await adminService.listPayouts(params);
+        const d = (res.data as ApiResponse).data;
+        setPayouts(d.payouts);
+        setTotal(d.pagination.total);
+        setTotalPages(d.pagination.pages);
+        setPage(d.pagination.page);
+        setPendingVendors(d.pendingVendors ?? []);
+        setPendingTotal(d.pendingTotal ?? 0);
+        setSelectedIds(new Set());
+      } catch {
+        toast({ title: "Failed to load payouts", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [status, toast],
+  );
+
+  useEffect(() => {
+    fetchPayouts(1);
+  }, [fetchPayouts]);
+
+  const initiatePayout = async (vendorId: string) => {
+    if (!vendorId) return;
+    setInitiatingId(vendorId);
     try {
-      const res = await adminService.listPayouts({ page: p, limit: 20 });
-      const d = (res.data as { data: { payouts: Payout[]; pagination: { total: number; pages: number; page: number; limit: number }; pendingTotal: number } }).data;
-      setPayouts(d.payouts);
-      setTotal(d.pagination.total);
-      setTotalPages(d.pagination.pages);
-      setPage(d.pagination.page);
-      setPendingTotal(d.pendingTotal ?? 0);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetch(1); }, [fetch]);
-
-  const handleProcess = async () => {
-    if (!selected) return;
-    try {
-      await adminService.processPayout(selected._id);
-      toast({ title: "Processed", description: "Payout marked as completed." });
-      fetch(page);
+      await adminService.createPayout({ vendorId });
+      toast({ title: "Payout initiated" });
+      await fetchPayouts(page);
     } catch {
-      toast({ title: "Error", description: "Failed to process payout.", variant: "destructive" });
-      throw new Error("failed");
+      toast({ title: "Failed to initiate payout", variant: "destructive" });
+    } finally {
+      setInitiatingId(null);
     }
   };
 
-  const vendorName = (p: Payout) => {
-    if (p.vendorProfile?.businessName) return p.vendorProfile.businessName;
-    if (typeof p.vendorId === "object" && p.vendorId) return `${p.vendorId.firstName} ${p.vendorId.lastName}`;
-    return "—";
+  const submitProcess = async () => {
+    if (!processTarget) return;
+    setBusy(true);
+    try {
+      await adminService.processPayout(processTarget._id, {
+        transactionRef: processRef.trim() || undefined,
+      });
+      toast({ title: "Payout processed" });
+      setProcessTarget(null);
+      setProcessRef("");
+      await fetchPayouts(page);
+    } catch {
+      toast({ title: "Failed to process payout", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const columns: Column<Payout>[] = [
+  const submitBatch = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      await adminService.batchProcessPayouts({
+        ids,
+        transactionRef: batchRef.trim() || undefined,
+      });
+      toast({ title: `${ids.length} payouts processed` });
+      setBatchOpen(false);
+      setBatchRef("");
+      await fetchPayouts(page);
+    } catch {
+      toast({ title: "Failed to process payouts", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selectableIds = payouts.filter((p) => p.status !== "completed").map((p) => p._id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+
+  const toggleAll = (checked: boolean) =>
+    setSelectedIds(checked ? new Set(selectableIds) : new Set());
+
+  const toggleOne = (id: string, checked: boolean) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  const exportCsv = () =>
+    exportToCsv("payouts", payouts, [
+      { key: "vendor", header: "Vendor", value: (p) => payoutVendor(p).name },
+      { key: "email", header: "Email", value: (p) => payoutVendor(p).email },
+      { key: "amount", header: "Amount", value: (p) => String(p.amount) },
+      { key: "status", header: "Status", value: (p) => p.status },
+      { key: "method", header: "Method", value: (p) => p.method ?? "" },
+      { key: "created", header: "Requested", value: (p) => formatDate(p.createdAt) },
+      { key: "processed", header: "Processed", value: (p) => (p.processedAt ? formatDate(p.processedAt) : "") },
+      { key: "ref", header: "Transaction Ref", value: (p) => p.transactionRef ?? "" },
+    ]);
+
+  const columns: DataTableColumn<Payout>[] = [
+    {
+      key: "select",
+      header: (
+        <Checkbox
+          checked={allSelected}
+          onCheckedChange={(c) => toggleAll(Boolean(c))}
+          aria-label="Select all payouts"
+        />
+      ),
+      render: (p) =>
+        p.status === "completed" ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={selectedIds.has(p._id)}
+              onCheckedChange={(c) => toggleOne(p._id, Boolean(c))}
+              aria-label="Select payout"
+            />
+          </div>
+        ),
+    },
     {
       key: "vendor",
       header: "Vendor",
-      render: (p) => (
-        <div>
-          <p className="font-medium text-gray-900">{vendorName(p)}</p>
-          {typeof p.vendorId === "object" && p.vendorId && (
-            <p className="text-xs text-gray-400">{p.vendorId.email}</p>
-          )}
-        </div>
-      ),
+      render: (p) => {
+        const v = payoutVendor(p);
+        return (
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{v.name}</p>
+            {v.email && <p className="truncate text-xs text-muted-foreground">{v.email}</p>}
+          </div>
+        );
+      },
     },
     {
       key: "amount",
       header: "Amount",
-      render: (p) => <span className="font-bold text-gray-900">৳{p.amount.toLocaleString()}</span>,
+      align: "right",
+      render: (p) => (
+        <span className="font-semibold text-foreground">{formatCurrency(p.amount)}</span>
+      ),
     },
-    { key: "status", header: "Status", render: statusBadge },
+    { key: "status", header: "Status", render: (p) => <StatusBadge status={p.status} /> },
     {
-      key: "requested",
+      key: "method",
+      header: "Method",
+      render: (p) => (
+        <span className="text-xs capitalize text-muted-foreground">
+          {p.method ? p.method.replace(/_/g, " ") : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "created",
       header: "Requested",
-      render: (p) => <span className="text-xs text-gray-400">{new Date(p.requestedAt).toLocaleDateString()}</span>,
-    },
-    {
-      key: "processed",
-      header: "Processed",
-      render: (p) =>
-        p.processedAt ? (
-          <span className="text-xs text-gray-400">{new Date(p.processedAt).toLocaleDateString()}</span>
-        ) : <span className="text-gray-200">—</span>,
+      render: (p) => (
+        <span className="text-xs text-muted-foreground">{formatDate(p.createdAt)}</span>
+      ),
     },
     {
       key: "ref",
       header: "Ref",
-      render: (p) => <span className="text-xs font-mono text-gray-500">{p.transactionRef ?? "—"}</span>,
+      render: (p) => (
+        <span className="font-mono text-xs text-muted-foreground">{p.transactionRef ?? "—"}</span>
+      ),
     },
     {
       key: "actions",
       header: "",
+      align: "right",
       render: (p) =>
-        p.status === "pending" ? (
-          <button
-            onClick={(e) => { e.preventDefault(); setSelected(p); setProcessOpen(true); }}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
-          >
-            <CheckCircle className="w-3.5 h-3.5" /> Process
-          </button>
+        p.status !== "completed" ? (
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setProcessTarget(p);
+                setProcessRef("");
+              }}
+            >
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Process
+            </Button>
+          </div>
         ) : null,
     },
   ];
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Vendor Payouts</h1>
-          <p className="text-sm text-gray-500">
-            ৳{pendingTotal.toLocaleString()} pending across {total} requests
-          </p>
+      <PageHeader
+        title="Vendor Payouts"
+        description={`${total} payout records`}
+        actions={
+          <>
+            {selectedIds.size > 0 && (
+              <Button variant="brand" size="sm" onClick={() => setBatchOpen(true)}>
+                Process selected ({selectedIds.size})
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!payouts.length}>
+              <Download className="mr-1.5 h-4 w-4" /> Export CSV
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Pending Payout Total"
+          value={formatCurrency(pendingTotal)}
+          icon={Wallet}
+          accent="brand"
+          loading={loading}
+        />
+        <StatCard
+          label="Vendors Awaiting Payout"
+          value={pendingVendors.length}
+          icon={Banknote}
+          loading={loading}
+        />
+        <StatCard
+          label="Payout Records"
+          value={total}
+          icon={CheckCircle2}
+          loading={loading}
+        />
+      </div>
+
+      <SectionCard
+        title="Vendors awaiting payout"
+        description="Initiate a payout for a vendor's pending balance."
+      >
+        {pendingVendors.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title="No pending balances"
+            description="Every vendor balance has been paid out."
+            className="border-0 py-6"
+          />
+        ) : (
+          <div className="divide-y divide-border">
+            {pendingVendors.map((v) => {
+              const info = pendingVendorInfo(v);
+              return (
+                <div
+                  key={v._id}
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{info.name}</p>
+                    {info.email && (
+                      <p className="truncate text-xs text-muted-foreground">{info.email}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-semibold text-foreground">
+                        {formatCurrency(v.pendingPayout)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(v.totalEarnings)} earned
+                      </p>
+                    </div>
+                    <Button
+                      variant="brand"
+                      size="sm"
+                      disabled={!info.id || initiatingId === info.id}
+                      onClick={() => initiatePayout(info.id)}
+                    >
+                      {initiatingId === info.id ? "Initiating…" : "Initiate payout"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Payout history" flush>
+        <div className="border-b border-border px-5 py-3">
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {PAYOUT_STATUSES.map((s) => (
+                <SelectItem key={s} value={s} className="capitalize">
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      </motion.div>
+        <DataTable
+          columns={columns}
+          data={payouts}
+          getRowId={(p) => p._id}
+          loading={loading}
+          emptyState={
+            <EmptyState
+              icon={Wallet}
+              title="No payouts found"
+              description="No payout records match this filter."
+              className="border-0"
+            />
+          }
+          pagination={{ page, pages: totalPages, total, onPageChange: (p) => fetchPayouts(p) }}
+        />
+      </SectionCard>
 
-      <AdminTable columns={columns} data={payouts} loading={loading} page={page} totalPages={totalPages}
-        onPageChange={(p) => fetch(p)} total={total} limit={20} emptyMessage="No payout requests." />
+      {/* Single process */}
+      <FormDialog
+        open={!!processTarget}
+        onOpenChange={(o) => !o && setProcessTarget(null)}
+        title="Process payout"
+        description={
+          processTarget
+            ? `Mark ${formatCurrency(processTarget.amount)} for ${payoutVendor(processTarget).name} as completed. Ensure the transfer has been made.`
+            : undefined
+        }
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setProcessTarget(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={submitProcess} disabled={busy}>
+              {busy ? "Processing…" : "Mark as Processed"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="process-ref">Transaction reference (optional)</Label>
+          <Input
+            id="process-ref"
+            value={processRef}
+            onChange={(e) => setProcessRef(e.target.value)}
+            placeholder="e.g. bank transfer / bKash TrxID"
+          />
+        </div>
+      </FormDialog>
 
-      <ConfirmDialog open={processOpen} onClose={() => setProcessOpen(false)} onConfirm={handleProcess}
-        title={`Process payout for ${selected ? vendorName(selected) : ''}?`}
-        description={`Mark ৳${selected?.amount.toLocaleString()} payout as completed. Ensure the bank transfer has been done.`}
-        confirmLabel="Mark as Processed" destructive={false} />
+      {/* Batch process */}
+      <FormDialog
+        open={batchOpen}
+        onOpenChange={(o) => !o && setBatchOpen(false)}
+        title={`Process ${selectedIds.size} payouts`}
+        description="Mark all selected payouts as completed. The transaction reference is applied to each."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setBatchOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={submitBatch} disabled={busy}>
+              {busy ? "Processing…" : "Process selected"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="batch-ref">Transaction reference (optional)</Label>
+          <Input
+            id="batch-ref"
+            value={batchRef}
+            onChange={(e) => setBatchRef(e.target.value)}
+            placeholder="Applied to all selected payouts"
+          />
+        </div>
+      </FormDialog>
     </div>
   );
 }

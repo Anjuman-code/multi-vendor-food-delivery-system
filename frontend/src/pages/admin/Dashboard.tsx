@@ -1,468 +1,420 @@
-import adminService, { ChartRange, DashboardStats } from "@/services/adminService";
-import { motion } from "framer-motion";
 import {
-    AlertTriangle,
-    ArrowUpRight,
-    CheckCircle,
-    Clock,
-    Package,
-    ShoppingBag,
-    Store,
-    TrendingDown,
-    TrendingUp,
-    Users,
+  CHART_COLORS,
+  ChartCard,
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  StatCard,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { SegmentedTabs } from "@/components/vendor";
+import { useToast } from "@/hooks/use-toast";
+import adminService, { ChartRange, DashboardStats } from "@/services/adminService";
+import { formatCurrency, formatCurrencyCompact, formatPercent } from "@/utils/format";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Package,
+  RefreshCw,
+  ShoppingBag,
+  Store,
+  TrendingDown,
+  TrendingUp,
+  Users,
+  Wallet,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-    CartesianGrid,
-    Cell,
-    Line,
-    LineChart,
-    Pie,
-    PieChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 
-const COLORS = ["#6366f1", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#f97316"];
+const PIE_COLORS = [
+  CHART_COLORS.brand,
+  "#8b5cf6",
+  "#06b6d4",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#ec4899",
+  CHART_COLORS.brandDark,
+];
 
-const fade = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-};
-
-const formatBDT = (n: number) =>
-  new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(n);
-
-const pct = (v: number | null) => {
-  if (v === null) return null;
-  return { value: Math.abs(v).toFixed(1), up: v >= 0 };
-};
-
-// ── KPI Card ────────────────────────────────────────────────────
-
-interface KpiProps {
-  title: string;
-  value: string;
-  sub?: string;
-  change?: { value: string; up: boolean } | null;
-  icon: React.ElementType;
-  iconColor: string;
-  delay?: number;
+interface ChartData {
+  orderTimeSeries?: Array<{ date: string; orders: number; gmv: number }>;
+  cuisineDistribution?: Array<{ name: string; count: number }>;
 }
-
-const KpiCard: React.FC<KpiProps> = ({ title, value, sub, change, icon: Icon, iconColor, delay = 0 }) => (
-  <motion.div
-    variants={fade}
-    initial="initial"
-    animate="animate"
-    transition={{ delay, duration: 0.35 }}
-    className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
-  >
-    <div className="flex items-start justify-between mb-4">
-      <div className={`p-2.5 rounded-xl ${iconColor}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-      {change !== null && change !== undefined && (
-        <span
-          className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
-            change.up ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-          }`}
-        >
-          {change.up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {change.value}%
-        </span>
-      )}
-    </div>
-    <p className="text-2xl font-bold text-gray-900 mb-0.5">{value}</p>
-    <p className="text-sm text-gray-500">{title}</p>
-    {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-  </motion.div>
-);
-
-// ── Pending actions ──────────────────────────────────────────────
 
 interface PendingItem {
   _id: string;
   orderNumber?: string;
   name?: string;
-  email?: string;
-  priority?: string;
-  createdAt?: string;
 }
-
 interface PendingActions {
   stuckOrders: PendingItem[];
   pendingRestaurants: PendingItem[];
   urgentTickets: PendingItem[];
 }
 
-// ── Main Component ───────────────────────────────────────────────
+const delta = (v: number | null) =>
+  v === null || v === undefined ? undefined : { value: Number(v.toFixed(1)) };
 
 export default function AdminDashboard() {
+  const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [charts, setCharts] = useState<Record<string, unknown[]> | null>(null);
+  const [charts, setCharts] = useState<ChartData | null>(null);
   const [pending, setPending] = useState<PendingActions | null>(null);
   const [range, setRange] = useState<ChartRange>("30d");
   const [loading, setLoading] = useState(true);
+  const [chartsLoading, setChartsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [sRes, pRes] = await Promise.all([
-          adminService.getDashboardStats(),
-          adminService.getPendingActions(),
-        ]);
-        setStats((sRes.data as { data: DashboardStats }).data);
-        setPending((pRes.data as { data: PendingActions }).data);
-      } catch {
-        // errors shown by httpClient interceptor
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const loadCore = useCallback(async () => {
+    const [sRes, pRes] = await Promise.all([
+      adminService.getDashboardStats(),
+      adminService.getPendingActions(),
+    ]);
+    setStats((sRes.data as unknown as { data: DashboardStats }).data);
+    setPending((pRes.data as { data: PendingActions }).data);
   }, []);
 
   useEffect(() => {
-    adminService.getDashboardCharts(range).then((res) => {
-      setCharts((res.data as { data: Record<string, unknown[]> }).data);
-    });
+    setLoading(true);
+    loadCore()
+      .catch(() => toast({ title: "Failed to load dashboard", variant: "destructive" }))
+      .finally(() => setLoading(false));
+  }, [loadCore, toast]);
+
+  useEffect(() => {
+    let active = true;
+    setChartsLoading(true);
+    adminService
+      .getDashboardCharts(range)
+      .then((res) => {
+        if (active) setCharts((res.data as { data: ChartData }).data);
+      })
+      .catch(() => {
+        if (active) setCharts(null);
+      })
+      .finally(() => active && setChartsLoading(false));
+    return () => {
+      active = false;
+    };
   }, [range]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadCore();
+      toast({ title: "Dashboard refreshed" });
+    } catch {
+      toast({ title: "Failed to refresh", variant: "destructive" });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-  if (!stats) return null;
-
-  const kpis: KpiProps[] = [
-    {
-      title: "Gross Merchandise Value",
-      value: formatBDT(stats.today.gmv),
-      change: pct(stats.changes.gmvPct),
-      icon: TrendingUp,
-      iconColor: "bg-indigo-50 text-indigo-600",
-      delay: 0,
-    },
-    {
-      title: "Platform Revenue",
-      value: formatBDT(stats.today.revenue),
-      sub: "15% of GMV",
-      icon: ArrowUpRight,
-      iconColor: "bg-emerald-50 text-emerald-600",
-      delay: 0.05,
-    },
-    {
-      title: "Orders Today",
-      value: String(stats.today.orders),
-      sub: `${stats.today.deliveredOrders} delivered`,
-      change: pct(stats.changes.ordersPct),
-      icon: ShoppingBag,
-      iconColor: "bg-violet-50 text-violet-600",
-      delay: 0.1,
-    },
-    {
-      title: "New Customers",
-      value: String(stats.today.newCustomers),
-      change: pct(stats.changes.customersPct),
-      icon: Users,
-      iconColor: "bg-sky-50 text-sky-600",
-      delay: 0.15,
-    },
-    {
-      title: "Avg. Order Value",
-      value: formatBDT(stats.today.avgOrderValue),
-      icon: Package,
-      iconColor: "bg-amber-50 text-amber-600",
-      delay: 0.2,
-    },
-    {
-      title: "Cancellation Rate",
-      value: `${stats.today.cancellationRate}%`,
-      sub: `${stats.today.cancelledOrders} cancelled`,
-      icon: TrendingDown,
-      iconColor: stats.today.cancellationRate > 10 ? "bg-red-50 text-red-600" : "bg-gray-50 text-gray-600",
-      delay: 0.25,
-    },
-  ];
-
-  const liveStatuses = Object.entries(stats.liveOperations.activeOrders ?? {}).filter(([, v]) => v > 0);
+  const liveStatuses = Object.entries(stats?.liveOperations.activeOrders ?? {}).filter(
+    ([, v]) => (v as number) > 0,
+  );
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Platform Overview"
+        description="Today's marketplace performance and items that need attention."
+        actions={
+          <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing}>
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        }
+      />
+
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        {kpis.map((k) => (
-          <KpiCard key={k.title} {...k} />
-        ))}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          label="GMV (today)"
+          value={stats ? formatCurrency(stats.today.gmv) : "—"}
+          icon={TrendingUp}
+          accent="brand"
+          delta={stats ? delta(stats.changes.gmvPct) : undefined}
+          loading={loading}
+        />
+        <StatCard
+          label="Platform Revenue"
+          value={stats ? formatCurrency(stats.today.revenue) : "—"}
+          icon={Wallet}
+          hint="commission"
+          loading={loading}
+        />
+        <StatCard
+          label="Orders (today)"
+          value={stats ? stats.today.orders : "—"}
+          icon={ShoppingBag}
+          delta={stats ? delta(stats.changes.ordersPct) : undefined}
+          hint={stats ? `${stats.today.deliveredOrders} delivered` : undefined}
+          loading={loading}
+        />
+        <StatCard
+          label="New Customers"
+          value={stats ? stats.today.newCustomers : "—"}
+          icon={Users}
+          delta={stats ? delta(stats.changes.customersPct) : undefined}
+          loading={loading}
+        />
+        <StatCard
+          label="Avg Order Value"
+          value={stats ? formatCurrency(stats.today.avgOrderValue) : "—"}
+          icon={Package}
+          loading={loading}
+        />
+        <StatCard
+          label="Cancellation Rate"
+          value={stats ? formatPercent(stats.today.cancellationRate) : "—"}
+          icon={TrendingDown}
+          hint={stats ? `${stats.today.cancelledOrders} cancelled` : undefined}
+          loading={loading}
+        />
       </div>
 
-      {/* Live Ops + Pending Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Live Operations */}
-        <motion.div
-          variants={fade}
-          initial="initial"
-          animate="animate"
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
+      {/* Live ops + pending actions */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              Live Operations
+            </span>
+          }
         >
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Live Operations</h2>
-          </div>
-          <div className="space-y-2">
-            {liveStatuses.map(([status, count]) => (
-              <div key={status} className="flex justify-between items-center text-sm">
-                <span className="capitalize text-gray-600">{status.replace(/_/g, " ")}</span>
-                <span className="font-bold text-gray-900">{count as number}</span>
-              </div>
-            ))}
-            {liveStatuses.length === 0 && (
-              <p className="text-sm text-gray-400 italic">No active orders</p>
+          <div className="space-y-2.5">
+            {liveStatuses.length === 0 ? (
+              <p className="text-sm italic text-muted-foreground">No active orders</p>
+            ) : (
+              liveStatuses.map(([status, count]) => (
+                <div key={status} className="flex items-center justify-between text-sm">
+                  <span className="capitalize text-muted-foreground">
+                    {status.replace(/_/g, " ")}
+                  </span>
+                  <span className="font-semibold text-foreground">{count as number}</span>
+                </div>
+              ))
             )}
-            {stats.liveOperations.stuckPendingOrders > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-amber-600 text-sm">
-                <AlertTriangle className="w-4 h-4" />
-                <span>{stats.liveOperations.stuckPendingOrders} stuck orders (&gt;10 min)</span>
+            {stats && stats.liveOperations.stuckPendingOrders > 0 && (
+              <div className="mt-3 flex items-center gap-2 border-t border-border pt-3 text-sm text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                {stats.liveOperations.stuckPendingOrders} stuck orders (&gt;10 min)
               </div>
             )}
           </div>
-        </motion.div>
+        </SectionCard>
 
-        {/* Pending Actions */}
-        <motion.div
-          variants={fade}
-          initial="initial"
-          animate="animate"
-          transition={{ delay: 0.35 }}
-          className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm col-span-1 lg:col-span-2"
-        >
-          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-4">Requires Attention</h2>
+        <SectionCard title="Requires Attention" className="lg:col-span-2">
           <div className="grid grid-cols-2 gap-3">
             {[
               {
                 label: "Restaurant Approvals",
-                count: stats.pendingActions.restaurantApprovals,
+                count: stats?.pendingActions.restaurantApprovals ?? 0,
                 icon: Store,
                 href: "/admin/restaurants/approval-queue",
-                color: "text-violet-600 bg-violet-50",
               },
               {
                 label: "Vendor Applications",
-                count: stats.pendingActions.vendorApplications,
+                count: stats?.pendingActions.vendorApplications ?? 0,
                 icon: Users,
-                href: "/admin/users/vendors",
-                color: "text-indigo-600 bg-indigo-50",
+                href: "/admin/users/vendors?status=pending",
               },
               {
                 label: "Support Tickets",
-                count: stats.pendingActions.openSupportTickets,
+                count: stats?.pendingActions.openSupportTickets ?? 0,
                 icon: AlertTriangle,
                 href: "/admin/support",
-                color: "text-amber-600 bg-amber-50",
               },
               {
                 label: "Driver Applications",
-                count: stats.pendingActions.driverApplications,
+                count: stats?.pendingActions.driverApplications ?? 0,
                 icon: Package,
-                href: "/admin/users/drivers",
-                color: "text-sky-600 bg-sky-50",
+                href: "/admin/users/drivers?tab=applications",
               },
             ].map((item) => (
               <Link
                 key={item.label}
                 to={item.href}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100"
+                className="flex items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:border-brand-300 hover:bg-accent/40"
               >
-                <div className={`p-2 rounded-lg ${item.color}`}>
-                  <item.icon className="w-4 h-4" />
-                </div>
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                  <item.icon className="h-4 w-4" />
+                </span>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{item.count}</p>
-                  <p className="text-xs text-gray-500">{item.label}</p>
+                  <p className="text-xl font-bold text-foreground">{item.count}</p>
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
                 </div>
               </Link>
             ))}
           </div>
-        </motion.div>
+        </SectionCard>
       </div>
 
       {/* Charts */}
-      {charts && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {/* Order timeseries */}
-          <motion.div
-            variants={fade}
-            initial="initial"
-            animate="animate"
-            transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-700">Orders & GMV</h2>
-              <div className="flex gap-1">
-                {(["7d", "30d", "90d"] as ChartRange[]).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      range === r ? "bg-indigo-600 text-white" : "text-gray-500 hover:bg-gray-100"
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={charts.orderTimeSeries as unknown[]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => d.slice(5)} />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
-                />
-                <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#6366f1" strokeWidth={2} dot={false} name="Orders" />
-                <Line yAxisId="right" type="monotone" dataKey="gmv" stroke="#10b981" strokeWidth={2} dot={false} name="GMV" />
-              </LineChart>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <ChartCard
+          title="Orders & GMV"
+          description="Daily order volume and gross merchandise value."
+          loading={chartsLoading}
+          empty={!charts?.orderTimeSeries?.length}
+          action={
+            <SegmentedTabs
+              value={range}
+              onChange={(v) => setRange(v as ChartRange)}
+              options={[
+                { value: "7d", label: "7d" },
+                { value: "30d", label: "30d" },
+                { value: "90d", label: "90d" },
+              ]}
+            />
+          }
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={charts?.orderTimeSeries ?? []}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: CHART_COLORS.axis }}
+                tickFormatter={(d: string) => d.slice(5)}
+              />
+              <YAxis yAxisId="left" tick={{ fontSize: 11, fill: CHART_COLORS.axis }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 11, fill: CHART_COLORS.axis }}
+                tickFormatter={(v: number) => formatCurrencyCompact(v)}
+              />
+              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+              <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Orders" />
+              <Line yAxisId="right" type="monotone" dataKey="gmv" stroke={CHART_COLORS.brand} strokeWidth={2} dot={false} name="GMV" />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Cuisine Distribution"
+          description="Active restaurants by cuisine."
+          loading={chartsLoading}
+          empty={!charts?.cuisineDistribution?.length}
+        >
+          <div className="flex h-full items-center gap-4">
+            <ResponsiveContainer width={180} height="100%">
+              <PieChart>
+                <Pie
+                  data={charts?.cuisineDistribution ?? []}
+                  dataKey="count"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={78}
+                  strokeWidth={0}
+                >
+                  {(charts?.cuisineDistribution ?? []).map((_, idx) => (
+                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
+              </PieChart>
             </ResponsiveContainer>
-          </motion.div>
-
-          {/* Cuisine distribution */}
-          <motion.div
-            variants={fade}
-            initial="initial"
-            animate="animate"
-            transition={{ delay: 0.45 }}
-            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
-          >
-            <h2 className="text-sm font-bold text-gray-700 mb-4">Cuisine Distribution</h2>
-            {charts.cuisineDistribution && (charts.cuisineDistribution as unknown[]).length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width={180} height={180}>
-                  <PieChart>
-                    <Pie
-                      data={charts.cuisineDistribution as unknown[]}
-                      dataKey="count"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      strokeWidth={0}
-                    >
-                      {(charts.cuisineDistribution as unknown[]).map((_: unknown, idx: number) => (
-                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 10, border: "none" }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex-1 space-y-1.5 min-w-0">
-                  {(charts.cuisineDistribution as Array<{ name: string; count: number }>)
-                    .slice(0, 8)
-                    .map((c, i) => (
-                      <div key={c.name} className="flex items-center gap-2 text-xs">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                        />
-                        <span className="text-gray-600 truncate">{c.name}</span>
-                        <span className="ml-auto font-bold text-gray-900">{c.count}</span>
-                      </div>
-                    ))}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              {(charts?.cuisineDistribution ?? []).slice(0, 8).map((c, i) => (
+                <div key={c.name} className="flex items-center gap-2 text-xs">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                  />
+                  <span className="truncate text-muted-foreground">{c.name}</span>
+                  <span className="ml-auto font-semibold text-foreground">{c.count}</span>
                 </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 text-center pt-8">No data yet</p>
-            )}
-          </motion.div>
-        </div>
-      )}
-
-      {/* Stuck orders + pending restaurants */}
-      {pending && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Stuck Orders */}
-          <motion.div
-            variants={fade}
-            initial="initial"
-            animate="animate"
-            transition={{ delay: 0.5 }}
-            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm font-bold text-gray-700">Stuck Orders</h2>
+              ))}
             </div>
-            {pending.stuckOrders.length === 0 ? (
-              <div className="flex items-center gap-2 text-emerald-600 text-sm">
-                <CheckCircle className="w-4 h-4" />
-                <span>No stuck orders — all good!</span>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {pending.stuckOrders.map((o) => (
-                  <Link
-                    key={o._id}
-                    to={`/admin/orders/${o._id}`}
-                    className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-amber-50 transition-colors text-sm border border-amber-100"
-                  >
-                    <span className="font-mono font-medium text-gray-700">#{o.orderNumber}</span>
-                    <span className="text-amber-600 text-xs">Pending &gt;10 min</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </motion.div>
+          </div>
+        </ChartCard>
+      </div>
 
-          {/* Approval Queue */}
-          <motion.div
-            variants={fade}
-            initial="initial"
-            animate="animate"
-            transition={{ delay: 0.55 }}
-            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Store className="w-4 h-4 text-violet-500" />
-                <h2 className="text-sm font-bold text-gray-700">Approval Queue</h2>
-              </div>
-              <Link to="/admin/restaurants/approval-queue" className="text-xs text-indigo-600 hover:underline">
-                View all
-              </Link>
+      {/* Stuck orders + approval queue */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-500" /> Stuck Orders
+            </span>
+          }
+        >
+          {!pending?.stuckOrders.length ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> No stuck orders — all good!
             </div>
-            {pending.pendingRestaurants.length === 0 ? (
-              <p className="text-sm text-gray-400">No pending approvals</p>
-            ) : (
-              <div className="space-y-2">
-                {pending.pendingRestaurants.map((r) => (
-                  <Link
-                    key={r._id}
-                    to={`/admin/restaurants/${r._id}`}
-                    className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-violet-50 transition-colors text-sm border border-violet-100"
-                  >
-                    <span className="font-medium text-gray-700 truncate">{r.name}</span>
-                    <span className="text-violet-600 text-xs shrink-0 ml-2">Review →</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        </div>
-      )}
+          ) : (
+            <div className="space-y-2">
+              {pending.stuckOrders.map((o) => (
+                <Link
+                  key={o._id}
+                  to={`/admin/orders/${o._id}`}
+                  className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2 text-sm transition-colors hover:bg-amber-50"
+                >
+                  <span className="font-mono font-medium text-foreground">#{o.orderNumber}</span>
+                  <span className="text-xs text-amber-600">Pending &gt;10 min</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-brand-500" /> Approval Queue
+            </span>
+          }
+          actions={
+            <Link
+              to="/admin/restaurants/approval-queue"
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              View all
+            </Link>
+          }
+        >
+          {!pending?.pendingRestaurants.length ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="No pending approvals"
+              className="border-0 py-6"
+            />
+          ) : (
+            <div className="space-y-2">
+              {pending.pendingRestaurants.map((r) => (
+                <Link
+                  key={r._id}
+                  to={`/admin/restaurants/${r._id}`}
+                  className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm transition-colors hover:border-brand-300 hover:bg-accent/40"
+                >
+                  <span className="truncate font-medium text-foreground">{r.name}</span>
+                  <span className="ml-2 shrink-0 text-xs text-primary">Review →</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
     </div>
   );
 }

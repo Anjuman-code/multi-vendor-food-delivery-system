@@ -1,11 +1,30 @@
-import { AdminTable, Column } from "@/components/admin/AdminTable";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  exportToCsv,
+  FilterBar,
+  PageHeader,
+  StatusBadge,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { formatCurrency, formatDateTime } from "@/utils/format";
+import { Download, ShoppingBag, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface Order {
   _id: string;
@@ -14,179 +33,303 @@ interface Order {
   paymentStatus: string;
   total: number;
   createdAt: string;
-  customerId: { firstName: string; lastName: string } | string;
+  customerId: { firstName: string; lastName: string; email?: string } | string;
   restaurantId: { name: string } | string;
   driverId?: { firstName: string; lastName: string } | string | null;
 }
 
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-50 text-yellow-600",
-  confirmed: "bg-blue-50 text-blue-600",
-  preparing: "bg-indigo-50 text-indigo-600",
-  ready_for_pickup: "bg-violet-50 text-violet-600",
-  picked_up: "bg-purple-50 text-purple-600",
-  on_the_way: "bg-sky-50 text-sky-600",
-  delivered: "bg-emerald-50 text-emerald-600",
-  cancelled: "bg-red-50 text-red-600",
-};
+interface ApiResponse {
+  data: {
+    orders: Order[];
+    pagination: { page: number; pages: number; total: number; limit: number };
+  };
+}
 
-const StatusBadge = ({ status }: { status: string }) => (
-  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${statusColors[status] ?? "bg-gray-100 text-gray-600"}`}>
-    {status.replace(/_/g, " ")}
-  </span>
-);
+const ORDER_STATUSES = [
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+  "picked_up",
+  "delivered",
+  "cancelled",
+];
+
+const PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"];
+
+const customerName = (o: Order) =>
+  typeof o.customerId === "object" && o.customerId
+    ? `${o.customerId.firstName} ${o.customerId.lastName}`.trim()
+    : "—";
+
+const restaurantName = (o: Order) =>
+  typeof o.restaurantId === "object" && o.restaurantId ? o.restaurantId.name : "—";
+
+const driverName = (o: Order) =>
+  typeof o.driverId === "object" && o.driverId
+    ? `${o.driverId.firstName} ${o.driverId.lastName}`.trim()
+    : "—";
 
 export default function OrdersPage() {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [status, setStatus] = useState("all");
+  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [hasRefund, setHasRefund] = useState(false);
+  const [hasCoupon, setHasCoupon] = useState(false);
+
   const [selected, setSelected] = useState<Order | null>(null);
   const [dialog, setDialog] = useState<"cancel" | null>(null);
-  const { toast } = useToast();
-  const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetch = useCallback(async (p = 1, q = search, status = filterStatus) => {
-    setLoading(true);
-    try {
-      const params: Record<string, unknown> = { page: p, limit: 20 };
-      if (q) params.search = q;
-      if (status) params.status = status;
-      const res = await adminService.listOrders(params);
-      const d = (res.data as { data: { orders: Order[]; pagination: { total: number; pages: number; page: number; limit: number } } }).data;
-      setOrders(d.orders);
-      setTotal(d.pagination.total);
-      setTotalPages(d.pagination.pages);
-      setPage(d.pagination.page);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, filterStatus]);
+  const fetchOrders = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      try {
+        const params: Record<string, unknown> = { page: p, limit: 20 };
+        if (search) params.search = search;
+        if (status !== "all") params.status = status;
+        if (paymentStatus !== "all") params.paymentStatus = paymentStatus;
+        if (from) params.from = from;
+        if (to) params.to = to;
+        if (hasRefund) params.hasRefund = true;
+        if (hasCoupon) params.hasCoupon = true;
+        const res = await adminService.listOrders(params);
+        const d = (res.data as ApiResponse).data;
+        setOrders(d.orders);
+        setTotal(d.pagination.total);
+        setTotalPages(d.pagination.pages);
+        setPage(d.pagination.page);
+      } catch {
+        toast({ title: "Failed to load orders", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, status, paymentStatus, from, to, hasRefund, hasCoupon, toast],
+  );
 
   useEffect(() => {
-    if (searchRef.current) clearTimeout(searchRef.current);
-    searchRef.current = setTimeout(() => fetch(1), 300);
-    return () => { if (searchRef.current) clearTimeout(searchRef.current); };
-  }, [search, filterStatus, fetch]);
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => fetchOrders(1), 300);
+    return () => {
+      if (debounce.current) clearTimeout(debounce.current);
+    };
+  }, [fetchOrders]);
 
   const handleCancel = async (reason?: string) => {
     if (!selected) return;
     try {
       await adminService.cancelOrder(selected._id, { reason: reason! });
-      toast({ title: "Cancelled", description: `Order #${selected.orderNumber} cancelled.` });
-      fetch(page);
+      toast({ title: `Order #${selected.orderNumber} cancelled` });
+      fetchOrders(page);
     } catch {
-      toast({ title: "Error", description: "Failed to cancel order.", variant: "destructive" });
+      toast({ title: "Failed to cancel order", variant: "destructive" });
       throw new Error("failed");
     }
   };
 
-  const customerName = (o: Order) =>
-    typeof o.customerId === "object" && o.customerId
-      ? `${o.customerId.firstName} ${o.customerId.lastName}`
-      : "—";
+  const exportCsv = () =>
+    exportToCsv("orders", orders, [
+      { key: "orderNumber", header: "Order #", value: (o) => o.orderNumber },
+      { key: "status", header: "Status", value: (o) => o.status },
+      { key: "paymentStatus", header: "Payment", value: (o) => o.paymentStatus },
+      { key: "customer", header: "Customer", value: (o) => customerName(o) },
+      { key: "restaurant", header: "Restaurant", value: (o) => restaurantName(o) },
+      { key: "driver", header: "Driver", value: (o) => driverName(o) },
+      { key: "total", header: "Total", value: (o) => String(o.total) },
+      { key: "date", header: "Date", value: (o) => formatDateTime(o.createdAt) },
+    ]);
 
-  const restaurantName = (o: Order) =>
-    typeof o.restaurantId === "object" && o.restaurantId ? o.restaurantId.name : "—";
-
-  const columns: Column<Order>[] = [
+  const columns: DataTableColumn<Order>[] = [
     {
       key: "order",
       header: "Order",
       render: (o) => (
-        <Link to={`/admin/orders/${o._id}`} className="font-mono font-medium text-indigo-600 hover:text-indigo-800">
-          #{o.orderNumber}
-        </Link>
+        <span className="font-mono font-medium text-primary">#{o.orderNumber}</span>
       ),
     },
     { key: "status", header: "Status", render: (o) => <StatusBadge status={o.status} /> },
     {
       key: "customer",
       header: "Customer",
-      render: (o) => <span className="text-gray-700 text-sm">{customerName(o)}</span>,
+      render: (o) => <span className="text-sm text-foreground">{customerName(o)}</span>,
     },
     {
       key: "restaurant",
       header: "Restaurant",
-      render: (o) => <span className="text-gray-700 text-sm">{restaurantName(o)}</span>,
-    },
-    {
-      key: "total",
-      header: "Total",
-      render: (o) => <span className="font-medium text-gray-900">৳{o.total.toLocaleString()}</span>,
+      render: (o) => <span className="text-sm text-foreground">{restaurantName(o)}</span>,
     },
     {
       key: "payment",
       header: "Payment",
+      render: (o) => <StatusBadge status={o.paymentStatus} size="sm" />,
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
       render: (o) => (
-        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${
-          o.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-600" :
-          o.paymentStatus === "refunded" ? "bg-blue-50 text-blue-600" :
-          "bg-gray-100 text-gray-500"
-        }`}>{o.paymentStatus}</span>
+        <span className="font-semibold text-foreground">{formatCurrency(o.total)}</span>
       ),
     },
     {
       key: "date",
       header: "Date",
-      render: (o) => <span className="text-xs text-gray-400">{new Date(o.createdAt).toLocaleString()}</span>,
+      render: (o) => (
+        <span className="text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</span>
+      ),
     },
     {
       key: "actions",
       header: "",
-      render: (o) => (
+      align: "right",
+      render: (o) =>
         !["cancelled", "delivered"].includes(o.status) ? (
-          <button
-            onClick={(e) => { e.preventDefault(); setSelected(o); setDialog("cancel"); }}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-            title="Cancel"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        ) : null
-      ),
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                setSelected(o);
+                setDialog("cancel");
+              }}
+              title="Cancel order"
+              aria-label="Cancel order"
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null,
     },
   ];
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Orders</h1>
-          <p className="text-sm text-gray-500">{total} total orders</p>
+      <PageHeader
+        title="Orders"
+        description={`${total} total orders`}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!orders.length}>
+              <Download className="mr-1.5 h-4 w-4" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/orders/disputes">Dispute Queue</Link>
+            </Button>
+          </>
+        }
+      />
+
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by order number…"
+      >
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {ORDER_STATUSES.map((s) => (
+              <SelectItem key={s} value={s} className="capitalize">
+                {s.replace(/_/g, " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="All payments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All payments</SelectItem>
+            {PAYMENT_STATUSES.map((s) => (
+              <SelectItem key={s} value={s} className="capitalize">
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="from" className="text-xs text-muted-foreground">
+            From
+          </Label>
+          <Input
+            id="from"
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="w-[150px]"
+          />
         </div>
-        <Link to="/admin/orders/disputes"
-          className="px-4 py-2 text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors">
-          Dispute Queue
-        </Link>
-      </motion.div>
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by order number…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="to" className="text-xs text-muted-foreground">
+            To
+          </Label>
+          <Input
+            id="to"
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="w-[150px]"
+          />
         </div>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white">
-          <option value="">All statuses</option>
-          {Object.keys(statusColors).map((s) => (
-            <option key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</option>
-          ))}
-        </select>
-      </div>
 
-      <AdminTable columns={columns} data={orders} loading={loading} page={page} totalPages={totalPages}
-        onPageChange={(p) => fetch(p)} total={total} limit={20} emptyMessage="No orders found." />
+        <div className="flex items-center gap-2">
+          <Switch id="hasRefund" checked={hasRefund} onCheckedChange={setHasRefund} />
+          <Label htmlFor="hasRefund" className="text-sm text-muted-foreground">
+            Refunded
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch id="hasCoupon" checked={hasCoupon} onCheckedChange={setHasCoupon} />
+          <Label htmlFor="hasCoupon" className="text-sm text-muted-foreground">
+            Has coupon
+          </Label>
+        </div>
+      </FilterBar>
 
-      <ConfirmDialog open={dialog === "cancel"} onClose={() => setDialog(null)} onConfirm={handleCancel}
+      <DataTable
+        columns={columns}
+        data={orders}
+        getRowId={(o) => o._id}
+        loading={loading}
+        onRowClick={(o) => navigate(`/admin/orders/${o._id}`)}
+        emptyState={
+          <EmptyState
+            icon={ShoppingBag}
+            title="No orders found"
+            description="Try adjusting your search or filters."
+            className="border-0"
+          />
+        }
+        pagination={{ page, pages: totalPages, total, onPageChange: (p) => fetchOrders(p) }}
+      />
+
+      <ConfirmDialog
+        open={dialog === "cancel"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleCancel}
         title={`Cancel Order #${selected?.orderNumber}?`}
-        description="This action will cancel the order and may trigger a refund."
-        confirmLabel="Cancel Order" requireReason reasonPlaceholder="Reason for cancellation…" destructive />
+        description="This cancels the order and may trigger a refund. The customer will be notified."
+        confirmLabel="Cancel Order"
+        requireReason
+        reasonPlaceholder="Reason for cancellation…"
+        destructive
+      />
     </div>
   );
 }

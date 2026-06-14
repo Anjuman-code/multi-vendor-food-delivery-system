@@ -1,11 +1,36 @@
-import { AdminTable, Column } from "@/components/admin/AdminTable";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  exportToCsv,
+  FilterBar,
+  PageHeader,
+  StatusBadge,
+  type StatusTone,
+  type SortDir,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { CheckCircle, Search, Star, Store, XCircle } from "lucide-react";
+import { formatDate } from "@/utils/format";
+import {
+  CheckCircle2,
+  Download,
+  DoorOpen,
+  Star,
+  Store,
+  XCircle,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface Restaurant {
   _id: string;
@@ -16,179 +41,242 @@ interface Restaurant {
   isTemporarilyClosed: boolean;
   isFeatured?: boolean;
   rating: { average: number; count: number };
-  address: { area: string; district: string };
+  totalOrders: number;
+  address: { street?: string; area: string; district: string };
   createdAt: string;
 }
 
-const approvalBadge = (r: Restaurant) => {
-  const map = {
-    approved: "bg-emerald-50 text-emerald-600",
-    pending: "bg-amber-50 text-amber-600",
-    rejected: "bg-red-50 text-red-600",
+interface ApiResponse {
+  data: {
+    restaurants: Restaurant[];
+    pagination: { page: number; pages: number; total: number; limit: number };
   };
-  return (
-    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${map[r.approvalStatus]}`}>
-      {r.approvalStatus}
-    </span>
-  );
+}
+
+type DialogType = "approve" | "reject" | "feature" | "close" | "reopen";
+
+const approvalTone: Record<Restaurant["approvalStatus"], StatusTone> = {
+  approved: "success",
+  pending: "warning",
+  rejected: "danger",
+};
+
+const stateOf = (r: Restaurant): { label: string; tone: StatusTone } => {
+  if (r.approvalStatus !== "approved")
+    return {
+      label: r.approvalStatus.charAt(0).toUpperCase() + r.approvalStatus.slice(1),
+      tone: approvalTone[r.approvalStatus],
+    };
+  if (r.isTemporarilyClosed) return { label: "Closed", tone: "neutral" };
+  if (!r.isActive) return { label: "Inactive", tone: "neutral" };
+  return { label: "Live", tone: "success" };
 };
 
 export default function RestaurantsPage() {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [selected, setSelected] = useState<Restaurant | null>(null);
-  const [dialog, setDialog] = useState<"approve" | "reject" | "close" | "feature" | null>(null);
-  const { toast } = useToast();
-  const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetch = useCallback(async (p = 1, q = search, status = filterStatus) => {
-    setLoading(true);
-    try {
-      const params: Record<string, unknown> = { page: p, limit: 20 };
-      if (q) params.search = q;
-      if (status) params.approvalStatus = status;
-      const res = await adminService.listRestaurants(params);
-      const d = (res.data as { data: { restaurants: Restaurant[]; pagination: { total: number; pages: number; page: number; limit: number } } }).data;
-      setRestaurants(d.restaurants);
-      setTotal(d.pagination.total);
-      setTotalPages(d.pagination.pages);
-      setPage(d.pagination.page);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, filterStatus]);
+  const [search, setSearch] = useState("");
+  const [approval, setApproval] = useState("all");
+  const [activity, setActivity] = useState("all");
+  const [featured, setFeatured] = useState("all");
+  const [sort, setSort] = useState<{ key: string; dir: SortDir }>({
+    key: "createdAt",
+    dir: "desc",
+  });
+
+  const [selected, setSelected] = useState<Restaurant | null>(null);
+  const [dialog, setDialog] = useState<DialogType | null>(null);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchRestaurants = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      try {
+        const params: Record<string, unknown> = {
+          page: p,
+          limit: 20,
+          sort: sort.key,
+          order: sort.dir,
+        };
+        if (search) params.search = search;
+        if (approval !== "all") params.approvalStatus = approval;
+        if (activity !== "all") params.isActive = activity === "active";
+        if (featured !== "all") params.isFeatured = featured === "featured";
+
+        const res = await adminService.listRestaurants(params);
+        const d = (res.data as ApiResponse).data;
+        setRestaurants(d.restaurants);
+        setTotal(d.pagination.total);
+        setTotalPages(d.pagination.pages);
+        setPage(d.pagination.page);
+      } catch {
+        toast({ title: "Failed to load restaurants", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, approval, activity, featured, sort, toast],
+  );
 
   useEffect(() => {
-    if (searchRef.current) clearTimeout(searchRef.current);
-    searchRef.current = setTimeout(() => fetch(1), 300);
-    return () => { if (searchRef.current) clearTimeout(searchRef.current); };
-  }, [search, filterStatus, fetch]);
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => fetchRestaurants(1), 300);
+    return () => {
+      if (debounce.current) clearTimeout(debounce.current);
+    };
+  }, [search, approval, activity, featured, sort, fetchRestaurants]);
 
-  const handleApprove = async () => {
-    if (!selected) return;
+  const handleAction = async (reason?: string) => {
+    if (!selected || !dialog) return;
+    const map: Record<DialogType, () => Promise<unknown>> = {
+      approve: () => adminService.approveRestaurant(selected._id),
+      reject: () => adminService.rejectRestaurant(selected._id, { reason: reason! }),
+      feature: () => adminService.featureRestaurant(selected._id),
+      close: () => adminService.closeRestaurant(selected._id, { reason: reason! }),
+      reopen: () => adminService.reopenRestaurant(selected._id),
+    };
     try {
-      await adminService.approveRestaurant(selected._id);
-      toast({ title: "Approved", description: `${selected.name} is now live.` });
-      fetch(page);
+      await map[dialog]();
+      toast({ title: "Restaurant updated" });
+      await fetchRestaurants(page);
     } catch {
-      toast({ title: "Error", description: "Failed.", variant: "destructive" });
-      throw new Error("failed");
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("action failed");
     }
   };
 
-  const handleReject = async (reason?: string) => {
-    if (!selected) return;
-    try {
-      await adminService.rejectRestaurant(selected._id, { reason: reason! });
-      toast({ title: "Rejected", description: "Restaurant application rejected." });
-      fetch(page);
-    } catch {
-      toast({ title: "Error", description: "Failed.", variant: "destructive" });
-      throw new Error("failed");
-    }
-  };
+  const exportCsv = () =>
+    exportToCsv("restaurants", restaurants, [
+      { key: "name", header: "Name", value: (r) => r.name },
+      {
+        key: "location",
+        header: "Location",
+        value: (r) => `${r.address?.area ?? ""}, ${r.address?.district ?? ""}`,
+      },
+      { key: "cuisine", header: "Cuisine", value: (r) => (r.cuisineType ?? []).join(" / ") },
+      { key: "status", header: "Status", value: (r) => stateOf(r).label },
+      { key: "featured", header: "Featured", value: (r) => (r.isFeatured ? "yes" : "no") },
+      { key: "rating", header: "Rating", value: (r) => (r.rating?.count ? r.rating.average.toFixed(1) : "") },
+      { key: "orders", header: "Orders", value: (r) => String(r.totalOrders ?? 0) },
+      { key: "joined", header: "Added", value: (r) => formatDate(r.createdAt) },
+    ]);
 
-  const handleClose = async (reason?: string) => {
-    if (!selected) return;
-    try {
-      await adminService.closeRestaurant(selected._id, { reason: reason! });
-      toast({ title: "Closed", description: "Restaurant temporarily closed." });
-      fetch(page);
-    } catch {
-      toast({ title: "Error", description: "Failed.", variant: "destructive" });
-      throw new Error("failed");
-    }
-  };
-
-  const handleFeature = async () => {
-    if (!selected) return;
-    try {
-      await adminService.featureRestaurant(selected._id);
-      toast({ title: "Done", description: selected.isFeatured ? "Unfeatured." : "Featured!" });
-      fetch(page);
-    } catch {
-      toast({ title: "Error", description: "Failed.", variant: "destructive" });
-      throw new Error("failed");
-    }
-  };
-
-  const columns: Column<Restaurant>[] = [
+  const columns: DataTableColumn<Restaurant>[] = [
     {
       key: "name",
       header: "Restaurant",
+      sortable: true,
       render: (r) => (
-        <Link to={`/admin/restaurants/${r._id}`} className="group flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gradient-to-br from-orange-200 to-red-200 rounded-lg flex items-center justify-center shrink-0">
-            <Store className="w-4 h-4 text-orange-700" />
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+            <Store className="h-4 w-4" />
           </div>
-          <div>
-            <p className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{r.name}</p>
-            <p className="text-xs text-gray-400">{r.address?.area}, {r.address?.district}</p>
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{r.name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {r.address?.area}
+              {r.address?.district ? `, ${r.address.district}` : ""}
+            </p>
           </div>
-        </Link>
+        </div>
       ),
     },
     {
       key: "cuisine",
       header: "Cuisine",
-      render: (r) => <span className="text-xs text-gray-600">{r.cuisineType?.slice(0, 2).join(", ")}</span>,
+      render: (r) => (
+        <span className="text-xs text-muted-foreground">
+          {r.cuisineType?.slice(0, 2).join(", ") || "—"}
+        </span>
+      ),
     },
-    { key: "status", header: "Status", render: approvalBadge },
+    {
+      key: "status",
+      header: "Status",
+      render: (r) => {
+        const s = stateOf(r);
+        return <StatusBadge label={s.label} tone={s.tone} />;
+      },
+    },
     {
       key: "rating",
       header: "Rating",
+      align: "center",
       render: (r) =>
         r.rating?.count ? (
-          <span className="flex items-center gap-1 text-gray-700 text-sm">
-            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+          <span className="inline-flex items-center gap-1 text-sm text-foreground">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
             {r.rating.average.toFixed(1)}
           </span>
-        ) : <span className="text-gray-300">—</span>,
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "totalOrders",
+      header: "Orders",
+      align: "right",
+      sortable: true,
+      render: (r) => <span className="text-muted-foreground">{(r.totalOrders ?? 0).toLocaleString()}</span>,
     },
     {
       key: "featured",
       header: "Featured",
+      align: "center",
       render: (r) =>
-        r.isFeatured ? <CheckCircle className="w-4 h-4 text-indigo-500" /> : <span className="text-gray-200">—</span>,
+        r.isFeatured ? (
+          <Star className="mx-auto h-4 w-4 fill-brand-500 text-brand-500" aria-label="Featured" />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
-      key: "added",
+      key: "createdAt",
       header: "Added",
-      render: (r) => <span className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleDateString()}</span>,
+      sortable: true,
+      render: (r) => <span className="text-muted-foreground">{formatDate(r.createdAt)}</span>,
     },
     {
       key: "actions",
       header: "",
+      align: "right",
       render: (r) => (
-        <div className="flex gap-1" onClick={(e) => e.preventDefault()}>
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           {r.approvalStatus === "pending" && (
             <>
-              <button onClick={() => { setSelected(r); setDialog("approve"); }}
-                className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors" title="Approve">
-                <CheckCircle className="w-4 h-4" />
-              </button>
-              <button onClick={() => { setSelected(r); setDialog("reject"); }}
-                className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Reject">
-                <XCircle className="w-4 h-4" />
-              </button>
+              <IconBtn title="Approve" tone="emerald" onClick={() => { setSelected(r); setDialog("approve"); }}>
+                <CheckCircle2 className="h-4 w-4" />
+              </IconBtn>
+              <IconBtn title="Reject" tone="red" onClick={() => { setSelected(r); setDialog("reject"); }}>
+                <XCircle className="h-4 w-4" />
+              </IconBtn>
             </>
           )}
-          {r.approvalStatus === "approved" && !r.isTemporarilyClosed && (
-            <button onClick={() => { setSelected(r); setDialog("close"); }}
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-amber-50 hover:text-amber-600 transition-colors" title="Close">
-              <XCircle className="w-4 h-4" />
-            </button>
-          )}
-          <button onClick={() => { setSelected(r); setDialog("feature"); }}
-            className={`p-1.5 rounded-lg transition-colors ${r.isFeatured ? "text-indigo-500 bg-indigo-50" : "text-gray-400 hover:bg-indigo-50 hover:text-indigo-500"}`}
-            title={r.isFeatured ? "Unfeature" : "Feature"}>
-            <Star className="w-4 h-4" />
-          </button>
+          {r.approvalStatus === "approved" &&
+            (r.isTemporarilyClosed ? (
+              <IconBtn title="Reopen" tone="emerald" onClick={() => { setSelected(r); setDialog("reopen"); }}>
+                <DoorOpen className="h-4 w-4" />
+              </IconBtn>
+            ) : (
+              <IconBtn title="Temporarily close" tone="amber" onClick={() => { setSelected(r); setDialog("close"); }}>
+                <XCircle className="h-4 w-4" />
+              </IconBtn>
+            ))}
+          <IconBtn
+            title={r.isFeatured ? "Unfeature" : "Feature"}
+            tone="brand"
+            active={r.isFeatured}
+            onClick={() => { setSelected(r); setDialog("feature"); }}
+          >
+            <Star className={`h-4 w-4 ${r.isFeatured ? "fill-current" : ""}`} />
+          </IconBtn>
         </div>
       ),
     },
@@ -196,54 +284,157 @@ export default function RestaurantsPage() {
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Restaurants</h1>
-          <p className="text-sm text-gray-500">{total} total restaurants</p>
-        </div>
-        <Link
-          to="/admin/restaurants/approval-queue"
-          className="px-4 py-2 text-sm font-medium bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl transition-colors"
-        >
-          Approval Queue
-        </Link>
-      </motion.div>
+      <PageHeader
+        title="Restaurants"
+        description={`${total} total restaurants`}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/restaurants/approval-queue")}>
+              Approval Queue
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!restaurants.length}>
+              <Download className="mr-1.5 h-4 w-4" /> Export CSV
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search restaurants…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-        </div>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white">
-          <option value="">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by name or area…"
+      >
+        <Select value={approval} onValueChange={setApproval}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Approval" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All approvals</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={activity} onValueChange={setActivity}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Activity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All activity</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={featured} onValueChange={setFeatured}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Featured" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All restaurants</SelectItem>
+            <SelectItem value="featured">Featured only</SelectItem>
+            <SelectItem value="not-featured">Not featured</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
 
-      <AdminTable columns={columns} data={restaurants} loading={loading} page={page} totalPages={totalPages}
-        onPageChange={(p) => fetch(p)} total={total} limit={20} emptyMessage="No restaurants found." />
+      <DataTable
+        columns={columns}
+        data={restaurants}
+        getRowId={(r) => r._id}
+        loading={loading}
+        sort={sort}
+        onSortChange={setSort}
+        onRowClick={(r) => navigate(`/admin/restaurants/${r._id}`)}
+        emptyState={
+          <EmptyState
+            icon={Store}
+            title="No restaurants found"
+            description="Try adjusting your search or filters."
+            className="border-0"
+          />
+        }
+        pagination={{ page, pages: totalPages, total, onPageChange: (p) => fetchRestaurants(p) }}
+      />
 
-      <ConfirmDialog open={dialog === "approve"} onClose={() => setDialog(null)} onConfirm={handleApprove}
+      <ConfirmDialog
+        open={dialog === "approve"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleAction}
         title={`Approve ${selected?.name}?`}
         description="The restaurant will go live and customers can place orders."
-        confirmLabel="Approve" destructive={false} />
-      <ConfirmDialog open={dialog === "reject"} onClose={() => setDialog(null)} onConfirm={handleReject}
+        confirmLabel="Approve"
+        destructive={false}
+      />
+      <ConfirmDialog
+        open={dialog === "reject"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleAction}
         title={`Reject ${selected?.name}?`}
         description="Provide a reason for rejection to inform the vendor."
-        confirmLabel="Reject" requireReason reasonPlaceholder="Reason for rejection…" destructive />
-      <ConfirmDialog open={dialog === "close"} onClose={() => setDialog(null)} onConfirm={handleClose}
-        title={`Close ${selected?.name}?`}
-        description="The restaurant will be temporarily unavailable to customers."
-        confirmLabel="Close" requireReason reasonPlaceholder="Reason for closure…" destructive={false} />
-      <ConfirmDialog open={dialog === "feature"} onClose={() => setDialog(null)} onConfirm={handleFeature}
+        confirmLabel="Reject"
+        requireReason
+        reasonPlaceholder="Reason for rejection…"
+        destructive
+      />
+      <ConfirmDialog
+        open={dialog === "feature"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleAction}
         title={selected?.isFeatured ? `Unfeature ${selected.name}?` : `Feature ${selected?.name}?`}
-        description={selected?.isFeatured ? "Remove from featured section." : "Add to featured section on the homepage."}
-        confirmLabel={selected?.isFeatured ? "Unfeature" : "Feature"} destructive={false} />
+        description={
+          selected?.isFeatured
+            ? "Remove this restaurant from the featured section."
+            : "Add this restaurant to the featured section on the homepage."
+        }
+        confirmLabel={selected?.isFeatured ? "Unfeature" : "Feature"}
+        destructive={false}
+      />
+      <ConfirmDialog
+        open={dialog === "close"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleAction}
+        title={`Temporarily close ${selected?.name}?`}
+        description="The restaurant will be unavailable to customers until reopened."
+        confirmLabel="Close"
+        requireReason
+        reasonPlaceholder="Reason for closure…"
+        destructive={false}
+      />
+      <ConfirmDialog
+        open={dialog === "reopen"}
+        onClose={() => setDialog(null)}
+        onConfirm={handleAction}
+        title={`Reopen ${selected?.name}?`}
+        description="The restaurant will become available to customers again."
+        confirmLabel="Reopen"
+        destructive={false}
+      />
     </div>
   );
 }
+
+const toneClass = {
+  amber: "hover:bg-amber-50 hover:text-amber-600",
+  red: "hover:bg-red-50 hover:text-red-600",
+  emerald: "hover:bg-emerald-50 hover:text-emerald-600",
+  brand: "hover:bg-accent hover:text-brand-500",
+} as const;
+
+const IconBtn: React.FC<{
+  title: string;
+  tone: keyof typeof toneClass;
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}> = ({ title, tone, active, onClick, children }) => (
+  <button
+    onClick={onClick}
+    title={title}
+    aria-label={title}
+    className={`rounded-lg p-1.5 transition-colors ${
+      active ? "bg-accent text-brand-500" : "text-muted-foreground"
+    } ${toneClass[tone]}`}
+  >
+    {children}
+  </button>
+);

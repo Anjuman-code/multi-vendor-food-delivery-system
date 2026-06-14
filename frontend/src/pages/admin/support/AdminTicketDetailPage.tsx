@@ -1,40 +1,47 @@
+import {
+  DetailHeader,
+  EmptyState,
+  FormDialog,
+  KeyValueList,
+  SectionCard,
+  StatusBadge,
+} from "@/components/admin";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import adminService from "@/services/adminService";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus, TicketPriority } from "@/types/support";
-import {
-  TICKET_PRIORITY_LABELS,
-  TICKET_STATUS_LABELS,
-  TICKET_TYPE_LABELS,
+import type {
+  SupportTicket,
+  TicketPriority,
+  TicketStatus,
+  UpdateTicketPayload,
 } from "@/types/support";
-import { motion } from "framer-motion";
+import { TICKET_TYPE_LABELS } from "@/types/support";
+import { formatDateTime } from "@/utils/format";
 import {
-  ArrowLeft,
   CheckCircle2,
   Clock,
+  LifeBuoy,
   Loader2,
   Send,
   UserCheck,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: "bg-amber-100 text-amber-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  waiting_on_user: "bg-orange-100 text-orange-700",
-  resolved: "bg-emerald-100 text-emerald-700",
-  closed: "bg-gray-100 text-gray-500",
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "bg-red-100 text-red-700",
-  high: "bg-orange-100 text-orange-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-gray-100 text-gray-500",
-};
+const formatTime = (d: string) =>
+  new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: "open", label: "Open" },
@@ -51,33 +58,30 @@ const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "urgent", label: "Urgent" },
 ];
 
-const fmtDateTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
-
-const fmtTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
+interface AdminOption {
+  _id: string;
+  firstName: string;
+  lastName: string;
+}
 
 export default function AdminTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState<TicketStatus>("open");
-  const [priority, setPriority] = useState<TicketPriority>("medium");
-  const [resolution, setResolution] = useState("");
-  const [savingMeta, setSavingMeta] = useState(false);
+  const [busyField, setBusyField] = useState<string | null>(null);
+
+  // Resolution dialog
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState("");
+
+  // Reassign dialog
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [admins, setAdmins] = useState<AdminOption[]>([]);
+  const [assigneeId, setAssigneeId] = useState("");
 
   const fetchTicket = useCallback(async () => {
     if (!id) return;
@@ -85,408 +89,448 @@ export default function AdminTicketDetailPage() {
     const res = await supportService.getTicketDetail(id);
     if (res.success && res.data) {
       setTicket(res.data.ticket);
-      setStatus(res.data.ticket.status);
-      setPriority(res.data.ticket.priority);
-      setResolution(res.data.ticket.resolution || "");
     } else {
-      toast({
-        title: "Error",
-        description: res.message || "Ticket not found.",
-        variant: "destructive",
-      });
-      navigate("/admin/support");
+      toast({ title: "Ticket not found", variant: "destructive" });
     }
     setLoading(false);
-  }, [id, toast, navigate]);
+  }, [id, toast]);
 
   useEffect(() => {
     fetchTicket();
   }, [fetchTicket]);
 
+  // ── Persisted mutations ───────────────────────────────────────────
+  const persist = async (payload: UpdateTicketPayload, field: string, successMsg: string) => {
+    if (!id) return;
+    setBusyField(field);
+    try {
+      const res = await supportService.updateTicket(id, payload);
+      if (res.success) {
+        toast({ title: successMsg });
+        await fetchTicket();
+      } else {
+        toast({ title: res.message || "Update failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Update failed", variant: "destructive" });
+    } finally {
+      setBusyField(null);
+    }
+  };
+
   const handleReply = async () => {
     if (!id || !replyText.trim()) return;
     setSending(true);
     try {
-      const res = await supportService.adminReply(id, {
-        message: replyText.trim(),
-      });
+      const res = await supportService.adminReply(id, { message: replyText.trim() });
       if (res.success && res.data) {
         setTicket(res.data.ticket);
-        setStatus(res.data.ticket.status);
         setReplyText("");
         toast({ title: "Reply sent" });
       } else {
-        toast({
-          title: "Error",
-          description: res.message || "Failed to send reply.",
-          variant: "destructive",
-        });
+        toast({ title: res.message || "Failed to send reply", variant: "destructive" });
       }
     } finally {
       setSending(false);
     }
   };
 
-  const handleUpdateMeta = async () => {
-    if (!id) return;
-    setSavingMeta(true);
+  const submitResolution = async () => {
+    await persist(
+      { status: "resolved", resolution: resolutionNote.trim() || undefined },
+      "resolve",
+      "Ticket resolved",
+    );
+    setResolveOpen(false);
+    setResolutionNote("");
+  };
+
+  const openReassign = async () => {
+    setAssignOpen(true);
     try {
-      const res = await supportService.updateTicket(id, {
-        status,
-        priority,
-        resolution: resolution || undefined,
-      });
-      if (res.success && res.data) {
-        setTicket(res.data.ticket);
-        toast({ title: "Ticket updated" });
-      } else {
-        toast({
-          title: "Error",
-          description: res.message || "Failed to update ticket.",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setSavingMeta(false);
+      const res = await adminService.listAdmins();
+      setAdmins((res.data as { data: { admins: AdminOption[] } }).data.admins);
+    } catch {
+      setAdmins([]);
     }
   };
 
-  const hasMetaChanges =
-    ticket &&
-    (status !== ticket.status ||
-      priority !== ticket.priority ||
-      resolution !== (ticket.resolution || ""));
+  const submitReassign = async () => {
+    if (!assigneeId) return;
+    await persist({ assignedTo: assigneeId }, "assign", "Ticket reassigned");
+    setAssignOpen(false);
+    setAssigneeId("");
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      <div className="space-y-5">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-96 lg:col-span-2" />
+          <Skeleton className="h-96 lg:col-span-1" />
+        </div>
       </div>
     );
   }
 
-  if (!ticket) return null;
+  if (!ticket) {
+    return (
+      <EmptyState
+        icon={LifeBuoy}
+        title="Ticket not found"
+        description="This ticket may have been removed."
+        action={{ label: "Back to support", onClick: () => history.back() }}
+      />
+    );
+  }
 
-  const userName = () => {
-    if (typeof ticket.userId === "object" && ticket.userId) {
-      return `${ticket.userId.firstName} ${ticket.userId.lastName}`;
-    }
-    return "Unknown";
-  };
+  const customer =
+    typeof ticket.userId === "object" && ticket.userId
+      ? { name: `${ticket.userId.firstName} ${ticket.userId.lastName}`, email: ticket.userId.email }
+      : { name: "Unknown", email: "" };
 
-  const userEmail = () => {
-    if (typeof ticket.userId === "object" && ticket.userId) {
-      return ticket.userId.email;
-    }
-    return "";
-  };
+  const assignedName =
+    typeof ticket.assignedTo === "object" && ticket.assignedTo
+      ? `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}`
+      : null;
+  const assignedId =
+    typeof ticket.assignedTo === "object" && ticket.assignedTo
+      ? ticket.assignedTo._id
+      : typeof ticket.assignedTo === "string"
+        ? ticket.assignedTo
+        : null;
 
-  const assignedName = () => {
-    if (!ticket.assignedTo) return null;
-    if (typeof ticket.assignedTo === "object") {
-      return `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}`;
-    }
-    return null;
-  };
+  const order =
+    typeof ticket.orderId === "object" && ticket.orderId ? ticket.orderId : null;
 
-  const orderNumber = () => {
-    if (!ticket.orderId) return null;
-    if (typeof ticket.orderId === "object") {
-      return ticket.orderId.orderNumber;
-    }
-    return ticket.orderId;
-  };
-
-  const isSender = (senderId: SupportTicket["messages"][0]["senderId"]) => {
-    if (typeof senderId === "object" && senderId._id) {
-      return typeof ticket.userId === "object" && ticket.userId._id
-        ? senderId._id !== ticket.userId._id
-        : true;
-    }
-    return typeof ticket.userId === "string"
-      ? senderId !== ticket.userId
-      : true;
-  };
+  const isClosed = ticket.status === "closed";
+  const isResolved = ticket.status === "resolved";
+  const assignedToMe = !!user && assignedId === user.id;
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <button
-          onClick={() => navigate("/admin/support")}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Support
-        </button>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main thread */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Header */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                {ticket.ticketNumber && (
-                  <span className="text-xs font-mono text-gray-400">
-                    {ticket.ticketNumber}
-                  </span>
-                )}
-                <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[ticket.status]}`}
-                >
-                  {TICKET_STATUS_LABELS[ticket.status]}
-                </span>
-                <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${PRIORITY_COLORS[ticket.priority]}`}
-                >
-                  {TICKET_PRIORITY_LABELS[ticket.priority]}
-                </span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">{ticket.subject}</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {TICKET_TYPE_LABELS[ticket.type]} · Created {fmtDateTime(ticket.createdAt)}
-              </p>
-            </div>
-
-            {/* Resolution banner */}
-            {ticket.resolution && (
-              <Card className="p-4 bg-emerald-50 border-emerald-200">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-800">Resolution</p>
-                    <p className="text-sm text-emerald-700 mt-1">{ticket.resolution}</p>
-                  </div>
-                </div>
-              </Card>
+    <div className="space-y-5">
+      <DetailHeader
+        backTo="/admin/support"
+        backLabel="Support"
+        title={ticket.subject}
+        icon={LifeBuoy}
+        subtitle={
+          <>
+            {ticket.ticketNumber && (
+              <span className="font-mono">{ticket.ticketNumber} · </span>
             )}
+            {TICKET_TYPE_LABELS[ticket.type]} · {formatDateTime(ticket.createdAt)}
+          </>
+        }
+        badges={
+          <>
+            <StatusBadge status={ticket.status} />
+            <StatusBadge status={ticket.priority} size="sm" />
+          </>
+        }
+        actions={
+          <>
+            {!isClosed && (
+              <Button variant="outline" size="sm" onClick={openReassign} disabled={busyField === "assign"}>
+                <UserCheck className="mr-1.5 h-4 w-4" />
+                {assignedName ? "Reassign" : "Assign"}
+              </Button>
+            )}
+            {!isClosed && !assignedToMe && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => persist({ assignedTo: user!.id }, "assign", "Assigned to you")}
+                disabled={!user || busyField === "assign"}
+              >
+                Assign to me
+              </Button>
+            )}
+            {!isClosed && !isResolved && (
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={() => setResolveOpen(true)}
+                disabled={busyField === "resolve"}
+              >
+                <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resolve
+              </Button>
+            )}
+          </>
+        }
+      />
 
-            {/* Messages */}
-            <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Conversation */}
+        <div className="space-y-4 lg:col-span-2">
+          {ticket.resolution && (
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">Resolution</p>
+                <p className="mt-0.5 text-sm text-emerald-700">{ticket.resolution}</p>
+              </div>
+            </div>
+          )}
+
+          <SectionCard title="Conversation">
+            <div className="space-y-3">
               {ticket.messages.map((msg, idx) => {
-                const isAdmin = isSender(msg.senderId);
+                const isStaff =
+                  msg.senderRole === "admin" || msg.senderRole === "support";
+                const senderName =
+                  typeof msg.senderId === "object" && msg.senderId
+                    ? `${msg.senderId.firstName} ${msg.senderId.lastName}`
+                    : isStaff
+                      ? "Support"
+                      : customer.name;
                 return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}
-                  >
+                  <div key={idx} className={`flex ${isStaff ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        isAdmin
-                          ? "bg-indigo-100 text-gray-900"
-                          : "bg-gray-100 text-gray-900"
+                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                        isStaff
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-muted text-foreground"
                       }`}
                     >
-                      <p className="text-xs font-semibold text-gray-500 mb-1">
-                        {typeof msg.senderId === "object" && msg.senderId
-                          ? `${msg.senderId.firstName} ${msg.senderId.lastName}`
-                          : "User"}
-                        {isAdmin && (
-                          <span className="ml-1.5 text-[10px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded-full">
+                      <p className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                        {senderName}
+                        {isStaff && (
+                          <span className="rounded-full bg-brand-500/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-600">
                             Staff
                           </span>
                         )}
                       </p>
-                      <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
+                      <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+                      {msg.attachments?.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-2">
                           {msg.attachments.map((att, i) => (
                             <a
                               key={i}
                               href={att}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs text-blue-600 underline hover:text-blue-800"
+                              className="text-xs font-medium text-primary underline"
                             >
                               Attachment {i + 1}
                             </a>
                           ))}
                         </div>
                       )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        {fmtTime(msg.createdAt)}
+                      <p className="mt-1 text-[11px] text-muted-foreground/70">
+                        {formatTime(msg.createdAt)}
                       </p>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
+          </SectionCard>
 
-            {/* Reply form */}
-            {ticket.status !== "closed" && (
-              <Card className="p-4">
-                <p className="text-sm font-medium text-gray-700 mb-3">
-                  Reply as Support
-                </p>
-                <Textarea
-                  rows={3}
-                  placeholder="Type your reply..."
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  className="mb-3"
-                />
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleReply}
-                    disabled={!replyText.trim() || sending}
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    {sending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Send className="h-4 w-4 mr-2" />
-                    )}
-                    Send Reply
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-4">
-            {/* Ticket info */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                Ticket Details
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-gray-400 text-xs">Customer</p>
-                  <p className="font-medium text-gray-900">{userName()}</p>
-                  <p className="text-gray-500 text-xs">{userEmail()}</p>
-                </div>
-                {orderNumber() && (
-                  <div>
-                    <p className="text-gray-400 text-xs">Related Order</p>
-                    <p className="font-medium text-gray-900 font-mono">
-                      {orderNumber()}
-                    </p>
-                  </div>
-                )}
-                {assignedName() && (
-                  <div>
-                    <p className="text-gray-400 text-xs">Assigned To</p>
-                    <p className="font-medium text-gray-900">{assignedName()}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-gray-400 text-xs">Created</p>
-                  <p className="text-gray-700">{fmtDateTime(ticket.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Last Updated</p>
-                  <p className="text-gray-700">{fmtDateTime(ticket.updatedAt)}</p>
-                </div>
-              </div>
-            </Card>
-
-            {/* Management */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                Manage Ticket
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-gray-400 block mb-1">Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as TicketStatus)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white"
-                  >
-                    {STATUS_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 block mb-1">Priority</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as TicketPriority)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white"
-                  >
-                    {PRIORITY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 block mb-1">
-                    Resolution Note
-                  </label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Resolution notes (shown when resolved)"
-                    value={resolution}
-                    onChange={(e) => setResolution(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={handleUpdateMeta}
-                  disabled={!hasMetaChanges || savingMeta}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700"
-                >
-                  {savingMeta ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          {isClosed ? (
+            <div className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+              This ticket is closed. Reopen it (change status) to continue the conversation.
+            </div>
+          ) : (
+            <SectionCard title="Reply as Support">
+              <Textarea
+                rows={3}
+                placeholder="Type your reply…"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                className="mb-3"
+              />
+              <div className="flex justify-end">
+                <Button variant="brand" onClick={handleReply} disabled={!replyText.trim() || sending}>
+                  {sending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <UserCheck className="h-4 w-4 mr-2" />
+                    <Send className="mr-2 h-4 w-4" />
                   )}
-                  Update Ticket
+                  Send Reply
                 </Button>
               </div>
-            </Card>
+            </SectionCard>
+          )}
+        </div>
 
-            {/* Quick actions */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                Quick Actions
-              </h3>
+        {/* Sidebar */}
+        <div className="space-y-4 lg:col-span-1">
+          <SectionCard title="Ticket Details">
+            <KeyValueList
+              columns={1}
+              items={[
+                { label: "Customer", value: customer.name },
+                ...(customer.email ? [{ label: "Email", value: customer.email }] : []),
+                ...(order
+                  ? [
+                      {
+                        label: "Related Order",
+                        value: (
+                          <Link
+                            to={`/admin/orders/${order._id}`}
+                            className="font-mono font-semibold text-primary hover:underline"
+                          >
+                            #{order.orderNumber}
+                          </Link>
+                        ),
+                      },
+                    ]
+                  : []),
+                { label: "Assigned to", value: assignedName ?? "Unassigned" },
+                { label: "Created", value: formatDateTime(ticket.createdAt) },
+                { label: "Last updated", value: formatDateTime(ticket.updatedAt) },
+              ]}
+            />
+          </SectionCard>
+
+          <SectionCard title="Status" description="Changes apply immediately.">
+            <Select
+              value={ticket.status}
+              onValueChange={(v) =>
+                persist({ status: v as TicketStatus }, "status", "Status updated")
+              }
+              disabled={busyField === "status"}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SectionCard>
+
+          <SectionCard title="Priority" description="Changes apply immediately.">
+            <Select
+              value={ticket.priority}
+              onValueChange={(v) =>
+                persist({ priority: v as TicketPriority }, "priority", "Priority updated")
+              }
+              disabled={busyField === "priority"}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SectionCard>
+
+          {!isClosed && (
+            <SectionCard title="Quick Actions">
               <div className="space-y-2">
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => {
-                    setStatus("waiting_on_user");
-                    setResolution("");
-                  }}
+                  disabled={busyField === "status"}
+                  onClick={() =>
+                    persist({ status: "waiting_on_user" }, "status", "Set to waiting on user")
+                  }
                 >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Set to Waiting on User
+                  <Clock className="mr-2 h-4 w-4" /> Set to Waiting on User
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => {
-                    setStatus("in_progress");
-                    setResolution("");
-                  }}
+                  disabled={busyField === "status"}
+                  onClick={() => persist({ status: "in_progress" }, "status", "Set to in progress")}
                 >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Set to In Progress
+                  <UserCheck className="mr-2 h-4 w-4" /> Set to In Progress
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                  onClick={() => setStatus("resolved")}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Mark as Resolved
-                </Button>
+                {!isResolved && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                    onClick={() => setResolveOpen(true)}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Mark as Resolved
+                  </Button>
+                )}
               </div>
-            </Card>
-          </div>
+            </SectionCard>
+          )}
         </div>
-      </motion.div>
+      </div>
+
+      {/* Resolution dialog */}
+      <FormDialog
+        open={resolveOpen}
+        onOpenChange={(o) => !o && setResolveOpen(false)}
+        title="Resolve Ticket"
+        description="Add an optional resolution note the customer will see."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setResolveOpen(false)} disabled={busyField === "resolve"}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={submitResolution} disabled={busyField === "resolve"}>
+              {busyField === "resolve" ? "Saving…" : "Resolve Ticket"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="resolution">Resolution note (optional)</Label>
+          <Textarea
+            id="resolution"
+            rows={3}
+            value={resolutionNote}
+            onChange={(e) => setResolutionNote(e.target.value)}
+            placeholder="How was this ticket resolved?"
+          />
+        </div>
+      </FormDialog>
+
+      {/* Reassign dialog */}
+      <FormDialog
+        open={assignOpen}
+        onOpenChange={(o) => !o && setAssignOpen(false)}
+        title="Assign Ticket"
+        description="Assign this ticket to a support agent."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setAssignOpen(false)} disabled={busyField === "assign"}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={submitReassign} disabled={!assigneeId || busyField === "assign"}>
+              {busyField === "assign" ? "Saving…" : "Assign"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label>Support agent</Label>
+          <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select an agent" />
+            </SelectTrigger>
+            <SelectContent>
+              {admins.map((a) => (
+                <SelectItem key={a._id} value={a._id}>
+                  {a.firstName} {a.lastName}
+                  {user && a._id === user.id ? " (you)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </FormDialog>
     </div>
   );
 }

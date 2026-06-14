@@ -33,6 +33,7 @@ import {
     unbanCustomer,
     unsuspendCustomer,
     unsuspendDriver,
+    unsuspendVendor,
     updateAdminUser,
     updateCustomer,
     verifyVendor,
@@ -67,6 +68,8 @@ import {
 
 // Finance
 import {
+    batchProcessPayouts,
+    createPayout,
     getCommissionHistory,
     getPayoutDetail,
     getRevenueStats,
@@ -92,6 +95,7 @@ import {
     listReviewsForModeration,
     listTags,
     removeReview,
+    reorderContentBlocks,
     updateContentBlock,
     updateCuisineType,
     updateSettings,
@@ -139,6 +143,7 @@ router.get("/users/vendors/:id", ...adminAuth, getVendorDetail);
 router.post("/users/vendors/:id/verify", ...adminOnly, verifyVendor);
 router.post("/users/vendors/:id/commission", ...superAdminOnly, changeVendorCommission);
 router.post("/users/vendors/:id/suspend", ...adminOnly, suspendVendor);
+router.post("/users/vendors/:id/unsuspend", ...adminOnly, unsuspendVendor);
 // Legacy
 router.patch("/vendors/:vendorId/commission", ...superAdminOnly, updateCommissionRate);
 
@@ -183,6 +188,8 @@ router.post("/orders/:id/reassign-driver", ...adminOnly, reassignDriver);
 
 // ── Finance (super_admin only) ───────────────────────────────────
 router.get("/finance/payouts", ...superAdminOnly, listPayouts);
+router.post("/finance/payouts", ...superAdminOnly, createPayout);
+router.post("/finance/payouts/batch-process", ...superAdminOnly, batchProcessPayouts);
 router.get("/finance/payouts/:id", ...superAdminOnly, getPayoutDetail);
 router.post("/finance/payouts/:id/process", ...superAdminOnly, processPayout);
 router.get("/finance/revenue", ...superAdminOnly, getRevenueStats);
@@ -203,6 +210,7 @@ router.delete("/content/tags/:id", ...superAdminOnly, deleteTag);
 // ── Content: Blocks (Homepage Curation) ──────────────────────────
 router.get("/content/blocks", ...adminAuth, listContentBlocks);
 router.post("/content/blocks", ...adminOnly, createContentBlock);
+router.patch("/content/blocks/reorder", ...adminOnly, reorderContentBlocks);
 router.patch("/content/blocks/:id", ...adminOnly, updateContentBlock);
 router.delete("/content/blocks/:id", ...adminOnly, deleteContentBlock);
 

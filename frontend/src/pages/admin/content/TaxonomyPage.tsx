@@ -1,8 +1,28 @@
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  FormDialog,
+  PageHeader,
+  SectionCard,
+  SegmentedTabs,
+  StatusBadge,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { Pencil, Plus, Tag, Trash2 } from "lucide-react";
+import { Pencil, Plus, Tags, Trash2, Utensils } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface CuisineType {
@@ -10,27 +30,81 @@ interface CuisineType {
   name: string;
   slug: string;
   icon?: string;
+  displayOrder: number;
   isActive: boolean;
-  restaurantCount?: number;
 }
+
+type TagCategory = "dietary" | "amenity" | "feature" | "meal_type";
 
 interface TagItem {
   _id: string;
   name: string;
   slug: string;
-  type?: string;
+  category: TagCategory;
   isActive: boolean;
 }
 
+const TAG_CATEGORIES: { value: TagCategory; label: string }[] = [
+  { value: "dietary", label: "Dietary" },
+  { value: "amenity", label: "Amenity" },
+  { value: "feature", label: "Feature" },
+  { value: "meal_type", label: "Meal type" },
+];
+
+const slugify = (s: string) =>
+  s
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+type Tab = "cuisine" | "tags";
+
+interface CuisineForm {
+  id?: string;
+  name: string;
+  slug: string;
+  icon: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+interface TagForm {
+  id?: string;
+  name: string;
+  slug: string;
+  category: TagCategory;
+  isActive: boolean;
+}
+
+const emptyCuisine = (): CuisineForm => ({
+  name: "",
+  slug: "",
+  icon: "",
+  displayOrder: 0,
+  isActive: true,
+});
+
+const emptyTag = (): TagForm => ({
+  name: "",
+  slug: "",
+  category: "dietary",
+  isActive: true,
+});
+
 export default function TaxonomyPage() {
-  const [activeTab, setActiveTab] = useState<"cuisine" | "tags">("cuisine");
+  const { toast } = useToast();
+  const [tab, setTab] = useState<Tab>("cuisine");
   const [cuisines, setCuisines] = useState<CuisineType[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editItem, setEditItem] = useState<{ id?: string; name: string; icon?: string } | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+
+  const [cuisineForm, setCuisineForm] = useState<CuisineForm | null>(null);
+  const [tagForm, setTagForm] = useState<TagForm | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    { kind: Tab; id: string; name: string } | null
+  >(null);
 
   const load = async () => {
     setLoading(true);
@@ -41,180 +115,479 @@ export default function TaxonomyPage() {
       ]);
       setCuisines((cRes.data as { data: { types: CuisineType[] } }).data.types);
       setTags((tRes.data as { data: { tags: TagItem[] } }).data.tags);
+    } catch {
+      toast({ title: "Failed to load taxonomy", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  const handleSave = async () => {
-    if (!editItem || !editItem.name.trim()) return;
+  // ── Cuisine save ──────────────────────────────────────────────
+  const saveCuisine = async () => {
+    if (!cuisineForm || !cuisineForm.name.trim()) return;
     setSaving(true);
     try {
-      if (activeTab === "cuisine") {
-        if (editItem.id) {
-          await adminService.updateCuisineType(editItem.id, { name: editItem.name, icon: editItem.icon });
-        } else {
-          await adminService.createCuisineType({ name: editItem.name, icon: editItem.icon });
-        }
-      } else {
-        if (editItem.id) {
-          await adminService.updateTag(editItem.id, { name: editItem.name });
-        } else {
-          await adminService.createTag({ name: editItem.name });
-        }
-      }
-      toast({ title: "Saved", description: `${activeTab === "cuisine" ? "Cuisine type" : "Tag"} saved.` });
-      setEditItem(null);
-      load();
+      const payload = {
+        name: cuisineForm.name.trim(),
+        slug: cuisineForm.slug.trim() || slugify(cuisineForm.name),
+        icon: cuisineForm.icon.trim() || undefined,
+        displayOrder: cuisineForm.displayOrder,
+        isActive: cuisineForm.isActive,
+      };
+      if (cuisineForm.id) await adminService.updateCuisineType(cuisineForm.id, payload);
+      else await adminService.createCuisineType(payload);
+      toast({ title: "Cuisine type saved" });
+      setCuisineForm(null);
+      await load();
     } catch {
-      toast({ title: "Error", description: "Failed to save.", variant: "destructive" });
+      toast({ title: "Failed to save cuisine type", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Tag save ──────────────────────────────────────────────────
+  const saveTag = async () => {
+    if (!tagForm || !tagForm.name.trim()) return;
+    setSaving(true);
+    try {
+      const payload = {
+        name: tagForm.name.trim(),
+        slug: tagForm.slug.trim() || slugify(tagForm.name),
+        category: tagForm.category,
+        isActive: tagForm.isActive,
+      };
+      if (tagForm.id) await adminService.updateTag(tagForm.id, payload);
+      else await adminService.createTag(payload);
+      toast({ title: "Tag saved" });
+      setTagForm(null);
+      await load();
+    } catch {
+      toast({ title: "Failed to save tag", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteTarget) return;
     try {
-      if (activeTab === "cuisine") await adminService.deleteCuisineType(deleteId);
-      else await adminService.deleteTag(deleteId);
+      if (deleteTarget.kind === "cuisine")
+        await adminService.deleteCuisineType(deleteTarget.id);
+      else await adminService.deleteTag(deleteTarget.id);
       toast({ title: "Deleted" });
-      setDeleteId(null);
-      load();
+      setDeleteTarget(null);
+      await load();
     } catch {
-      toast({ title: "Error", description: "Failed to delete.", variant: "destructive" });
+      toast({ title: "Failed to delete", variant: "destructive" });
       throw new Error("failed");
     }
   };
 
-  const items = activeTab === "cuisine" ? cuisines : tags;
+  const cuisineColumns: DataTableColumn<CuisineType>[] = [
+    {
+      key: "name",
+      header: "Cuisine",
+      render: (c) => (
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-base">
+            {c.icon || <Utensils className="h-4 w-4 text-accent-foreground" />}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{c.name}</p>
+            <p className="truncate font-mono text-xs text-muted-foreground">{c.slug}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "displayOrder",
+      header: "Order",
+      align: "center",
+      render: (c) => <span className="text-muted-foreground">{c.displayOrder}</span>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (c) =>
+        c.isActive ? (
+          <StatusBadge label="Active" tone="success" />
+        ) : (
+          <StatusBadge label="Inactive" tone="neutral" />
+        ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (c) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconBtn
+            title="Edit"
+            tone="brand"
+            onClick={() =>
+              setCuisineForm({
+                id: c._id,
+                name: c.name,
+                slug: c.slug,
+                icon: c.icon ?? "",
+                displayOrder: c.displayOrder,
+                isActive: c.isActive,
+              })
+            }
+          >
+            <Pencil className="h-4 w-4" />
+          </IconBtn>
+          <IconBtn
+            title="Delete"
+            tone="red"
+            onClick={() => setDeleteTarget({ kind: "cuisine", id: c._id, name: c.name })}
+          >
+            <Trash2 className="h-4 w-4" />
+          </IconBtn>
+        </div>
+      ),
+    },
+  ];
+
+  const tagColumns: DataTableColumn<TagItem>[] = [
+    {
+      key: "name",
+      header: "Tag",
+      render: (t) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{t.name}</p>
+          <p className="truncate font-mono text-xs text-muted-foreground">{t.slug}</p>
+        </div>
+      ),
+    },
+    {
+      key: "category",
+      header: "Category",
+      render: (t) => (
+        <StatusBadge
+          label={TAG_CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category}
+          tone="info"
+          icon={false}
+        />
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (t) =>
+        t.isActive ? (
+          <StatusBadge label="Active" tone="success" />
+        ) : (
+          <StatusBadge label="Inactive" tone="neutral" />
+        ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (t) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconBtn
+            title="Edit"
+            tone="brand"
+            onClick={() =>
+              setTagForm({
+                id: t._id,
+                name: t.name,
+                slug: t.slug,
+                category: t.category,
+                isActive: t.isActive,
+              })
+            }
+          >
+            <Pencil className="h-4 w-4" />
+          </IconBtn>
+          <IconBtn
+            title="Delete"
+            tone="red"
+            onClick={() => setDeleteTarget({ kind: "tags", id: t._id, name: t.name })}
+          >
+            <Trash2 className="h-4 w-4" />
+          </IconBtn>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Cuisine Types & Tags</h1>
-          <p className="text-sm text-gray-500">Manage discovery taxonomy</p>
-        </div>
-        <button
-          onClick={() => setEditItem({ name: "", icon: "" })}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add {activeTab === "cuisine" ? "Cuisine" : "Tag"}
-        </button>
-      </motion.div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {(["cuisine", "tags"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+      <PageHeader
+        title="Cuisine Types & Tags"
+        description="Manage the discovery taxonomy used across restaurants and menus."
+        actions={
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={() =>
+              tab === "cuisine"
+                ? setCuisineForm(emptyCuisine())
+                : setTagForm(emptyTag())
+            }
           >
-            {tab === "cuisine" ? "Cuisine Types" : "Tags"}
-          </button>
-        ))}
-      </div>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add {tab === "cuisine" ? "Cuisine" : "Tag"}
+          </Button>
+        }
+      />
 
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse h-16" />
-          ))}
-        </div>
+      <SegmentedTabs<Tab>
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "cuisine", label: "Cuisine Types", count: cuisines.length },
+          { value: "tags", label: "Tags", count: tags.length },
+        ]}
+      />
+
+      {tab === "cuisine" ? (
+        <SectionCard title="Cuisine Types" flush>
+          <DataTable
+            columns={cuisineColumns}
+            data={cuisines}
+            getRowId={(c) => c._id}
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={Utensils}
+                title="No cuisine types yet"
+                description="Add a cuisine type so restaurants can be categorised."
+                className="border-0"
+              />
+            }
+          />
+        </SectionCard>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
-          {items.map((item) => (
-            <div
-              key={item._id}
-              className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group"
-            >
-              <div className="flex items-start justify-between gap-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  {activeTab === "cuisine" && (item as CuisineType).icon ? (
-                    <span className="text-xl">{(item as CuisineType).icon}</span>
-                  ) : (
-                    <Tag className="w-4 h-4 text-gray-400 shrink-0" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-                    {activeTab === "cuisine" && (item as CuisineType).restaurantCount !== undefined && (
-                      <p className="text-xs text-gray-400">{(item as CuisineType).restaurantCount} restaurants</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button
-                    onClick={() => setEditItem({ id: item._id, name: item.name, icon: (item as CuisineType).icon })}
-                    className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(item._id)}
-                    className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <SectionCard title="Tags" flush>
+          <DataTable
+            columns={tagColumns}
+            data={tags}
+            getRowId={(t) => t._id}
+            loading={loading}
+            emptyState={
+              <EmptyState
+                icon={Tags}
+                title="No tags yet"
+                description="Add tags for dietary, amenity, feature, and meal-type filters."
+                className="border-0"
+              />
+            }
+          />
+        </SectionCard>
       )}
 
-      {/* Edit/Create Modal */}
-      {editItem !== null && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditItem(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900 mb-4">
-              {editItem.id ? "Edit" : "Add"} {activeTab === "cuisine" ? "Cuisine Type" : "Tag"}
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Name</label>
-                <input
-                  value={editItem.name}
-                  onChange={(e) => setEditItem({ ...editItem, name: e.target.value })}
-                  placeholder="e.g. Bengali"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+      {/* Cuisine form */}
+      <FormDialog
+        open={cuisineForm !== null}
+        onOpenChange={(o) => !o && setCuisineForm(null)}
+        title={cuisineForm?.id ? "Edit Cuisine Type" : "Add Cuisine Type"}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCuisineForm(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              variant="brand"
+              onClick={saveCuisine}
+              disabled={saving || !cuisineForm?.name.trim()}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </>
+        }
+      >
+        {cuisineForm && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="c-name">Name</Label>
+              <Input
+                id="c-name"
+                value={cuisineForm.name}
+                onChange={(e) =>
+                  setCuisineForm({ ...cuisineForm, name: e.target.value })
+                }
+                placeholder="e.g. Bengali"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="c-slug">Slug</Label>
+              <Input
+                id="c-slug"
+                value={cuisineForm.slug}
+                onChange={(e) =>
+                  setCuisineForm({ ...cuisineForm, slug: e.target.value })
+                }
+                placeholder={cuisineForm.name ? slugify(cuisineForm.name) : "auto-generated"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank to auto-generate from the name.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="c-icon">Icon (emoji)</Label>
+                <Input
+                  id="c-icon"
+                  value={cuisineForm.icon}
+                  onChange={(e) =>
+                    setCuisineForm({ ...cuisineForm, icon: e.target.value })
+                  }
+                  placeholder="🍛"
                 />
               </div>
-              {activeTab === "cuisine" && (
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Icon (emoji)</label>
-                  <input
-                    value={editItem.icon ?? ""}
-                    onChange={(e) => setEditItem({ ...editItem, icon: e.target.value })}
-                    placeholder="e.g. 🍛"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  />
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="c-order">Display order</Label>
+                <Input
+                  id="c-order"
+                  type="number"
+                  value={cuisineForm.displayOrder}
+                  onChange={(e) =>
+                    setCuisineForm({
+                      ...cuisineForm,
+                      displayOrder: Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
             </div>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setEditItem(null)} className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !editItem.name.trim()}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-colors"
-              >
-                {saving ? "Saving…" : "Save"}
-              </button>
+            <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Active</p>
+                <p className="text-xs text-muted-foreground">
+                  Visible to customers for discovery.
+                </p>
+              </div>
+              <Switch
+                checked={cuisineForm.isActive}
+                onCheckedChange={(v) =>
+                  setCuisineForm({ ...cuisineForm, isActive: v })
+                }
+              />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </FormDialog>
 
-      <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
-        title="Delete this item?" description="This cannot be undone. Restaurants linked to it will lose this category."
-        confirmLabel="Delete" destructive />
+      {/* Tag form */}
+      <FormDialog
+        open={tagForm !== null}
+        onOpenChange={(o) => !o && setTagForm(null)}
+        title={tagForm?.id ? "Edit Tag" : "Add Tag"}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setTagForm(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              variant="brand"
+              onClick={saveTag}
+              disabled={saving || !tagForm?.name.trim()}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </>
+        }
+      >
+        {tagForm && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="t-name">Name</Label>
+              <Input
+                id="t-name"
+                value={tagForm.name}
+                onChange={(e) => setTagForm({ ...tagForm, name: e.target.value })}
+                placeholder="e.g. Vegan"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-slug">Slug</Label>
+              <Input
+                id="t-slug"
+                value={tagForm.slug}
+                onChange={(e) => setTagForm({ ...tagForm, slug: e.target.value })}
+                placeholder={tagForm.name ? slugify(tagForm.name) : "auto-generated"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank to auto-generate from the name.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-category">Category</Label>
+              <Select
+                value={tagForm.category}
+                onValueChange={(v) =>
+                  setTagForm({ ...tagForm, category: v as TagCategory })
+                }
+              >
+                <SelectTrigger id="t-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TAG_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Active</p>
+                <p className="text-xs text-muted-foreground">
+                  Available as a filter on discovery.
+                </p>
+              </div>
+              <Switch
+                checked={tagForm.isActive}
+                onCheckedChange={(v) => setTagForm({ ...tagForm, isActive: v })}
+              />
+            </div>
+          </div>
+        )}
+      </FormDialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title={`Delete "${deleteTarget?.name}"?`}
+        description="This cannot be undone. Restaurants linked to it will lose this category."
+        confirmLabel="Delete"
+        destructive
+      />
     </div>
   );
 }
+
+const toneClass = {
+  brand: "hover:bg-accent hover:text-accent-foreground",
+  red: "hover:bg-red-50 hover:text-red-600",
+} as const;
+
+const IconBtn: React.FC<{
+  title: string;
+  tone: keyof typeof toneClass;
+  onClick: () => void;
+  children: React.ReactNode;
+}> = ({ title, tone, onClick, children }) => (
+  <button
+    onClick={onClick}
+    title={title}
+    aria-label={title}
+    className={`rounded-lg p-1.5 text-muted-foreground transition-colors ${toneClass[tone]}`}
+  >
+    {children}
+  </button>
+);

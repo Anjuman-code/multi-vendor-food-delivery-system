@@ -409,6 +409,15 @@ export const listVendors = async (
     }
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
     if (req.query.isBanned !== undefined) filter.isBanned = req.query.isBanned === 'true';
+    if (req.query.isSuspended !== undefined) filter.isSuspended = req.query.isSuspended === 'true';
+
+    // `isVerified` lives on the VendorProfile, so resolve matching user ids first.
+    if (req.query.isVerified !== undefined) {
+      const verifiedProfiles = await VendorProfile.find({
+        isVerified: req.query.isVerified === 'true',
+      }).select('userId');
+      filter._id = { $in: verifiedProfiles.map((p) => p.userId) };
+    }
 
     const [users, total] = await Promise.all([
       User.find(filter)
@@ -587,6 +596,48 @@ export const suspendVendor = async (
     });
 
     successResponse(res, { user }, 'Vendor suspended');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/admin/users/vendors/:id/unsuspend */
+export const unsuspendVendor = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { reason } = req.body as { reason: string };
+    if (!reason) throw new ValidationError('Reason is required');
+
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.id, role: UserRole.VENDOR },
+      { isSuspended: false, suspendedReason: undefined, suspendedUntil: undefined, suspendedBy: undefined, isActive: true },
+      { new: true },
+    ).select('-password -refreshToken');
+    if (!user) throw new NotFoundError('Vendor not found');
+
+    // Cascade: reopen the restaurants closed by the suspension
+    await Restaurant.updateMany(
+      { _id: { $in: (await VendorProfile.findOne({ userId: req.params.id }))?.restaurantIds ?? [] } },
+      { isTemporarilyClosed: false, closureReason: undefined },
+    );
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: 'vendor.unsuspended',
+      resourceType: 'User',
+      resourceId: user._id,
+      changes: [{ field: 'isSuspended', newValue: false }],
+      metadata: { reason },
+    });
+
+    successResponse(res, { user }, 'Vendor unsuspended');
   } catch (error) {
     next(error);
   }
@@ -992,12 +1043,35 @@ export const updateAdminUser = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const { adminTier } = req.body as { adminTier: AdminTier };
-    const role = adminTier === AdminTier.SUPPORT ? UserRole.SUPPORT : UserRole.ADMIN;
+    const { adminTier, isActive } = req.body as {
+      adminTier?: AdminTier;
+      isActive?: boolean;
+    };
+
+    const update: Record<string, unknown> = {};
+    const changes: Array<{ field: string; newValue?: unknown }> = [];
+
+    if (adminTier !== undefined) {
+      if (!Object.values(AdminTier).includes(adminTier)) {
+        throw new ValidationError('Invalid admin tier');
+      }
+      update.adminTier = adminTier;
+      update.role = adminTier === AdminTier.SUPPORT ? UserRole.SUPPORT : UserRole.ADMIN;
+      changes.push({ field: 'adminTier', newValue: adminTier });
+    }
+
+    if (isActive !== undefined) {
+      update.isActive = isActive;
+      changes.push({ field: 'isActive', newValue: isActive });
+    }
+
+    if (changes.length === 0) {
+      throw new ValidationError('No valid fields to update');
+    }
 
     const admin = await User.findOneAndUpdate(
       { _id: req.params.id, role: { $in: [UserRole.ADMIN, UserRole.SUPPORT] } },
-      { adminTier, role },
+      update,
       { new: true },
     ).select('-password -refreshToken');
     if (!admin) throw new NotFoundError('Admin user not found');
@@ -1005,10 +1079,13 @@ export const updateAdminUser = async (
     await createAuditLog({
       actorId: authReq.user._id,
       actorRole: authReq.user.role,
-      action: 'admin_user.tier_changed',
+      action:
+        adminTier !== undefined && isActive === undefined
+          ? 'admin_user.tier_changed'
+          : 'admin_user.updated',
       resourceType: 'User',
       resourceId: admin._id,
-      changes: [{ field: 'adminTier', newValue: adminTier }],
+      changes,
     });
 
     successResponse(res, { admin }, 'Admin user updated');

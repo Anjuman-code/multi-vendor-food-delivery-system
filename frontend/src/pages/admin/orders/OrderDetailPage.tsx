@@ -1,17 +1,50 @@
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  AuditTimeline,
+  type AuditEntry,
+  ConfirmDialog,
+  DetailHeader,
+  EmptyState,
+  FormDialog,
+  SectionCard,
+  StatusBadge,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import {
-    ArrowLeft,
-    Clock,
-    MapPin,
-    Package,
-    User,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { formatCurrency, formatDateTime } from "@/utils/format";
+import { Bike, Clock, MapPin, Package, RefreshCcw, User } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
+const VALID_STATUSES = [
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+  "picked_up",
+  "delivered",
+  "cancelled",
+];
+
+interface OrderItem {
+  menuItemId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  totalPrice: number;
+}
 interface OrderDetail {
   _id: string;
   orderNumber: string;
@@ -22,307 +55,509 @@ interface OrderDetail {
   subtotal: number;
   deliveryFee: number;
   discount?: number;
+  tipAmount?: number;
   createdAt: string;
-  updatedAt: string;
   customer: { _id: string; firstName: string; lastName: string; email: string; phone?: string };
   restaurant: { _id: string; name: string; address?: string };
   driver?: { _id: string; firstName: string; lastName: string; phone?: string };
-  items: { name: string; quantity: number; price: number; totalPrice: number }[];
+  items: OrderItem[];
   deliveryAddress?: { street?: string; area?: string; district?: string };
   statusHistory?: { status: string; timestamp: string; note?: string }[];
-  refund?: { amount: number; reason: string; processedAt?: string };
-  dispute?: { status: string; reason: string };
+  refundLineItems?: Array<{ name: string; refundAmount: number; reason?: string }>;
 }
 
-const statusColor = (s: string) => ({
-  pending: "bg-amber-50 text-amber-600",
-  confirmed: "bg-blue-50 text-blue-600",
-  preparing: "bg-blue-50 text-blue-700",
-  ready: "bg-indigo-50 text-indigo-600",
-  picked_up: "bg-purple-50 text-purple-600",
-  on_the_way: "bg-purple-50 text-purple-700",
-  delivered: "bg-emerald-50 text-emerald-600",
-  cancelled: "bg-red-50 text-red-600",
-  disputed: "bg-orange-50 text-orange-600",
-}[s] ?? "bg-gray-100 text-gray-600");
+interface DriverOption {
+  _id: string;
+  firstName: string;
+  lastName: string;
+}
+
+const str = (v: unknown) => (v == null ? undefined : String(v));
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [dialog, setDialog] = useState<"cancel" | "refund" | "override" | null>(null);
-  const [overrideStatus, setOverrideStatus] = useState("");
   const { toast } = useToast();
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState<"cancel" | "refund" | "override" | "reassign" | null>(null);
 
-  useEffect(() => {
+  // Override
+  const [overrideStatus, setOverrideStatus] = useState("");
+  // Refund
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  // Reassign
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
+  const [driverId, setDriverId] = useState("");
+  const [reassignReason, setReassignReason] = useState("");
+
+  const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    adminService.getOrder(id)
-      .then((res) => {
-        const o = (res.data as { data: { order: Record<string, unknown> } }).data.order;
-        const c = o.customerId as Record<string, unknown> | undefined;
-        const r = o.restaurantId as Record<string, unknown> | undefined;
-        const d = o.driverId as Record<string, unknown> | undefined;
-        const addr = r?.address as Record<string, unknown> | undefined;
+    try {
+      const res = await adminService.getOrder(id);
+      const payload = (res.data as { data: { order: Record<string, unknown>; auditHistory: AuditEntry[] } }).data;
+      const o = payload.order;
+      const c = o.customerId as Record<string, unknown> | undefined;
+      const r = o.restaurantId as Record<string, unknown> | undefined;
+      const d = o.driverId as Record<string, unknown> | undefined;
+      const addr = r?.address as Record<string, unknown> | undefined;
+      setOrder({
+        _id: o._id as string,
+        orderNumber: o.orderNumber as string,
+        status: o.status as string,
+        paymentStatus: o.paymentStatus as string,
+        paymentMethod: o.paymentMethod as string,
+        total: o.total as number,
+        subtotal: o.subtotal as number,
+        deliveryFee: o.deliveryFee as number,
+        discount: o.discount as number | undefined,
+        tipAmount: o.tipAmount as number | undefined,
+        createdAt: o.createdAt as string,
+        customer: c
+          ? {
+              _id: c._id as string,
+              firstName: c.firstName as string,
+              lastName: c.lastName as string,
+              email: c.email as string,
+              phone: str(c.phoneNumber),
+            }
+          : { _id: "", firstName: "Unknown", lastName: "", email: "" },
+        restaurant: r
+          ? {
+              _id: r._id as string,
+              name: r.name as string,
+              address: addr ? `${addr.street}, ${addr.area}, ${addr.district}` : undefined,
+            }
+          : { _id: "", name: "Unknown" },
+        driver: d
+          ? {
+              _id: d._id as string,
+              firstName: d.firstName as string,
+              lastName: d.lastName as string,
+              phone: str(d.phoneNumber),
+            }
+          : undefined,
+        items: (o.items as Array<Record<string, unknown>>).map((i) => ({
+          menuItemId: str(i.menuItemId),
+          name: i.name as string,
+          quantity: i.quantity as number,
+          price: i.price as number,
+          totalPrice: (i.itemTotal ?? i.totalPrice) as number,
+        })),
+        deliveryAddress: o.deliveryAddress as OrderDetail["deliveryAddress"],
+        statusHistory: o.statusHistory as OrderDetail["statusHistory"],
+        refundLineItems: o.refundLineItems as OrderDetail["refundLineItems"],
+      });
+      setAudit(payload.auditHistory ?? []);
+    } catch {
+      toast({ title: "Failed to load order", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [id, toast]);
 
-        setOrder({
-          _id: o._id as string,
-          orderNumber: o.orderNumber as string,
-          status: o.status as string,
-          paymentStatus: o.paymentStatus as string,
-          paymentMethod: o.paymentMethod as string,
-          total: o.total as number,
-          subtotal: o.subtotal as number,
-          deliveryFee: o.deliveryFee as number,
-          discount: o.discount as number | undefined,
-          createdAt: o.createdAt as string,
-          updatedAt: o.updatedAt as string,
-          customer: c
-            ? {
-                _id: c._id as string,
-                firstName: c.firstName as string,
-                lastName: c.lastName as string,
-                email: c.email as string,
-                phone: c.phoneNumber as string | undefined,
-              }
-            : { _id: "", firstName: "Unknown", lastName: "", email: "" },
-          restaurant: r
-            ? {
-                _id: r._id as string,
-                name: r.name as string,
-                address: addr
-                  ? `${addr.street}, ${addr.area}, ${addr.district}`
-                  : undefined,
-              }
-            : { _id: "", name: "Unknown" },
-          driver: d
-            ? {
-                _id: d._id as string,
-                firstName: d.firstName as string,
-                lastName: d.lastName as string,
-                phone: d.phoneNumber as string | undefined,
-              }
-            : undefined,
-          items: (o.items as { name: string; quantity: number; price: number; itemTotal: number }[]).map((i) => ({
-            name: i.name,
-            quantity: i.quantity,
-            price: i.price,
-            totalPrice: i.itemTotal,
-          })),
-          deliveryAddress: o.deliveryAddress as OrderDetail["deliveryAddress"],
-          statusHistory: o.statusHistory as OrderDetail["statusHistory"],
-          refund: o.refund as OrderDetail["refund"],
-          dispute: o.dispute as OrderDetail["dispute"],
-        });
-      })
-      .catch(() => {
-        toast({ title: "Error", description: "Failed to load order details.", variant: "destructive" });
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Keep the refund amount in sync with the selected line items.
+  useEffect(() => {
+    if (!order || selectedItems.size === 0) return;
+    const sum = [...selectedItems].reduce((acc, idx) => acc + (order.items[idx]?.totalPrice ?? 0), 0);
+    setRefundAmount(String(sum));
+  }, [selectedItems, order]);
+
+  const refundedTotal = order?.refundLineItems?.reduce((s, li) => s + li.refundAmount, 0) ?? 0;
 
   const handleCancel = async (reason?: string) => {
     if (!id) return;
     await adminService.cancelOrder(id, { reason: reason! });
-    toast({ title: "Order Cancelled" });
-    setDialog(null);
-    setOrder((o) => o ? { ...o, status: "cancelled" } : o);
-  };
-
-  const handleRefund = async (reason?: string) => {
-    if (!id || !order) return;
-    await adminService.issueRefund(id, { amount: order.total, reason: reason! });
-    toast({ title: "Refund Issued" });
-    setDialog(null);
+    toast({ title: "Order cancelled" });
+    await load();
   };
 
   const handleOverride = async (reason?: string) => {
     if (!id || !overrideStatus) return;
     await adminService.overrideOrderStatus(id, { status: overrideStatus, reason: reason! });
-    toast({ title: "Status Updated" });
-    setDialog(null);
-    setOrder((o) => o ? { ...o, status: overrideStatus } : o);
+    toast({ title: "Status updated" });
+    setOverrideStatus("");
+    await load();
+  };
+
+  const submitRefund = async () => {
+    if (!id || !order) return;
+    const amount = parseFloat(refundAmount);
+    if (Number.isNaN(amount) || amount <= 0 || amount > order.total) {
+      toast({ title: `Enter an amount between ৳1 and ${formatCurrency(order.total)}`, variant: "destructive" });
+      return;
+    }
+    if (refundReason.trim().length < 5) {
+      toast({ title: "Provide a refund reason (5+ chars)", variant: "destructive" });
+      return;
+    }
+    const lineItems = [...selectedItems].map((idx) => {
+      const it = order.items[idx];
+      return { menuItemId: it.menuItemId ?? "", name: it.name, quantity: it.quantity, amount: it.totalPrice };
+    });
+    setBusy(true);
+    try {
+      await adminService.issueRefund(id, {
+        amount,
+        reason: refundReason.trim(),
+        lineItems: lineItems.length ? lineItems : undefined,
+      });
+      toast({ title: `Refund of ${formatCurrency(amount)} issued` });
+      setDialog(null);
+      setRefundAmount("");
+      setRefundReason("");
+      setSelectedItems(new Set());
+      await load();
+    } catch {
+      toast({ title: "Refund failed", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openReassign = async () => {
+    setDialog("reassign");
+    try {
+      const res = await adminService.listDrivers({ limit: 100, isActive: true });
+      setDrivers((res.data as { data: { drivers: DriverOption[] } }).data.drivers);
+    } catch {
+      setDrivers([]);
+    }
+  };
+
+  const submitReassign = async () => {
+    if (!id || !driverId || reassignReason.trim().length < 5) {
+      toast({ title: "Pick a driver and give a reason", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      await adminService.reassignDriver(id, { driverId, reason: reassignReason.trim() });
+      toast({ title: "Driver reassigned" });
+      setDialog(null);
+      setDriverId("");
+      setReassignReason("");
+      await load();
+    } catch {
+      toast({ title: "Reassign failed", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="space-y-5">
+        <Skeleton className="h-8 w-40" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
       </div>
     );
   }
 
-  if (!order) return <p className="text-gray-500">Order not found.</p>;
+  if (!order) {
+    return <EmptyState icon={Package} title="Order not found" />;
+  }
+
+  const canCancel = order.status !== "cancelled" && order.status !== "delivered";
+  const canRefund = order.paymentStatus === "paid" && refundedTotal < order.total;
 
   return (
-    <div className="space-y-5 max-w-4xl">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-        <Link to="/admin/orders" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Orders
-        </Link>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{order.orderNumber}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${statusColor(order.status)}`}>
-                {order.status.replace(/_/g, " ")}
-              </span>
-              <span className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {order.status !== "cancelled" && order.status !== "delivered" && (
-              <button onClick={() => setDialog("cancel")}
-                className="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
+    <div className="max-w-5xl space-y-5">
+      <DetailHeader
+        backTo="/admin/orders"
+        backLabel="Orders"
+        title={`#${order.orderNumber}`}
+        icon={Package}
+        subtitle={formatDateTime(order.createdAt)}
+        badges={
+          <>
+            <StatusBadge status={order.status} />
+            <StatusBadge status={order.paymentStatus} size="sm" />
+          </>
+        }
+        actions={
+          <>
+            {canCancel && (
+              <Button variant="outline" size="sm" onClick={() => setDialog("cancel")}>
                 Cancel Order
-              </button>
+              </Button>
             )}
-            {order.paymentStatus === "paid" && !order.refund && (
-              <button onClick={() => setDialog("refund")}
-                className="px-3 py-2 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors">
+            {canRefund && (
+              <Button variant="outline" size="sm" onClick={() => setDialog("refund")}>
                 Issue Refund
-              </button>
+              </Button>
             )}
-            <div className="flex items-center gap-1">
-              <select value={overrideStatus} onChange={(e) => setOverrideStatus(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none bg-white focus:border-indigo-500">
-                <option value="">Override Status…</option>
-                {["pending","confirmed","preparing","ready","picked_up","on_the_way","delivered","cancelled"].map(s => (
-                  <option key={s} value={s}>{s.replace(/_/g," ")}</option>
-                ))}
-              </select>
+            {order.driver && canCancel && (
+              <Button variant="outline" size="sm" onClick={openReassign}>
+                <RefreshCcw className="mr-1.5 h-4 w-4" /> Reassign
+              </Button>
+            )}
+            <div className="flex items-center gap-1.5">
+              <Select value={overrideStatus} onValueChange={setOverrideStatus}>
+                <SelectTrigger className="h-9 w-[170px]">
+                  <SelectValue placeholder="Override status…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VALID_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">
+                      {s.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {overrideStatus && (
-                <button onClick={() => setDialog("override")}
-                  className="px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">
+                <Button variant="brand" size="sm" onClick={() => setDialog("override")}>
                   Apply
-                </button>
+                </Button>
               )}
             </div>
-          </div>
-        </div>
-      </motion.div>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Customer */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <User className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Customer</span>
-          </div>
-          <p className="font-semibold text-gray-900">{order.customer.firstName} {order.customer.lastName}</p>
-          <p className="text-xs text-gray-400">{order.customer.email}</p>
-          {order.customer.phone && <p className="text-xs text-gray-400">{order.customer.phone}</p>}
+      {refundedTotal > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="font-semibold">{formatCurrency(refundedTotal)} refunded</span>
+          {refundedTotal >= order.total ? " (full)" : " (partial)"} on this order.
         </div>
+      )}
 
-        {/* Restaurant */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <Package className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Restaurant</span>
-          </div>
-          <p className="font-semibold text-gray-900">{order.restaurant.name}</p>
-          {order.restaurant.address && <p className="text-xs text-gray-400">{order.restaurant.address}</p>}
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <SectionCard title={<span className="flex items-center gap-2"><User className="h-4 w-4" /> Customer</span>}>
+          <p className="font-semibold text-foreground">
+            {order.customer.firstName} {order.customer.lastName}
+          </p>
+          <p className="text-xs text-muted-foreground">{order.customer.email}</p>
+          {order.customer.phone && <p className="text-xs text-muted-foreground">{order.customer.phone}</p>}
+        </SectionCard>
 
-        {/* Delivery Address */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Delivery</span>
-          </div>
+        <SectionCard title={<span className="flex items-center gap-2"><Package className="h-4 w-4" /> Restaurant</span>}>
+          <p className="font-semibold text-foreground">{order.restaurant.name}</p>
+          {order.restaurant.address && <p className="text-xs text-muted-foreground">{order.restaurant.address}</p>}
+        </SectionCard>
+
+        <SectionCard title={<span className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Delivery</span>}>
           {order.deliveryAddress ? (
             <>
-              {order.deliveryAddress.street && <p className="text-sm text-gray-700">{order.deliveryAddress.street}</p>}
-              {order.deliveryAddress.area && <p className="text-xs text-gray-400">{order.deliveryAddress.area}, {order.deliveryAddress.district}</p>}
+              {order.deliveryAddress.street && <p className="text-sm text-foreground">{order.deliveryAddress.street}</p>}
+              {order.deliveryAddress.area && (
+                <p className="text-xs text-muted-foreground">
+                  {order.deliveryAddress.area}, {order.deliveryAddress.district}
+                </p>
+              )}
             </>
           ) : (
-            <p className="text-xs text-gray-400">—</p>
+            <p className="text-xs text-muted-foreground">—</p>
           )}
           {order.driver && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <p className="text-xs text-gray-500">Driver</p>
-              <p className="text-sm font-medium">{order.driver.firstName} {order.driver.lastName}</p>
-              {order.driver.phone && <p className="text-xs text-gray-400">{order.driver.phone}</p>}
+            <div className="mt-2 flex items-center gap-2 border-t border-border pt-2">
+              <Bike className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {order.driver.firstName} {order.driver.lastName}
+                </p>
+                {order.driver.phone && <p className="text-xs text-muted-foreground">{order.driver.phone}</p>}
+              </div>
             </div>
           )}
-        </div>
+        </SectionCard>
       </div>
 
-      {/* Items */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Order Items</h2>
-        <div className="divide-y divide-gray-50">
+      <SectionCard title="Order Items" flush>
+        <div className="divide-y divide-border">
           {order.items.map((item, i) => (
-            <div key={i} className="flex items-center justify-between py-2.5">
+            <div key={i} className="flex items-center justify-between px-5 py-3">
               <div>
-                <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                <p className="text-xs text-gray-400">×{item.quantity} · ৳{item.price.toLocaleString()} each</p>
+                <p className="text-sm font-medium text-foreground">{item.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  ×{item.quantity} · {formatCurrency(item.price)} each
+                </p>
               </div>
-              <span className="text-sm font-semibold text-gray-900">৳{item.totalPrice.toLocaleString()}</span>
+              <span className="text-sm font-semibold text-foreground">{formatCurrency(item.totalPrice)}</span>
             </div>
           ))}
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Subtotal</span><span>৳{order.subtotal.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Delivery Fee</span><span>৳{order.deliveryFee.toLocaleString()}</span>
-          </div>
-          {order.discount ? (
-            <div className="flex justify-between text-sm text-emerald-600">
-              <span>Discount</span><span>-৳{order.discount.toLocaleString()}</span>
-            </div>
-          ) : null}
-          <div className="flex justify-between text-base font-bold text-gray-900 pt-1 border-t border-gray-100">
-            <span>Total</span><span>৳{order.total.toLocaleString()}</span>
+        <div className="space-y-1 border-t border-border px-5 py-4">
+          <Row label="Subtotal" value={formatCurrency(order.subtotal)} />
+          <Row label="Delivery Fee" value={formatCurrency(order.deliveryFee)} />
+          {order.tipAmount ? <Row label="Tip" value={formatCurrency(order.tipAmount)} /> : null}
+          {order.discount ? <Row label="Discount" value={`−${formatCurrency(order.discount)}`} accent /> : null}
+          <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
+            <span>Total</span>
+            <span>{formatCurrency(order.total)}</span>
           </div>
         </div>
+      </SectionCard>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard title={<span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Status Timeline</span>}>
+          {order.statusHistory?.length ? (
+            <ol className="relative space-y-4 pl-5">
+              <span className="absolute bottom-1 left-[5px] top-1 w-px bg-border" />
+              {order.statusHistory.map((h, i) => (
+                <li key={i} className="relative">
+                  <span className="absolute -left-5 top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-brand-500" />
+                  <p className="text-sm font-medium capitalize text-foreground">{h.status.replace(/_/g, " ")}</p>
+                  {h.note && <p className="text-xs text-muted-foreground">{h.note}</p>}
+                  <p className="text-xs text-muted-foreground/70">{formatDateTime(h.timestamp)}</p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-muted-foreground">No status history.</p>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Admin Activity" description="Refunds, overrides and reassignments on this order.">
+          <AuditTimeline entries={audit} emptyLabel="No admin actions on this order." />
+        </SectionCard>
       </div>
 
-      {/* Status Timeline */}
-      {order.statusHistory && order.statusHistory.length > 0 && (
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-4 h-4 text-gray-400" />
-            <h2 className="text-sm font-bold text-gray-700">Status Timeline</h2>
-          </div>
-          <div className="relative pl-4 space-y-4">
-            <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-gray-100" />
-            {order.statusHistory.map((h, i) => (
-              <div key={i} className="relative flex items-start gap-3">
-                <div className="absolute -left-[17px] top-0.5 w-3 h-3 rounded-full bg-indigo-500 border-2 border-white" />
-                <div>
-                  <p className="text-sm font-medium capitalize text-gray-800">{h.status.replace(/_/g," ")}</p>
-                  {h.note && <p className="text-xs text-gray-400">{h.note}</p>}
-                  <p className="text-xs text-gray-300">{new Date(h.timestamp).toLocaleString()}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Refund info */}
-      {order.refund && (
-        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-          <p className="text-sm font-bold text-amber-700">Refund Issued</p>
-          <p className="text-sm text-amber-600">৳{order.refund.amount.toLocaleString()} — {order.refund.reason}</p>
-          {order.refund.processedAt && <p className="text-xs text-amber-400">{new Date(order.refund.processedAt).toLocaleString()}</p>}
-        </div>
-      )}
-
+      {/* Cancel */}
       <ConfirmDialog open={dialog === "cancel"} onClose={() => setDialog(null)} onConfirm={handleCancel}
         title="Cancel this order?" description="The order will be cancelled and the customer notified."
-        confirmLabel="Cancel Order" requireReason reasonPlaceholder="Reason for cancellation…" destructive />
-      <ConfirmDialog open={dialog === "refund"} onClose={() => setDialog(null)} onConfirm={handleRefund}
-        title={`Issue full refund of ৳${order.total.toLocaleString()}?`}
-        description="The customer will receive a refund for the full order amount."
-        confirmLabel="Issue Refund" requireReason reasonPlaceholder="Reason for refund…" destructive={false} />
+        confirmLabel="Cancel Order" requireReason destructive />
+
+      {/* Override */}
       <ConfirmDialog open={dialog === "override"} onClose={() => setDialog(null)} onConfirm={handleOverride}
-        title={`Override status to "${overrideStatus.replace(/_/g," ")}"?`}
-        description="This is an admin override. Provide a reason for the audit log."
-        confirmLabel="Override" requireReason reasonPlaceholder="Reason…" destructive={false} />
+        title={`Override status to "${overrideStatus.replace(/_/g, " ")}"?`}
+        description="Admin override — provide a reason for the audit log."
+        confirmLabel="Override" requireReason destructive={false} />
+
+      {/* Refund */}
+      <FormDialog
+        open={dialog === "refund"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Issue Refund"
+        description={`Up to ${formatCurrency(order.total - refundedTotal)} can be refunded.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancel</Button>
+            <Button variant="brand" onClick={submitRefund} disabled={busy}>
+              {busy ? "Processing…" : "Issue Refund"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <Label className="mb-2 block">Refund specific items (optional)</Label>
+            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-border p-2">
+              {order.items.map((it, i) => (
+                <label key={i} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                  <Checkbox
+                    checked={selectedItems.has(i)}
+                    onCheckedChange={(c) => {
+                      setSelectedItems((prev) => {
+                        const next = new Set(prev);
+                        if (c) next.add(i);
+                        else next.delete(i);
+                        return next;
+                      });
+                    }}
+                  />
+                  <span className="flex-1 text-sm text-foreground">
+                    {it.name} <span className="text-muted-foreground">×{it.quantity}</span>
+                  </span>
+                  <span className="text-sm font-medium">{formatCurrency(it.totalPrice)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="refund-amt">Refund amount</Label>
+            <Input
+              id="refund-amt"
+              type="number"
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
+              placeholder={String(order.total)}
+            />
+            <button
+              type="button"
+              onClick={() => { setSelectedItems(new Set()); setRefundAmount(String(order.total - refundedTotal)); }}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Refund full remaining ({formatCurrency(order.total - refundedTotal)})
+            </button>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="refund-reason">Reason</Label>
+            <Textarea
+              id="refund-reason"
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="Reason for refund…"
+              rows={2}
+            />
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Reassign driver */}
+      <FormDialog
+        open={dialog === "reassign"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Reassign Driver"
+        description="Assign this delivery to a different driver."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancel</Button>
+            <Button variant="brand" onClick={submitReassign} disabled={busy}>
+              {busy ? "Saving…" : "Reassign"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Driver</Label>
+            <Select value={driverId} onValueChange={setDriverId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a driver" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((d) => (
+                  <SelectItem key={d._id} value={d._id}>
+                    {d.firstName} {d.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reassign-reason">Reason</Label>
+            <Textarea
+              id="reassign-reason"
+              value={reassignReason}
+              onChange={(e) => setReassignReason(e.target.value)}
+              placeholder="Reason for reassignment…"
+              rows={2}
+            />
+          </div>
+        </div>
+      </FormDialog>
     </div>
   );
 }
+
+const Row: React.FC<{ label: string; value: string; accent?: boolean }> = ({ label, value, accent }) => (
+  <div className={`flex justify-between text-sm ${accent ? "text-emerald-600" : "text-muted-foreground"}`}>
+    <span>{label}</span>
+    <span>{value}</span>
+  </div>
+);

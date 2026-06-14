@@ -152,6 +152,9 @@ const adminService = {
   suspendVendor: (id: string, data: { reason: string; durationDays?: number }) =>
     httpClient.post(`/api/admin/users/vendors/${id}/suspend`, data),
 
+  unsuspendVendor: (id: string, data: { reason: string }) =>
+    httpClient.post(`/api/admin/users/vendors/${id}/unsuspend`, data),
+
   // ── Drivers ───────────────────────────────────────────────────
 
   listDrivers: (params?: Record<string, unknown>) =>
@@ -260,8 +263,14 @@ const adminService = {
   getPayout: (id: string) =>
     httpClient.get(`/api/admin/finance/payouts/${id}`),
 
+  createPayout: (data: { vendorId: string; amount?: number; notes?: string }) =>
+    httpClient.post("/api/admin/finance/payouts", data),
+
   processPayout: (id: string, data?: { transactionRef?: string }) =>
     httpClient.post(`/api/admin/finance/payouts/${id}/process`, data),
+
+  batchProcessPayouts: (data: { ids: string[]; transactionRef?: string }) =>
+    httpClient.post("/api/admin/finance/payouts/batch-process", data),
 
   getRevenue: (range?: string) =>
     httpClient.get("/api/admin/finance/revenue", { params: { range } }),
@@ -291,6 +300,8 @@ const adminService = {
     httpClient.post("/api/admin/content/blocks", data),
   updateContentBlock: (id: string, data: Record<string, unknown>) =>
     httpClient.patch(`/api/admin/content/blocks/${id}`, data),
+  reorderContentBlocks: (order: Array<{ id: string; position: number }>) =>
+    httpClient.patch("/api/admin/content/blocks/reorder", { order }),
   deleteContentBlock: (id: string) =>
     httpClient.delete(`/api/admin/content/blocks/${id}`),
 

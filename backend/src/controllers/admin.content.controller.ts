@@ -143,6 +143,26 @@ export const updateContentBlock = async (req: Request, res: Response, next: Next
   } catch (e) { next(e); }
 };
 
+/** PATCH /api/admin/content/blocks/reorder — bulk update block positions */
+export const reorderContentBlocks = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+    const { order } = req.body as { order: Array<{ id: string; position: number }> };
+    if (!Array.isArray(order) || order.length === 0) {
+      throw new ValidationError('order array is required');
+    }
+    await ContentBlock.bulkWrite(
+      order.map((o) => ({
+        updateOne: { filter: { _id: o.id }, update: { $set: { position: o.position } } },
+      })),
+    );
+    const blocks = await ContentBlock.find().sort({ position: 1, createdAt: -1 });
+    await createAuditLog({ actorId: authReq.user._id, actorRole: authReq.user.role, action: 'content_block.reordered', resourceType: 'ContentBlock', resourceId: authReq.user._id, changes: [{ field: 'order', newValue: order.map((o) => o.id) }] });
+    successResponse(res, { blocks }, 'Content blocks reordered');
+  } catch (e) { next(e); }
+};
+
 /** DELETE /api/admin/content/blocks/:id */
 export const deleteContentBlock = async (req: Request, res: Response, next: NextFunction) => {
   try {

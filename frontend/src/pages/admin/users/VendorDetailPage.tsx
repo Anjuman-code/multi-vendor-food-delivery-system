@@ -1,254 +1,395 @@
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  ConfirmDialog,
+  DetailHeader,
+  EmptyState,
+  FormDialog,
+  KeyValueList,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/admin";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import adminService from "@/services/adminService";
-import { motion } from "framer-motion";
-import { ArrowLeft, Building2, Store } from "lucide-react";
-import { useEffect, useState } from "react";
+import { formatCurrency, formatDate, formatPercent } from "@/utils/format";
+import {
+  Building2,
+  CheckCircle2,
+  Percent,
+  ShieldCheck,
+  Store,
+  UserX,
+  Wallet,
+} from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+interface VendorRestaurant {
+  _id: string;
+  name: string;
+  approvalStatus: "pending" | "approved" | "rejected";
+  isActive?: boolean;
+  totalOrders?: number;
+}
 
 interface VendorDetail {
   _id: string;
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string;
+  phoneNumber?: string;
   isSuspended: boolean;
+  suspendedReason?: string;
   createdAt: string;
   vendorProfile?: {
-    businessName: string;
+    businessName?: string;
     isVerified: boolean;
     commissionRate?: number;
-    totalRestaurants?: number;
-    totalRevenue?: number;
+    totalEarnings?: number;
     pendingPayout?: number;
+    totalRestaurants: number;
   };
-  restaurants?: { _id: string; name: string; approvalStatus: string; totalOrders?: number }[];
+  restaurants: VendorRestaurant[];
 }
+
+type DialogType = "verify" | "reject" | "suspend" | "unsuspend" | "commission";
 
 export default function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dialog, setDialog] = useState<"verify" | "suspend" | "commission" | null>(null);
-  const [commissionInput, setCommissionInput] = useState("");
-  const { toast } = useToast();
+  const [dialog, setDialog] = useState<DialogType | null>(null);
+  const [rateInput, setRateInput] = useState("");
+  const [rateReason, setRateReason] = useState("");
+  const [rateLoading, setRateLoading] = useState(false);
 
-  const load = () => {
+  const load = async () => {
     if (!id) return;
     setLoading(true);
-    adminService.getVendor(id)
-      .then((res) => {
-        const data = (res.data as {
+    try {
+      const res = await adminService.getVendor(id);
+      const data = (
+        res.data as {
           data: {
             user: {
               _id: string;
               firstName: string;
               lastName: string;
               email: string;
-              phone?: string;
+              phoneNumber?: string;
               isSuspended: boolean;
+              suspendedReason?: string;
               createdAt: string;
             };
             vendorProfile: {
-              businessName: string;
+              businessName?: string;
               isVerified: boolean;
               commissionRate?: number;
               totalEarnings?: number;
               pendingPayout?: number;
               restaurantIds?: string[];
             } | null;
-            restaurants: { _id: string; name: string; approvalStatus: string; totalOrders?: number }[];
+            restaurants: VendorRestaurant[];
           };
-        }).data;
-        const v: VendorDetail = {
-          _id: data.user._id,
-          firstName: data.user.firstName,
-          lastName: data.user.lastName,
-          email: data.user.email,
-          phone: data.user.phone,
-          isSuspended: data.user.isSuspended,
-          createdAt: data.user.createdAt,
-          vendorProfile: data.vendorProfile
-            ? {
-                businessName: data.vendorProfile.businessName,
-                isVerified: data.vendorProfile.isVerified,
-                commissionRate: data.vendorProfile.commissionRate,
-                totalRestaurants: data.vendorProfile.restaurantIds?.length ?? 0,
-                totalRevenue: data.vendorProfile.totalEarnings,
-                pendingPayout: data.vendorProfile.pendingPayout,
-              }
-            : undefined,
-          restaurants: data.restaurants,
-        };
-        setVendor(v);
-        setCommissionInput(String(v.vendorProfile?.commissionRate ?? 15));
-      })
-      .catch(() => {
-        toast({ title: "Error", description: "Failed to load vendor details.", variant: "destructive" });
-      })
-      .finally(() => setLoading(false));
+        }
+      ).data;
+      const vp = data.vendorProfile;
+      setVendor({
+        _id: data.user._id,
+        firstName: data.user.firstName,
+        lastName: data.user.lastName,
+        email: data.user.email,
+        phoneNumber: data.user.phoneNumber,
+        isSuspended: data.user.isSuspended,
+        suspendedReason: data.user.suspendedReason,
+        createdAt: data.user.createdAt,
+        vendorProfile: vp
+          ? {
+              businessName: vp.businessName,
+              isVerified: vp.isVerified,
+              commissionRate: vp.commissionRate,
+              totalEarnings: vp.totalEarnings,
+              pendingPayout: vp.pendingPayout,
+              totalRestaurants: vp.restaurantIds?.length ?? data.restaurants.length,
+            }
+          : undefined,
+        restaurants: data.restaurants ?? [],
+      });
+      setRateInput(String(vp?.commissionRate ?? 15));
+    } catch {
+      toast({ title: "Failed to load vendor", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(load, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
 
   const handleVerify = async () => {
     if (!id) return;
-    await adminService.verifyVendor(id, { action: "approve" });
-    toast({ title: "Vendor Verified" });
-    setDialog(null);
-    setVendor((v) => v ? { ...v, vendorProfile: { ...v.vendorProfile!, isVerified: true } } : v);
+    try {
+      await adminService.verifyVendor(id, { action: "approve" });
+      toast({ title: "Vendor verified" });
+      await load();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("failed");
+    }
+  };
+
+  const handleReject = async (reason?: string) => {
+    if (!id) return;
+    try {
+      await adminService.verifyVendor(id, { action: "reject", reason });
+      toast({ title: "Vendor rejected" });
+      await load();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("failed");
+    }
   };
 
   const handleSuspend = async (reason?: string) => {
     if (!id) return;
-    await adminService.suspendVendor(id, { reason: reason! });
-    toast({ title: "Vendor Suspended" });
-    setDialog(null);
-    setVendor((v) => v ? { ...v, isSuspended: true } : v);
+    try {
+      await adminService.suspendVendor(id, { reason: reason! });
+      toast({ title: "Vendor suspended" });
+      await load();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("failed");
+    }
+  };
+
+  const handleUnsuspend = async (reason?: string) => {
+    if (!id) return;
+    try {
+      await adminService.unsuspendVendor(id, { reason: reason! });
+      toast({ title: "Vendor unsuspended" });
+      await load();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+      throw new Error("failed");
+    }
   };
 
   const handleCommission = async () => {
     if (!id) return;
-    const rate = parseFloat(commissionInput);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      toast({ title: "Invalid rate", variant: "destructive" });
+    const rate = parseFloat(rateInput);
+    if (Number.isNaN(rate) || rate < 0 || rate > 100) {
+      toast({ title: "Enter a rate between 0 and 100", variant: "destructive" });
       return;
     }
-    await adminService.changeVendorCommission(id, { rate, reason: "Admin rate adjustment" });
-    toast({ title: "Commission Updated" });
-    setDialog(null);
-    setVendor((v) => v ? { ...v, vendorProfile: { ...v.vendorProfile!, commissionRate: rate } } : v);
+    if (rateReason.trim().length < 3) {
+      toast({ title: "Provide a reason for the change", variant: "destructive" });
+      return;
+    }
+    setRateLoading(true);
+    try {
+      await adminService.changeVendorCommission(id, { rate, reason: rateReason.trim() });
+      toast({ title: "Commission rate updated" });
+      setRateReason("");
+      setDialog(null);
+      await load();
+    } catch {
+      toast({ title: "Failed to update commission", variant: "destructive" });
+    } finally {
+      setRateLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="space-y-5">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+        <Skeleton className="h-48" />
       </div>
     );
   }
 
-  if (!vendor) return <p className="text-gray-500">Vendor not found.</p>;
+  if (!vendor) {
+    return (
+      <EmptyState
+        icon={Building2}
+        title="Vendor not found"
+        description="This vendor may have been removed."
+        action={{ label: "Back to vendors", onClick: () => history.back() }}
+      />
+    );
+  }
+
+  const vp = vendor.vendorProfile;
+  const status: { label: string; tone: StatusTone } = vendor.isSuspended
+    ? { label: "Suspended", tone: "warning" }
+    : vp?.isVerified
+      ? { label: "Verified", tone: "success" }
+      : { label: "Pending Verification", tone: "neutral" };
+
+  const restaurantTone = (s: string): StatusTone =>
+    s === "approved" ? "success" : s === "pending" ? "warning" : "danger";
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-        <Link to="/admin/users/vendors" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Vendors
-        </Link>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{vendor.firstName} {vendor.lastName}</h1>
-              {vendor.vendorProfile?.businessName && (
-                <p className="text-sm text-gray-500">{vendor.vendorProfile.businessName}</p>
-              )}
-              <div className="flex items-center gap-2 mt-1">
-                {vendor.vendorProfile?.isVerified
-                  ? <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-600">Verified</span>
-                  : <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-50 text-amber-600">Pending Verification</span>}
-                {vendor.isSuspended && <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-50 text-red-600">Suspended</span>}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {!vendor.vendorProfile?.isVerified && (
-              <button onClick={() => setDialog("verify")}
-                className="px-3 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                Verify Vendor
-              </button>
+    <div className="space-y-5">
+      <DetailHeader
+        backTo="/admin/users/vendors"
+        backLabel="Vendors"
+        title={vp?.businessName ?? `${vendor.firstName} ${vendor.lastName}`}
+        subtitle={vendor.email}
+        icon={Building2}
+        badges={<StatusBadge label={status.label} tone={status.tone} />}
+        actions={
+          <>
+            {!vp?.isVerified && (
+              <>
+                <Button variant="brand" size="sm" onClick={() => setDialog("verify")}>
+                  <CheckCircle2 className="mr-1.5 h-4 w-4" /> Verify
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setDialog("reject")}>
+                  Reject
+                </Button>
+              </>
             )}
-            {!vendor.isSuspended && (
-              <button onClick={() => setDialog("suspend")}
-                className="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
-                Suspend
-              </button>
+            <Button variant="outline" size="sm" onClick={() => setDialog("commission")}>
+              <Percent className="mr-1.5 h-4 w-4" /> Commission
+            </Button>
+            {vendor.isSuspended ? (
+              <Button variant="outline" size="sm" onClick={() => setDialog("unsuspend")}>
+                <ShieldCheck className="mr-1.5 h-4 w-4" /> Unsuspend
+              </Button>
+            ) : (
+              <Button variant="destructive" size="sm" onClick={() => setDialog("suspend")}>
+                <UserX className="mr-1.5 h-4 w-4" /> Suspend
+              </Button>
             )}
-            <button onClick={() => setDialog("commission")}
-              className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">
-              Change Commission
-            </button>
-          </div>
-        </div>
-      </motion.div>
+          </>
+        }
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Commission Rate", value: `${vendor.vendorProfile?.commissionRate ?? 15}%` },
-          { label: "Restaurants", value: vendor.vendorProfile?.totalRestaurants ?? "—" },
-          { label: "Total Revenue", value: vendor.vendorProfile?.totalRevenue ? `৳${vendor.vendorProfile.totalRevenue.toLocaleString()}` : "—" },
-          { label: "Pending Payout", value: vendor.vendorProfile?.pendingPayout ? `৳${vendor.vendorProfile.pendingPayout.toLocaleString()}` : "৳0" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs text-gray-500">{s.label}</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{s.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard label="Commission" value={formatPercent(vp?.commissionRate ?? 0)} icon={Percent} accent="brand" />
+        <StatCard label="Restaurants" value={vp?.totalRestaurants ?? 0} icon={Store} />
+        <StatCard label="Total Earnings" value={formatCurrency(vp?.totalEarnings ?? 0)} icon={Wallet} />
+        <StatCard label="Pending Payout" value={formatCurrency(vp?.pendingPayout ?? 0)} icon={Wallet} />
       </div>
 
-      {/* Contact */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Contact Info</h2>
-        <div className="space-y-1 text-sm">
-          <p><span className="text-gray-400 w-20 inline-block">Email</span> {vendor.email}</p>
-          {vendor.phone && <p><span className="text-gray-400 w-20 inline-block">Phone</span> {vendor.phone}</p>}
-          <p><span className="text-gray-400 w-20 inline-block">Member since</span> {new Date(vendor.createdAt).toLocaleDateString()}</p>
-        </div>
-      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <SectionCard title="Profile" className="lg:col-span-1">
+          <KeyValueList
+            columns={1}
+            items={[
+              { label: "Business", value: vp?.businessName ?? "—" },
+              { label: "Owner", value: `${vendor.firstName} ${vendor.lastName}` },
+              { label: "Email", value: vendor.email },
+              { label: "Phone", value: vendor.phoneNumber ?? "—" },
+              { label: "Joined", value: formatDate(vendor.createdAt) },
+            ]}
+          />
+          {vendor.isSuspended && vendor.suspendedReason && (
+            <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+              <p className="mb-1 font-bold">Suspension reason</p>
+              <p>{vendor.suspendedReason}</p>
+            </div>
+          )}
+        </SectionCard>
 
-      {/* Restaurants */}
-      {vendor.restaurants && vendor.restaurants.length > 0 && (
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-          <h2 className="text-sm font-bold text-gray-700 mb-3">Restaurants</h2>
-          <div className="divide-y divide-gray-50">
-            {vendor.restaurants.map((r) => (
-              <div key={r._id} className="flex items-center justify-between py-2.5">
-                <div className="flex items-center gap-2">
-                  <Store className="w-4 h-4 text-gray-400" />
-                  <Link to={`/admin/restaurants/${r._id}`} className="text-sm font-medium text-indigo-600 hover:underline">
+        <SectionCard title="Restaurants" className="lg:col-span-2" flush={!!vendor.restaurants.length}>
+          {vendor.restaurants.length ? (
+            <div className="divide-y divide-border">
+              {vendor.restaurants.map((r) => (
+                <div key={r._id} className="flex items-center gap-3 px-5 py-3">
+                  <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <Link
+                    to={`/admin/restaurants/${r._id}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium text-foreground hover:underline"
+                  >
                     {r.name}
                   </Link>
+                  <span className="text-xs text-muted-foreground">{r.totalOrders ?? 0} orders</span>
+                  <StatusBadge label={r.approvalStatus} tone={restaurantTone(r.approvalStatus)} size="sm" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${
-                    r.approvalStatus === "approved" ? "bg-emerald-50 text-emerald-600" :
-                    r.approvalStatus === "pending" ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"
-                  }`}>{r.approvalStatus}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={Store} title="No restaurants" description="This vendor has not listed any restaurants yet." className="border-0 py-8" />
+          )}
+        </SectionCard>
+      </div>
 
+      {/* Action dialogs */}
       <ConfirmDialog open={dialog === "verify"} onClose={() => setDialog(null)} onConfirm={handleVerify}
         title="Verify this vendor?" description="The vendor will gain full access to listing restaurants and receiving payouts."
         confirmLabel="Verify" destructive={false} />
+      <ConfirmDialog open={dialog === "reject"} onClose={() => setDialog(null)} onConfirm={handleReject}
+        title="Reject this vendor?" description="The vendor application will be rejected. Provide a reason for the audit log."
+        confirmLabel="Reject" requireReason reasonPlaceholder="Reason for rejection…" destructive />
       <ConfirmDialog open={dialog === "suspend"} onClose={() => setDialog(null)} onConfirm={handleSuspend}
-        title="Suspend this vendor?" description="All of their restaurants will be temporarily closed."
-        confirmLabel="Suspend" requireReason reasonPlaceholder="Reason for suspension…" destructive />
+        title="Suspend this vendor?" description="All of their restaurants will be temporarily closed until unsuspended."
+        confirmLabel="Suspend" requireReason reasonPlaceholder="Reason for suspension…" destructive={false} />
+      <ConfirmDialog open={dialog === "unsuspend"} onClose={() => setDialog(null)} onConfirm={handleUnsuspend}
+        title="Unsuspend this vendor?" description="The vendor regains access and their restaurants will reopen."
+        confirmLabel="Unsuspend" requireReason reasonPlaceholder="Reason for lifting the suspension…" destructive={false} />
 
-      {/* Commission Modal */}
-      {dialog === "commission" && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDialog(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900 mb-4">Change Commission Rate</h3>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Commission Rate (%)</label>
-            <input type="number" value={commissionInput} onChange={(e) => setCommissionInput(e.target.value)}
-              min="0" max="100" step="0.5"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+      {/* Commission change */}
+      <FormDialog
+        open={dialog === "commission"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Change Commission Rate"
+        description="Set the platform commission percentage charged on this vendor's orders."
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDialog(null)} disabled={rateLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="brand"
+              onClick={handleCommission}
+              disabled={rateLoading || !rateInput || rateReason.trim().length < 3}
+            >
+              {rateLoading ? "Saving…" : "Save"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="rate">Commission rate (%)</Label>
+            <Input
+              id="rate"
+              type="number"
+              min="0"
+              max="100"
+              step="0.5"
+              value={rateInput}
+              onChange={(e) => setRateInput(e.target.value)}
+              placeholder="e.g. 15"
             />
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setDialog(null)} className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl">Cancel</button>
-              <button onClick={handleCommission} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">Save</button>
-            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="rate-reason">Reason</Label>
+            <Textarea
+              id="rate-reason"
+              value={rateReason}
+              onChange={(e) => setRateReason(e.target.value)}
+              placeholder="Reason for the rate change…"
+              rows={2}
+            />
           </div>
         </div>
-      )}
+      </FormDialog>
     </div>
   );
 }

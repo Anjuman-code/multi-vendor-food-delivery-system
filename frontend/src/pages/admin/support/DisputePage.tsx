@@ -1,148 +1,138 @@
-import { AdminTable, Column } from "@/components/admin/AdminTable";
-import httpClient from "@/lib/httpClient";
-import type { SupportTicket, TicketStatus, TicketPriority } from "@/types/support";
-import { TICKET_STATUS_LABELS, TICKET_PRIORITY_LABELS, TICKET_TYPE_LABELS } from "@/types/support";
-import { motion } from "framer-motion";
-import { AlertTriangle } from "lucide-react";
+import {
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  PageHeader,
+  StatusBadge,
+} from "@/components/admin";
+import { useToast } from "@/hooks/use-toast";
+import adminService from "@/services/adminService";
+import type { SupportTicket } from "@/types/support";
+import { TICKET_TYPE_LABELS } from "@/types/support";
+import { formatCurrency, formatRelativeTime } from "@/utils/format";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-const statusBadge = (t: SupportTicket) => {
-  const map: Record<TicketStatus, string> = {
-    open: "bg-amber-50 text-amber-600",
-    in_progress: "bg-blue-50 text-blue-600",
-    waiting_on_user: "bg-orange-50 text-orange-600",
-    resolved: "bg-emerald-50 text-emerald-600",
-    closed: "bg-gray-100 text-gray-500",
-  };
-  return (
-    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${map[t.status]}`}>
-      {TICKET_STATUS_LABELS[t.status]}
-    </span>
-  );
+/** A dispute is a SupportTicket with `orderId` and `userId` populated. */
+type Dispute = Omit<SupportTicket, "orderId"> & {
+  orderId?: { _id: string; orderNumber: string; status: string; total: number; createdAt: string };
 };
 
-const priorityBadge = (t: SupportTicket) => {
-  const map: Record<TicketPriority, string> = {
-    urgent: "bg-red-50 text-red-600",
-    high: "bg-orange-50 text-orange-600",
-    medium: "bg-amber-50 text-amber-600",
-    low: "bg-gray-100 text-gray-500",
-  };
-  return (
-    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${map[t.priority]}`}>
-      {TICKET_PRIORITY_LABELS[t.priority]}
-    </span>
-  );
-};
+const customerOf = (d: Dispute) =>
+  typeof d.userId === "object" && d.userId
+    ? { name: `${d.userId.firstName} ${d.userId.lastName}`, email: d.userId.email }
+    : { name: "—", email: "" };
 
 export default function DisputePage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchDisputes = useCallback(async (p = 1) => {
+  const fetchDisputes = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await httpClient.get(`/api/admin/orders/disputes?page=${p}&limit=20`);
-      const d = (res.data as { data: { tickets: SupportTicket[]; pagination: { total: number; pages: number; page: number } } }).data;
-      setTickets(d.tickets);
-      setTotal(d.pagination.total);
-      setTotalPages(d.pagination.pages);
-      setPage(d.pagination.page);
+      const res = await adminService.getDisputeQueue();
+      const data = (res.data as { data: { disputes: Dispute[]; count: number } }).data;
+      setDisputes(data.disputes);
+    } catch {
+      toast({ title: "Failed to load disputes", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    fetchDisputes(1);
+    fetchDisputes();
   }, [fetchDisputes]);
 
-  const customerName = (t: SupportTicket) =>
-    typeof t.userId === "object" && t.userId
-      ? `${t.userId.firstName} ${t.userId.lastName}`
-      : "—";
-
-  const orderNum = (t: SupportTicket) => {
-    if (!t.orderId) return "—";
-    if (typeof t.orderId === "object") return t.orderId.orderNumber;
-    return t.orderId;
-  };
-
-  const columns: Column<SupportTicket>[] = [
+  const columns: DataTableColumn<Dispute>[] = [
     {
       key: "ticket",
-      header: "Ticket",
-      render: (t) => (
-        <div>
-          {t.ticketNumber && <p className="text-xs font-mono text-gray-400">{t.ticketNumber}</p>}
-          <p className="text-sm font-medium text-gray-900">{t.subject}</p>
+      header: "Dispute",
+      render: (d) => (
+        <div className="min-w-0">
+          {d.ticketNumber && (
+            <p className="font-mono text-[11px] text-muted-foreground">{d.ticketNumber}</p>
+          )}
+          <p className="truncate font-medium text-foreground">{d.subject}</p>
+          <p className="truncate text-xs text-muted-foreground">{TICKET_TYPE_LABELS[d.type]}</p>
         </div>
       ),
     },
     {
       key: "order",
       header: "Order",
-      render: (t) => (
-        <span className="text-sm font-mono text-gray-600">{orderNum(t)}</span>
-      ),
+      render: (d) =>
+        d.orderId && typeof d.orderId === "object" ? (
+          <Link
+            to={`/admin/orders/${d.orderId._id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="group min-w-0"
+          >
+            <p className="font-mono text-xs font-semibold text-primary group-hover:underline">
+              #{d.orderId.orderNumber}
+            </p>
+            <p className="text-xs text-muted-foreground">{formatCurrency(d.orderId.total)}</p>
+          </Link>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: "customer",
       header: "Customer",
-      render: (t) => (
-        <div>
-          <p className="text-sm text-gray-700">{customerName(t)}</p>
-          {typeof t.userId === "object" && t.userId && (
-            <p className="text-xs text-gray-400">{t.userId.email}</p>
-          )}
-        </div>
-      ),
+      render: (d) => {
+        const c = customerOf(d);
+        return (
+          <div className="min-w-0">
+            <p className="truncate text-sm text-foreground">{c.name}</p>
+            {c.email && <p className="truncate text-xs text-muted-foreground">{c.email}</p>}
+          </div>
+        );
+      },
     },
+    { key: "status", header: "Status", render: (d) => <StatusBadge status={d.status} /> },
     {
-      key: "type",
-      header: "Type",
-      render: (t) => (
-        <span className="text-xs text-gray-500">{TICKET_TYPE_LABELS[t.type]}</span>
-      ),
+      key: "priority",
+      header: "Priority",
+      render: (d) => <StatusBadge status={d.priority} size="sm" />,
     },
-    { key: "status", header: "Status", render: statusBadge },
-    { key: "priority", header: "Priority", render: priorityBadge },
     {
       key: "created",
-      header: "Created",
-      render: (t) => (
-        <span className="text-xs text-gray-400">
-          {new Date(t.createdAt).toLocaleDateString()}
-        </span>
+      header: "Opened",
+      render: (d) => (
+        <span className="text-muted-foreground">{formatRelativeTime(d.createdAt)}</span>
       ),
     },
   ];
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-3 mb-1">
-          <AlertTriangle className="h-5 w-5 text-amber-500" />
-          <h1 className="text-xl font-bold text-gray-900">Order Disputes</h1>
-        </div>
-        <p className="text-sm text-gray-500">
-          Support tickets related to specific orders that need attention.
-        </p>
-      </motion.div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" /> Order Disputes
+          </span>
+        }
+        description="Open support tickets tied to a specific order that need attention."
+      />
 
-      <AdminTable
+      <DataTable
         columns={columns}
-        data={tickets}
+        data={disputes}
+        getRowId={(d) => d._id}
         loading={loading}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={(p) => fetchDisputes(p)}
-        total={total}
-        limit={20}
-        emptyMessage="No open disputes."
+        onRowClick={(d) => navigate(`/admin/support/${d._id}`)}
+        emptyState={
+          <EmptyState
+            icon={ShieldCheck}
+            title="No open disputes"
+            description="There are no order-related tickets needing attention right now."
+            className="border-0"
+          />
+        }
       />
     </div>
   );
