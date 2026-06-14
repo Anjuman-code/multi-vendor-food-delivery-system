@@ -86,7 +86,7 @@ export const updateProfileSchema = z.object({
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name cannot exceed 50 characters')
     .trim(),
-  phoneNumber: z.pipe(bdPhoneSchema),
+  phoneNumber: bdPhoneSchema,
   dateOfBirth: z.string().optional(),
 });
 
@@ -209,7 +209,7 @@ export const riderRegisterSchema = z
       .max(50)
       .trim(),
     vehicleType: z.enum(['bicycle', 'motorcycle', 'car', 'van', 'truck'], {
-      errorMap: () => ({ message: 'Please select a vehicle type' }),
+      message: 'Please select a vehicle type',
     }),
     vehicleNumber: z
       .string()

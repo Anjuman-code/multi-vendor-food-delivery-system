@@ -13,7 +13,7 @@ import {
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDate, formatDateTime } from "@/utils/format";
 import { Bike, CheckCircle2, Package, ShieldCheck, Star, UserX, Wallet, XCircle } from "lucide-react";
@@ -62,7 +62,6 @@ type DialogType = "approve" | "reject" | "suspend" | "unsuspend";
 
 export default function DriverDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const [driver, setDriver] = useState<DriverDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("info");
@@ -82,11 +81,11 @@ export default function DriverDetailPage() {
       const d = (res.data as { data: { user: DriverDetail; driverProfile: DriverDetail["driverProfile"] } }).data;
       setDriver({ ...d.user, driverProfile: d.driverProfile ?? undefined });
     } catch {
-      toast({ title: "Failed to load driver", variant: "destructive" });
+      toast.error("Failed to load driver");
     } finally {
       setLoading(false);
     }
-  }, [id, toast]);
+  }, [id]);
 
   useEffect(() => {
     load();
@@ -104,12 +103,12 @@ export default function DriverDetailPage() {
         setRatingsPages(d.pagination.pages);
         setRatingsPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load ratings", variant: "destructive" });
+        toast.error("Failed to load ratings");
       } finally {
         setRatingsLoading(false);
       }
     },
-    [id, toast],
+    [id],
   );
 
   useEffect(() => {
@@ -120,10 +119,10 @@ export default function DriverDetailPage() {
     if (!id) return;
     try {
       await adminService.approveDriver(id);
-      toast({ title: "Application approved" });
+      toast.success("Application approved");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -132,10 +131,10 @@ export default function DriverDetailPage() {
     if (!id) return;
     try {
       await adminService.rejectDriver(id, { reason: reason! });
-      toast({ title: "Application rejected" });
+      toast.success("Application rejected");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -144,10 +143,10 @@ export default function DriverDetailPage() {
     if (!id) return;
     try {
       await adminService.suspendDriver(id, { reason: reason! });
-      toast({ title: "Driver suspended" });
+      toast.success("Driver suspended");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -156,10 +155,10 @@ export default function DriverDetailPage() {
     if (!id) return;
     try {
       await adminService.unsuspendDriver(id, { reason: reason! });
-      toast({ title: "Driver unsuspended" });
+      toast.success("Driver unsuspended");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };

@@ -1,7 +1,7 @@
 import { SectionCard, StatusBadge } from "@/components/rider";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
 import type { SupportTicket, TicketStatus } from "@/types/support";
 import {
@@ -37,7 +37,6 @@ const fmtTime = (d: string) =>
 
 export default function RiderTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,15 +49,13 @@ export default function RiderTicketDetailPage() {
     const res = await supportService.getMyTicket(id);
     if (res.success && res.data) setTicket(res.data.ticket);
     else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Ticket not found.",
-        variant: "destructive",
       });
       navigate("/rider/support");
     }
     setLoading(false);
-  }, [id, toast, navigate]);
+  }, [id, navigate]);
 
   useEffect(() => {
     void fetchTicket();
@@ -74,12 +71,10 @@ export default function RiderTicketDetailPage() {
       if (res.success && res.data) {
         setTicket(res.data.ticket);
         setReplyText("");
-        toast({ title: "Reply sent" });
+        toast.success("Reply sent");
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: res.message || "Failed to send reply.",
-          variant: "destructive",
         });
       }
     } finally {

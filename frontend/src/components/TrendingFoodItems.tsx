@@ -1,7 +1,6 @@
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import homeService from "@/services/homeService";
 import type { TrendingItem } from "@/types/home";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ChevronLeft,
@@ -17,8 +16,6 @@ const colorPalette = [
   "from-amber-950 to-brown-900",
   "from-emerald-900 to-teal-900",
 ];
-const fallbackItemImage = foodFallbackSVG;
-
 const TrendingFoodItems: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [items, setItems] = useState<TrendingItem[]>([]);
@@ -59,9 +56,6 @@ const TrendingFoodItems: React.FC = () => {
       setActiveIndex(0);
     }
   }, [activeIndex, itemsWithColor.length]);
-
-  const activeItem = itemsWithColor[activeIndex];
-  const ambientColor = activeItem?.color || "from-gray-900 to-gray-800";
 
   // Logic to handle carousel bounds
   const handleNext = useCallback(() => {

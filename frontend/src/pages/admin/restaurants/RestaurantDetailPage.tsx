@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import {
@@ -83,7 +83,6 @@ const approvalTone: Record<RestaurantDetail["approvalStatus"], StatusTone> = {
 
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
 
   const [restaurant, setRestaurant] = useState<RestaurantDetail | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
@@ -141,11 +140,11 @@ export default function RestaurantDetailPage() {
         })),
       );
     } catch {
-      toast({ title: "Failed to load restaurant", variant: "destructive" });
+      toast.error("Failed to load restaurant");
     } finally {
       setLoading(false);
     }
-  }, [id, toast]);
+  }, [id]);
 
   useEffect(() => {
     load();
@@ -158,12 +157,12 @@ export default function RestaurantDetailPage() {
     try {
       const msg = welcomeMessage.trim();
       await adminService.approveRestaurant(id, msg ? { welcomeMessage: msg } : undefined);
-      toast({ title: "Restaurant approved" });
+      toast.success("Restaurant approved");
       setDialog(null);
       setWelcomeMessage("");
       await load();
     } catch {
-      toast({ title: "Approval failed", variant: "destructive" });
+      toast.error("Approval failed");
     } finally {
       setApproving(false);
     }
@@ -173,10 +172,10 @@ export default function RestaurantDetailPage() {
     if (!id) return;
     try {
       await adminService.rejectRestaurant(id, { reason: reason! });
-      toast({ title: "Restaurant rejected" });
+      toast.success("Restaurant rejected");
       await load();
     } catch {
-      toast({ title: "Rejection failed", variant: "destructive" });
+      toast.error("Rejection failed");
       throw new Error("failed");
     }
   };
@@ -185,10 +184,10 @@ export default function RestaurantDetailPage() {
     if (!id) return;
     try {
       await adminService.closeRestaurant(id, { reason: reason! });
-      toast({ title: "Restaurant temporarily closed" });
+      toast.success("Restaurant temporarily closed");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -197,10 +196,10 @@ export default function RestaurantDetailPage() {
     if (!id) return;
     try {
       await adminService.reopenRestaurant(id);
-      toast({ title: "Restaurant reopened" });
+      toast.success("Restaurant reopened");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -209,10 +208,10 @@ export default function RestaurantDetailPage() {
     if (!id) return;
     try {
       await adminService.deactivateRestaurant(id, { reason: reason! });
-      toast({ title: "Restaurant deactivated" });
+      toast.success("Restaurant deactivated");
       await load();
     } catch {
-      toast({ title: "Deactivation failed", variant: "destructive" });
+      toast.error("Deactivation failed");
       throw new Error("failed");
     }
   };
@@ -221,10 +220,10 @@ export default function RestaurantDetailPage() {
     if (!id || !restaurant) return;
     try {
       await adminService.featureRestaurant(id);
-      toast({ title: restaurant.isFeatured ? "Unfeatured" : "Featured" });
+      toast.success(restaurant.isFeatured ? "Unfeatured" : "Featured");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
     }
   };
 
@@ -232,10 +231,10 @@ export default function RestaurantDetailPage() {
     if (!id) return;
     try {
       await adminService.toggleMenuItemVisibility(id, item._id);
-      toast({ title: item.isAvailable ? "Item hidden" : "Item shown" });
+      toast.success(item.isAvailable ? "Item hidden" : "Item shown");
       await load();
     } catch {
-      toast({ title: "Failed to toggle item", variant: "destructive" });
+      toast.error("Failed to toggle item");
     }
   };
 

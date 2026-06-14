@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
 import authService from '@/services/authService';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -8,7 +8,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const GoogleAuthCallbackPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { login } = useAuth();
   const [message, setMessage] = useState('Completing Google sign-in...');
 
@@ -20,13 +19,11 @@ const GoogleAuthCallbackPage: React.FC = () => {
       const nextPath = params.get('next') || '/';
 
       if (status === 'error') {
-        toast({
-          title: 'Google login failed',
+        toast.error('Google login failed', {
           description:
             reason === 'oauth_failed'
               ? 'Unable to verify your Google account. Please try again.'
               : 'Authentication failed. Please try again.',
-          variant: 'destructive',
         });
         navigate('/login', { replace: true });
         return;
@@ -36,18 +33,15 @@ const GoogleAuthCallbackPage: React.FC = () => {
       const response = await authService.completeGoogleAuth();
 
       if (!response.success || !response.data?.user) {
-        toast({
-          title: 'Session error',
+        toast.error('Session error', {
           description: 'Unable to create your session. Please login again.',
-          variant: 'destructive',
         });
         navigate('/login', { replace: true });
         return;
       }
 
       login(response.data.user);
-      toast({
-        title: 'Success',
+      toast.success('Success', {
         description: 'Signed in with Google',
       });
 
@@ -60,7 +54,7 @@ const GoogleAuthCallbackPage: React.FC = () => {
     };
 
     void completeLogin();
-  }, [location.search, login, navigate, toast]);
+  }, [location.search, login, navigate]);
 
   return (
     <div className="text-center">

@@ -340,7 +340,6 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
   onClick,
   onAddToCart,
   onUpdateQuantity,
-  onToggleAvailability,
   onStockStatus,
   onEdit,
   onDelete,

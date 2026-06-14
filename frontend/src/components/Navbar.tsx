@@ -10,7 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import authService from "@/services/authService";
 import userService from "@/services/userService";
 import NotificationPopover from "@/components/NotificationPopover";
@@ -48,7 +48,6 @@ const Navbar: React.FC = memo(() => {
   const { user, isAuthenticated, logout: logoutContext } = useAuth();
   const { itemCount } = useCart();
   const confirm = useConfirm();
-  const { toast } = useToast();
 
   const isVendor = user?.role === "vendor";
 
@@ -134,16 +133,13 @@ const Navbar: React.FC = memo(() => {
     try {
       await authService.logout();
       logoutContext();
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: "Logged out successfully",
       });
       navigate("/login");
     } catch {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to logout. Please try again.",
-        variant: "destructive",
       });
     }
   };

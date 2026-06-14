@@ -9,7 +9,7 @@ import {
   StatCard,
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import {
   formatCurrency,
@@ -59,7 +59,6 @@ interface RevenueStats {
 }
 
 export default function RevenueReportsPage() {
-  const { toast } = useToast();
   const [range, setRange] = useState<Range>("30d");
   const [data, setData] = useState<RevenueStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,14 +74,14 @@ export default function RevenueReportsPage() {
       .catch(() => {
         if (active) {
           setData(null);
-          toast({ title: "Failed to load revenue report", variant: "destructive" });
+          toast.error("Failed to load revenue report");
         }
       })
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [range, toast]);
+  }, [range]);
 
   const totals = data?.totals;
   const maxMethodTotal = Math.max(1, ...(data?.byPaymentMethod ?? []).map((m) => m.total));

@@ -14,7 +14,8 @@ import Review from "../models/Review";
 import { computeDeliveryFee } from "./delivery-zone.controller";
 import { applyCampaigns } from "./campaign.controller";
 import { processReferralReward } from "./referral.controller";
-import Notification, { NotificationType } from "../models/Notification";
+import { NotificationType } from "../models/Notification";
+import { createNotification } from "../services/notification.service";
 import Order, { OrderStatus, PaymentStatus } from "../models/Order";
 import VendorProfile from "../models/VendorProfile";
 import { getIO } from "../socket";
@@ -376,7 +377,7 @@ export const createOrder = async (
     }
 
     // Create notification
-    await Notification.create({
+    await createNotification({
       userId: authReq.user._id,
       type: NotificationType.ORDER_UPDATE,
       title: "Order Placed!",
@@ -404,6 +405,16 @@ export const createOrder = async (
             status: order.status,
             createdAt: order.createdAt,
           });
+
+        // Persistent notification for the vendor so the order shows in their
+        // notification center (the socket event above is for the live UI only).
+        await createNotification({
+          userId: vendorProfile.userId,
+          type: NotificationType.ORDER_UPDATE,
+          title: "New Order Received",
+          message: `Order ${order.orderNumber} · ${order.items.length} item(s) · ৳${order.total.toLocaleString("en-BD")}`,
+          data: { orderId: order._id },
+        });
       }
     } catch {
       // Non-blocking – socket emission failure must not affect the HTTP response
@@ -840,7 +851,7 @@ export const createOrderFromCart = async (
 
     // Create notification
     const firstOrder = createdOrders[0];
-    await Notification.create({
+    await createNotification({
       userId: currentUser._id,
       type: NotificationType.ORDER_UPDATE,
       title: "Order Placed!",
@@ -1008,7 +1019,7 @@ export const cancelOrder = async (
     });
     await order.save();
 
-    await Notification.create({
+    await createNotification({
       userId: authReq.user._id,
       type: NotificationType.ORDER_UPDATE,
       title: "Order Cancelled",

@@ -12,7 +12,8 @@ import {
 import { PageHeader, SectionCard, VendorEmptyState } from "@/components/vendor";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { extractApiError, getErrorMessage, getFieldErrors } from "@/lib/formErrors";
 import vendorService from "@/services/vendorService";
 import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
 import { foodFallbackSVG } from "@/utils/fallbackImages";
@@ -151,7 +152,6 @@ const MenuItemEditorPage: React.FC = () => {
     const { itemId } = useParams<{ itemId: string }>();
     const isEdit = Boolean(itemId);
     const { selectedRestaurantId } = useVendor();
-    const { toast } = useToast();
     const confirm = useConfirm();
     const navigate = useNavigate();
 
@@ -191,7 +191,7 @@ const MenuItemEditorPage: React.FC = () => {
                 if (found) {
                     populateForm(found);
                 } else {
-                    toast({ title: "Error", description: "Item not found", variant: "destructive" });
+                    toast.error("Error", { description: "Item not found" });
                     navigate("/vendor/menu");
                 }
             }
@@ -258,9 +258,9 @@ const MenuItemEditorPage: React.FC = () => {
             markDirty();
             setShowNewCategory(false);
             setNewCategoryName("");
-            toast({ title: "Category created", description: `"${created.name}" added` });
+            toast.success("Category created", { description: `"${created.name}" added` });
         } else {
-            toast({ title: "Error", description: res.message || "Failed to create category", variant: "destructive" });
+            toast.error("Error", { description: res.message || "Failed to create category" });
         }
         setCreatingCategory(false);
     };
@@ -291,11 +291,26 @@ const MenuItemEditorPage: React.FC = () => {
             : await vendorService.createMenuItem(selectedRestaurantId, data);
 
         if (res.success) {
-            toast({ title: "Success", description: isEdit ? "Item updated" : "Item created" });
+            toast.success("Success", { description: isEdit ? "Item updated" : "Item created" });
             setDirty(false);
             navigate("/vendor/menu");
         } else {
-            toast({ title: "Error", description: res.message, variant: "destructive" });
+            // Map any backend field errors back onto the matching inputs; the
+            // server uses `preparationTime` while the form tracks it as `prepTime`.
+            const fieldErrors = getFieldErrors(extractApiError(res));
+            if (fieldErrors.length > 0) {
+                const mapped: Record<string, string> = {};
+                for (const fe of fieldErrors) {
+                    const key = fe.field === "preparationTime" ? "prepTime" : fe.field;
+                    mapped[key] = fe.message;
+                }
+                setErrors((prev) => ({ ...prev, ...mapped }));
+                toast.error("Please fix the highlighted fields", {
+                    description: fieldErrors[0].message,
+                });
+            } else {
+                toast.error("Error", { description: getErrorMessage(res) });
+            }
         }
         setSaving(false);
     };

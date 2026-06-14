@@ -7,13 +7,12 @@ import { AuthHeading, OTPInput, SubmitButton } from "@/components/auth";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPostAuthPath } from "@/hooks/useAuthRedirect";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import authService from "@/services/authService";
 
 type Status = "idle" | "verifying-token" | "verifying-otp" | "success" | "error";
 
 const VerifyEmail: React.FC = () => {
-  const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -78,10 +77,8 @@ const VerifyEmail: React.FC = () => {
 
   const handleVerifyOTP = useCallback(async () => {
     if (!email) {
-      toast({
-        title: "Missing email",
+      toast.error("Missing email", {
         description: "Please register again to receive a new code.",
-        variant: "destructive",
       });
       return;
     }
@@ -97,7 +94,7 @@ const VerifyEmail: React.FC = () => {
       return;
     }
     completeVerification(response);
-  }, [email, otp, toast, completeVerification]);
+  }, [email, otp, completeVerification]);
 
   // ── Auto-submit once 6 digits are entered ────────────────────
   useEffect(() => {
@@ -106,10 +103,8 @@ const VerifyEmail: React.FC = () => {
 
   const handleResend = async () => {
     if (!email) {
-      toast({
-        title: "Missing email",
+      toast.error("Missing email", {
         description: "Please register again to receive a new code.",
-        variant: "destructive",
       });
       return;
     }
@@ -117,23 +112,19 @@ const VerifyEmail: React.FC = () => {
     try {
       const response = await authService.resendVerification(email);
       if (response.success) {
-        toast({ title: "Code sent", description: "A new code is on its way to your inbox." });
+        toast.success("Code sent", { description: "A new code is on its way to your inbox." });
         setResendCooldown(60);
         setOtp("");
         setStatus("idle");
         setErrorMessage("");
       } else {
-        toast({
-          title: "Couldn't resend",
+        toast.error("Couldn't resend", {
           description: response.message || "Please try again.",
-          variant: "destructive",
         });
       }
     } catch {
-      toast({
-        title: "Something went wrong",
+      toast.error("Something went wrong", {
         description: "Please try again in a moment.",
-        variant: "destructive",
       });
     } finally {
       setIsResending(false);

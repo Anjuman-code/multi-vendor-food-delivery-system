@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -38,7 +38,6 @@ const CartPage: React.FC = () => {
     itemsByRestaurant,
   } = useCart();
   const { isAuthenticated } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [promoDraft, setPromoDraft] = useState(promoCode);
@@ -55,8 +54,7 @@ const CartPage: React.FC = () => {
     if (!canApplyPromo) return;
     const normalized = promoDraft.trim().toUpperCase();
     setPromoCode(normalized);
-    toast({
-      title: "Promo code saved",
+    toast.success("Promo code saved", {
       description: `We'll apply ${normalized} at checkout.`,
     });
   };
@@ -64,7 +62,7 @@ const CartPage: React.FC = () => {
   const handleClearPromo = () => {
     clearPromoCode();
     setPromoDraft("");
-    toast({ title: "Promo code removed" });
+    toast.success("Promo code removed");
   };
 
   const handleRemove = (itemKey: string) => {

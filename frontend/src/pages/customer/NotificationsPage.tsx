@@ -1,218 +1,256 @@
 /**
- * NotificationsPage – notification inbox with read/unread, mark-all-read.
+ * NotificationsPage – full notification inbox.
+ *
+ * Backed by the shared NotificationContext (live updates), with all/unread
+ * filtering, date grouping, deep-link navigation, and per-item actions
+ * (mark read/unread, delete) plus mark-all-read / clear-all and "load more".
  */
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BellOff,
+  Check,
   CheckCheck,
   Loader2,
-  Package,
-  Megaphone,
-  Info,
-  MessageSquare,
+  Trash2,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import notificationService from "@/services/notificationService";
-import type { AppNotification, NotificationType } from "@/types/notification";
+import {
+  typeConfig,
+  formatRelativeTime,
+  dateGroup,
+} from "@/components/notifications/shared";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationContext";
+import type { AppNotification } from "@/types/notification";
+import { getNotificationLink } from "@/utils/notificationLink";
+import { cn } from "@/utils/cn";
 
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { icon: React.ReactNode; color: string }
-> = {
-  order_update: {
-    icon: <Package className="h-4 w-4" />,
-    color: "bg-blue-100 text-blue-600",
-  },
-  promotion: {
-    icon: <Megaphone className="h-4 w-4" />,
-    color: "bg-green-100 text-green-600",
-  },
-  system: {
-    icon: <Info className="h-4 w-4" />,
-    color: "bg-gray-100 text-gray-600",
-  },
-  review_reply: {
-    icon: <MessageSquare className="h-4 w-4" />,
-    color: "bg-purple-100 text-purple-600",
-  },
-};
-
-const fmtRelative = (d: string) => {
-  const diff = Date.now() - new Date(d).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(d));
-};
+type Filter = "all" | "unread";
+const GROUP_ORDER = ["Today", "Yesterday", "Earlier"] as const;
 
 const NotificationsPage: React.FC = () => {
-  const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    loadingMore,
+    hasMore,
+    loadMore,
+    markAsRead,
+    markAsUnread,
+    markAllAsRead,
+    remove,
+    clearAll,
+  } = useNotifications();
 
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [filter, setFilter] = useState<Filter>("all");
 
-  const fetchNotifications = useCallback(async () => {
-    setLoading(true);
-    const res = await notificationService.getNotifications(page, 20);
-    if (res.success && res.data) {
-      setNotifications(res.data.notifications);
-      setTotalPages(res.data.pagination.pages);
-      setUnreadCount(res.data.unreadCount);
-    } else {
-      toast({
-        title: "Error",
-        description: res.message || "Failed to load notifications.",
-        variant: "destructive",
-      });
+  const visible = useMemo(
+    () =>
+      filter === "unread"
+        ? notifications.filter((n) => !n.isRead)
+        : notifications,
+    [notifications, filter],
+  );
+
+  const grouped = useMemo(() => {
+    const map: Record<string, AppNotification[]> = {};
+    for (const n of visible) {
+      const g = dateGroup(n.createdAt);
+      (map[g] ??= []).push(n);
     }
-    setLoading(false);
-  }, [page, toast]);
+    return map;
+  }, [visible]);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  const markRead = async (notifId: string) => {
-    const res = await notificationService.markAsRead(notifId);
-    if (res.success) {
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === notifId ? { ...n, isRead: true } : n)),
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
-    }
-  };
-
-  const markAllRead = async () => {
-    const res = await notificationService.markAllAsRead();
-    if (res.success) {
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-      toast({ title: "All marked as read" });
-    }
+  const openNotification = (notif: AppNotification) => {
+    if (!notif.isRead) void markAsRead(notif._id);
+    const link = getNotificationLink(notif, user?.role);
+    if (link) navigate(link);
   };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="flex items-center justify-between mb-6">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 mb-5">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             Notifications
             {unreadCount > 0 && (
-              <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full">
+              <span className="text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full">
                 {unreadCount}
               </span>
             )}
           </h1>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllRead}>
-              <CheckCheck className="mr-1 h-4 w-4" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => void markAllAsRead()}>
+                <CheckCheck className="mr-1 h-4 w-4" />
+                Mark all read
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-500 hover:text-red-600"
+                onClick={() => void clearAll()}
+              >
+                <Trash2 className="mr-1 h-4 w-4" />
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
 
-        {loading ? (
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 mb-4">
+          {(["all", "unread"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors",
+                filter === f
+                  ? "bg-brand-100 text-brand-700"
+                  : "text-gray-500 hover:bg-gray-100",
+              )}
+            >
+              {f === "all" ? "All" : `Unread${unreadCount ? ` (${unreadCount})` : ""}`}
+            </button>
+          ))}
+        </div>
+
+        {loading && notifications.length === 0 ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
           </div>
-        ) : notifications.length === 0 ? (
+        ) : visible.length === 0 ? (
           <Card className="p-10 text-center">
             <BellOff className="h-12 w-12 mx-auto text-gray-300 mb-4" />
             <h2 className="text-lg font-semibold text-gray-700 mb-1">
-              No notifications
+              {filter === "unread" ? "No unread notifications" : "No notifications"}
             </h2>
             <p className="text-sm text-gray-500">
               You're all caught up! Check back later.
             </p>
           </Card>
         ) : (
-          <div className="space-y-2">
-            <AnimatePresence initial={false}>
-              {notifications.map((notif) => {
-                const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.system;
-                return (
-                  <motion.div
-                    key={notif._id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0 }}
-                  >
-                    <Card
-                      className={`p-4 cursor-pointer transition-colors ${
-                        notif.isRead
-                          ? "bg-white"
-                          : "bg-orange-50/50 border-orange-100"
-                      }`}
-                      onClick={() => !notif.isRead && markRead(notif._id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.color}`}
+          <div className="space-y-6">
+            {GROUP_ORDER.filter((g) => grouped[g]?.length).map((group) => (
+              <div key={group}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2 px-1">
+                  {group}
+                </h3>
+                <div className="space-y-2">
+                  <AnimatePresence initial={false}>
+                    {grouped[group].map((notif) => {
+                      const cfg = typeConfig(notif.type);
+                      const { Icon } = cfg;
+                      return (
+                        <motion.div
+                          key={notif._id}
+                          layout
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                         >
-                          {cfg.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <p className="font-medium text-gray-900 text-sm truncate">
-                              {notif.title}
-                            </p>
-                            {!notif.isRead && (
-                              <span className="h-2 w-2 rounded-full bg-orange-500 flex-shrink-0" />
+                          <Card
+                            className={cn(
+                              "group p-4 cursor-pointer transition-colors",
+                              notif.isRead
+                                ? "bg-white hover:bg-gray-50"
+                                : "bg-brand-50/50 border-brand-100 hover:bg-brand-50",
                             )}
-                          </div>
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {notif.message}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {fmtRelative(notif.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                            onClick={() => openNotification(notif)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={cn(
+                                  "h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0",
+                                  cfg.chip,
+                                )}
+                              >
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <p className="font-medium text-gray-900 text-sm truncate">
+                                    {notif.title}
+                                  </p>
+                                  {!notif.isRead && (
+                                    <span className="h-2 w-2 rounded-full bg-brand-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {notif.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {formatRelativeTime(notif.createdAt)}
+                                </p>
+                              </div>
+
+                              {/* Hover actions */}
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  title={notif.isRead ? "Mark as unread" : "Mark as read"}
+                                  className="p-1.5 rounded-md text-gray-400 hover:text-brand-600 hover:bg-white"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (notif.isRead) void markAsUnread(notif._id);
+                                    else void markAsRead(notif._id);
+                                  }}
+                                >
+                                  {notif.isRead ? (
+                                    <Undo2 className="h-4 w-4" />
+                                  ) : (
+                                    <Check className="h-4 w-4" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete"
+                                  className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-white"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void remove(notif._id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-6">
+        {/* Load more */}
+        {filter === "all" && hasMore && (
+          <div className="flex justify-center mt-6">
             <Button
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              disabled={loadingMore}
+              onClick={() => void loadMore()}
             >
-              Prev
-            </Button>
-            <span className="flex items-center text-sm text-gray-600 px-2">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
+              {loadingMore ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Load more
             </Button>
           </div>
         )}

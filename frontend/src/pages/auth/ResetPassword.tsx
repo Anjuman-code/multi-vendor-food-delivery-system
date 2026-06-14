@@ -21,7 +21,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
+import { toast } from "@/lib/toast";
 import authService from "@/services/authService";
 
 const resetPasswordSchema = z
@@ -49,7 +50,6 @@ type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const token = searchParams.get("token") ?? "";
 
@@ -59,6 +59,7 @@ const ResetPassword: React.FC = () => {
 
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
+    mode: "onTouched",
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
 
@@ -74,8 +75,7 @@ const ResetPassword: React.FC = () => {
       const response = await authService.resetPassword(token, data.newPassword);
       if (response.success) {
         setIsSuccess(true);
-        toast({
-          title: "Password reset",
+        toast.success("Password reset", {
           description: "You can now log in with your new password.",
         });
       } else {
@@ -83,19 +83,11 @@ const ResetPassword: React.FC = () => {
         if (msg.includes("expired") || msg.includes("invalid token")) {
           setIsInvalidToken(true);
         } else {
-          toast({
-            title: "Couldn't reset password",
-            description: response.message || "Please try again.",
-            variant: "destructive",
-          });
+          applyServerErrors(form, response);
         }
       }
-    } catch {
-      toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      applyServerErrors(form, err);
     } finally {
       setIsSubmitting(false);
     }

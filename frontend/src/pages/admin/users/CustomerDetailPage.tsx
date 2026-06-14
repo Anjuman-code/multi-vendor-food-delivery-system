@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/utils/format";
 import {
@@ -66,7 +66,6 @@ type DialogType = "suspend" | "unsuspend" | "ban" | "unban" | "loyalty";
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const [detail, setDetail] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<DialogType | null>(null);
@@ -81,7 +80,7 @@ export default function CustomerDetailPage() {
       const res = await adminService.getCustomer(id);
       setDetail((res.data as { data: CustomerDetail }).data);
     } catch {
-      toast({ title: "Failed to load customer", variant: "destructive" });
+      toast.error("Failed to load customer");
     } finally {
       setLoading(false);
     }
@@ -101,10 +100,10 @@ export default function CustomerDetailPage() {
     };
     try {
       await map[dialog]();
-      toast({ title: "Customer updated" });
+      toast.success("Customer updated");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -113,19 +112,19 @@ export default function CustomerDetailPage() {
     if (!id) return;
     const pts = parseInt(loyaltyPoints, 10);
     if (Number.isNaN(pts) || pts === 0 || loyaltyReason.trim().length < 3) {
-      toast({ title: "Enter a non-zero amount and a reason", variant: "destructive" });
+      toast.error("Enter a non-zero amount and a reason");
       return;
     }
     setLoyaltyLoading(true);
     try {
       await adminService.adjustLoyalty(id, { points: pts, reason: loyaltyReason.trim() });
-      toast({ title: `Loyalty adjusted by ${pts > 0 ? "+" : ""}${pts}` });
+      toast.success(`Loyalty adjusted by ${pts > 0 ? "+" : ""}${pts}`);
       setLoyaltyPoints("");
       setLoyaltyReason("");
       setDialog(null);
       await load();
     } catch {
-      toast({ title: "Failed to adjust points", variant: "destructive" });
+      toast.error("Failed to adjust points");
     } finally {
       setLoyaltyLoading(false);
     }

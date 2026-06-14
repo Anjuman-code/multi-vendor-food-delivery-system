@@ -20,7 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import apiService from "@/services/apiService";
 import menuService from "@/services/menuService";
 import orderService from "@/services/orderService";
@@ -169,7 +169,6 @@ const RestaurantDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user, isAuthenticated } = useAuth();
-  const { toast } = useToast();
   const { addItem, items: cartItems, updateQuantity } = useCart();
   const isCustomer = user?.role === "customer";
 
@@ -457,12 +456,11 @@ const RestaurantDetailsPage: React.FC = () => {
       };
 
       await addItem(restaurant._id, restaurant.name, cartItem);
-      toast({
-        title: "Added to cart",
+      toast.success("Added to cart", {
         description: `${item.name} has been added to your cart.`,
       });
     },
-    [addItem, restaurant, toast],
+    [addItem, restaurant],
   );
 
   const handleReviewSubmit = useCallback(
@@ -480,8 +478,7 @@ const RestaurantDetailsPage: React.FC = () => {
       const response = await reviewService.createReview(payload);
 
       if (response.success) {
-        toast({
-          title: "Review submitted",
+        toast.success("Review submitted", {
           description: "Thanks for sharing your feedback.",
         });
 
@@ -497,16 +494,14 @@ const RestaurantDetailsPage: React.FC = () => {
         });
         void loadReviews(1, true);
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: response.message || "Failed to submit review.",
-          variant: "destructive",
         });
       }
 
       setReviewSubmitting(false);
     },
-    [eligibleOrders, loadReviews, resolvedRestaurantId, reviewForm, toast],
+    [eligibleOrders, loadReviews, resolvedRestaurantId, reviewForm],
   );
 
   // Cart summary scoped to this restaurant

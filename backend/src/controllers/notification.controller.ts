@@ -99,6 +99,32 @@ export const markAsRead = async (
 };
 
 /**
+ * PATCH /api/notifications/:notificationId/unread
+ * Mark a single notification as unread.
+ */
+export const markAsUnread = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.notificationId, userId: authReq.user._id },
+      { isRead: false },
+      { new: true },
+    );
+    if (!notification) throw new NotFoundError("Notification not found");
+
+    successResponse(res, { notification }, "Marked as unread");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * PATCH /api/notifications/read-all
  * Mark all notifications as read.
  */
@@ -117,6 +143,52 @@ export const markAllAsRead = async (
     );
 
     successResponse(res, null, "All notifications marked as read");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/notifications/:notificationId
+ * Delete a single notification.
+ */
+export const deleteNotification = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const notification = await Notification.findOneAndDelete({
+      _id: req.params.notificationId,
+      userId: authReq.user._id,
+    });
+    if (!notification) throw new NotFoundError("Notification not found");
+
+    successResponse(res, null, "Notification deleted");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/notifications
+ * Delete all notifications for the authenticated user.
+ */
+export const clearAll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    await Notification.deleteMany({ userId: authReq.user._id });
+
+    successResponse(res, null, "All notifications cleared");
   } catch (error) {
     next(error);
   }

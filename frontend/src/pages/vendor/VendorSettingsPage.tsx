@@ -18,7 +18,7 @@ import { PageHeader, SectionCard, StatusBadge } from "@/components/vendor";
 import vendorService from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVendor } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import type {
     VendorProfile,
     VendorNotificationSettings,
@@ -104,7 +104,6 @@ const SaveButton: React.FC<{
 const VendorSettingsPage: React.FC = () => {
     const { user } = useAuth();
     const { selectedRestaurantId } = useVendor();
-    const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState<string | null>(null);
 
@@ -215,9 +214,9 @@ const VendorSettingsPage: React.FC = () => {
             taxId,
         });
         if (res.success) {
-            toast({ title: "Success", description: "Business details updated" });
+            toast.success("Success", { description: "Business details updated" });
         } else {
-            toast({ title: "Error", description: res.message, variant: "destructive" });
+            toast.error("Error", { description: res.message });
         }
         setSaving(null);
     };
@@ -226,9 +225,9 @@ const VendorSettingsPage: React.FC = () => {
         setSaving("bank");
         const res = await vendorService.updateProfile({ bankDetails });
         if (res.success) {
-            toast({ title: "Success", description: "Bank details updated" });
+            toast.success("Success", { description: "Bank details updated" });
         } else {
-            toast({ title: "Error", description: res.message, variant: "destructive" });
+            toast.error("Error", { description: res.message });
         }
         setSaving(null);
     };
@@ -240,9 +239,9 @@ const VendorSettingsPage: React.FC = () => {
             notificationSettings: notifications,
         });
         if (res.success) {
-            toast({ title: "Success", description: "Preferences updated" });
+            toast.success("Success", { description: "Preferences updated" });
         } else {
-            toast({ title: "Error", description: res.message, variant: "destructive" });
+            toast.error("Error", { description: res.message });
         }
         setSaving(null);
     };
@@ -256,9 +255,9 @@ const VendorSettingsPage: React.FC = () => {
             closureReason,
         } as never);
         if (res.success) {
-            toast({ title: "Success", description: "Restaurant settings updated" });
+            toast.success("Success", { description: "Restaurant settings updated" });
         } else {
-            toast({ title: "Error", description: res.message, variant: "destructive" });
+            toast.error("Error", { description: res.message });
         }
         setSaving(null);
     };

@@ -19,7 +19,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import {
   changePasswordSchema,
   type ChangePasswordFormData,
@@ -37,13 +38,13 @@ export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
   open,
   onOpenChange,
 }) => {
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
 
   const form = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
+    mode: "onTouched",
     defaultValues: {
       currentPassword: "",
       newPassword: "",
@@ -58,18 +59,13 @@ export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
       data.newPassword,
     );
     if (res.success) {
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: "Password changed successfully",
       });
       form.reset();
       onOpenChange(false);
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      applyServerErrors(form, res);
     }
     setIsSaving(false);
   };

@@ -74,11 +74,51 @@ const notificationService = {
     }
   },
 
+  /** PATCH /api/notifications/:id/unread */
+  async markAsUnread(
+    notificationId: string,
+  ): Promise<ApiResponse<{ notification: AppNotification }>> {
+    try {
+      const response = await httpClient.patch<
+        ApiResponse<{ notification: AppNotification }>
+      >(`/api/notifications/${notificationId}/unread`);
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{
+        notification: AppNotification;
+      }>;
+    }
+  },
+
   /** PATCH /api/notifications/read-all */
   async markAllAsRead(): Promise<ApiResponse> {
     try {
       const response = await httpClient.patch<ApiResponse>(
         "/api/notifications/read-all",
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  /** DELETE /api/notifications/:id */
+  async deleteNotification(notificationId: string): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.delete<ApiResponse>(
+        `/api/notifications/${notificationId}`,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error);
+    }
+  },
+
+  /** DELETE /api/notifications */
+  async clearAll(): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.delete<ApiResponse>(
+        "/api/notifications",
       );
       return response.data;
     } catch (error: unknown) {

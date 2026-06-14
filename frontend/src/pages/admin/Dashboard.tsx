@@ -8,7 +8,7 @@ import {
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import { SegmentedTabs } from "@/components/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService, { ChartRange, DashboardStats } from "@/services/adminService";
 import { formatCurrency, formatCurrencyCompact, formatPercent } from "@/utils/format";
 import {
@@ -70,7 +70,6 @@ const delta = (v: number | null) =>
   v === null || v === undefined ? undefined : { value: Number(v.toFixed(1)) };
 
 export default function AdminDashboard() {
-  const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [charts, setCharts] = useState<ChartData | null>(null);
   const [pending, setPending] = useState<PendingActions | null>(null);
@@ -91,9 +90,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     setLoading(true);
     loadCore()
-      .catch(() => toast({ title: "Failed to load dashboard", variant: "destructive" }))
+      .catch(() => toast.error("Failed to load dashboard"))
       .finally(() => setLoading(false));
-  }, [loadCore, toast]);
+  }, [loadCore]);
 
   useEffect(() => {
     let active = true;
@@ -116,9 +115,9 @@ export default function AdminDashboard() {
     setRefreshing(true);
     try {
       await loadCore();
-      toast({ title: "Dashboard refreshed" });
+      toast.success("Dashboard refreshed");
     } catch {
-      toast({ title: "Failed to refresh", variant: "destructive" });
+      toast.error("Failed to refresh");
     } finally {
       setRefreshing(false);
     }

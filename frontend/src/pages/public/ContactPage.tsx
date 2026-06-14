@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { fadeInUp, inViewport } from "@/lib/motion";
+import { applyServerErrors, getErrorMessage } from "@/lib/formErrors";
 import httpClient from "@/lib/httpClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
@@ -78,40 +79,42 @@ const responseTiers = [
 ];
 
 const ContactPage: React.FC = () => {
-  const { toast } = useToast();
+  const form = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    mode: "onTouched",
+  });
+
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ContactFormData>({
-    resolver: zodResolver(contactSchema),
-  });
+  } = form;
 
   const onSubmit = async (data: ContactFormData) => {
     try {
       const res = await httpClient.post("/api/contact", data);
       const result = res.data as { success: boolean; message: string };
       if (result.success) {
-        toast({
-          title: "Message Sent!",
+        toast.success("Message Sent!", {
           description:
             result.message ||
             "Thank you for reaching out. We'll get back to you within 24 hours.",
         });
         reset();
       } else {
-        toast({
-          title: "Error",
-          description: result.message || "Failed to send message. Please try again.",
-          variant: "destructive",
+        // Attach any backend field errors inline; toast otherwise.
+        applyServerErrors(form, result, {
+          fallbackMessage:
+            result.message || "Failed to send message. Please try again.",
         });
       }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again later.",
-        variant: "destructive",
+    } catch (err) {
+      applyServerErrors(form, err, {
+        fallbackMessage: getErrorMessage(
+          err,
+          "Failed to send message. Please try again later.",
+        ),
       });
     }
   };

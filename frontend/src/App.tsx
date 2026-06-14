@@ -1,11 +1,12 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageLoader } from "@/components/PageLoader";
 import { RouteProgressBar } from "@/components/RouteProgressBar";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import { SocketProvider } from "@/contexts/SocketContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { AuthLayout, MainLayout, RootLayout, VendorLayout } from "@/layouts";
 import React, { lazy, Suspense } from "react";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
@@ -114,6 +115,7 @@ function App(): React.ReactElement {
         <CartProvider>
           <ConfirmProvider>
             <SocketProvider>
+            <NotificationProvider>
             <Toaster />
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
@@ -237,6 +239,7 @@ function App(): React.ReactElement {
                 </Routes>
               </Suspense>
             </ErrorBoundary>
+            </NotificationProvider>
           </SocketProvider>
           </ConfirmProvider>
         </CartProvider>

@@ -29,7 +29,7 @@ import {
   VendorEmptyState,
 } from "@/components/vendor";
 import { useVendor } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import vendorService from "@/services/vendorService";
 import type {
   RevenueDataPoint,
@@ -126,7 +126,6 @@ const computePercentChange = (current: number, previous: number): number | null 
 
 const VendorDashboardPage: React.FC = () => {
   const { selectedRestaurantId, restaurants } = useVendor();
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<VendorDashboardStats | null>(null);
@@ -160,10 +159,8 @@ const VendorDashboardPage: React.FC = () => {
         if (statsRes.success && statsRes.data) {
           setStats(statsRes.data);
         } else {
-          toast({
-            title: "Error",
+          toast.error("Error", {
             description: statsRes.message || "Failed to load dashboard statistics.",
-            variant: "destructive",
           });
         }
         if (analyticsRes.success && analyticsRes.data) setAnalytics(analyticsRes.data);
@@ -171,10 +168,8 @@ const VendorDashboardPage: React.FC = () => {
       } catch {
         if (!cancelled) {
           setError("Failed to load dashboard data. Please try again.");
-          toast({
-            title: "Error",
+          toast.error("Error", {
             description: "An unexpected error occurred while loading the dashboard.",
-            variant: "destructive",
           });
         }
       } finally {
@@ -186,7 +181,7 @@ const VendorDashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedRestaurantId, toast]);
+  }, [selectedRestaurantId]);
 
   const kpis = useMemo(() => {
     if (!stats) {

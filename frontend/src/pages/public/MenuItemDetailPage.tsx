@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/contexts/CartContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import apiService from "@/services/apiService";
 import menuService from "@/services/menuService";
 import type { MenuItem, MenuItemAddon, MenuItemVariant } from "@/types/menu";
@@ -87,7 +87,6 @@ const MenuItemDetailPage: React.FC = () => {
   }>();
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { toast } = useToast();
 
   const [item, setItem] = useState<MenuItem | null>(null);
   const [restaurant, setRestaurant] = useState<ApiRestaurant | null>(null);
@@ -211,8 +210,7 @@ const MenuItemDetailPage: React.FC = () => {
 
     try {
       await addItem(restaurantId, restaurantName, cartItem);
-      toast({
-        title: "Added to cart",
+      toast.success("Added to cart", {
         description: `${item.name} (${quantity}x) has been added to your cart.`,
       });
     } finally {
@@ -226,7 +224,6 @@ const MenuItemDetailPage: React.FC = () => {
     selectedVariant,
     selectedAddons,
     addItem,
-    toast,
   ]);
 
   // ── Loading state ───────────────────────────────────────────────

@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import supportService from "@/services/supportService";
 import type {
@@ -67,7 +67,6 @@ interface AdminOption {
 export default function AdminTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { toast } = useToast();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState("");
@@ -90,10 +89,10 @@ export default function AdminTicketDetailPage() {
     if (res.success && res.data) {
       setTicket(res.data.ticket);
     } else {
-      toast({ title: "Ticket not found", variant: "destructive" });
+      toast.error("Ticket not found");
     }
     setLoading(false);
-  }, [id, toast]);
+  }, [id]);
 
   useEffect(() => {
     fetchTicket();
@@ -106,13 +105,13 @@ export default function AdminTicketDetailPage() {
     try {
       const res = await supportService.updateTicket(id, payload);
       if (res.success) {
-        toast({ title: successMsg });
+        toast.success(successMsg);
         await fetchTicket();
       } else {
-        toast({ title: res.message || "Update failed", variant: "destructive" });
+        toast.error(res.message || "Update failed");
       }
     } catch {
-      toast({ title: "Update failed", variant: "destructive" });
+      toast.error("Update failed");
     } finally {
       setBusyField(null);
     }
@@ -126,9 +125,9 @@ export default function AdminTicketDetailPage() {
       if (res.success && res.data) {
         setTicket(res.data.ticket);
         setReplyText("");
-        toast({ title: "Reply sent" });
+        toast.success("Reply sent");
       } else {
-        toast({ title: res.message || "Failed to send reply", variant: "destructive" });
+        toast.error(res.message || "Failed to send reply");
       }
     } finally {
       setSending(false);

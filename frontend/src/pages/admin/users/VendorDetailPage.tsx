@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDate, formatPercent } from "@/utils/format";
 import {
@@ -61,7 +61,6 @@ type DialogType = "verify" | "reject" | "suspend" | "unsuspend" | "commission";
 
 export default function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<DialogType | null>(null);
@@ -123,7 +122,7 @@ export default function VendorDetailPage() {
       });
       setRateInput(String(vp?.commissionRate ?? 15));
     } catch {
-      toast({ title: "Failed to load vendor", variant: "destructive" });
+      toast.error("Failed to load vendor");
     } finally {
       setLoading(false);
     }
@@ -137,10 +136,10 @@ export default function VendorDetailPage() {
     if (!id) return;
     try {
       await adminService.verifyVendor(id, { action: "approve" });
-      toast({ title: "Vendor verified" });
+      toast.success("Vendor verified");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -149,10 +148,10 @@ export default function VendorDetailPage() {
     if (!id) return;
     try {
       await adminService.verifyVendor(id, { action: "reject", reason });
-      toast({ title: "Vendor rejected" });
+      toast.success("Vendor rejected");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -161,10 +160,10 @@ export default function VendorDetailPage() {
     if (!id) return;
     try {
       await adminService.suspendVendor(id, { reason: reason! });
-      toast({ title: "Vendor suspended" });
+      toast.success("Vendor suspended");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -173,10 +172,10 @@ export default function VendorDetailPage() {
     if (!id) return;
     try {
       await adminService.unsuspendVendor(id, { reason: reason! });
-      toast({ title: "Vendor unsuspended" });
+      toast.success("Vendor unsuspended");
       await load();
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -185,22 +184,22 @@ export default function VendorDetailPage() {
     if (!id) return;
     const rate = parseFloat(rateInput);
     if (Number.isNaN(rate) || rate < 0 || rate > 100) {
-      toast({ title: "Enter a rate between 0 and 100", variant: "destructive" });
+      toast.error("Enter a rate between 0 and 100");
       return;
     }
     if (rateReason.trim().length < 3) {
-      toast({ title: "Provide a reason for the change", variant: "destructive" });
+      toast.error("Provide a reason for the change");
       return;
     }
     setRateLoading(true);
     try {
       await adminService.changeVendorCommission(id, { rate, reason: rateReason.trim() });
-      toast({ title: "Commission rate updated" });
+      toast.success("Commission rate updated");
       setRateReason("");
       setDialog(null);
       await load();
     } catch {
-      toast({ title: "Failed to update commission", variant: "destructive" });
+      toast.error("Failed to update commission");
     } finally {
       setRateLoading(false);
     }

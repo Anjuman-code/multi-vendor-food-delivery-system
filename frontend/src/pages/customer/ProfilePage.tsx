@@ -3,21 +3,14 @@ import { AddressDialog } from "@/components/AddressDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import type { UpdateProfileFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 import type {
@@ -139,7 +132,6 @@ const ProfilePage: React.FC = () => {
     updateUser,
   } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -174,14 +166,12 @@ const ProfilePage: React.FC = () => {
       setProfile(res.data.user);
       setCustomerProfile(res.data.customerProfile);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Failed to load profile",
-        variant: "destructive",
       });
     }
     setIsLoadingProfile(false);
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -196,18 +186,14 @@ const ProfilePage: React.FC = () => {
 
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       if (!allowed.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
+        toast.error("Invalid file type", {
           description: "Please upload a JPEG, PNG, WebP, or GIF image.",
-          variant: "destructive",
         });
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
+        toast.error("File too large", {
           description: "Image must be under 5 MB.",
-          variant: "destructive",
         });
         return;
       }
@@ -218,19 +204,17 @@ const ProfilePage: React.FC = () => {
         setProfile((prev) =>
           prev ? { ...prev, profileImage: res.data!.profileImage } : prev,
         );
-        toast({ title: "Profile photo updated!" });
+        toast.success("Profile photo updated!");
       } else {
-        toast({
-          title: "Upload failed",
+        toast.error("Upload failed", {
           description: res.message || "Could not upload photo.",
-          variant: "destructive",
         });
       }
       setIsUploadingProfile(false);
 
       if (profilePhotoRef.current) profilePhotoRef.current.value = "";
     },
-    [toast],
+    [],
   );
 
   const handleCoverPhotoChange = useCallback(
@@ -240,18 +224,14 @@ const ProfilePage: React.FC = () => {
 
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       if (!allowed.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
+        toast.error("Invalid file type", {
           description: "Please upload a JPEG, PNG, WebP, or GIF image.",
-          variant: "destructive",
         });
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
+        toast.error("File too large", {
           description: "Image must be under 5 MB.",
-          variant: "destructive",
         });
         return;
       }
@@ -262,18 +242,16 @@ const ProfilePage: React.FC = () => {
         setProfile((prev) =>
           prev ? { ...prev, coverImage: res.data!.coverImage } : prev,
         );
-        toast({ title: "Cover photo updated!" });
+        toast.success("Cover photo updated!");
       } else {
-        toast({
-          title: "Upload failed",
+        toast.error("Upload failed", {
           description: res.message || "Could not upload cover photo.",
-          variant: "destructive",
         });
       }
       setIsUploadingCover(false);
       if (coverPhotoRef.current) coverPhotoRef.current.value = "";
     },
-    [toast],
+    [],
   );
 
   const handleSaveCoverPosition = useCallback(
@@ -283,16 +261,14 @@ const ProfilePage: React.FC = () => {
         setProfile((prev) =>
           prev ? { ...prev, coverImagePosition: position } : prev,
         );
-        toast({ title: "Cover position saved!" });
+        toast.success("Cover position saved!");
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: res.message || "Could not update cover position.",
-          variant: "destructive",
         });
       }
     },
-    [toast],
+    [],
   );
 
   if (!user) return null;
@@ -673,7 +649,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   isLoading,
   onUpdateSuccess,
 }) => {
-  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -681,6 +656,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
 
   const form = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
+    mode: "onTouched",
     defaultValues: {
       firstName: profile?.firstName ?? "",
       lastName: profile?.lastName ?? "",
@@ -716,13 +692,11 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     const res = await userService.updateProfile(payload);
     if (res.success && res.data) {
       onUpdateSuccess(res.data.user);
-      toast({ title: "Success", description: "Profile updated successfully" });
+      toast.success("Success", { description: "Profile updated successfully" });
       setIsEditing(false);
     } else {
-      toast({
-        title: "Error",
-        description: res.message || "Failed to update profile",
-        variant: "destructive",
+      applyServerErrors(form, res, {
+        fallbackMessage: res.message || "Failed to update profile",
       });
     }
     setIsSaving(false);
@@ -732,11 +706,11 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     if (!profile?.email) return;
     setIsResendingVerification(true);
     const res = await authService.resendVerification(profile.email);
-    toast({
-      title: res.success ? "Success" : "Error",
-      description: res.message,
-      variant: res.success ? "default" : "destructive",
-    });
+    if (res.success) {
+      toast.success("Success", { description: res.message });
+    } else {
+      toast.error("Error", { description: res.message });
+    }
     setIsResendingVerification(false);
   };
 
@@ -784,22 +758,16 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
                           control={form.control}
                           name="firstName"
                           render={({ field }) => (
-                            <FormField
-                              control={form.control}
-                              name="firstName"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>First Name</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      {...field}
-                                      className="rounded-xl border-gray-300 focus:border-orange-400 focus:ring-orange-400"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                            <FormItem>
+                              <FormLabel>First Name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="rounded-xl border-gray-300 focus:border-orange-400 focus:ring-orange-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
                           )}
                         />
                         <FormField
@@ -1089,7 +1057,6 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
   isLoading,
   onRefresh,
 }) => {
-  const { toast } = useToast();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingAddress, setEditingAddress] = useState<UserAddress | null>(
     null,
@@ -1101,13 +1068,11 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
     setDeletingId(addressId);
     const res = await userService.deleteAddress(addressId);
     if (res.success) {
-      toast({ title: "Success", description: "Address deleted" });
+      toast.success("Success", { description: "Address deleted" });
       await onRefresh();
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
     setDeletingId(null);
@@ -1117,13 +1082,11 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
     setSettingDefaultId(addressId);
     const res = await userService.setDefaultAddress(addressId);
     if (res.success) {
-      toast({ title: "Success", description: "Default address updated" });
+      toast.success("Success", { description: "Default address updated" });
       await onRefresh();
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
     setSettingDefaultId(null);
@@ -1201,9 +1164,8 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
                     {addr.apartment ? `, ${addr.apartment}` : ""}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {addr.city}, {addr.state} {addr.zipCode}
+                    {addr.area}, {addr.district}
                   </p>
-                  <p className="text-xs text-gray-400">{addr.country}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-50">
@@ -1272,7 +1234,6 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
 };
 
 const PaymentSection: React.FC = () => {
-  const { toast } = useToast();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(true);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
@@ -1283,14 +1244,12 @@ const PaymentSection: React.FC = () => {
     if (res.success && res.data) {
       setPaymentMethods(res.data.paymentMethods);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Failed to load payment methods",
-        variant: "destructive",
       });
     }
     setIsLoadingPayments(false);
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     void fetchPaymentMethods();
@@ -1436,7 +1395,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   isLoading,
   onRefresh,
 }) => {
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [notifications, setNotifications] = useState<NotificationPreferences>(
     customerProfile?.notifications ?? {
@@ -1465,16 +1423,13 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
       notifications: updated,
     });
     if (res.success) {
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: "Notification preferences saved",
       });
       setNotifications(updated);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
     setIsSaving(false);
@@ -1498,13 +1453,11 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
       dietaryPreferences: updated,
     });
     if (res.success) {
-      toast({ title: "Success", description: "Dietary preference added" });
+      toast.success("Success", { description: "Dietary preference added" });
       await onRefresh();
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
   };
@@ -1516,13 +1469,11 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
       dietaryPreferences: updated,
     });
     if (res.success) {
-      toast({ title: "Success", description: "Dietary preference removed" });
+      toast.success("Success", { description: "Dietary preference removed" });
       await onRefresh();
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
   };

@@ -7,7 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatRelativeTime } from "@/utils/format";
 import {
@@ -44,7 +44,6 @@ const daysSince = (d: string) =>
   Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
 
 export default function ApprovalQueuePage() {
-  const { toast } = useToast();
   const [items, setItems] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -59,7 +58,7 @@ export default function ApprovalQueuePage() {
       setItems((res.data as { data: { restaurants: QueueItem[] } }).data.restaurants);
       setSelectedIds(new Set());
     } catch {
-      toast({ title: "Failed to load approval queue", variant: "destructive" });
+      toast.error("Failed to load approval queue");
     } finally {
       setLoading(false);
     }
@@ -85,10 +84,10 @@ export default function ApprovalQueuePage() {
     if (!target) return;
     try {
       await adminService.approveRestaurant(target._id);
-      toast({ title: "Approved", description: `${target.name} is now live.` });
+      toast.success("Approved", { description: `${target.name} is now live.` });
       await load();
     } catch {
-      toast({ title: "Approval failed", variant: "destructive" });
+      toast.error("Approval failed");
       throw new Error("failed");
     }
   };
@@ -97,10 +96,10 @@ export default function ApprovalQueuePage() {
     if (!target) return;
     try {
       await adminService.rejectRestaurant(target._id, { reason: reason! });
-      toast({ title: "Rejected", description: "Application rejected." });
+      toast.success("Rejected", { description: "Application rejected." });
       await load();
     } catch {
-      toast({ title: "Rejection failed", variant: "destructive" });
+      toast.error("Rejection failed");
       throw new Error("failed");
     }
   };
@@ -121,11 +120,13 @@ export default function ApprovalQueuePage() {
     }
     setBusy(false);
     setDialog(null);
-    toast({
-      title: `Approved ${ok} of ${ids.length}`,
-      description: failed ? `${failed} could not be approved.` : undefined,
-      variant: failed ? "destructive" : undefined,
-    });
+    if (failed) {
+      toast.error(`Approved ${ok} of ${ids.length}`, {
+        description: `${failed} could not be approved.`,
+      });
+    } else {
+      toast.success(`Approved ${ok} of ${ids.length}`);
+    }
     await load();
   };
 

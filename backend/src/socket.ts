@@ -127,6 +127,11 @@ export const initSocket = (server: HTTPServer): SocketServer => {
     }
     void socket.join(room);
 
+    // Role-agnostic personal room — every user joins `notify:<userId>` so the
+    // notification service can push in-app notifications without knowing the
+    // recipient's role.
+    void socket.join(`notify:${userId}`);
+
     // Driver: also join order-specific rooms for active deliveries
     if (role === 'driver') {
       socket.on('driver:joinOrderRoom', (orderId: string) => {

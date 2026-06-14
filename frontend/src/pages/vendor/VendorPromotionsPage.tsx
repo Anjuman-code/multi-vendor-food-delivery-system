@@ -12,7 +12,8 @@ import {
 } from "@/components/vendor";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { extractApiError, getErrorMessage, getFieldErrors } from "@/lib/formErrors";
 import vendorService from "@/services/vendorService";
 import type {
   CouponStats,
@@ -138,7 +139,6 @@ const getStatusBadge = (
 
 const VendorPromotionsPage: React.FC = () => {
   const { restaurants } = useVendor();
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [coupons, setCoupons] = useState<VendorCoupon[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,10 +182,8 @@ const VendorPromotionsPage: React.FC = () => {
     if (res.success && res.data) {
       setStatsMap((prev) => ({ ...prev, [couponId]: res.data! }));
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Failed to load stats",
-        variant: "destructive",
       });
     }
     setStatsLoading(null);
@@ -203,15 +201,12 @@ const VendorPromotionsPage: React.FC = () => {
           c._id === coupon._id ? { ...c, isActive: !coupon.isActive } : c,
         ),
       );
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: `Coupon ${coupon.isActive ? "paused" : "resumed"}`,
       });
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
   };
@@ -224,12 +219,10 @@ const VendorPromotionsPage: React.FC = () => {
     const res = await vendorService.deleteCoupon(id);
     if (res.success) {
       setCoupons((prev) => prev.filter((c) => c._id !== id));
-      toast({ title: "Success", description: "Coupon deleted" });
+      toast.success("Success", { description: "Coupon deleted" });
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message,
-        variant: "destructive",
       });
     }
   };
@@ -372,18 +365,51 @@ const VendorPromotionsPage: React.FC = () => {
       : await vendorService.createCoupon(payload);
 
     if (res.success) {
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: editCouponId ? "Coupon updated" : "Coupon created",
       });
       setShowWizard(false);
       await loadCoupons();
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      // Map backend field errors back onto the wizard so they render inline
+      // under the matching input, and jump to the step that owns the first one.
+      const fieldErrors = getFieldErrors(extractApiError(res));
+      if (fieldErrors.length > 0) {
+        // Server field name → local wizard field key.
+        const fieldMap: Record<string, string> = {
+          startDate: "validFrom",
+          endDate: "validTo",
+        };
+        // Local wizard field key → wizard step number.
+        const stepOf: Record<string, number> = {
+          code: 1,
+          value: 1,
+          minimumOrderAmount: 2,
+          maxDiscount: 2,
+          applicableRestaurants: 2,
+          validFrom: 3,
+          validTo: 3,
+          usageLimit: 3,
+        };
+
+        const mapped: Record<string, string> = {};
+        for (const fe of fieldErrors) {
+          const key = fieldMap[fe.field] ?? fe.field;
+          mapped[key] = fe.message;
+        }
+        setWizardErrors(mapped);
+
+        const firstKey = fieldMap[fieldErrors[0].field] ?? fieldErrors[0].field;
+        if (stepOf[firstKey]) setWizardStep(stepOf[firstKey]);
+
+        toast.error("Please fix the highlighted fields", {
+          description: fieldErrors[0].message,
+        });
+      } else {
+        toast.error("Error", {
+          description: getErrorMessage(res),
+        });
+      }
     }
     setWizardSaving(false);
   };

@@ -6,7 +6,7 @@ import {
 } from "@/components/vendor";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import vendorService from "@/services/vendorService";
 import type { VendorRestaurant } from "@/types/vendor";
 import { motion } from "framer-motion";
@@ -28,7 +28,6 @@ const VendorRestaurantsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { refreshRestaurants } = useVendor();
-  const { toast } = useToast();
   const confirm = useConfirm();
 
   useEffect(() => {
@@ -49,13 +48,9 @@ const VendorRestaurantsPage: React.FC = () => {
     if (res.success) {
       setRestaurants((prev) => prev.filter((r) => r._id !== id));
       refreshRestaurants();
-      toast({ title: "Success", description: "Restaurant deleted" });
+      toast.success("Success", { description: "Restaurant deleted" });
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      toast.error("Error", { description: res.message });
     }
   };
 

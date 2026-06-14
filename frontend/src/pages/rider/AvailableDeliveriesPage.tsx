@@ -1,7 +1,7 @@
 import { EmptyState, PageHeader } from "@/components/rider";
 import { Button } from "@/components/ui/button";
 import { useRider } from "@/contexts/RiderContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import riderService, { type RiderOrder } from "@/services/riderService";
 import { formatCurrency } from "@/utils/format";
 import { AnimatePresence, motion } from "framer-motion";
@@ -51,7 +51,6 @@ const tripDistance = (order: RiderOrder): number | null => {
 };
 
 const AvailableDeliveriesPage: React.FC = () => {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { profile, activeOrder, refresh } = useRider();
   const [orders, setOrders] = useState<RiderOrder[]>([]);
@@ -74,17 +73,14 @@ const AvailableDeliveriesPage: React.FC = () => {
         if (!silent) {
           const msg = (err as { response?: { data?: { message?: string } } })
             ?.response?.data?.message;
-          toast({
-            variant: "destructive",
-            title: msg ?? "Failed to load available orders",
-          });
+          toast.error(msg ?? "Failed to load available orders");
         }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [toast],
+    [],
   );
 
   useEffect(() => {
@@ -100,17 +96,14 @@ const AvailableDeliveriesPage: React.FC = () => {
     try {
       await riderService.acceptOrder(orderId);
       await refresh();
-      toast({
-        title: "Order accepted",
+      toast.success("Order accepted", {
         description: "Head to the restaurant to pick it up.",
       });
       navigate("/rider/active");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      toast({
-        variant: "destructive",
-        title: msg ?? "Order no longer available",
+      toast.error(msg ?? "Order no longer available", {
         description: "It may have been taken by another rider.",
       });
       void fetchOrders(true);

@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
@@ -8,20 +8,6 @@ const SOCKET_URL =
   "http://localhost:2002";
 
 // ── Payload shapes ──────────────────────────────────────────────
-
-interface NewOrderPayload {
-  _id: string;
-  orderNumber: string;
-  customerName: string;
-  total: number;
-}
-
-interface OrderStatusPayload {
-  _id: string;
-  orderNumber: string;
-  newStatus: string;
-  previousStatus?: string;
-}
 
 export interface DriverLocationPayload {
   driverId: string;
@@ -62,16 +48,6 @@ export const useSocketContext = () => useContext(SocketContext);
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  preparing: "Preparing",
-  ready: "Ready for Pickup",
-  picked_up: "Picked Up",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
-
 function playBeep() {
   try {
     const ctx = new AudioContext();
@@ -97,7 +73,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionFailed, setConnectionFailed] = useState(false);
@@ -144,15 +119,14 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Vendor: new incoming order ───────────────────────────────
+  // The user-facing toast is raised centrally by NotificationContext (via the
+  // `notification:new` event). Here we only keep the live order-count badge and
+  // the audible alert that are specific to the vendor workspace.
   useEffect(() => {
     if (!socket || user?.role !== "vendor") return;
 
-    const handler = (data: NewOrderPayload) => {
+    const handler = () => {
       setNewOrderCount((n) => n + 1);
-      toast({
-        title: "New Order!",
-        description: `${data.orderNumber} · ${data.customerName} · ৳${data.total.toLocaleString("en-BD")}`,
-      });
       playBeep();
     };
 
@@ -160,39 +134,34 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       socket.off("newOrder", handler);
     };
-  }, [socket, user?.role, toast]);
+  }, [socket, user?.role]);
 
-  // ── Customer: order status changed ───────────────────────────
+  // ── Customer: live driver location for active-order tracking ──
   useEffect(() => {
     if (!socket || user?.role !== "customer") return;
-
-    const handler = (data: OrderStatusPayload) => {
-      const label = STATUS_LABEL[data.newStatus] ?? data.newStatus;
-      toast({
-        title: "Order Update",
-        description: `Order ${data.orderNumber} is now ${label}.`,
-      });
-    };
 
     const locationHandler = (data: DriverLocationPayload) => {
       setDriverLocation(data);
     };
 
-    socket.on("orderStatusUpdate", handler);
     socket.on("driver:locationUpdate", locationHandler);
     return () => {
-      socket.off("orderStatusUpdate", handler);
       socket.off("driver:locationUpdate", locationHandler);
     };
-  }, [socket, user?.role, toast]);
+  }, [socket, user?.role]);
 
   // ── Driver: new delivery available ───────────────────────────
+  // Broadcast to available drivers; this has no persisted notification, so the
+  // toast + audible alert live here.
   useEffect(() => {
     if (!socket || user?.role !== "driver") return;
 
-    const handler = (data: { orderNumber: string; restaurantName?: string; deliveryFee?: number }) => {
-      toast({
-        title: "New Delivery Available!",
+    const handler = (data: {
+      orderNumber: string;
+      restaurantName?: string;
+      deliveryFee?: number;
+    }) => {
+      toast.info("New Delivery Available!", {
         description: `Order ${data.orderNumber}${data.restaurantName ? ` from ${data.restaurantName}` : ""}${data.deliveryFee ? ` · ৳${data.deliveryFee}` : ""}`,
       });
       playBeep();
@@ -202,7 +171,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       socket.off("driver:newDeliveryAvailable", handler);
     };
-  }, [socket, user?.role, toast]);
+  }, [socket, user?.role]);
 
   const watchOrderLocation = (orderId: string) => {
     if (socket) {

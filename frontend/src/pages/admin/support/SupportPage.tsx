@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
 import type { SupportTicket } from "@/types/support";
 import {
@@ -48,7 +48,6 @@ const assignedOf = (t: SupportTicket) =>
     : null;
 
 export default function SupportPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
@@ -77,15 +76,15 @@ export default function SupportPage() {
           setTotalPages(res.data.pagination.pages);
           setPage(res.data.pagination.page);
         } else {
-          toast({ title: "Failed to load tickets", variant: "destructive" });
+          toast.error("Failed to load tickets");
         }
       } catch {
-        toast({ title: "Failed to load tickets", variant: "destructive" });
+        toast.error("Failed to load tickets");
       } finally {
         setLoading(false);
       }
     },
-    [status, priority, toast],
+    [status, priority],
   );
 
   useEffect(() => {

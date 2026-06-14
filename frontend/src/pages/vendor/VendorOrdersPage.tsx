@@ -8,7 +8,7 @@ import {
   type DataTableColumn,
 } from "@/components/vendor";
 import { useSocketContext } from "@/contexts/SocketContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import vendorService from "@/services/vendorService";
 import type { VendorOrder, VendorOrderStatus } from "@/types/vendor";
 import { formatCurrency } from "@/utils/format";
@@ -253,7 +253,6 @@ const OrderCard: React.FC<{
 // ── Main page ────────────────────────────────────────────────────
 
 const VendorOrdersPage: React.FC = () => {
-  const { toast } = useToast();
   const { newOrderCount } = useSocketContext();
   const { audioEnabled, toggle: toggleAudio, playChime } = useAudioNotification();
   const [activeTab, setActiveTab] = useState<TabId>("live");
@@ -319,9 +318,9 @@ const VendorOrdersPage: React.FC = () => {
             )
           : prev.filter((o) => o._id !== orderId),
       );
-      toast({ title: "Success", description: `Order status updated` });
+      toast.success("Success", { description: `Order status updated` });
     } else {
-      toast({ title: "Error", description: res.message, variant: "destructive" });
+      toast.error("Error", { description: res.message });
     }
   };
 

@@ -23,7 +23,7 @@ import {
 import vendorService from "@/services/vendorService";
 import { useVendor } from "@/contexts/VendorContext";
 import type { VendorReview } from "@/types/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { formatDate, formatRelativeTime, formatNumber } from "@/utils/format";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -82,7 +82,6 @@ function StarRating({ rating }: { rating: number }) {
 
 const VendorReviewsPage: React.FC = () => {
   const { selectedRestaurantId } = useVendor();
-  const { toast } = useToast();
 
   const [reviews, setReviews] = useState<VendorReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,15 +187,11 @@ const VendorReviewsPage: React.FC = () => {
       );
       setReplyingTo(null);
       setReplyText("");
-      toast({ title: "Success", description: "Reply posted successfully" });
+      toast.success("Success", { description: "Reply posted successfully" });
     } else {
       const msg = res.message || "Failed to post reply. Please try again.";
       setReplyError(msg);
-      toast({
-        title: "Error",
-        description: msg,
-        variant: "destructive",
-      });
+      toast.error("Error", { description: msg });
     }
     setSending(false);
   };

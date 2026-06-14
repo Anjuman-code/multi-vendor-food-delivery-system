@@ -36,7 +36,7 @@ import {
   VendorEmptyState,
   type DataTableColumn,
 } from "@/components/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import vendorService from "@/services/vendorService";
 import type {
   VendorEarnings,
@@ -55,7 +55,6 @@ const PERIOD_OPTIONS = [
 const PAYOUTS_PER_PAGE = 10;
 
 const VendorEarningsPage = () => {
-  const { toast } = useToast();
   const [period, setPeriod] = useState("30d");
   const [earnings, setEarnings] = useState<VendorEarnings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,15 +74,13 @@ const VendorEarningsPage = () => {
       if (res.success && res.data) {
         setEarnings(res.data);
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: res.message || "Failed to load earnings",
-          variant: "destructive",
         });
       }
       setLoading(false);
     },
-    [toast],
+    [],
   );
 
   const loadPayouts = useCallback(

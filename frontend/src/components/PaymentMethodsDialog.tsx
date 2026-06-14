@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { getErrorMessage } from "@/lib/formErrors";
 import type { PaymentMethod } from "@/services/userService";
 import userService from "@/services/userService";
 import { CreditCard, Loader2, Save, Trash2 } from "lucide-react";
@@ -35,19 +36,19 @@ export interface PaymentMethodsDialogProps {
 export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
   isOpen,
   onOpenChange,
-  paymentMethods,
-  isLoadingPayments,
 }) => {
-  const { toast } = useToast();
-  const confirm = useConfirm();
   const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [newPaymentType, setNewPaymentType] = useState<"card" | "upi" | "wallet">("card");
   const [newPaymentProvider, setNewPaymentProvider] = useState("");
   const [newPaymentAccountRef, setNewPaymentAccountRef] = useState("");
   const [newPaymentExpiryMonth, setNewPaymentExpiryMonth] = useState("");
   const [newPaymentExpiryYear, setNewPaymentExpiryYear] = useState("");
   const [newPaymentDefault, setNewPaymentDefault] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    provider?: string;
+    accountRef?: string;
+    expiry?: string;
+  }>({});
 
   const resetPaymentForm = useCallback(() => {
     setNewPaymentType("card");
@@ -56,28 +57,34 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
     setNewPaymentExpiryMonth("");
     setNewPaymentExpiryYear("");
     setNewPaymentDefault(false);
+    setFieldErrors({});
   }, []);
 
   const handleAddPaymentMethod = useCallback(async () => {
     const provider = newPaymentProvider.trim();
     const accountRefDigits = newPaymentAccountRef.replace(/\D/g, "");
 
+    setFieldErrors({});
+
     if (!provider) {
-      toast({
-        title: "Provider required",
+      setFieldErrors({
+        provider: "Enter a payment provider (for example Visa, bKash, Nagad).",
+      });
+      toast.error("Provider required", {
         description:
           "Enter a payment provider (for example Visa, bKash, Nagad).",
-        variant: "destructive",
       });
       return;
     }
 
     if (accountRefDigits.length < 4) {
-      toast({
-        title: "Invalid account reference",
+      setFieldErrors({
+        accountRef:
+          "Enter at least 4 digits so we can store the last 4 securely.",
+      });
+      toast.error("Invalid account reference", {
         description:
           "Enter at least 4 digits so we can store the last 4 securely.",
-        variant: "destructive",
       });
       return;
     }
@@ -109,10 +116,11 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
         yearNum < 2024 ||
         yearNum > 2050
       ) {
-        toast({
-          title: "Invalid expiry",
+        setFieldErrors({
+          expiry: "Enter a valid card expiry month and year.",
+        });
+        toast.error("Invalid expiry", {
           description: "Enter a valid card expiry month and year.",
-          variant: "destructive",
         });
         return;
       }
@@ -123,15 +131,11 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
     setIsAddingPayment(true);
     const res = await userService.addPaymentMethod(payload);
     if (res.success && res.data?.paymentMethod) {
-      toast({ title: "Payment method added" });
+      toast.success("Payment method added");
       onOpenChange(false);
       resetPaymentForm();
     } else {
-      toast({
-        title: "Add payment failed",
-        description: res.message || "Could not add payment method.",
-        variant: "destructive",
-      });
+      toast.error(getErrorMessage(res, "Could not add payment method."));
     }
     setIsAddingPayment(false);
   }, [
@@ -142,55 +146,8 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
     newPaymentExpiryMonth,
     newPaymentExpiryYear,
     resetPaymentForm,
-    toast,
     onOpenChange,
   ]);
-
-  const handleSetDefaultPayment = useCallback(
-    async (methodId: string) => {
-      setIsUpdatingPayment(true);
-      const res = await userService.updatePaymentMethod(methodId, {
-        isDefault: true,
-      });
-      if (res.success) {
-        toast({ title: "Default payment updated" });
-      } else {
-        toast({
-          title: "Update failed",
-          description:
-            res.message || "Could not update default payment method.",
-          variant: "destructive",
-        });
-      }
-      setIsUpdatingPayment(false);
-    },
-    [toast],
-  );
-
-  const handleDeletePaymentMethod = useCallback(
-    async (methodId: string) => {
-      const ok = await confirm({
-        title: "Remove payment method",
-        description: "Remove this payment method from your account?",
-        confirmLabel: "Remove",
-      });
-      if (!ok) return;
-
-      setIsUpdatingPayment(true);
-      const res = await userService.deletePaymentMethod(methodId);
-      if (res.success) {
-        toast({ title: "Payment method removed" });
-      } else {
-        toast({
-          title: "Remove failed",
-          description: res.message || "Could not remove payment method.",
-          variant: "destructive",
-        });
-      }
-      setIsUpdatingPayment(false);
-    },
-    [toast, confirm],
-  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -226,7 +183,12 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
             <Label>Provider</Label>
             <Input
               value={newPaymentProvider}
-              onChange={(e) => setNewPaymentProvider(e.target.value)}
+              onChange={(e) => {
+                setNewPaymentProvider(e.target.value);
+                if (fieldErrors.provider)
+                  setFieldErrors((p) => ({ ...p, provider: undefined }));
+              }}
+              aria-invalid={fieldErrors.provider ? true : undefined}
               placeholder={
                 newPaymentType === "card"
                   ? "Visa / Mastercard"
@@ -236,6 +198,11 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
               }
               className="rounded-xl"
             />
+            {fieldErrors.provider && (
+              <p className="mt-1 text-sm font-medium text-destructive">
+                {fieldErrors.provider}
+              </p>
+            )}
           </div>
 
           <div>
@@ -246,7 +213,12 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
             </Label>
             <Input
               value={newPaymentAccountRef}
-              onChange={(e) => setNewPaymentAccountRef(e.target.value)}
+              onChange={(e) => {
+                setNewPaymentAccountRef(e.target.value);
+                if (fieldErrors.accountRef)
+                  setFieldErrors((p) => ({ ...p, accountRef: undefined }));
+              }}
+              aria-invalid={fieldErrors.accountRef ? true : undefined}
               placeholder={
                 newPaymentType === "card"
                   ? "4111 1111 1111 1111"
@@ -254,37 +226,60 @@ export const PaymentMethodsDialog: React.FC<PaymentMethodsDialogProps> = ({
               }
               className="rounded-xl"
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Only the last 4 digits are stored in your profile display.
-            </p>
+            {fieldErrors.accountRef ? (
+              <p className="mt-1 text-sm font-medium text-destructive">
+                {fieldErrors.accountRef}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500">
+                Only the last 4 digits are stored in your profile display.
+              </p>
+            )}
           </div>
 
           {newPaymentType === "card" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Expiry Month</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={newPaymentExpiryMonth}
-                  onChange={(e) => setNewPaymentExpiryMonth(e.target.value)}
-                  placeholder="MM"
-                  className="rounded-xl"
-                />
+            <div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Expiry Month</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={newPaymentExpiryMonth}
+                    onChange={(e) => {
+                      setNewPaymentExpiryMonth(e.target.value);
+                      if (fieldErrors.expiry)
+                        setFieldErrors((p) => ({ ...p, expiry: undefined }));
+                    }}
+                    aria-invalid={fieldErrors.expiry ? true : undefined}
+                    placeholder="MM"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label>Expiry Year</Label>
+                  <Input
+                    type="number"
+                    min={2024}
+                    max={2050}
+                    value={newPaymentExpiryYear}
+                    onChange={(e) => {
+                      setNewPaymentExpiryYear(e.target.value);
+                      if (fieldErrors.expiry)
+                        setFieldErrors((p) => ({ ...p, expiry: undefined }));
+                    }}
+                    aria-invalid={fieldErrors.expiry ? true : undefined}
+                    placeholder="YYYY"
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Expiry Year</Label>
-                <Input
-                  type="number"
-                  min={2024}
-                  max={2050}
-                  value={newPaymentExpiryYear}
-                  onChange={(e) => setNewPaymentExpiryYear(e.target.value)}
-                  placeholder="YYYY"
-                  className="rounded-xl"
-                />
-              </div>
+              {fieldErrors.expiry && (
+                <p className="mt-1 text-sm font-medium text-destructive">
+                  {fieldErrors.expiry}
+                </p>
+              )}
             </div>
           )}
 
@@ -343,10 +338,8 @@ export interface PaymentMethodsListProps {
 
 export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   paymentMethods,
-  isLoadingPayments,
   onRefresh,
 }) => {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
@@ -357,19 +350,17 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
         isDefault: true,
       });
       if (res.success && res.data?.paymentMethod) {
-        toast({ title: "Default payment updated" });
+        toast.success("Default payment updated");
         await onRefresh();
       } else {
-        toast({
-          title: "Update failed",
+        toast.error("Update failed", {
           description:
             res.message || "Could not update default payment method.",
-          variant: "destructive",
         });
       }
       setIsUpdatingPayment(false);
     },
-    [toast, onRefresh],
+    [onRefresh],
   );
 
   const handleDeletePaymentMethod = useCallback(
@@ -384,18 +375,16 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
       setIsUpdatingPayment(true);
       const res = await userService.deletePaymentMethod(methodId);
       if (res.success) {
-        toast({ title: "Payment method removed" });
+        toast.success("Payment method removed");
         await onRefresh();
       } else {
-        toast({
-          title: "Remove failed",
+        toast.error("Remove failed", {
           description: res.message || "Could not remove payment method.",
-          variant: "destructive",
         });
       }
       setIsUpdatingPayment(false);
     },
-    [toast, onRefresh, confirm],
+    [onRefresh, confirm],
   );
 
   return (

@@ -19,7 +19,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import {
   deactivateAccountSchema,
   type DeactivateAccountFormData,
@@ -40,12 +41,12 @@ export const DeactivateAccountDialog: React.FC<DeactivateAccountDialogProps> = (
   onOpenChange,
   onDeactivated,
 }) => {
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const { logout: logoutContext } = useAuth();
 
   const form = useForm<DeactivateAccountFormData>({
     resolver: zodResolver(deactivateAccountSchema),
+    mode: "onTouched",
     defaultValues: { password: "" },
   });
 
@@ -53,19 +54,14 @@ export const DeactivateAccountDialog: React.FC<DeactivateAccountDialogProps> = (
     setIsSaving(true);
     const res = await userService.deactivateAccount(data.password);
     if (res.success) {
-      toast({
-        title: "Account Deactivated",
+      toast.success("Account Deactivated", {
         description: "Your account has been deactivated.",
       });
       logoutContext();
       onOpenChange(false);
       onDeactivated();
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      applyServerErrors(form, res);
     }
     setIsSaving(false);
   };

@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { Banknote, CheckCircle2, Download, Wallet } from "lucide-react";
@@ -76,8 +76,6 @@ const pendingVendorInfo = (v: PendingVendor) => {
 };
 
 export default function PayoutsPage() {
-  const { toast } = useToast();
-
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [pendingVendors, setPendingVendors] = useState<PendingVendor[]>([]);
   const [pendingTotal, setPendingTotal] = useState(0);
@@ -115,12 +113,12 @@ export default function PayoutsPage() {
         setPendingTotal(d.pendingTotal ?? 0);
         setSelectedIds(new Set());
       } catch {
-        toast({ title: "Failed to load payouts", variant: "destructive" });
+        toast.error("Failed to load payouts");
       } finally {
         setLoading(false);
       }
     },
-    [status, toast],
+    [status],
   );
 
   useEffect(() => {
@@ -132,10 +130,10 @@ export default function PayoutsPage() {
     setInitiatingId(vendorId);
     try {
       await adminService.createPayout({ vendorId });
-      toast({ title: "Payout initiated" });
+      toast.success("Payout initiated");
       await fetchPayouts(page);
     } catch {
-      toast({ title: "Failed to initiate payout", variant: "destructive" });
+      toast.error("Failed to initiate payout");
     } finally {
       setInitiatingId(null);
     }
@@ -148,12 +146,12 @@ export default function PayoutsPage() {
       await adminService.processPayout(processTarget._id, {
         transactionRef: processRef.trim() || undefined,
       });
-      toast({ title: "Payout processed" });
+      toast.success("Payout processed");
       setProcessTarget(null);
       setProcessRef("");
       await fetchPayouts(page);
     } catch {
-      toast({ title: "Failed to process payout", variant: "destructive" });
+      toast.error("Failed to process payout");
     } finally {
       setBusy(false);
     }
@@ -168,12 +166,12 @@ export default function PayoutsPage() {
         ids,
         transactionRef: batchRef.trim() || undefined,
       });
-      toast({ title: `${ids.length} payouts processed` });
+      toast.success(`${ids.length} payouts processed`);
       setBatchOpen(false);
       setBatchRef("");
       await fetchPayouts(page);
     } catch {
-      toast({ title: "Failed to process payouts", variant: "destructive" });
+      toast.error("Failed to process payouts");
     } finally {
       setBusy(false);
     }

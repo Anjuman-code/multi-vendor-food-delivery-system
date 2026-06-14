@@ -7,7 +7,8 @@ import mongoose from 'mongoose';
 import DriverLocationEvent from '../models/DriverLocationEvent';
 import DriverProfile from '../models/DriverProfile';
 import DriverRating from '../models/DriverRating';
-import Notification, { NotificationType } from '../models/Notification';
+import { NotificationType } from '../models/Notification';
+import { createNotification } from '../services/notification.service';
 import Order, { DeliveryStage, OrderStatus, PaymentStatus } from '../models/Order';
 import { getIO } from '../socket';
 import type { AuthRequest } from '../types';
@@ -352,7 +353,7 @@ export const acceptOrder = async (
     }
 
     // Notify customer
-    await Notification.create({
+    await createNotification({
       userId: order.customerId,
       type: NotificationType.ORDER_UPDATE,
       title: 'Driver assigned',
@@ -490,7 +491,7 @@ export const advanceDeliveryStage = async (
     }
 
     if (justPickedUp) {
-      await Notification.create({
+      await createNotification({
         userId: order.customerId,
         type: NotificationType.ORDER_UPDATE,
         title: 'Order picked up',
@@ -676,7 +677,7 @@ export const updateDeliveryStatus = async (
       );
 
       // Notify customer
-      await Notification.create({
+      await createNotification({
         userId: order.customerId,
         type: NotificationType.ORDER_UPDATE,
         title: 'Order delivered!',

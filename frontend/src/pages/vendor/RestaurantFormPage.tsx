@@ -6,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PageHeader, SectionCard } from '@/components/vendor';
 import { useVendor } from '@/contexts/VendorContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
 import {
   createRestaurantSchema,
   type CreateRestaurantInput,
 } from '@/lib/vendorValidation';
+import { applyServerErrors } from '@/lib/formErrors';
 import vendorService from '@/services/vendorService';
 import type { CreateRestaurantPayload } from '@/types/vendor';
 import { cn } from '@/utils/cn';
@@ -30,11 +31,6 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
-
-type SubmitErrorItem = {
-  field?: string;
-  message?: string;
-};
 
 const CUISINE_OPTIONS = [
   'Bengali',
@@ -71,20 +67,12 @@ const RestaurantFormPage: React.FC = () => {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const { refreshRestaurants } = useVendor();
-  const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
-  const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-    reset,
-  } = useForm<CreateRestaurantInput>({
+  const form = useForm<CreateRestaurantInput>({
     resolver: zodResolver(createRestaurantSchema),
+    mode: 'onTouched',
     defaultValues: {
       cuisineType: [],
       website: '',
@@ -106,6 +94,15 @@ const RestaurantFormPage: React.FC = () => {
       })),
     },
   });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    reset,
+  } = form;
 
   const selectedCuisines = watch('cuisineType') || [];
   const openingHours = watch('openingHours') || [];
@@ -166,19 +163,15 @@ const RestaurantFormPage: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file',
+      toast.error('Invalid file', {
         description: 'Please select an image file.',
-        variant: 'destructive',
       });
       return;
     }
 
     if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
-      toast({
-        title: 'Image too large',
+      toast.error('Image too large', {
         description: 'Please choose an image smaller than 2MB.',
-        variant: 'destructive',
       });
       event.target.value = '';
       return;
@@ -191,10 +184,8 @@ const RestaurantFormPage: React.FC = () => {
       }
     };
     reader.onerror = () => {
-      toast({
-        title: 'Upload failed',
+      toast.error('Upload failed', {
         description: 'Could not read the selected image. Please try again.',
-        variant: 'destructive',
       });
     };
     reader.readAsDataURL(file);
@@ -215,7 +206,6 @@ const RestaurantFormPage: React.FC = () => {
 
   const onSubmit = async (data: CreateRestaurantInput) => {
     setSubmitting(true);
-    setSubmitErrors([]);
 
     const payload: CreateRestaurantPayload = {
       ...data,
@@ -230,38 +220,15 @@ const RestaurantFormPage: React.FC = () => {
       : await vendorService.createRestaurant(payload);
 
     if (res.success) {
-      toast({
-        title: 'Success',
+      toast.success('Success', {
         description: isEdit ? 'Restaurant updated' : 'Restaurant created',
       });
       await refreshRestaurants();
       navigate('/vendor/restaurants');
     } else {
-      const parsedErrors = Array.isArray(res.errors)
-        ? res.errors
-            .map((error) => {
-              if (typeof error === 'string') return error;
-              if (typeof error === 'object' && error !== null) {
-                const issue = error as SubmitErrorItem;
-                if (issue.field && issue.message) {
-                  return `${issue.field}: ${issue.message}`;
-                }
-                return issue.message ?? null;
-              }
-              return null;
-            })
-            .filter((message): message is string => Boolean(message))
-        : [];
-
-      if (parsedErrors.length > 0) {
-        setSubmitErrors(parsedErrors);
-      }
-
-      toast({
-        title: 'Error',
-        description: parsedErrors[0] ?? res.message,
-        variant: 'destructive',
-      });
+      // Map backend field errors inline onto the matching inputs; falls back
+      // to a toast for anything that can't be tied to a specific field.
+      applyServerErrors(form, res);
     }
 
     setSubmitting(false);
@@ -299,19 +266,6 @@ const RestaurantFormPage: React.FC = () => {
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
-        {submitErrors.length > 0 && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
-            <p className="text-sm font-semibold text-destructive">
-              Please fix the following issues:
-            </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-destructive">
-              {submitErrors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* Basic Info */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

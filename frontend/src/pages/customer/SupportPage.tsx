@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
 import type { SupportTicket, TicketStatus } from "@/types/support";
 import { TICKET_STATUS_LABELS, TICKET_TYPE_LABELS } from "@/types/support";
@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Loader2,
   MessageSquare,
+  Package,
   Plus,
   Store,
   User,
@@ -81,7 +82,6 @@ const fmtDate = (d: string) =>
   }).format(new Date(d));
 
 export default function SupportPage() {
-  const { toast } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -91,14 +91,12 @@ export default function SupportPage() {
     if (res.success && res.data) {
       setTickets(res.data.tickets);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Failed to load tickets.",
-        variant: "destructive",
       });
     }
     setLoading(false);
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchTickets();

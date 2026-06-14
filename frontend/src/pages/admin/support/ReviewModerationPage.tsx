@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatDate } from "@/utils/format";
 import { CheckCircle2, EyeOff, RotateCcw, Star, Trash2 } from "lucide-react";
@@ -62,7 +62,6 @@ const Stars = ({ rating }: { rating: number }) => (
 );
 
 export default function ReviewModerationPage() {
-  const { toast } = useToast();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -97,12 +96,12 @@ export default function ReviewModerationPage() {
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load reviews", variant: "destructive" });
+        toast.error("Failed to load reviews");
       } finally {
         setLoading(false);
       }
     },
-    [status, rating, toast],
+    [status, rating],
   );
 
   useEffect(() => {
@@ -112,10 +111,10 @@ export default function ReviewModerationPage() {
   const handleApprove = async (r: Review) => {
     try {
       await adminService.approveReview(r._id);
-      toast({ title: r.status === "hidden" ? "Review restored" : "Review published" });
+      toast.success(r.status === "hidden" ? "Review restored" : "Review published");
       fetchReviews(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
     }
   };
 
@@ -123,10 +122,10 @@ export default function ReviewModerationPage() {
     if (!selected) return;
     try {
       await adminService.removeReview(selected._id, { reason: reason! });
-      toast({ title: "Review removed" });
+      toast.success("Review removed");
       fetchReviews(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -135,10 +134,10 @@ export default function ReviewModerationPage() {
     if (!selected) return;
     try {
       await adminService.hideReview(selected._id);
-      toast({ title: "Review hidden" });
+      toast.success("Review hidden");
       fetchReviews(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };

@@ -7,7 +7,7 @@ import {
   VendorEmptyState,
   type StatusTone,
 } from "@/components/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
 import type { SupportTicket, TicketStatus, TicketPriority } from "@/types/support";
 import {
@@ -47,7 +47,6 @@ const PRIORITY_TONES: Record<TicketPriority, StatusTone> = {
 
 export default function VendorTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,15 +60,13 @@ export default function VendorTicketDetailPage() {
     if (res.success && res.data) {
       setTicket(res.data.ticket);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Ticket not found.",
-        variant: "destructive",
       });
       navigate("/vendor/support");
     }
     setLoading(false);
-  }, [id, toast, navigate]);
+  }, [id, navigate]);
 
   useEffect(() => {
     fetchTicket();
@@ -85,12 +82,10 @@ export default function VendorTicketDetailPage() {
       if (res.success && res.data) {
         setTicket(res.data.ticket);
         setReplyText("");
-        toast({ title: "Reply sent" });
+        toast.success("Reply sent");
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: res.message || "Failed to send reply.",
-          variant: "destructive",
         });
       }
     } finally {

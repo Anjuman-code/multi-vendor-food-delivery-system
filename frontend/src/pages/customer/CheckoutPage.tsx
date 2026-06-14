@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useToast } from '@/hooks/use-toast';
+import { extractApiError, getErrorMessage, getFieldErrors } from '@/lib/formErrors';
+import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
 import type { PaymentMethod, UserAddress } from '@/services/userService';
 import userService from '@/services/userService';
@@ -25,7 +26,7 @@ import {
   Tag,
   Truck,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 type Step = 'delivery-address' | 'payment' | 'review';
@@ -50,7 +51,6 @@ const COD_PAYMENT_ID = '__cod__';
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const {
     items,
@@ -83,6 +83,11 @@ const CheckoutPage: React.FC = () => {
   const [placing, setPlacing] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  // Inline message shown when a "Continue" requirement isn't met.
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
+  // Server error(s) from the place-order call, surfaced inline on the review step.
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderFieldErrors, setOrderFieldErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -133,17 +138,49 @@ const CheckoutPage: React.FC = () => {
     loadData();
   }, [isAuthenticated]);
 
+  /**
+   * The furthest step the current selections actually permit. This is the
+   * single source of truth for navigation: it is derived purely from state, so
+   * it can't be bypassed by editing the `?step=` URL.
+   *   - `payment`/`review` require a selected delivery address.
+   *   - `review` additionally requires a selected payment method.
+   */
+  const maxAllowedStep: Step = useMemo(() => {
+    if (!selectedAddress) return 'delivery-address';
+    if (!selectedPayment) return 'payment';
+    return 'review';
+  }, [selectedAddress, selectedPayment]);
+
+  // The earliest step the user still needs to complete (== maxAllowedStep here,
+  // since each step gates the next), used as the redirect target.
+  const requestedIndex = VALID_STEPS.indexOf(step);
+  const maxAllowedIndex = VALID_STEPS.indexOf(maxAllowedStep);
+  const stepExceedsAllowed = requestedIndex > maxAllowedIndex;
+
+  // Hard guard: runs on EVERY render (incl. direct URL access / reload). If the
+  // URL asks for a step the selections don't permit, snap back to the earliest
+  // incomplete step (replacing history) and explain what's missing.
   useEffect(() => {
-    if (step === 'payment' && !selectedAddress) {
-      setSearchParams({ step: 'delivery-address' }, { replace: true });
-    } else if (step === 'review' && (!selectedAddress || !selectedPayment)) {
-      setSearchParams(
-        { step: selectedAddress ? 'payment' : 'delivery-address' },
-        { replace: true },
+    if (!isAuthenticated || loading) return;
+    if (stepExceedsAllowed) {
+      setSearchParams({ step: maxAllowedStep }, { replace: true });
+      toast.info(
+        maxAllowedStep === 'delivery-address'
+          ? 'Please select a delivery address to continue.'
+          : 'Please select a payment method to continue.',
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [
+    isAuthenticated,
+    loading,
+    stepExceedsAllowed,
+    maxAllowedStep,
+    setSearchParams,
+  ]);
+
+  // While the guard's redirect is pending, render the step the state allows so
+  // we never momentarily show a step the user hasn't earned.
+  const effectiveStep: Step = stepExceedsAllowed ? maxAllowedStep : step;
 
   const selectedAddr = addresses.find((a) => a._id === selectedAddress);
   const isCOD = selectedPayment === COD_PAYMENT_ID;
@@ -151,35 +188,34 @@ const CheckoutPage: React.FC = () => {
     ? null
     : paymentMethods.find((p) => p._id === selectedPayment);
 
-  const stepIndex = STEPS.findIndex((s) => s.key === step);
+  const stepIndex = STEPS.findIndex((s) => s.key === effectiveStep);
 
   const goNext = () => {
-    if (step === 'delivery-address') {
+    if (effectiveStep === 'delivery-address') {
       if (!selectedAddress) {
-        toast({
-          title: 'Select Address',
-          description: 'Please select a delivery address.',
-          variant: 'destructive',
-        });
+        const msg = 'Please select a delivery address to continue.';
+        setAdvanceError(msg);
+        toast.error('Select Address', { description: msg });
         return;
       }
+      setAdvanceError(null);
       setStep('payment');
-    } else if (step === 'payment') {
+    } else if (effectiveStep === 'payment') {
       if (!selectedPayment) {
-        toast({
-          title: 'Select Payment',
-          description: 'Please select a payment method.',
-          variant: 'destructive',
-        });
+        const msg = 'Please select a payment method to continue.';
+        setAdvanceError(msg);
+        toast.error('Select Payment', { description: msg });
         return;
       }
+      setAdvanceError(null);
       setStep('review');
     }
   };
 
   const goBack = () => {
-    if (step === 'payment') setStep('delivery-address');
-    else if (step === 'review') setStep('payment');
+    setAdvanceError(null);
+    if (effectiveStep === 'payment') setStep('delivery-address');
+    else if (effectiveStep === 'review') setStep('payment');
   };
 
   const placeOrder = useCallback(async () => {
@@ -189,18 +225,38 @@ const CheckoutPage: React.FC = () => {
       ? 'cash_on_delivery'
       : `${selectedPm!.type} - ${selectedPm!.provider} ****${selectedPm!.last4}`;
 
+    setOrderError(null);
+    setOrderFieldErrors([]);
     setPlacing(true);
-    const res = await orderService.createOrderFromCart({
-      deliveryAddress: {
-        street: selectedAddr.street,
-        apartment: selectedAddr.apartment,
-        area: selectedAddr.area,
-        district: selectedAddr.district,
-        coordinates: selectedAddr.coordinates,
-      },
-      paymentMethod: paymentMethodValue,
-      couponCode: promoCode || undefined,
-    });
+    let res;
+    try {
+      res = await orderService.createOrderFromCart({
+        deliveryAddress: {
+          street: selectedAddr.street,
+          apartment: selectedAddr.apartment,
+          area: selectedAddr.area,
+          district: selectedAddr.district,
+          coordinates: selectedAddr.coordinates,
+        },
+        paymentMethod: paymentMethodValue,
+        couponCode: promoCode || undefined,
+      });
+    } catch (err) {
+      // Surface the specific server message rather than a vague one.
+      setPlacing(false);
+      const fieldErrors = getFieldErrors(extractApiError(err)).map(
+        (e) => e.message,
+      );
+      setOrderFieldErrors(fieldErrors);
+      setOrderError(getErrorMessage(err));
+      toast.error('Order Failed', {
+        description:
+          fieldErrors.length > 0
+            ? fieldErrors.join('\n')
+            : getErrorMessage(err),
+      });
+      return;
+    }
     setPlacing(false);
 
     if (res.success && res.data) {
@@ -209,23 +265,29 @@ const CheckoutPage: React.FC = () => {
       const orderCount = res.data.orders.length;
 
       if (orderCount > 1) {
-        toast({
-          title: 'Orders Placed!',
+        toast.success('Orders Placed!', {
           description: `${orderCount} orders confirmed across ${orderCount} restaurants.`,
         });
       } else {
-        toast({
-          title: 'Order Placed!',
+        toast.success('Order Placed!', {
           description: `Order ${firstOrder.orderNumber} confirmed.`,
         });
       }
 
       navigate(`/orders/${firstOrder._id}`);
     } else {
-      toast({
-        title: 'Order Failed',
-        description: res.message || 'Something went wrong.',
-        variant: 'destructive',
+      // Service returned the error body directly (not thrown). Pull out the
+      // specific server message and any field-level errors.
+      const fieldErrors = getFieldErrors(extractApiError(res)).map(
+        (e) => e.message,
+      );
+      setOrderFieldErrors(fieldErrors);
+      setOrderError(getErrorMessage(res));
+      toast.error('Order Failed', {
+        description:
+          fieldErrors.length > 0
+            ? fieldErrors.join('\n')
+            : getErrorMessage(res),
       });
     }
   }, [
@@ -236,7 +298,6 @@ const CheckoutPage: React.FC = () => {
     promoCode,
     clearCart,
     navigate,
-    toast,
   ]);
 
   if (loading) {
@@ -298,7 +359,7 @@ const CheckoutPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            {step === 'delivery-address' && (
+            {effectiveStep === 'delivery-address' && (
               <motion.div
                 key="delivery-address"
                 initial={{ opacity: 0, x: -10 }}
@@ -345,7 +406,10 @@ const CheckoutPage: React.FC = () => {
                           ? 'border-orange-500 bg-orange-50'
                           : 'border-transparent hover:border-gray-200'
                       }`}
-                      onClick={() => setSelectedAddress(addr._id)}
+                      onClick={() => {
+                        setSelectedAddress(addr._id);
+                        setAdvanceError(null);
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="h-5 w-5 text-orange-500 flex-shrink-0" />
@@ -381,7 +445,7 @@ const CheckoutPage: React.FC = () => {
               </motion.div>
             )}
 
-            {step === 'payment' && (
+            {effectiveStep === 'payment' && (
               <motion.div
                 key="payment"
                 initial={{ opacity: 0, x: -10 }}
@@ -398,7 +462,10 @@ const CheckoutPage: React.FC = () => {
                       ? 'border-orange-500 bg-orange-50'
                       : 'border-transparent hover:border-gray-200'
                   }`}
-                  onClick={() => setSelectedPayment(COD_PAYMENT_ID)}
+                  onClick={() => {
+                    setSelectedPayment(COD_PAYMENT_ID);
+                    setAdvanceError(null);
+                  }}
                 >
                   <div className="flex items-start gap-3">
                     <Banknote className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
@@ -440,7 +507,10 @@ const CheckoutPage: React.FC = () => {
                           ? 'border-orange-500 bg-orange-50'
                           : 'border-transparent hover:border-gray-200'
                       }`}
-                      onClick={() => setSelectedPayment(pm._id)}
+                      onClick={() => {
+                        setSelectedPayment(pm._id);
+                        setAdvanceError(null);
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         <CreditCard className="h-5 w-5 text-orange-500 flex-shrink-0" />
@@ -483,7 +553,7 @@ const CheckoutPage: React.FC = () => {
               </motion.div>
             )}
 
-            {step === 'review' && (
+            {effectiveStep === 'review' && (
               <motion.div
                 key="review"
                 initial={{ opacity: 0, x: -10 }}
@@ -628,23 +698,52 @@ const CheckoutPage: React.FC = () => {
                     <span className="font-medium">{promoCode}</span>
                   </p>
                 )}
+
+                {orderError && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-red-800">
+                      <p className="font-medium">{orderError}</p>
+                      {orderFieldErrors.length > 0 && (
+                        <ul className="mt-1 list-disc list-inside space-y-0.5">
+                          {orderFieldErrors.map((msg, i) => (
+                            <li key={i}>{msg}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
+            )}
+
+            {advanceError && effectiveStep !== 'review' && (
+              <p className="mt-4 text-sm text-red-600 flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                {advanceError}
+              </p>
             )}
 
             <div className="flex justify-between mt-6">
               <Button
                 variant="ghost"
                 onClick={
-                  step === 'delivery-address' ? () => navigate('/cart') : goBack
+                  effectiveStep === 'delivery-address'
+                    ? () => navigate('/cart')
+                    : goBack
                 }
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                {step === 'delivery-address' ? 'Back to Cart' : 'Back'}
+                {effectiveStep === 'delivery-address' ? 'Back to Cart' : 'Back'}
               </Button>
-              {step !== 'review' ? (
+              {effectiveStep !== 'review' ? (
                 <Button
                   className="bg-orange-500 hover:bg-orange-600"
                   onClick={goNext}
+                  disabled={
+                    (effectiveStep === 'delivery-address' && !selectedAddress) ||
+                    (effectiveStep === 'payment' && !selectedPayment)
+                  }
                 >
                   Continue
                   <ArrowRight className="ml-2 h-4 w-4" />

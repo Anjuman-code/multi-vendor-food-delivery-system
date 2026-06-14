@@ -10,7 +10,8 @@ import CustomerProfile from '../models/CustomerProfile';
 import DriverProfile from '../models/DriverProfile';
 import DriverRating from '../models/DriverRating';
 import LoyaltyTransaction from '../models/LoyaltyTransaction';
-import Notification, { NotificationType } from '../models/Notification';
+import { NotificationType } from '../models/Notification';
+import { createNotification } from '../services/notification.service';
 import Order from '../models/Order';
 import Restaurant from '../models/Restaurant';
 import User from '../models/User';
@@ -857,8 +858,8 @@ export const approveDriver = async (
     await User.updateOne({ _id: req.params.id }, { isActive: true });
 
     // Notify driver
-    await Notification.create({
-      userId: req.params.id,
+    await createNotification({
+      userId: String(req.params.id),
       type: NotificationType.SYSTEM,
       title: 'Application approved!',
       message: welcomeNote || 'Your driver application has been approved. You can now start accepting deliveries.',
@@ -901,8 +902,8 @@ export const rejectDriver = async (
     if (!profile) throw new NotFoundError('Driver profile not found');
 
     // Notify driver
-    await Notification.create({
-      userId: req.params.id,
+    await createNotification({
+      userId: String(req.params.id),
       type: NotificationType.SYSTEM,
       title: 'Application not approved',
       message: `Your driver application was not approved. Reason: ${reason}. You may resubmit after correcting the issues.`,

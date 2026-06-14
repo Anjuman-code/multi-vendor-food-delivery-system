@@ -5,7 +5,7 @@ import {
   PageHeader,
   StatusBadge,
 } from "@/components/admin";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import type { SupportTicket } from "@/types/support";
 import { TICKET_TYPE_LABELS } from "@/types/support";
@@ -25,7 +25,6 @@ const customerOf = (d: Dispute) =>
     : { name: "—", email: "" };
 
 export default function DisputePage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,11 +36,11 @@ export default function DisputePage() {
       const data = (res.data as { data: { disputes: Dispute[]; count: number } }).data;
       setDisputes(data.disputes);
     } catch {
-      toast({ title: "Failed to load disputes", variant: "destructive" });
+      toast.error("Failed to load disputes");
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchDisputes();

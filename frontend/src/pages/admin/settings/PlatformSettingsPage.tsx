@@ -12,7 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -125,7 +125,6 @@ const validate = (f: FormState): Errors => {
 };
 
 export default function PlatformSettingsPage() {
-  const { toast } = useToast();
   const [baseline, setBaseline] = useState<FormState | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,7 +139,7 @@ export default function PlatformSettingsPage() {
         setForm(f);
         setBaseline(f);
       })
-      .catch(() => toast({ title: "Failed to load settings", variant: "destructive" }))
+      .catch(() => toast.error("Failed to load settings"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -182,9 +181,9 @@ export default function PlatformSettingsPage() {
       const next = toForm(s);
       setForm(next);
       setBaseline(next);
-      toast({ title: "Settings saved" });
+      toast.success("Settings saved");
     } catch {
-      toast({ title: "Failed to save settings", variant: "destructive" });
+      toast.error("Failed to save settings");
     } finally {
       setSaving(false);
     }

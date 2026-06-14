@@ -6,7 +6,7 @@ import {
   VendorEmptyState,
 } from '@/components/vendor';
 import { useConfirm } from '@/contexts/ConfirmContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
 import vendorService from '@/services/vendorService';
 import type { VendorOrder } from '@/types/vendor';
 import { cn } from '@/utils/cn';
@@ -45,7 +45,6 @@ const NEXT_STATUS: Record<string, string> = {
 const VendorOrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [order, setOrder] = useState<VendorOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,15 +68,12 @@ const VendorOrderDetailPage: React.FC = () => {
     const res = await vendorService.updateOrderStatus(id, newStatus);
     if (res.success && res.data) {
       setOrder(res.data.order);
-      toast({
-        title: 'Success',
+      toast.success('Success', {
         description: `Order ${newStatus.replace(/_/g, ' ')}`,
       });
     } else {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: res.message,
-        variant: 'destructive',
       });
     }
     setUpdating(false);
@@ -95,12 +91,10 @@ const VendorOrderDetailPage: React.FC = () => {
     const res = await vendorService.updateOrderStatus(id, 'cancelled');
     if (res.success && res.data) {
       setOrder(res.data.order);
-      toast({ title: 'Order cancelled' });
+      toast.success('Order cancelled');
     } else {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: res.message,
-        variant: 'destructive',
       });
     }
     setUpdating(false);

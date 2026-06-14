@@ -1,6 +1,6 @@
 import { PageHeader, SectionCard, StatCard } from "@/components/rider";
 import { useRider } from "@/contexts/RiderContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import riderService, {
   type EarningsData,
   type EarningsPeriod,
@@ -50,7 +50,6 @@ const PeriodCard: React.FC<{ label: string; data: EarningsPeriod }> = ({
 );
 
 const RiderEarningsPage: React.FC = () => {
-  const { toast } = useToast();
   const { profile } = useRider();
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,11 +63,9 @@ const RiderEarningsPage: React.FC = () => {
             null,
         ),
       )
-      .catch(() =>
-        toast({ variant: "destructive", title: "Failed to load earnings" }),
-      )
+      .catch(() => toast.error("Failed to load earnings"))
       .finally(() => setLoading(false));
-  }, [toast]);
+  }, []);
 
   if (loading) {
     return (

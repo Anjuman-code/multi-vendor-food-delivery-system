@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDate, formatPercent } from "@/utils/format";
 import { CheckCircle2, Download, ShieldCheck, Store, UserX, XCircle } from "lucide-react";
@@ -61,7 +61,6 @@ const statusOf = (v: Vendor): { label: string; tone: StatusTone } =>
 const displayName = (v: Vendor) => v.vendorProfile?.businessName ?? `${v.firstName} ${v.lastName}`;
 
 export default function VendorsPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
@@ -95,12 +94,12 @@ export default function VendorsPage() {
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load vendors", variant: "destructive" });
+        toast.error("Failed to load vendors");
       } finally {
         setLoading(false);
       }
     },
-    [search, filterStatus, toast],
+    [search, filterStatus],
   );
 
   useEffect(() => {
@@ -122,10 +121,10 @@ export default function VendorsPage() {
     if (!selected) return;
     try {
       await adminService.verifyVendor(selected._id, { action: "approve" });
-      toast({ title: "Vendor verified" });
+      toast.success("Vendor verified");
       fetchVendors(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -134,10 +133,10 @@ export default function VendorsPage() {
     if (!selected) return;
     try {
       await adminService.verifyVendor(selected._id, { action: "reject", reason });
-      toast({ title: "Vendor rejected" });
+      toast.success("Vendor rejected");
       fetchVendors(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -146,10 +145,10 @@ export default function VendorsPage() {
     if (!selected) return;
     try {
       await adminService.suspendVendor(selected._id, { reason: reason! });
-      toast({ title: "Vendor suspended" });
+      toast.success("Vendor suspended");
       fetchVendors(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };
@@ -158,10 +157,10 @@ export default function VendorsPage() {
     if (!selected) return;
     try {
       await adminService.unsuspendVendor(selected._id, { reason: reason! });
-      toast({ title: "Vendor unsuspended" });
+      toast.success("Vendor unsuspended");
       fetchVendors(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("failed");
     }
   };

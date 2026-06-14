@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatDate } from "@/utils/format";
 import { ArrowDown, ArrowUp, ImageIcon, LayoutTemplate, Pencil, Plus, Trash2 } from "lucide-react";
@@ -78,7 +78,6 @@ const emptyForm = (): BlockForm => ({
 const toDateInput = (iso?: string) => (iso ? iso.slice(0, 10) : "");
 
 export default function ContentBlocksPage() {
-  const { toast } = useToast();
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,7 +91,7 @@ export default function ContentBlocksPage() {
       const res = await adminService.listContentBlocks();
       setBlocks((res.data as { data: { blocks: ContentBlock[] } }).data.blocks);
     } catch {
-      toast({ title: "Failed to load content blocks", variant: "destructive" });
+      toast.error("Failed to load content blocks");
     } finally {
       setLoading(false);
     }
@@ -139,11 +138,11 @@ export default function ContentBlocksPage() {
       };
       if (form.id) await adminService.updateContentBlock(form.id, payload);
       else await adminService.createContentBlock(payload);
-      toast({ title: "Content block saved" });
+      toast.success("Content block saved");
       setForm(null);
       await load();
     } catch {
-      toast({ title: "Failed to save content block", variant: "destructive" });
+      toast.error("Failed to save content block");
     } finally {
       setSaving(false);
     }
@@ -153,11 +152,11 @@ export default function ContentBlocksPage() {
     if (!deleteId) return;
     try {
       await adminService.deleteContentBlock(deleteId);
-      toast({ title: "Content block deleted" });
+      toast.success("Content block deleted");
       setDeleteId(null);
       await load();
     } catch {
-      toast({ title: "Failed to delete content block", variant: "destructive" });
+      toast.error("Failed to delete content block");
       throw new Error("failed");
     }
   };
@@ -174,7 +173,7 @@ export default function ContentBlocksPage() {
       await adminService.reorderContentBlocks(order);
       await load();
     } catch {
-      toast({ title: "Failed to reorder", variant: "destructive" });
+      toast.error("Failed to reorder");
       await load();
     } finally {
       setReordering(false);

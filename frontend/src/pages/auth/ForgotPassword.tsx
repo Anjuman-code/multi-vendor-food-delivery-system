@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 
@@ -23,10 +23,10 @@ const ForgotPassword: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const form = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
+    mode: "onTouched",
     defaultValues: { email: "" },
   });
 
@@ -37,18 +37,10 @@ const ForgotPassword: React.FC = () => {
       if (response.success) {
         setSentTo(data.email);
       } else {
-        toast({
-          title: "Couldn't send reset link",
-          description: response.message || "Please try again.",
-          variant: "destructive",
-        });
+        applyServerErrors(form, response);
       }
-    } catch {
-      toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      applyServerErrors(form, err);
     } finally {
       setIsLoading(false);
     }

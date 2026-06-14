@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import type { TicketPriority, TicketType } from "@/types/support";
 import supportService from "@/services/supportService";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,20 +51,15 @@ const PRIORITY_OPTIONS: { value: TicketPriority; label: string; description: str
 ];
 
 export default function RiderCreateTicketPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [submitting, setSubmitting] = useState(false);
 
   const prefill = searchParams.get("type") as TicketType | null;
-  const {
-    control,
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<TicketFormData>({
+  const form = useForm<TicketFormData>({
     resolver: zodResolver(ticketSchema),
+    mode: "onTouched",
     defaultValues: {
       type:
         prefill && TYPE_OPTIONS.some((o) => o.value === prefill)
@@ -71,6 +67,13 @@ export default function RiderCreateTicketPage() {
           : "general",
     },
   });
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = form;
 
   const onSubmit = async (data: TicketFormData) => {
     setSubmitting(true);
@@ -81,15 +84,17 @@ export default function RiderCreateTicketPage() {
         orderId: data.orderId || undefined,
       });
       if (res.success && res.data) {
-        toast({ title: "Ticket created", description: "We'll be in touch." });
+        toast.success("Ticket created", { description: "We'll be in touch." });
         navigate(`/rider/support/${res.data.ticket._id}`);
       } else {
-        toast({
-          title: "Error",
-          description: res.message || "Failed to create ticket.",
-          variant: "destructive",
+        applyServerErrors(form, res, {
+          fallbackMessage: res.message || "Failed to create ticket.",
         });
       }
+    } catch (err) {
+      applyServerErrors(form, err, {
+        fallbackMessage: "Failed to create ticket.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -130,6 +135,9 @@ export default function RiderCreateTicketPage() {
                 </Select>
               )}
             />
+            {errors.type && (
+              <p className="text-sm text-red-600">{errors.type.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

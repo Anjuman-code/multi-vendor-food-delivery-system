@@ -1,5 +1,5 @@
 import { DataTable, EmptyState, PageHeader, type DataTableColumn } from "@/components/rider";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import riderService, { type RiderOrder } from "@/services/riderService";
 import { formatCurrency, formatDateTime } from "@/utils/format";
 import { History } from "lucide-react";
@@ -8,7 +8,6 @@ import React, { useCallback, useEffect, useState } from "react";
 const PAGE_SIZE = 20;
 
 const RiderHistoryPage: React.FC = () => {
-  const { toast } = useToast();
   const [rows, setRows] = useState<RiderOrder[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -36,12 +35,12 @@ const RiderHistoryPage: React.FC = () => {
         setTotal(d?.pagination?.total ?? 0);
         setPage(p);
       } catch {
-        toast({ variant: "destructive", title: "Failed to load history" });
+        toast.error("Failed to load history");
       } finally {
         setLoading(false);
       }
     },
-    [toast],
+    [],
   );
 
   useEffect(() => {

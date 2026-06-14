@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDateTime } from "@/utils/format";
 import { Download, ShoppingBag, X } from "lucide-react";
@@ -71,7 +71,6 @@ const driverName = (o: Order) =>
     : "—";
 
 export default function OrdersPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -111,12 +110,12 @@ export default function OrdersPage() {
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load orders", variant: "destructive" });
+        toast.error("Failed to load orders");
       } finally {
         setLoading(false);
       }
     },
-    [search, status, paymentStatus, from, to, hasRefund, hasCoupon, toast],
+    [search, status, paymentStatus, from, to, hasRefund, hasCoupon],
   );
 
   useEffect(() => {
@@ -131,10 +130,10 @@ export default function OrdersPage() {
     if (!selected) return;
     try {
       await adminService.cancelOrder(selected._id, { reason: reason! });
-      toast({ title: `Order #${selected.orderNumber} cancelled` });
+      toast.success(`Order #${selected.orderNumber} cancelled`);
       fetchOrders(page);
     } catch {
-      toast({ title: "Failed to cancel order", variant: "destructive" });
+      toast.error("Failed to cancel order");
       throw new Error("failed");
     }
   };

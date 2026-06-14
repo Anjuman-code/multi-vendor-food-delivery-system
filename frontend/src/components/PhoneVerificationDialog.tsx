@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { Loader2, Phone } from "lucide-react";
 
 export interface PhoneVerificationDialogProps {
@@ -24,15 +24,16 @@ export const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = (
   onOpenChange,
   phoneNumber,
 }) => {
-  const { toast } = useToast();
   const [step, setStep] = useState<"send" | "verify">("send");
   const [isSending, setIsSending] = useState(false);
   const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setStep("send");
       setOtp("");
+      setOtpError(null);
     }
   }, [open]);
 
@@ -42,15 +43,18 @@ export const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = (
     await new Promise((r) => setTimeout(r, 1200));
     setIsSending(false);
     setStep("verify");
-    toast({
-      title: "Code Sent",
+    toast.success("Code Sent", {
       description: `A verification code has been sent to ${phoneNumber || "your phone"}.`,
     });
   };
 
   const handleVerify = () => {
-    toast({
-      title: "Verification",
+    if (otp.trim().length < 6) {
+      setOtpError("Enter the 6-digit code sent to your phone.");
+      return;
+    }
+    setOtpError(null);
+    toast.info("Verification", {
       description:
         "Phone verification is coming soon. We'll notify you when it's available!",
     });
@@ -104,11 +108,18 @@ export const PhoneVerificationDialog: React.FC<PhoneVerificationDialogProps> = (
           <div className="space-y-4">
             <Input
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => {
+                setOtp(e.target.value);
+                if (otpError) setOtpError(null);
+              }}
               placeholder="Enter 6-digit code"
               maxLength={6}
+              aria-invalid={otpError ? true : undefined}
               className="rounded-xl text-center text-lg tracking-widest"
             />
+            {otpError && (
+              <p className="text-sm font-medium text-destructive">{otpError}</p>
+            )}
             <DialogFooter>
               <Button
                 variant="outline"

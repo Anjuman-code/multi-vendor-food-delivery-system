@@ -22,19 +22,20 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
+import { toast } from "@/lib/toast";
 import { registerSchema, type RegisterFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 
 const RegisterPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useRedirectIfAuthenticated();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    mode: "onTouched",
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -60,24 +61,15 @@ const RegisterPage: React.FC = () => {
       });
 
       if (response.success) {
-        toast({
-          title: "Account created",
+        toast.success("Account created", {
           description: "Check your email for a verification code.",
         });
         navigate("/verify-email", { state: { email: data.email } });
       } else {
-        toast({
-          title: "Registration failed",
-          description: response.message || "Please check your details and try again.",
-          variant: "destructive",
-        });
+        applyServerErrors(form, response);
       }
-    } catch {
-      toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      applyServerErrors(form, err);
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +80,7 @@ const RegisterPage: React.FC = () => {
       authService.startGoogleAuth("/");
       return;
     }
-    toast({ title: "Coming soon", description: `${provider} sign-up is on the way.` });
+    toast.info("Coming soon", { description: `${provider} sign-up is on the way.` });
   };
 
   return (

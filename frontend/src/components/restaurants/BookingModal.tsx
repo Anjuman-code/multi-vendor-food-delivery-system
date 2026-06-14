@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
+import { getErrorMessage } from '@/lib/formErrors';
 import { bdPhoneSchema } from '@/lib/phone';
 import type { Booking, BookingSlot, Restaurant } from '@/types/restaurant';
 import { cn } from '@/utils/cn';
@@ -138,7 +139,6 @@ const BookingModal: React.FC<BookingModalProps> = ({
   );
   const [selectedTime, setSelectedTime] = useState(initialTime || '');
   const [confirmationCode, setConfirmationCode] = useState('');
-  const { toast } = useToast();
 
   // Generate time slots based on selected date
   const timeSlots = useMemo(
@@ -149,6 +149,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   const form = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
+    mode: 'onTouched',
     defaultValues: {
       guests: initialGuests,
       date: selectedDate,
@@ -210,17 +211,17 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
       setStep('success');
 
-      toast({
-        title: 'Booking Confirmed!',
+      toast.success('Booking Confirmed!', {
         description: `Your table at ${restaurant?.name} is booked.`,
       });
 
       onBookingComplete?.(booking);
     } catch (error) {
-      toast({
-        title: 'Booking Failed',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
+      toast.error('Booking Failed', {
+        description: getErrorMessage(
+          error,
+          'Something went wrong. Please try again.',
+        ),
       });
     } finally {
       setIsSubmitting(false);
@@ -231,7 +232,6 @@ const BookingModal: React.FC<BookingModalProps> = ({
     selectedDate,
     selectedTime,
     form,
-    toast,
     onBookingComplete,
   ]);
 

@@ -8,7 +8,8 @@ import Restaurant from "../models/Restaurant";
 import Order, { OrderStatus, PaymentStatus } from "../models/Order";
 import MenuItem from "../models/MenuItem";
 import Review from "../models/Review";
-import Notification, { NotificationType } from "../models/Notification";
+import { NotificationType } from "../models/Notification";
+import { createNotification } from "../services/notification.service";
 import { createAuditLog } from "../utils/audit.util";
 import { successResponse } from "../utils/response.util";
 import {
@@ -723,7 +724,7 @@ export const replyToReview = async (
     await review.save();
 
     // Notify customer
-    await Notification.create({
+    await createNotification({
       userId: review.customerId,
       type: NotificationType.REVIEW_REPLY,
       title: "Reply to your review",

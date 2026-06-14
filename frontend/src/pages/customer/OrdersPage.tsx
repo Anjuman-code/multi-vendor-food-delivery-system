@@ -3,7 +3,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { useSocket } from "@/hooks/useSocket";
 import orderService from "@/services/orderService";
 import type { Order, OrderStatus } from "@/types/order";
@@ -56,7 +56,6 @@ interface OrderStatusUpdatePayload {
 }
 
 const OrdersPage: React.FC = () => {
-  const { toast } = useToast();
   const { socket, connectionFailed } = useSocket();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -76,14 +75,12 @@ const OrdersPage: React.FC = () => {
       setOrders(res.data.orders);
       setTotalPages(res.data.pagination.pages);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Failed to load orders.",
-        variant: "destructive",
       });
     }
     setLoading(false);
-  }, [currentFilter, currentPage, toast]);
+  }, [currentFilter, currentPage]);
 
   useEffect(() => {
     fetchOrders();

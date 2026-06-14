@@ -27,7 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import {
   addAddressSchema,
   type AddAddressFormData,
@@ -94,7 +95,6 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
   address,
   onSuccess,
 }) => {
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const isEdit = !!address;
@@ -157,19 +157,14 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
       : await userService.addAddress(payload);
 
     if (res.success) {
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: isEdit
           ? "Address updated successfully"
           : "Address added successfully",
       });
       await onSuccess();
     } else {
-      toast({
-        title: "Error",
-        description: res.message,
-        variant: "destructive",
-      });
+      applyServerErrors(form, res);
     }
     setIsSaving(false);
   };
@@ -229,16 +224,14 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
           });
         }
 
-        toast({
-          title: "Location detected",
+        toast.success("Location detected", {
           description:
             "Your address fields were updated automatically.",
         });
       } catch {
         form.setValue("district", "Sylhet", { shouldValidate: true });
         form.setValue("area", "Sylhet Sadar", { shouldValidate: true });
-        toast({
-          title: "Location set",
+        toast.info("Location set", {
           description:
             "Coordinates were saved, but address lookup could not complete. Defaulting to Sylhet.",
         });
@@ -246,15 +239,13 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
         setIsDetectingLocation(false);
       }
     },
-    [form, toast],
+    [form],
   );
 
   const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      toast({
-        title: "Not supported",
+      toast.error("Not supported", {
         description: "Geolocation is not supported by your browser.",
-        variant: "destructive",
       });
       return;
     }
@@ -268,13 +259,11 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
       },
       (err) => {
         setIsDetectingLocation(false);
-        toast({
-          title: "Location error",
+        toast.error("Location error", {
           description:
             err.code === 1
               ? "Location permission denied. Please allow location access in your browser settings."
               : "Could not detect your location. Please try again.",
-          variant: "destructive",
         });
       },
       {
@@ -283,7 +272,7 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
         maximumAge: 0,
       },
     );
-  }, [handleCoordinatesUpdate, toast]);
+  }, [handleCoordinatesUpdate]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

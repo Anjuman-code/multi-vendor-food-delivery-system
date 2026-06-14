@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import userService from "@/services/userService";
 import { restaurantFallbackSVG } from "@/utils/fallbackImages";
@@ -88,7 +88,6 @@ const FavoriteCardSkeleton: React.FC = () => (
 
 const FavoritesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [favorites, setFavorites] = useState<FavoriteRestaurant[]>([]);
@@ -104,22 +103,18 @@ const FavoritesPage: React.FC = () => {
       if (response.success && response.data) {
         setFavorites((response.data.favorites as FavoriteRestaurant[]) || []);
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: response.message || "Failed to load favorites.",
-          variant: "destructive",
         });
       }
     } catch {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to load favorites. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -137,22 +132,17 @@ const FavoritesPage: React.FC = () => {
       const response = await userService.removeFavorite(restaurantId);
       if (response.success) {
         setFavorites((prev) => prev.filter((r) => r._id !== restaurantId));
-        toast({
-          title: "Removed",
+        toast.success("Removed", {
           description: "Restaurant removed from favorites.",
         });
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: response.message || "Failed to remove from favorites.",
-          variant: "destructive",
         });
       }
     } catch {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Something went wrong. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setRemovingId(null);

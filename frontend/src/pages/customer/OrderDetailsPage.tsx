@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/contexts/CartContext';
 import { useSocketContext } from '@/contexts/SocketContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
 import reviewService from '@/services/reviewService';
 import riderService from '@/services/riderService';
@@ -117,7 +117,6 @@ const StarRating = ({
 const OrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { addItem: addToCart } = useCart();
   const { socket, watchOrderLocation, driverLocation } = useSocketContext();
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -165,14 +164,12 @@ const OrderDetailsPage: React.FC = () => {
         setRatingSubmitted(true);
       }
     } else {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: res.message || 'Order not found.',
-        variant: 'destructive',
       });
     }
     setLoading(false);
-  }, [id, toast]);
+  }, [id]);
 
   useEffect(() => {
     fetchOrder();
@@ -209,12 +206,10 @@ const OrderDetailsPage: React.FC = () => {
     setCancelling(false);
     if (res.success && res.data) {
       setOrder(res.data.order);
-      toast({ title: 'Order cancelled' });
+      toast.success('Order cancelled');
     } else {
-      toast({
-        title: 'Cannot cancel',
+      toast.error('Cannot cancel', {
         description: res.message || 'Failed to cancel.',
-        variant: 'destructive',
       });
     }
   };
@@ -235,21 +230,17 @@ const OrderDetailsPage: React.FC = () => {
       const unavailableItems = reorderItems.filter((item) => !item.isAvailable);
 
       if (unavailableItems.length === reorderItems.length) {
-        toast({
-          title: 'Reorder unavailable',
+        toast.error('Reorder unavailable', {
           description:
             unavailableItems[0]?.unavailableReason ||
             'All items from this order are currently unavailable.',
-          variant: 'destructive',
         });
         return;
       }
 
       if (unavailableItems.length > 0) {
-        toast({
-          title: 'Some items were skipped',
+        toast.error('Some items were skipped', {
           description: `${unavailableItems.length} item(s) are unavailable and were not added to cart.`,
-          variant: 'destructive',
         });
       }
 
@@ -268,16 +259,13 @@ const OrderDetailsPage: React.FC = () => {
         });
       }
 
-      toast({
-        title: 'Items added to cart',
+      toast.success('Items added to cart', {
         description: 'You can review and checkout from your cart.',
       });
       navigate('/cart');
     } else {
-      toast({
-        title: 'Reorder failed',
+      toast.error('Reorder failed', {
         description: res.message || 'Could not reorder.',
-        variant: 'destructive',
       });
     }
   };
@@ -286,8 +274,7 @@ const OrderDetailsPage: React.FC = () => {
     if (!receiptRef.current || !order) return;
 
     try {
-      toast({
-        title: 'Preparing receipt',
+      toast.info('Preparing receipt', {
         description: 'Generating your PDF receipt. Please wait...',
       });
 
@@ -341,13 +328,11 @@ const OrderDetailsPage: React.FC = () => {
 
       pdf.save(buildReceiptFileName(order.orderNumber));
     } catch {
-      toast({
-        title: 'Download failed',
+      toast.error('Download failed', {
         description: 'Could not generate the receipt PDF.',
-        variant: 'destructive',
       });
     }
-  }, [order, toast]);
+  }, [order]);
 
   const handleReviewSubmit = async () => {
     if (!order || reviewStars === 0) return;
@@ -361,15 +346,12 @@ const OrderDetailsPage: React.FC = () => {
     setReviewSubmitting(false);
     if (res.success) {
       setReviewSubmitted(true);
-      toast({
-        title: 'Review submitted',
+      toast.success('Review submitted', {
         description: 'Thank you for reviewing your meal!',
       });
     } else {
-      toast({
-        title: 'Failed to submit review',
+      toast.error('Failed to submit review', {
         description: res.message || 'Please try again.',
-        variant: 'destructive',
       });
     }
   };
@@ -385,15 +367,12 @@ const OrderDetailsPage: React.FC = () => {
     setRatingSubmitting(false);
     if (res.success) {
       setRatingSubmitted(true);
-      toast({
-        title: 'Rating submitted',
+      toast.success('Rating submitted', {
         description: 'Thank you for your feedback!',
       });
     } else {
-      toast({
-        title: 'Failed to submit rating',
+      toast.error('Failed to submit rating', {
         description: res.message || 'Please try again.',
-        variant: 'destructive',
       });
     }
   };

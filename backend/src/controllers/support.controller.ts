@@ -6,7 +6,8 @@ import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { UserRole } from "../config/constants";
 import SupportTicket, { TicketStatus } from "../models/SupportTicket";
-import Notification from "../models/Notification";
+import { NotificationType } from "../models/Notification";
+import { createNotification } from "../services/notification.service";
 import type { AuthRequest } from "../types";
 import { createAuditLog } from "../utils/audit.util";
 import {
@@ -294,9 +295,9 @@ export const updateTicket = async (
         };
         const msg = statusMessages[updates.status];
         if (msg) {
-          await Notification.create({
+          await createNotification({
             userId: ticket.userId,
-            type: "system",
+            type: NotificationType.SYSTEM,
             title: "Ticket Status Updated",
             message: `${msg} Ticket: ${ticket.subject}`,
             data: { ticketId: ticket._id, status: updates.status },
@@ -362,9 +363,9 @@ export const adminAddMessage = async (
     // Notify customer of admin reply
     try {
       const ticketUserId = ticket.userId.toString();
-      await Notification.create({
+      await createNotification({
         userId: ticket.userId,
-        type: "system",
+        type: NotificationType.SYSTEM,
         title: "Support Ticket Reply",
         message: `A support agent replied to your ticket: ${ticket.subject}`,
         data: { ticketId: ticket._id },

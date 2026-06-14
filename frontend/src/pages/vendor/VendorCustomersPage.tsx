@@ -10,7 +10,7 @@ import {
   VendorEmptyState,
   type DataTableColumn,
 } from "@/components/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import vendorService from "@/services/vendorService";
 import type {
   VendorCustomer,
@@ -28,7 +28,6 @@ const EMPTY_SUMMARY: VendorCustomersSummary = {
 };
 
 const VendorCustomersPage = () => {
-  const { toast } = useToast();
   const [customers, setCustomers] = useState<VendorCustomer[]>([]);
   const [summary, setSummary] = useState<VendorCustomersSummary>(EMPTY_SUMMARY);
   const [page, setPage] = useState(1);
@@ -60,14 +59,12 @@ const VendorCustomersPage = () => {
       setPages(res.data.pagination.pages);
       setTotal(res.data.pagination.total);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Failed to load customers",
-        variant: "destructive",
       });
     }
     setLoading(false);
-  }, [page, debouncedSearch, toast]);
+  }, [page, debouncedSearch]);
 
   useEffect(() => {
     load();

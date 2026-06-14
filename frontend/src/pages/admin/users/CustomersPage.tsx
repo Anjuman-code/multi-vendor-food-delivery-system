@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatDate } from "@/utils/format";
 import { Ban, CheckCircle2, Download, Mail, ShieldCheck, UserX, Users } from "lucide-react";
@@ -56,7 +56,6 @@ const statusOf = (c: Customer) =>
         : { label: "Active", tone: "success" as const };
 
 export default function CustomersPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
@@ -87,12 +86,12 @@ export default function CustomersPage() {
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load customers", variant: "destructive" });
+        toast.error("Failed to load customers");
       } finally {
         setLoading(false);
       }
     },
-    [search, filterStatus, toast],
+    [search, filterStatus],
   );
 
   useEffect(() => {
@@ -120,10 +119,10 @@ export default function CustomersPage() {
     };
     try {
       await map[dialog]();
-      toast({ title: "Customer updated" });
+      toast.success("Customer updated");
       fetchCustomers(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("action failed");
     }
   };

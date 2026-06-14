@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { Pencil, Plus, Tags, Trash2, Utensils } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -93,7 +93,6 @@ const emptyTag = (): TagForm => ({
 });
 
 export default function TaxonomyPage() {
-  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("cuisine");
   const [cuisines, setCuisines] = useState<CuisineType[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
@@ -116,7 +115,7 @@ export default function TaxonomyPage() {
       setCuisines((cRes.data as { data: { types: CuisineType[] } }).data.types);
       setTags((tRes.data as { data: { tags: TagItem[] } }).data.tags);
     } catch {
-      toast({ title: "Failed to load taxonomy", variant: "destructive" });
+      toast.error("Failed to load taxonomy");
     } finally {
       setLoading(false);
     }
@@ -140,11 +139,11 @@ export default function TaxonomyPage() {
       };
       if (cuisineForm.id) await adminService.updateCuisineType(cuisineForm.id, payload);
       else await adminService.createCuisineType(payload);
-      toast({ title: "Cuisine type saved" });
+      toast.success("Cuisine type saved");
       setCuisineForm(null);
       await load();
     } catch {
-      toast({ title: "Failed to save cuisine type", variant: "destructive" });
+      toast.error("Failed to save cuisine type");
     } finally {
       setSaving(false);
     }
@@ -163,11 +162,11 @@ export default function TaxonomyPage() {
       };
       if (tagForm.id) await adminService.updateTag(tagForm.id, payload);
       else await adminService.createTag(payload);
-      toast({ title: "Tag saved" });
+      toast.success("Tag saved");
       setTagForm(null);
       await load();
     } catch {
-      toast({ title: "Failed to save tag", variant: "destructive" });
+      toast.error("Failed to save tag");
     } finally {
       setSaving(false);
     }
@@ -179,11 +178,11 @@ export default function TaxonomyPage() {
       if (deleteTarget.kind === "cuisine")
         await adminService.deleteCuisineType(deleteTarget.id);
       else await adminService.deleteTag(deleteTarget.id);
-      toast({ title: "Deleted" });
+      toast.success("Deleted");
       setDeleteTarget(null);
       await load();
     } catch {
-      toast({ title: "Failed to delete", variant: "destructive" });
+      toast.error("Failed to delete");
       throw new Error("failed");
     }
   };

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useRider } from "@/contexts/RiderContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { useDriverLocationBroadcast } from "@/hooks/useDriverLocationBroadcast";
 import riderService, { type RiderOrder } from "@/services/riderService";
 import { formatCurrency } from "@/utils/format";
@@ -53,7 +53,6 @@ const customerPoint = (order: RiderOrder): LatLng | null => {
 };
 
 const ActiveDeliveryPage: React.FC = () => {
-  const { toast } = useToast();
   const { activeOrder, setActiveOrder, refresh } = useRider();
   const [order, setOrder] = useState<RiderOrder | null>(activeOrder);
   const [loading, setLoading] = useState(true);
@@ -124,7 +123,7 @@ const ActiveDeliveryPage: React.FC = () => {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      toast({ variant: "destructive", title: msg ?? "Couldn't update step" });
+      toast.error(msg ?? "Couldn't update step");
     } finally {
       setAdvancing(false);
     }
@@ -147,10 +146,7 @@ const ActiveDeliveryPage: React.FC = () => {
     if (!order) return;
     const isCod = order.paymentMethod === "cash_on_delivery";
     if (isCod && codCollected === null) {
-      toast({
-        variant: "destructive",
-        title: "Confirm whether you collected the cash",
-      });
+      toast.error("Confirm whether you collected the cash");
       return;
     }
     setSubmitting(true);
@@ -173,14 +169,13 @@ const ActiveDeliveryPage: React.FC = () => {
       setCompleteOpen(false);
       clearProof();
       await refresh();
-      toast({
-        title: "Delivery completed",
+      toast.success("Delivery completed", {
         description: "Nice work — you're available for new orders.",
       });
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      toast({ variant: "destructive", title: msg ?? "Failed to complete" });
+      toast.error(msg ?? "Failed to complete");
     } finally {
       setSubmitting(false);
     }

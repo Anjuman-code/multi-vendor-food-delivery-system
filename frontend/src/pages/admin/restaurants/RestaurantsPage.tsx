@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatDate } from "@/utils/format";
 import {
@@ -73,7 +73,6 @@ const stateOf = (r: Restaurant): { label: string; tone: StatusTone } => {
 };
 
 export default function RestaurantsPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -117,12 +116,12 @@ export default function RestaurantsPage() {
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load restaurants", variant: "destructive" });
+        toast.error("Failed to load restaurants");
       } finally {
         setLoading(false);
       }
     },
-    [search, approval, activity, featured, sort, toast],
+    [search, approval, activity, featured, sort],
   );
 
   useEffect(() => {
@@ -144,10 +143,10 @@ export default function RestaurantsPage() {
     };
     try {
       await map[dialog]();
-      toast({ title: "Restaurant updated" });
+      toast.success("Restaurant updated");
       await fetchRestaurants(page);
     } catch {
-      toast({ title: "Action failed", variant: "destructive" });
+      toast.error("Action failed");
       throw new Error("action failed");
     }
   };

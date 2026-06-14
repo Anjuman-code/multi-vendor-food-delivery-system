@@ -10,12 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
+import { getErrorMessage, getFieldErrors, extractApiError } from '@/lib/formErrors';
 import {
   BD_PHONE_ERROR_MESSAGE,
   isValidBdPhoneNumber,
   normalizeBdPhoneNumber,
 } from '@/lib/phone';
+import { createRestaurantSchema } from '@/lib/vendorValidation';
 import authService from '@/services/authService';
 import vendorService from '@/services/vendorService';
 import type { CreateRestaurantPayload } from '@/types/vendor';
@@ -34,7 +36,7 @@ import {
   Utensils,
   Wallet,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const CUISINE_OPTIONS = [
@@ -115,7 +117,6 @@ type PayoutMethod = 'mobile' | 'bank';
 const VendorOnboardingPage: React.FC = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [step, setStep] = useState(0);
   const [bootstrapping, setBootstrapping] = useState(true);
@@ -204,27 +205,213 @@ const VendorOnboardingPage: React.FC = () => {
       prev.map((h, i) => (i === index ? { ...h, ...patch } : h)),
     );
 
-  const validateRestaurant = (): boolean => {
+  // ── Per-step validation ──────────────────────────────────────────
+  // Each validator returns a field→message map for its step. The shared
+  // `errors` state is the single source of inline messages; advancing or
+  // submitting clears the relevant keys first so stale errors don't linger.
+
+  const RESTAURANT_KEYS = [
+    'name',
+    'description',
+    'cuisines',
+    'phone',
+    'email',
+    'street',
+    'district',
+    'area',
+  ];
+  const DELIVERY_KEYS = ['hours', 'minimumOrder', 'deliveryFee', 'deliveryTime'];
+  const PAYOUT_KEYS = [
+    'provider',
+    'mobileNumber',
+    'accountHolderName',
+    'bankName',
+    'accountNumber',
+  ];
+
+  const validateRestaurant = (): Record<string, string> => {
     const next: Record<string, string> = {};
-    if (name.trim().length < 2) next.name = 'Enter your restaurant name.';
-    if (description.trim().length < 10)
-      next.description = 'Add a short description (at least 10 characters).';
-    if (cuisines.length === 0) next.cuisines = 'Pick at least one cuisine.';
-    if (!isValidBdPhoneNumber(phone)) next.phone = BD_PHONE_ERROR_MESSAGE;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      next.email = 'Enter a valid email address.';
-    if (street.trim().length < 2) next.street = 'Enter your street address.';
-    if (!district) next.district = 'Select a district.';
-    if (!area) next.area = 'Select an area.';
-    setErrors(next);
-    return Object.keys(next).length === 0;
+
+    // Reuse the canonical schema for the fields that map cleanly to it.
+    const parsed = createRestaurantSchema
+      .pick({
+        name: true,
+        description: true,
+        cuisineType: true,
+        phone: true,
+        email: true,
+        address: true,
+      })
+      .safeParse({
+        name,
+        description,
+        cuisineType: cuisines,
+        phone,
+        email,
+        address: { street, area, district },
+      });
+
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const path = issue.path;
+        let key: string | undefined;
+        if (path[0] === 'cuisineType') key = 'cuisines';
+        else if (path[0] === 'address')
+          key = typeof path[1] === 'string' ? path[1] : undefined;
+        else key = typeof path[0] === 'string' ? path[0] : undefined;
+        if (key && !next[key]) next[key] = issue.message;
+      }
+    }
+
+    return next;
+  };
+
+  const isNonNegativeNumber = (value: string): boolean => {
+    if (value.trim() === '') return true; // empty handled per-field
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0;
+  };
+
+  const validateDelivery = (): Record<string, string> => {
+    const next: Record<string, string> = {};
+
+    // Hours: at least one open day, and each open day needs a valid window.
+    const openDays = hours.filter((h) => !h.isClosed);
+    if (openDays.length === 0) {
+      next.hours = 'Keep at least one day open so customers can order.';
+    } else {
+      const bad = openDays.find(
+        (h) => !h.open || !h.close || h.close <= h.open,
+      );
+      if (bad) {
+        next.hours = `${bad.day}: closing time must be after opening time.`;
+      }
+    }
+
+    // Numeric fields are optional, but if entered they must be valid & >= 0.
+    if (!isNonNegativeNumber(minimumOrder))
+      next.minimumOrder = 'Enter a valid amount (0 or more).';
+    if (!isNonNegativeNumber(deliveryFee))
+      next.deliveryFee = 'Enter a valid amount (0 or more).';
+    if (deliveryTime.trim() === '') {
+      next.deliveryTime = 'Enter an estimated delivery time.';
+    } else {
+      const t = Number(deliveryTime);
+      if (!Number.isFinite(t) || t < 1)
+        next.deliveryTime = 'Delivery time must be at least 1 minute.';
+    }
+
+    return next;
+  };
+
+  // Payout is optional. If the vendor starts filling a method, validate it so
+  // partial/invalid details can't be persisted; an untouched method is allowed.
+  const payoutTouched = (): boolean =>
+    payoutMethod === 'mobile'
+      ? Boolean(provider || mobileNumber)
+      : Boolean(bankName || accountHolderName || accountNumber);
+
+  const validatePayout = (): Record<string, string> => {
+    const next: Record<string, string> = {};
+    if (!payoutTouched()) return next;
+
+    if (payoutMethod === 'mobile') {
+      if (!provider) next.provider = 'Select a mobile money provider.';
+      if (!isValidBdPhoneNumber(mobileNumber))
+        next.mobileNumber = BD_PHONE_ERROR_MESSAGE;
+    } else {
+      if (accountHolderName.trim().length < 2)
+        next.accountHolderName = 'Enter the account holder name.';
+      if (bankName.trim().length < 2) next.bankName = 'Enter the bank name.';
+      if (accountNumber.trim().length < 4)
+        next.accountNumber = 'Enter a valid account number.';
+    }
+    return next;
+  };
+
+  /** Replace just the given step's keys in the error map, return validity. */
+  const applyStepErrors = (
+    stepKeys: string[],
+    stepErrors: Record<string, string>,
+  ): boolean => {
+    setErrors((prev) => {
+      const merged = { ...prev };
+      for (const k of stepKeys) delete merged[k];
+      return { ...merged, ...stepErrors };
+    });
+    return Object.keys(stepErrors).length === 0;
   };
 
   const handleRestaurantNext = () => {
-    if (validateRestaurant()) setStep(2);
+    if (applyStepErrors(RESTAURANT_KEYS, validateRestaurant())) setStep(2);
   };
 
-  const handleLaunch = useCallback(async () => {
+  const handleDeliveryNext = () => {
+    if (applyStepErrors(DELIVERY_KEYS, validateDelivery())) setStep(3);
+  };
+
+  const handlePayoutNext = () => {
+    if (applyStepErrors(PAYOUT_KEYS, validatePayout())) setStep(4);
+  };
+
+  const handlePayoutSkip = () => {
+    // Skipping discards any partial payout entry; clear errors and move on.
+    applyStepErrors(PAYOUT_KEYS, {});
+    setStep(4);
+  };
+
+  // Map an ApiResponse's `{ field, message }` errors onto the inline error
+  // state (translating server field names to our local keys), then toast any
+  // remaining/unmappable message. Sends the user to the restaurant step where
+  // these fields live.
+  const applyServerFieldErrors = (res: unknown) => {
+    const fieldErrors = getFieldErrors(extractApiError(res));
+    const next: Record<string, string> = {};
+    for (const fe of fieldErrors) {
+      const root = fe.field.split(/[.[]/)[0];
+      let key = root;
+      if (root === 'cuisineType') key = 'cuisines';
+      else if (root === 'address') {
+        const sub = fe.field.split('.')[1];
+        if (sub) key = sub;
+      }
+      if (!next[key]) next[key] = fe.message;
+    }
+    if (Object.keys(next).length > 0) {
+      setErrors((prev) => ({ ...prev, ...next }));
+      setStep(1);
+    }
+    toast.error(getErrorMessage(res, 'Could not save your restaurant.'));
+  };
+
+  const handleLaunch = async () => {
+    // Re-validate every required step before submitting; jump to the first
+    // step that fails so the inline errors are visible.
+    const restaurantErrors = validateRestaurant();
+    const deliveryErrors = validateDelivery();
+    const payoutErrors = validatePayout();
+    const allErrors = {
+      ...restaurantErrors,
+      ...deliveryErrors,
+      ...payoutErrors,
+    };
+    setErrors(allErrors);
+    if (Object.keys(restaurantErrors).length > 0) {
+      setStep(1);
+      toast.error('Please complete your restaurant details.');
+      return;
+    }
+    if (Object.keys(deliveryErrors).length > 0) {
+      setStep(2);
+      toast.error('Please review your hours & delivery settings.');
+      return;
+    }
+    if (Object.keys(payoutErrors).length > 0) {
+      setStep(3);
+      toast.error('Please complete or skip your payout details.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload: CreateRestaurantPayload = {
@@ -249,9 +436,10 @@ const VendorOnboardingPage: React.FC = () => {
         : await vendorService.createRestaurant(payload);
 
       if (!restaurantRes.success) {
-        throw new Error(
-          restaurantRes.message || 'Could not save your restaurant.',
-        );
+        // Map any field-level server errors back to the restaurant step so
+        // they render inline; fall back to a toast for the rest.
+        applyServerFieldErrors(restaurantRes);
+        return;
       }
 
       // Persist payout details (best-effort — not blocking go-live)
@@ -274,48 +462,22 @@ const VendorOnboardingPage: React.FC = () => {
       await authService.completeOnboarding();
       updateUser({ onboardingCompleted: true });
 
-      toast({
-        title: "You're live! 🎉",
+      toast.success("You're live! 🎉", {
         description:
           'Your restaurant is set up. Add menu items to start taking orders.',
       });
       navigate('/vendor', { replace: true });
     } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: "Couldn't finish setup",
-        description:
-          err instanceof Error
-            ? err.message
-            : 'Something went wrong. Please try again.',
+      toast.error("Couldn't finish setup", {
+        description: getErrorMessage(
+          err,
+          'Something went wrong. Please try again.',
+        ),
       });
     } finally {
       setSubmitting(false);
     }
-  }, [
-    name,
-    description,
-    cuisines,
-    phone,
-    email,
-    street,
-    area,
-    district,
-    hours,
-    minimumOrder,
-    deliveryFee,
-    deliveryTime,
-    payoutMethod,
-    provider,
-    mobileNumber,
-    bankName,
-    accountHolderName,
-    accountNumber,
-    existingRestaurantId,
-    updateUser,
-    navigate,
-    toast,
-  ]);
+  };
 
   if (!user) return null;
 
@@ -399,6 +561,7 @@ const VendorOnboardingPage: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Spice Garden"
+                aria-invalid={errors.name ? true : undefined}
               />
             </Field>
 
@@ -413,6 +576,7 @@ const VendorOnboardingPage: React.FC = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 placeholder="A line or two about your food and what makes it special."
+                aria-invalid={errors.description ? true : undefined}
               />
             </Field>
 
@@ -454,6 +618,7 @@ const VendorOnboardingPage: React.FC = () => {
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="01XXXXXXXXX"
                   inputMode="tel"
+                  aria-invalid={errors.phone ? true : undefined}
                 />
               </Field>
               <Field
@@ -467,6 +632,7 @@ const VendorOnboardingPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="hello@restaurant.com"
+                  aria-invalid={errors.email ? true : undefined}
                 />
               </Field>
             </div>
@@ -481,6 +647,7 @@ const VendorOnboardingPage: React.FC = () => {
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 placeholder="House / road / block"
+                aria-invalid={errors.street ? true : undefined}
               />
             </Field>
 
@@ -497,7 +664,10 @@ const VendorOnboardingPage: React.FC = () => {
                     setDistrict(e.target.value);
                     setArea('');
                   }}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  aria-invalid={errors.district ? true : undefined}
+                  className={`h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    errors.district ? 'border-red-400' : 'border-input'
+                  }`}
                 >
                   <option value="">Select district</option>
                   {DISTRICT_DATA.map((d) => (
@@ -513,7 +683,10 @@ const VendorOnboardingPage: React.FC = () => {
                   value={area}
                   onChange={(e) => setArea(e.target.value)}
                   disabled={!district}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  aria-invalid={errors.area ? true : undefined}
+                  className={`h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm disabled:opacity-50 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    errors.area ? 'border-red-400' : 'border-input'
+                  }`}
                 >
                   <option value="">Select area</option>
                   {getAreasByDistrict(district).map((a) => (
@@ -543,7 +716,11 @@ const VendorOnboardingPage: React.FC = () => {
             subtitle="Set when you're open and your delivery terms. You can adjust these anytime."
           />
 
-          <div className="rounded-2xl border border-border bg-card p-2">
+          <div
+            className={`rounded-2xl border bg-card p-2 ${
+              errors.hours ? 'border-red-400' : 'border-border'
+            }`}
+          >
             {hours.map((h, i) => (
               <div
                 key={h.day}
@@ -592,9 +769,12 @@ const VendorOnboardingPage: React.FC = () => {
               </div>
             ))}
           </div>
+          {errors.hours && (
+            <p className="mt-1.5 text-xs text-red-600">{errors.hours}</p>
+          )}
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="Min. order (৳)" htmlFor="d-min">
+            <Field label="Min. order (৳)" error={errors.minimumOrder} htmlFor="d-min">
               <Input
                 id="d-min"
                 type="number"
@@ -602,9 +782,10 @@ const VendorOnboardingPage: React.FC = () => {
                 value={minimumOrder}
                 onChange={(e) => setMinimumOrder(e.target.value)}
                 placeholder="0"
+                aria-invalid={errors.minimumOrder ? true : undefined}
               />
             </Field>
-            <Field label="Delivery fee (৳)" htmlFor="d-fee">
+            <Field label="Delivery fee (৳)" error={errors.deliveryFee} htmlFor="d-fee">
               <Input
                 id="d-fee"
                 type="number"
@@ -612,9 +793,10 @@ const VendorOnboardingPage: React.FC = () => {
                 value={deliveryFee}
                 onChange={(e) => setDeliveryFee(e.target.value)}
                 placeholder="0"
+                aria-invalid={errors.deliveryFee ? true : undefined}
               />
             </Field>
-            <Field label="Prep + delivery (min)" htmlFor="d-time">
+            <Field label="Prep + delivery (min)" error={errors.deliveryTime} htmlFor="d-time">
               <Input
                 id="d-time"
                 type="number"
@@ -622,6 +804,7 @@ const VendorOnboardingPage: React.FC = () => {
                 value={deliveryTime}
                 onChange={(e) => setDeliveryTime(e.target.value)}
                 placeholder="30"
+                aria-invalid={errors.deliveryTime ? true : undefined}
               />
             </Field>
           </div>
@@ -629,7 +812,7 @@ const VendorOnboardingPage: React.FC = () => {
           <StepNav
             onBack={() => setStep(1)}
             nextLabel="Continue"
-            onNext={() => setStep(3)}
+            onNext={handleDeliveryNext}
           />
         </div>
       )}
@@ -663,12 +846,15 @@ const VendorOnboardingPage: React.FC = () => {
 
           {payoutMethod === 'mobile' ? (
             <div className="mt-5 space-y-4 rounded-2xl border border-border bg-muted/40 p-4">
-              <Field label="Provider" htmlFor="p-provider">
+              <Field label="Provider" error={errors.provider} htmlFor="p-provider">
                 <select
                   id="p-provider"
                   value={provider}
                   onChange={(e) => setProvider(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  aria-invalid={errors.provider ? true : undefined}
+                  className={`h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    errors.provider ? 'border-red-400' : 'border-input'
+                  }`}
                 >
                   <option value="">Select provider</option>
                   {MOBILE_MONEY_PROVIDERS.map((p) => (
@@ -678,40 +864,44 @@ const VendorOnboardingPage: React.FC = () => {
                   ))}
                 </select>
               </Field>
-              <Field label="Mobile money number" htmlFor="p-number">
+              <Field label="Mobile money number" error={errors.mobileNumber} htmlFor="p-number">
                 <Input
                   id="p-number"
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value)}
                   placeholder="01XXXXXXXXX"
                   inputMode="tel"
+                  aria-invalid={errors.mobileNumber ? true : undefined}
                 />
               </Field>
             </div>
           ) : (
             <div className="mt-5 space-y-4 rounded-2xl border border-border bg-muted/40 p-4">
-              <Field label="Account holder name" htmlFor="p-holder">
+              <Field label="Account holder name" error={errors.accountHolderName} htmlFor="p-holder">
                 <Input
                   id="p-holder"
                   value={accountHolderName}
                   onChange={(e) => setAccountHolderName(e.target.value)}
                   placeholder="Full name / business name"
+                  aria-invalid={errors.accountHolderName ? true : undefined}
                 />
               </Field>
-              <Field label="Bank name" htmlFor="p-bank">
+              <Field label="Bank name" error={errors.bankName} htmlFor="p-bank">
                 <Input
                   id="p-bank"
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
                   placeholder="e.g. Dutch-Bangla Bank"
+                  aria-invalid={errors.bankName ? true : undefined}
                 />
               </Field>
-              <Field label="Account number" htmlFor="p-acc">
+              <Field label="Account number" error={errors.accountNumber} htmlFor="p-acc">
                 <Input
                   id="p-acc"
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder="Enter account number"
+                  aria-invalid={errors.accountNumber ? true : undefined}
                 />
               </Field>
             </div>
@@ -719,10 +909,10 @@ const VendorOnboardingPage: React.FC = () => {
 
           <StepNav
             onBack={() => setStep(2)}
-            onSkip={() => setStep(4)}
+            onSkip={handlePayoutSkip}
             skipLabel="Add later"
             nextLabel="Continue"
-            onNext={() => setStep(4)}
+            onNext={handlePayoutNext}
           />
         </div>
       )}

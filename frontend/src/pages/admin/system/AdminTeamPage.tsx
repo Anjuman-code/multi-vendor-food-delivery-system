@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatRelativeTime } from "@/utils/format";
 import { CheckCircle2, Pencil, Plus, Shield, UserX } from "lucide-react";
@@ -72,7 +72,6 @@ const emptyCreate = (): CreateForm => ({
 });
 
 export default function AdminTeamPage() {
-  const { toast } = useToast();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,7 +86,7 @@ export default function AdminTeamPage() {
       const res = await adminService.listAdmins();
       setAdmins((res.data as { data: { admins: AdminUser[] } }).data.admins);
     } catch {
-      toast({ title: "Failed to load admin team", variant: "destructive" });
+      toast.error("Failed to load admin team");
     } finally {
       setLoading(false);
     }
@@ -100,7 +99,7 @@ export default function AdminTeamPage() {
   const handleCreate = async () => {
     if (!createForm) return;
     if (!createForm.firstName.trim() || !createForm.email.trim() || !createForm.password) {
-      toast({ title: "Fill in all required fields", variant: "destructive" });
+      toast.error("Fill in all required fields");
       return;
     }
     setSaving(true);
@@ -112,11 +111,11 @@ export default function AdminTeamPage() {
         password: createForm.password,
         adminTier: createForm.adminTier,
       });
-      toast({ title: "Admin created", description: `${createForm.firstName} can now log in.` });
+      toast.success("Admin created", { description: `${createForm.firstName} can now log in.` });
       setCreateForm(null);
       await load();
     } catch {
-      toast({ title: "Failed to create admin", variant: "destructive" });
+      toast.error("Failed to create admin");
     } finally {
       setSaving(false);
     }
@@ -127,11 +126,11 @@ export default function AdminTeamPage() {
     setSaving(true);
     try {
       await adminService.updateAdmin(editTarget.id, { adminTier: editTarget.adminTier });
-      toast({ title: "Admin updated" });
+      toast.success("Admin updated");
       setEditTarget(null);
       await load();
     } catch {
-      toast({ title: "Failed to update admin", variant: "destructive" });
+      toast.error("Failed to update admin");
     } finally {
       setSaving(false);
     }
@@ -141,11 +140,11 @@ export default function AdminTeamPage() {
     if (!deactivateTarget) return;
     try {
       await adminService.deactivateAdmin(deactivateTarget._id);
-      toast({ title: "Admin deactivated" });
+      toast.success("Admin deactivated");
       setDeactivateTarget(null);
       await load();
     } catch {
-      toast({ title: "Failed to deactivate", variant: "destructive" });
+      toast.error("Failed to deactivate");
       throw new Error("failed");
     }
   };
@@ -153,10 +152,10 @@ export default function AdminTeamPage() {
   const handleReactivate = async (admin: AdminUser) => {
     try {
       await adminService.updateAdmin(admin._id, { isActive: true });
-      toast({ title: "Admin reactivated" });
+      toast.success("Admin reactivated");
       await load();
     } catch {
-      toast({ title: "Failed to reactivate", variant: "destructive" });
+      toast.error("Failed to reactivate");
     }
   };
 

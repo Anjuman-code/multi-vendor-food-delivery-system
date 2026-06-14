@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import { useVendor, VendorProvider } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { cn } from "@/utils/cn";
 import authService from "@/services/authService";
 import { AnimatePresence, motion } from "framer-motion";
@@ -133,7 +133,6 @@ const VendorLayoutInner: React.FC = () => {
   const { user, logout: logoutContext } = useAuth();
   const confirm = useConfirm();
   const { restaurants, selectedRestaurantId, setSelectedRestaurantId } = useVendor();
-  const { toast } = useToast();
   const { newOrderCount, clearNewOrderCount } = useSocketContext();
 
   useEffect(() => {
@@ -157,10 +156,10 @@ const VendorLayoutInner: React.FC = () => {
     try {
       await authService.logout();
       logoutContext();
-      toast({ title: "Success", description: "Logged out successfully" });
+      toast.success("Success", { description: "Logged out successfully" });
       navigate("/login");
     } catch {
-      toast({ title: "Error", description: "Failed to logout", variant: "destructive" });
+      toast.error("Error", { description: "Failed to logout" });
     }
   };
 

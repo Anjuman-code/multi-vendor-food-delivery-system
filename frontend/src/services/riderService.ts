@@ -195,8 +195,17 @@ const riderService = {
     ),
 
   // Rating (customer submits)
-  submitRating: (data: { orderId: string; rating: number; comment?: string }) =>
-    httpClient.post('/api/driver/ratings', data),
+  submitRating: async (data: {
+    orderId: string;
+    rating: number;
+    comment?: string;
+  }): Promise<{ success: boolean; message?: string }> => {
+    const res = await httpClient.post<{ success: boolean; message?: string }>(
+      '/api/driver/ratings',
+      data,
+    );
+    return res.data;
+  },
 };
 
 export default riderService;

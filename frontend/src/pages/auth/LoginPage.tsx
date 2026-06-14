@@ -21,7 +21,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPostAuthPath, useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
+import { toast } from "@/lib/toast";
 import { loginSchema, type LoginFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 
@@ -29,13 +30,13 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
   const { login } = useAuth();
 
   useRedirectIfAuthenticated();
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    mode: "onTouched",
     defaultValues: { emailOrPhone: "", password: "" },
   });
 
@@ -49,21 +50,13 @@ const LoginPage: React.FC = () => {
         if (accessToken) localStorage.setItem("accessToken", accessToken);
         if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
         login(user);
-        toast({ title: "Welcome back!", description: "Redirecting you now…" });
+        toast.success("Welcome back!", { description: "Redirecting you now…" });
         navigate(getPostAuthPath(user));
       } else {
-        toast({
-          title: "Login failed",
-          description: response.message || "Invalid credentials. Please try again.",
-          variant: "destructive",
-        });
+        applyServerErrors(form, response);
       }
-    } catch {
-      toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      applyServerErrors(form, err);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +68,7 @@ const LoginPage: React.FC = () => {
       authService.startGoogleAuth(typeof state?.from === "string" ? state.from : "/");
       return;
     }
-    toast({ title: "Coming soon", description: `${provider} login is on the way.` });
+    toast.info("Coming soon", { description: `${provider} login is on the way.` });
   };
 
   return (

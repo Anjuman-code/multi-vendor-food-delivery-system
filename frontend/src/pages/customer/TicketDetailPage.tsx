@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
 import type { SupportTicket, TicketStatus } from "@/types/support";
 import {
@@ -17,7 +17,6 @@ import {
   Loader2,
   MessageSquare,
   Send,
-  ThumbsUp,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -54,7 +53,6 @@ const fmtTime = (d: string) =>
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,15 +66,13 @@ export default function TicketDetailPage() {
     if (res.success && res.data) {
       setTicket(res.data.ticket);
     } else {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: res.message || "Ticket not found.",
-        variant: "destructive",
       });
       navigate("/support");
     }
     setLoading(false);
-  }, [id, toast, navigate]);
+  }, [id, navigate]);
 
   useEffect(() => {
     fetchTicket();
@@ -92,12 +88,10 @@ export default function TicketDetailPage() {
       if (res.success && res.data) {
         setTicket(res.data.ticket);
         setReplyText("");
-        toast({ title: "Reply sent" });
+        toast.success("Reply sent");
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: res.message || "Failed to send reply.",
-          variant: "destructive",
         });
       }
     } finally {
@@ -114,13 +108,6 @@ export default function TicketDetailPage() {
   }
 
   if (!ticket) return null;
-
-  const customerName = () => {
-    if (typeof ticket.userId === "object" && ticket.userId) {
-      return `${ticket.userId.firstName} ${ticket.userId.lastName}`;
-    }
-    return "You";
-  };
 
   const assignedName = () => {
     if (!ticket.assignedTo) return null;

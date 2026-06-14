@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import authService from "@/services/authService";
 import { cn } from "@/utils/cn";
@@ -424,7 +424,6 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout: logoutContext } = useAuth();
   const confirm = useConfirm();
-  const { toast } = useToast();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -460,7 +459,7 @@ const AdminLayout: React.FC = () => {
       logoutContext();
       navigate("/login");
     } catch {
-      toast({ title: "Error", description: "Failed to logout", variant: "destructive" });
+      toast.error("Failed to logout");
     }
   };
 

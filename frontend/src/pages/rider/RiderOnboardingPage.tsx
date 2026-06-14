@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/lib/toast';
+import { applyServerErrors, getErrorMessage } from '@/lib/formErrors';
 import { optionalBdPhoneSchema } from '@/lib/phone';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
@@ -92,18 +93,25 @@ const DOCUMENT_FIELDS = [
     key: 'licensePhoto',
     label: "Driver's license",
     hint: 'Front side, clearly readable',
+    required: true,
   },
   {
     key: 'vehicleRegistrationPhoto',
     label: 'Vehicle registration',
     hint: 'Matches your registered vehicle',
+    required: true,
   },
   {
     key: 'insurancePhoto',
     label: 'Insurance document',
     hint: 'Must be currently valid',
+    required: true,
   },
 ] as const;
+
+const REQUIRED_DOCUMENT_KEYS = DOCUMENT_FIELDS.filter((f) => f.required).map(
+  (f) => f.key,
+);
 
 type PayoutMethod = 'mobile' | 'bank';
 
@@ -113,13 +121,15 @@ const RiderOnboardingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Record<string, string>>({});
+  const [documentErrors, setDocumentErrors] = useState<Record<string, string>>(
+    {},
+  );
   const [existingProfile, setExistingProfile] = useState<Record<
     string,
     unknown
   > | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { updateUser } = useAuth();
 
   useEffect(() => {
@@ -196,22 +206,25 @@ const RiderOnboardingPage: React.FC = () => {
           ?.documentUrl;
         if (url) {
           setDocuments((prev) => ({ ...prev, [fieldName]: url }));
-          toast({
-            title: 'Uploaded',
+          setDocumentErrors((prev) => {
+            if (!prev[fieldName]) return prev;
+            const next = { ...prev };
+            delete next[fieldName];
+            return next;
+          });
+          toast.success('Uploaded', {
             description: `${DOCUMENT_FIELDS.find((f) => f.key === fieldName)?.label} uploaded successfully`,
           });
         }
       } catch {
-        toast({
-          variant: 'destructive',
-          title: 'Upload failed',
+        toast.error('Upload failed', {
           description: 'Please try again',
         });
       } finally {
         setUploading(null);
       }
     },
-    [toast],
+    [],
   );
 
   const triggerUpload = (fieldName: string) => {
@@ -226,7 +239,51 @@ const RiderOnboardingPage: React.FC = () => {
     input.click();
   };
 
+  /**
+   * Validate that every required document has been uploaded. Sets inline
+   * errors beneath any missing upload and returns whether the step is valid.
+   */
+  const validateDocuments = useCallback((): boolean => {
+    const errors: Record<string, string> = {};
+    REQUIRED_DOCUMENT_KEYS.forEach((key) => {
+      if (!documents[key]) {
+        const label = DOCUMENT_FIELDS.find((f) => f.key === key)?.label ?? key;
+        errors[key] = `${label} is required`;
+      }
+    });
+    setDocumentErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [documents]);
+
+  const handleDocumentsNext = () => {
+    if (!validateDocuments()) {
+      toast.error('Missing required documents', {
+        description: 'Please upload all required documents to continue.',
+      });
+      return;
+    }
+    setStep(2);
+  };
+
   const submitOnboarding = async () => {
+    // Re-check both gated steps before hitting the API.
+    const docsValid = validateDocuments();
+    const payoutValid = await form.trigger();
+    if (!docsValid) {
+      setStep(1);
+      toast.error('Missing required documents', {
+        description: 'Please upload all required documents before submitting.',
+      });
+      return;
+    }
+    if (!payoutValid) {
+      setStep(2);
+      toast.error('Check your payout details', {
+        description: 'Please fix the highlighted fields before submitting.',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const data = form.getValues();
@@ -239,17 +296,19 @@ const RiderOnboardingPage: React.FC = () => {
         mobileMoneyProvider: data.mobileMoneyProvider || undefined,
       });
       updateUser({ onboardingCompleted: true });
-      toast({
-        title: 'Application submitted!',
+      toast.success('Application submitted!', {
         description: "We'll review your details and notify you once approved.",
       });
       navigate('/rider', { replace: true });
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Something went wrong',
-        description: 'Please try again in a moment.',
-      });
+    } catch (err) {
+      const mapped = applyServerErrors(form, err, { toastOnUnmapped: false });
+      if (mapped) {
+        setStep(2);
+      } else {
+        toast.error(getErrorMessage(err, 'Something went wrong'), {
+          description: 'Please try again in a moment.',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -335,73 +394,85 @@ const RiderOnboardingPage: React.FC = () => {
           <div className="space-y-3">
             {DOCUMENT_FIELDS.map((doc) => {
               const done = !!documents[doc.key];
+              const error = documentErrors[doc.key];
               return (
-                <div
-                  key={doc.key}
-                  className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 transition-colors ${
-                    done
-                      ? 'border-emerald-200 bg-emerald-50/50'
-                      : 'border-border bg-card'
-                  }`}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                        done
-                          ? 'bg-emerald-100 text-emerald-600'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {done ? (
-                        <FileCheck2 className="h-5 w-5" />
-                      ) : (
-                        <FileImage className="h-5 w-5" />
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-foreground">
-                        {doc.label}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {done ? 'Uploaded — looks good' : doc.hint}
-                      </p>
+                <div key={doc.key}>
+                  <div
+                    className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 transition-colors ${
+                      error
+                        ? 'border-red-300 bg-red-50/50'
+                        : done
+                          ? 'border-emerald-200 bg-emerald-50/50'
+                          : 'border-border bg-card'
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                          done
+                            ? 'bg-emerald-100 text-emerald-600'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {done ? (
+                          <FileCheck2 className="h-5 w-5" />
+                        ) : (
+                          <FileImage className="h-5 w-5" />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">
+                          {doc.label}
+                          {doc.required && (
+                            <span className="ml-1 text-red-500">*</span>
+                          )}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {done ? 'Uploaded — looks good' : doc.hint}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {done && (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {done && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setDocuments((prev) => {
+                              const next = { ...prev };
+                              delete next[doc.key];
+                              return next;
+                            })
+                          }
+                          className="text-muted-foreground hover:text-red-600"
+                          aria-label={`Remove ${doc.label}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          setDocuments((prev) => {
-                            const next = { ...prev };
-                            delete next[doc.key];
-                            return next;
-                          })
-                        }
-                        className="text-muted-foreground hover:text-red-600"
-                        aria-label={`Remove ${doc.label}`}
+                        variant={done ? 'outline' : 'default'}
+                        size="sm"
+                        disabled={uploading === doc.key}
+                        onClick={() => triggerUpload(doc.key)}
+                        className="gap-1.5"
                       >
-                        <X className="h-4 w-4" />
+                        {uploading === doc.key ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {done ? 'Replace' : 'Upload'}
                       </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant={done ? 'outline' : 'default'}
-                      size="sm"
-                      disabled={uploading === doc.key}
-                      onClick={() => triggerUpload(doc.key)}
-                      className="gap-1.5"
-                    >
-                      {uploading === doc.key ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="h-4 w-4" />
-                      )}
-                      {done ? 'Replace' : 'Upload'}
-                    </Button>
+                    </div>
                   </div>
+                  {error && (
+                    <p className="mt-1.5 px-1 text-sm font-medium text-red-600">
+                      {error}
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -410,15 +481,15 @@ const RiderOnboardingPage: React.FC = () => {
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <p className="text-xs leading-relaxed text-amber-700">
-              Your documents are encrypted and used only for verification. You
-              can submit now and add anything missing later from your profile.
+              Your documents are encrypted and used only for verification.
+              Documents marked with an asterisk (*) are required to continue.
             </p>
           </div>
 
           <StepNav
             onBack={() => setStep(0)}
             nextLabel="Continue"
-            onNext={() => setStep(2)}
+            onNext={handleDocumentsNext}
           />
         </div>
       )}
@@ -426,7 +497,14 @@ const RiderOnboardingPage: React.FC = () => {
       {/* ── Step 2: Payout ── */}
       {step === 2 && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(() => setStep(3))}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void form.trigger().then((valid) => {
+                if (valid) setStep(3);
+              });
+            }}
+          >
             <StepHeader
               icon={Wallet}
               title="How would you like to get paid?"

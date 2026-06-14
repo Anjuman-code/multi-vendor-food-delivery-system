@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { fadeInUp } from "@/lib/motion";
 import apiService from "@/services/apiService";
 import type {
@@ -338,7 +338,6 @@ const NEARBY_THRESHOLD_KM = 5;
 const RestaurantsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Restaurant data state
@@ -413,15 +412,13 @@ const RestaurantsPage: React.FC = () => {
     } catch {
       setRestaurants([]);
       setHasLoadError(true);
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to load restaurants.",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     void loadRestaurants();
@@ -669,15 +666,15 @@ const RestaurantsPage: React.FC = () => {
       );
       const restaurant = restaurants.find((r) => r.id === id);
       if (restaurant) {
-        toast({
-          title: restaurant.isFavorite
+        toast.success(
+          restaurant.isFavorite
             ? "Removed from favorites"
             : "Added to favorites",
-          description: restaurant.name,
-        });
+          { description: restaurant.name },
+        );
       }
     },
-    [restaurants, toast],
+    [restaurants],
   );
 
   const handleBookClick = useCallback((restaurant: Restaurant) => {
@@ -714,12 +711,11 @@ const RestaurantsPage: React.FC = () => {
 
   const handleBookingComplete = useCallback(
     (booking: Booking) => {
-      toast({
-        title: "Booking Confirmed!",
+      toast.success("Booking Confirmed!", {
         description: `Table booked at ${booking.restaurant.name} for ${booking.date} at ${booking.time}`,
       });
     },
-    [toast],
+    [],
   );
 
   const handleMapToggle = useCallback(() => {

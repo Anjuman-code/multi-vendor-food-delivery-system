@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatDateTime } from "@/utils/format";
 import { History, ScrollText } from "lucide-react";
@@ -59,7 +59,6 @@ interface AuditPagination {
 }
 
 export default function AuditLogPage() {
-  const { toast } = useToast();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -86,12 +85,12 @@ export default function AuditLogPage() {
         setTotalPages(d.pagination.pages);
         setPage(d.pagination.page);
       } catch {
-        toast({ title: "Failed to load audit log", variant: "destructive" });
+        toast.error("Failed to load audit log");
       } finally {
         setLoading(false);
       }
     },
-    [actionSearch, resourceType, toast],
+    [actionSearch, resourceType],
   );
 
   useEffect(() => {

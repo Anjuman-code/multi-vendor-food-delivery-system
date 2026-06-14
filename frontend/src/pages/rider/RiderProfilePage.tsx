@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRider } from "@/contexts/RiderContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import { optionalBdPhoneSchema } from "@/lib/phone";
 import riderService from "@/services/riderService";
 import { formatCurrency } from "@/utils/format";
@@ -71,7 +72,6 @@ const DOCUMENT_FIELDS = [
 ] as const;
 
 const RiderProfilePage: React.FC = () => {
-  const { toast } = useToast();
   const { profile, refresh } = useRider();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -133,10 +133,10 @@ const RiderProfilePage: React.FC = () => {
         ?.documentUrl;
       if (url) {
         setDocuments((prev) => ({ ...prev, [field]: url }));
-        toast({ title: "Uploaded", description: "Document saved." });
+        toast.success("Uploaded", { description: "Document saved." });
       }
     } catch {
-      toast({ variant: "destructive", title: "Upload failed" });
+      toast.error("Upload failed");
     } finally {
       setUploading(null);
     }
@@ -158,9 +158,11 @@ const RiderProfilePage: React.FC = () => {
         },
       });
       await refresh();
-      toast({ title: "Saved", description: "Profile updated." });
-    } catch {
-      toast({ variant: "destructive", title: "Couldn't save profile" });
+      toast.success("Saved", { description: "Profile updated." });
+    } catch (err) {
+      applyServerErrors(form, err, {
+        fallbackMessage: "Couldn't save profile",
+      });
     } finally {
       setSaving(false);
     }

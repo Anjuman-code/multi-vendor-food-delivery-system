@@ -72,4 +72,10 @@ function SkeletonButton({ width = "w-24" }: { width?: string }) {
   return <Skeleton className={cn("h-10 rounded-md", width)} />;
 }
 
-export { Skeleton, SkeletonCard };
+export {
+  Skeleton,
+  SkeletonCard,
+  SkeletonText,
+  SkeletonAvatar,
+  SkeletonButton,
+};

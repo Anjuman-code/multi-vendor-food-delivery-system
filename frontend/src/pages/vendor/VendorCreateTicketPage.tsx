@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, SectionCard } from "@/components/vendor";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
+import { applyServerErrors } from "@/lib/formErrors";
 import supportService from "@/services/supportService";
 import type { TicketType, TicketPriority } from "@/types/support";
 import { cn } from "@/utils/cn";
@@ -60,7 +61,6 @@ const TYPE_OPTIONS: { value: TicketType; label: string }[] = [
 ];
 
 export default function VendorCreateTicketPage() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [priority, setPriority] = useState<TicketPriority>("medium");
@@ -68,19 +68,22 @@ export default function VendorCreateTicketPage() {
 
   const prefillType = searchParams.get("type") as TicketType | null;
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm<TicketFormData>({
+  const form = useForm<TicketFormData>({
     resolver: zodResolver(ticketSchema),
+    mode: "onTouched",
     defaultValues: {
       type: prefillType && TYPE_OPTIONS.some((o) => o.value === prefillType)
         ? prefillType
         : "general",
     },
   });
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = form;
 
   const onSubmit = async (data: TicketFormData) => {
     setSubmitting(true);
@@ -91,18 +94,19 @@ export default function VendorCreateTicketPage() {
         orderId: data.orderId || undefined,
       });
       if (res.success && res.data) {
-        toast({
-          title: "Ticket Created",
+        toast.success("Ticket Created", {
           description: "Your support ticket has been submitted.",
         });
         navigate(`/vendor/support/${res.data.ticket._id}`);
       } else {
-        toast({
-          title: "Error",
-          description: res.message || "Failed to create ticket.",
-          variant: "destructive",
+        applyServerErrors(form, res, {
+          fallbackMessage: res.message || "Failed to create ticket.",
         });
       }
+    } catch (err) {
+      applyServerErrors(form, err, {
+        fallbackMessage: "Failed to create ticket.",
+      });
     } finally {
       setSubmitting(false);
     }

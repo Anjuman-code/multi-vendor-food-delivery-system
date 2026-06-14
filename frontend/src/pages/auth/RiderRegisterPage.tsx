@@ -31,7 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
+import { toast } from "@/lib/toast";
 import { riderRegisterSchema, type RiderRegisterFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 
@@ -70,7 +71,6 @@ const RiderRegisterPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useRedirectIfAuthenticated();
 
@@ -116,24 +116,17 @@ const RiderRegisterPage: React.FC = () => {
       });
 
       if (response.success) {
-        toast({
-          title: "Application submitted!",
+        toast.success("Application submitted!", {
           description: "Verify your email, then wait for admin approval before you start delivering.",
         });
         navigate("/verify-email", { state: { email: data.email } });
       } else {
-        toast({
-          title: "Registration failed",
-          description: response.message || "Please check your details and try again.",
-          variant: "destructive",
-        });
+        applyServerErrors(form, response);
+        if (STEP_0_FIELDS.some((f) => form.getFieldState(f).error)) setStep(0);
       }
-    } catch {
-      toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      applyServerErrors(form, err);
+      if (STEP_0_FIELDS.some((f) => form.getFieldState(f).error)) setStep(0);
     } finally {
       setIsLoading(false);
     }

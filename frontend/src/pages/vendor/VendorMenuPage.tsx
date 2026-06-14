@@ -11,7 +11,7 @@ import {
 } from "@/components/vendor";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useVendor } from "@/contexts/VendorContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import vendorService from "@/services/vendorService";
 import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
 import { cn } from "@/utils/cn";
@@ -59,7 +59,6 @@ const mapToFoodCard = (item: MenuItem) => ({
 
 const VendorMenuPage: React.FC = () => {
   const { selectedRestaurantId } = useVendor();
-  const { toast } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -127,9 +126,9 @@ const VendorMenuPage: React.FC = () => {
     const res = await vendorService.deleteMenuItem(selectedRestaurantId, itemId);
     if (res.success) {
       setItems((prev) => prev.filter((i) => i._id !== itemId));
-      toast({ title: "Success", description: "Item deleted" });
+      toast.success("Success", { description: "Item deleted" });
     } else {
-      toast({ title: "Error", description: res.message, variant: "destructive" });
+      toast.error("Error", { description: res.message });
     }
   };
 
@@ -145,9 +144,9 @@ const VendorMenuPage: React.FC = () => {
     if (res.success) {
       setCategories((prev) => prev.filter((c) => c._id !== catId));
       setItems((prev) => prev.filter((i) => i.categoryId !== catId));
-      toast({ title: "Success", description: "Category deleted" });
+      toast.success("Success", { description: "Category deleted" });
     } else {
-      toast({ title: "Error", description: res.message, variant: "destructive" });
+      toast.error("Error", { description: res.message });
     }
   };
 
@@ -459,7 +458,6 @@ const CategoryModal: React.FC<{
   onClose: () => void;
   onSaved: () => void;
 }> = ({ open, category, restaurantId, onClose, onSaved }) => {
-  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [catName, setCatName] = useState("");
   const [catDesc, setCatDesc] = useState("");
@@ -492,14 +490,13 @@ const CategoryModal: React.FC<{
       ? await vendorService.updateCategory(restaurantId, category._id, data)
       : await vendorService.createCategory(restaurantId, data);
     if (res.success) {
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: category ? "Category updated" : "Category created",
       });
       onSaved();
       onClose();
     } else {
-      toast({ title: "Error", description: res.message, variant: "destructive" });
+      toast.error("Error", { description: res.message });
     }
     setSaving(false);
   };

@@ -14,7 +14,7 @@ import React, {
   useState,
 } from "react";
 
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import riderService, {
   type DriverProfile,
   type RiderOrder,
@@ -44,7 +44,6 @@ const unwrap = <T,>(res: unknown): T | undefined =>
 export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { toast } = useToast();
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [activeOrder, setActiveOrder] = useState<RiderOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,8 +81,7 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await riderService.setAvailability(next);
       setProfile((p) => (p ? { ...p, isAvailable: next } : p));
-      toast({
-        title: next ? "You're now online" : "You're now offline",
+      toast.success(next ? "You're now online" : "You're now offline", {
         description: next
           ? "You'll receive new delivery requests."
           : "You won't receive new deliveries.",
@@ -91,14 +89,11 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      toast({
-        variant: "destructive",
-        title: msg ?? "Couldn't update availability",
-      });
+      toast.error(msg ?? "Couldn't update availability");
     } finally {
       setToggling(false);
     }
-  }, [profile, toast]);
+  }, [profile]);
 
   return (
     <RiderContext.Provider

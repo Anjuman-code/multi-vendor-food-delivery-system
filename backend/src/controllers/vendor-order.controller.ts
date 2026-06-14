@@ -3,7 +3,8 @@
  */
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import Notification, { NotificationType } from "../models/Notification";
+import { NotificationType } from "../models/Notification";
+import { createNotification } from "../services/notification.service";
 import Order, { OrderStatus } from "../models/Order";
 import VendorProfile from "../models/VendorProfile";
 import { getIO } from "../socket";
@@ -242,7 +243,7 @@ export const updateVendorOrderStatus = async (
 
     // Notify the customer via DB notification
     const statusLabel = STATUS_LABELS[newStatus] || newStatus;
-    await Notification.create({
+    await createNotification({
       userId: order.customerId,
       type: NotificationType.ORDER_UPDATE,
       title: `Order ${statusLabel}`,

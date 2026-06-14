@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
+import { toast } from "@/lib/toast";
 import { vendorRegisterSchema, type VendorRegisterFormData } from "@/lib/validation";
 import authService from "@/services/authService";
 
@@ -55,7 +56,6 @@ const VendorRegisterPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useRedirectIfAuthenticated();
 
@@ -101,24 +101,18 @@ const VendorRegisterPage: React.FC = () => {
       });
 
       if (response.success) {
-        toast({
-          title: "Application submitted!",
+        toast.success("Application submitted!", {
           description: "Check your email to verify your account.",
         });
         navigate("/verify-email", { state: { email: data.email } });
       } else {
-        toast({
-          title: "Registration failed",
-          description: response.message || "Please check your details and try again.",
-          variant: "destructive",
-        });
+        applyServerErrors(form, response);
+        // Surface any account-step field errors by returning to that step.
+        if (STEP_0_FIELDS.some((f) => form.getFieldState(f).error)) setStep(0);
       }
-    } catch {
-      toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      applyServerErrors(form, err);
+      if (STEP_0_FIELDS.some((f) => form.getFieldState(f).error)) setStep(0);
     } finally {
       setIsLoading(false);
     }

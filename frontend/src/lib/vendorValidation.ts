@@ -17,7 +17,7 @@ export const createRestaurantSchema = z.object({
   cuisineType: z
     .array(z.string().min(1))
     .min(1, 'Select at least one cuisine type'),
-  phone: z.pipe(bdPhoneSchema),
+  phone: bdPhoneSchema,
   email: z.string().email('Please enter a valid email address'),
   website: z
     .string()

@@ -11,14 +11,26 @@ import {
   reverseGeocodeCoordinates,
 } from "@/components/locationUtils";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { applyServerErrors } from "@/lib/formErrors";
+import { toast } from "@/lib/toast";
+import { addAddressSchema } from "@/lib/validation";
 import authService from "@/services/authService";
 import type { AddAddressPayload } from "@/services/userService";
 import userService from "@/services/userService";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
+import type { z } from "zod";
 import L from "leaflet";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -36,6 +48,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -165,6 +178,20 @@ const WelcomeStep = ({
 
 // ── Step 2: Address ────────────────────────────────────────────
 
+const LABEL_TO_TYPE: Record<AddressLabel, "home" | "work" | "other"> = {
+  Home: "home",
+  Work: "work",
+  Other: "other",
+};
+const TYPE_TO_LABEL: Record<"home" | "work" | "other", AddressLabel> = {
+  home: "Home",
+  work: "Work",
+  other: "Other",
+};
+
+type AddressFormInput = z.input<typeof addAddressSchema>;
+type AddressFormOutput = z.output<typeof addAddressSchema>;
+
 const AddressStep = ({
   onNext,
   onBack,
@@ -174,21 +201,41 @@ const AddressStep = ({
   onBack: () => void;
   onSkip: () => void;
 }) => {
-  const [houseNumber, setHouseNumber] = useState("");
-  const [floor, setFloor] = useState("");
-  const [label, setLabel] = useState<AddressLabel>("Home");
-  const [district, setDistrict] = useState("");
-  const [area, setArea] = useState("");
-  const [lat, setLat] = useState(0);
-  const [lng, setLng] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
-  const { toast } = useToast();
+
+  const form = useForm<AddressFormInput, unknown, AddressFormOutput>({
+    resolver: zodResolver(addAddressSchema),
+    mode: "onTouched",
+    defaultValues: {
+      type: "home",
+      street: "",
+      apartment: "",
+      district: "",
+      area: "",
+      // Sentinels outside the valid lat/lng range so the schema flags an
+      // unset location instead of silently passing (0,0).
+      latitude: 999,
+      longitude: 999,
+      isDefault: true,
+    },
+  });
+
+  const district = form.watch("district");
+  const lat = Number(form.watch("latitude"));
+  const lng = Number(form.watch("longitude"));
+  const label = TYPE_TO_LABEL[form.watch("type")];
+  const hasPin =
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180;
 
   const handleCoordinatesUpdate = useCallback(
     async (latitude: number, longitude: number) => {
-      setLat(latitude);
-      setLng(longitude);
+      form.setValue("latitude", latitude, { shouldValidate: true });
+      form.setValue("longitude", longitude, { shouldValidate: true });
       setIsDetecting(true);
 
       try {
@@ -197,7 +244,10 @@ const AddressStep = ({
           longitude,
         );
 
-        if (resolvedAddress.street) setHouseNumber(resolvedAddress.street);
+        if (resolvedAddress.street)
+          form.setValue("street", resolvedAddress.street, {
+            shouldValidate: true,
+          });
 
         let districtValue = resolvedAddress.district;
         let areaValue = resolvedAddress.area;
@@ -219,33 +269,31 @@ const AddressStep = ({
           if (!areaExists) areaValue = districtData?.areas[0] || "Sylhet Sadar";
         }
 
-        if (districtValue) setDistrict(districtValue);
-        if (areaValue) setArea(areaValue);
+        if (districtValue)
+          form.setValue("district", districtValue, { shouldValidate: true });
+        if (areaValue)
+          form.setValue("area", areaValue, { shouldValidate: true });
 
-        toast({
-          title: "Location detected",
+        toast.success("Location detected", {
           description: "Address fields filled from GPS.",
         });
       } catch {
-        setDistrict("Sylhet");
-        setArea("Sylhet Sadar");
-        toast({
-          title: "Location set",
+        form.setValue("district", "Sylhet", { shouldValidate: true });
+        form.setValue("area", "Sylhet Sadar", { shouldValidate: true });
+        toast.info("Location set", {
           description: "Coordinates saved. Defaulting to Sylhet.",
         });
       } finally {
         setIsDetecting(false);
       }
     },
-    [toast],
+    [form],
   );
 
   const handleUseLocation = () => {
     if (!navigator.geolocation) {
-      toast({
-        title: "Not supported",
+      toast.error("Not supported", {
         description: "Geolocation is not supported by your browser.",
-        variant: "destructive",
       });
       return;
     }
@@ -258,75 +306,54 @@ const AddressStep = ({
       },
       (err) => {
         setIsDetecting(false);
-        toast({
-          title: "Location error",
+        toast.error("Location error", {
           description:
             err.code === 1
               ? "Location permission denied. Please allow access and try again."
               : "Could not detect your location. Please try again.",
-          variant: "destructive",
         });
       },
       { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 },
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!houseNumber) {
-      toast({
-        title: "Required",
-        description: "Please enter your house/apartment number.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!district || !area) {
-      toast({
-        title: "Required",
-        description: "Please select a district and area.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
+  // RHF only invokes this once the whole step validates, so an invalid /
+  // incomplete address can never advance.
+  const onSubmit = async (values: AddressFormOutput) => {
     try {
       const payload: AddAddressPayload = {
-        type: label.toLowerCase() as "home" | "work" | "other",
-        street: houseNumber,
-        apartment: floor || undefined,
-        district,
-        area,
+        type: values.type,
+        street: values.street,
+        apartment: values.apartment || undefined,
+        district: values.district,
+        area: values.area,
         coordinates: {
-          latitude: lat !== 0 ? lat : 23.8103,
-          longitude: lng !== 0 ? lng : 90.4125,
+          latitude: values.latitude,
+          longitude: values.longitude,
         },
         isDefault: true,
       };
       const res = await userService.addAddress(payload);
-      if (!res.success) throw new Error(res.message);
-      toast({
-        title: "Address saved!",
+      if (!res.success) {
+        applyServerErrors(form, res, {
+          fallbackMessage: "Failed to save address. Please try again.",
+        });
+        return;
+      }
+      toast.success("Address saved!", {
         description: "Your delivery address has been added.",
       });
       onNext();
     } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err instanceof Error
-            ? err.message
-            : "Failed to save address. Please try again.",
-        variant: "destructive",
+      applyServerErrors(form, err, {
+        fallbackMessage: "Failed to save address. Please try again.",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
       <StepHeader
         icon={MapPin}
         title="Where should we deliver?"
@@ -366,9 +393,9 @@ const AddressStep = ({
       </div>
 
       {/* Map */}
-      <div className="relative mb-5 h-44 w-full overflow-hidden rounded-2xl border border-border">
+      <div className="relative mb-1.5 h-44 w-full overflow-hidden rounded-2xl border border-border">
         <MapContainer
-          center={lat !== 0 ? [lat, lng] : [23.8103, 90.4125]}
+          center={hasPin ? [lat, lng] : [23.8103, 90.4125]}
           zoom={13}
           style={{ height: "100%", width: "100%" }}
         >
@@ -376,77 +403,125 @@ const AddressStep = ({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <LocationPickerMap lat={lat} lng={lng} onChange={handleCoordinatesUpdate} />
+          <LocationPickerMap
+            lat={hasPin ? lat : 0}
+            lng={hasPin ? lng : 0}
+            onChange={handleCoordinatesUpdate}
+          />
         </MapContainer>
         <div className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-background/90 px-2 py-1 text-xs text-muted-foreground backdrop-blur-sm">
           Tap the map to drop a pin
         </div>
       </div>
+      {(form.formState.errors.latitude || form.formState.errors.longitude) && (
+        <p className="mb-3 text-sm font-medium text-red-600">
+          Please drop a pin on the map or use your current location.
+        </p>
+      )}
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="houseNumber">House / Apt number *</Label>
-            <Input
-              id="houseNumber"
-              value={houseNumber}
-              onChange={(e) => setHouseNumber(e.target.value)}
-              placeholder="e.g. 123, Apt 4B"
-              className="mt-1.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="floor">
-              Floor{" "}
-              <span className="font-normal text-muted-foreground">(optional)</span>
-            </Label>
-            <Input
-              id="floor"
-              value={floor}
-              onChange={(e) => setFloor(e.target.value)}
-              placeholder="e.g. 2nd floor"
-              className="mt-1.5"
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="street"
+            render={({ field }) => (
+              <FormItem className="space-y-1.5">
+                <FormLabel htmlFor="houseNumber">House / Apt number *</FormLabel>
+                <FormControl>
+                  <Input
+                    id="houseNumber"
+                    {...field}
+                    placeholder="e.g. 123, Apt 4B"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="apartment"
+            render={({ field }) => (
+              <FormItem className="space-y-1.5">
+                <FormLabel htmlFor="floor">
+                  Floor{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    id="floor"
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="e.g. 2nd floor"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="district">District *</Label>
-            <select
-              id="district"
-              value={district}
-              onChange={(e) => {
-                setDistrict(e.target.value);
-                setArea("");
-              }}
-              className="mt-1.5 h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            >
-              <option value="">Select district</option>
-              {DISTRICT_DATA.map((d) => (
-                <option key={d.district} value={d.district}>
-                  {d.district}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="area">Area *</Label>
-            <select
-              id="area"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              disabled={!district}
-              className="mt-1.5 h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            >
-              <option value="">Select area</option>
-              {getAreasByDistrict(district).map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FormField
+            control={form.control}
+            name="district"
+            render={({ field }) => (
+              <FormItem className="space-y-1.5">
+                <FormLabel htmlFor="district">District *</FormLabel>
+                <FormControl>
+                  <select
+                    id="district"
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    aria-invalid={!!form.formState.errors.district}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      form.setValue("area", "", { shouldValidate: true });
+                    }}
+                    className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 aria-[invalid=true]:border-destructive"
+                  >
+                    <option value="">Select district</option>
+                    {DISTRICT_DATA.map((d) => (
+                      <option key={d.district} value={d.district}>
+                        {d.district}
+                      </option>
+                    ))}
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="area"
+            render={({ field }) => (
+              <FormItem className="space-y-1.5">
+                <FormLabel htmlFor="area">Area *</FormLabel>
+                <FormControl>
+                  <select
+                    id="area"
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    disabled={!district}
+                    aria-invalid={!!form.formState.errors.area}
+                    className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 aria-[invalid=true]:border-destructive"
+                  >
+                    <option value="">Select area</option>
+                    {getAreasByDistrict(district).map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div>
@@ -456,7 +531,11 @@ const AddressStep = ({
               <button
                 key={value}
                 type="button"
-                onClick={() => setLabel(value)}
+                onClick={() =>
+                  form.setValue("type", LABEL_TO_TYPE[value], {
+                    shouldValidate: true,
+                  })
+                }
                 className={`flex items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-sm font-medium transition-all ${
                   label === value
                     ? "border-brand-500 bg-brand-50 text-brand-700"
@@ -477,9 +556,10 @@ const AddressStep = ({
         onSkip={onSkip}
         skipLabel="Do this later"
         nextLabel="Save & continue"
-        isLoading={isLoading}
+        isLoading={form.formState.isSubmitting}
       />
-    </form>
+      </form>
+    </Form>
   );
 };
 
@@ -500,7 +580,12 @@ const PaymentStep = ({
   const [cvv, setCvv] = useState("");
   const [cardholderName, setCardholderName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const [errors, setErrors] = useState<{
+    cardholderName?: string;
+    cardNumber?: string;
+    expiry?: string;
+    cvv?: string;
+  }>({});
 
   const formatCardNumber = (val: string) =>
     val
@@ -515,41 +600,58 @@ const PaymentStep = ({
     return digits;
   };
 
+  const validateCard = () => {
+    const rawCard = cardNumber.replace(/\s/g, "");
+    const nextErrors: typeof errors = {};
+
+    if (!cardholderName.trim())
+      nextErrors.cardholderName = "Cardholder name is required.";
+
+    if (!rawCard) nextErrors.cardNumber = "Card number is required.";
+    else if (rawCard.length < 13 || rawCard.length > 16)
+      nextErrors.cardNumber = "Enter a valid card number.";
+
+    if (!expiry) nextErrors.expiry = "Expiry date is required.";
+    else {
+      const [monthStr, yearStr] = expiry.split("/");
+      const expiryMonth = parseInt(monthStr, 10);
+      const expiryYear = parseInt(`20${yearStr}`, 10);
+      if (
+        !yearStr ||
+        isNaN(expiryMonth) ||
+        isNaN(expiryYear) ||
+        expiryMonth < 1 ||
+        expiryMonth > 12
+      ) {
+        nextErrors.expiry = "Enter a valid MM/YY expiry date.";
+      }
+    }
+
+    if (!cvv) nextErrors.cvv = "CVV is required.";
+    else if (cvv.length < 3) nextErrors.cvv = "Enter a valid CVV.";
+
+    return nextErrors;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
 
     if (paymentType === "cod") {
       onNext();
       return;
     }
 
-    const rawCard = cardNumber.replace(/\s/g, "");
-    if (!rawCard || rawCard.length < 13 || !expiry || !cvv || !cardholderName) {
-      toast({
-        title: "Incomplete",
-        description: "Please fill in all card details.",
-        variant: "destructive",
-      });
+    const nextErrors = validateCard();
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
       return;
     }
 
+    const rawCard = cardNumber.replace(/\s/g, "");
     const [monthStr, yearStr] = expiry.split("/");
     const expiryMonth = parseInt(monthStr, 10);
     const expiryYear = parseInt(`20${yearStr}`, 10);
-
-    if (
-      isNaN(expiryMonth) ||
-      isNaN(expiryYear) ||
-      expiryMonth < 1 ||
-      expiryMonth > 12
-    ) {
-      toast({
-        title: "Invalid expiry",
-        description: "Enter a valid MM/YY expiry date.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setIsLoading(true);
     try {
@@ -572,19 +674,16 @@ const PaymentStep = ({
         expiryYear,
       });
       if (!res.success) throw new Error(res.message);
-      toast({
-        title: "Card saved!",
+      toast.success("Card saved!", {
         description: "Your payment method has been added.",
       });
       onNext();
     } catch (err) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description:
           err instanceof Error
             ? err.message
             : "Failed to save card. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -630,22 +729,42 @@ const PaymentStep = ({
               <Input
                 id="cardholderName"
                 value={cardholderName}
-                onChange={(e) => setCardholderName(e.target.value)}
+                onChange={(e) => {
+                  setCardholderName(e.target.value);
+                  if (errors.cardholderName)
+                    setErrors((p) => ({ ...p, cardholderName: undefined }));
+                }}
                 placeholder="Full name on card"
+                aria-invalid={!!errors.cardholderName}
                 className="mt-1.5"
               />
+              {errors.cardholderName && (
+                <p className="mt-1.5 text-sm font-medium text-red-600">
+                  {errors.cardholderName}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="cardNumber">Card number</Label>
               <Input
                 id="cardNumber"
                 value={cardNumber}
-                onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                onChange={(e) => {
+                  setCardNumber(formatCardNumber(e.target.value));
+                  if (errors.cardNumber)
+                    setErrors((p) => ({ ...p, cardNumber: undefined }));
+                }}
                 placeholder="1234 5678 9012 3456"
                 maxLength={19}
                 inputMode="numeric"
+                aria-invalid={!!errors.cardNumber}
                 className="mt-1.5 font-mono tracking-wider"
               />
+              {errors.cardNumber && (
+                <p className="mt-1.5 text-sm font-medium text-red-600">
+                  {errors.cardNumber}
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -653,27 +772,45 @@ const PaymentStep = ({
                 <Input
                   id="expiry"
                   value={expiry}
-                  onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                  onChange={(e) => {
+                    setExpiry(formatExpiry(e.target.value));
+                    if (errors.expiry)
+                      setErrors((p) => ({ ...p, expiry: undefined }));
+                  }}
                   placeholder="MM/YY"
                   maxLength={5}
                   inputMode="numeric"
+                  aria-invalid={!!errors.expiry}
                   className="mt-1.5"
                 />
+                {errors.expiry && (
+                  <p className="mt-1.5 text-sm font-medium text-red-600">
+                    {errors.expiry}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="cvv">CVV</Label>
                 <Input
                   id="cvv"
                   value={cvv}
-                  onChange={(e) =>
-                    setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))
-                  }
+                  onChange={(e) => {
+                    setCvv(e.target.value.replace(/\D/g, "").slice(0, 4));
+                    if (errors.cvv)
+                      setErrors((p) => ({ ...p, cvv: undefined }));
+                  }}
                   placeholder="•••"
                   maxLength={4}
                   type="password"
                   inputMode="numeric"
+                  aria-invalid={!!errors.cvv}
                   className="mt-1.5"
                 />
+                {errors.cvv && (
+                  <p className="mt-1.5 text-sm font-medium text-red-600">
+                    {errors.cvv}
+                  </p>
+                )}
               </div>
             </div>
           </div>

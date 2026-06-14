@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDateTime } from "@/utils/format";
 import { Bike, Clock, MapPin, Package, RefreshCcw, User } from "lucide-react";
@@ -76,7 +76,6 @@ const str = (v: unknown) => (v == null ? undefined : String(v));
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,11 +153,11 @@ export default function OrderDetailPage() {
       });
       setAudit(payload.auditHistory ?? []);
     } catch {
-      toast({ title: "Failed to load order", variant: "destructive" });
+      toast.error("Failed to load order");
     } finally {
       setLoading(false);
     }
-  }, [id, toast]);
+  }, [id]);
 
   useEffect(() => {
     load();
@@ -176,14 +175,14 @@ export default function OrderDetailPage() {
   const handleCancel = async (reason?: string) => {
     if (!id) return;
     await adminService.cancelOrder(id, { reason: reason! });
-    toast({ title: "Order cancelled" });
+    toast.success("Order cancelled");
     await load();
   };
 
   const handleOverride = async (reason?: string) => {
     if (!id || !overrideStatus) return;
     await adminService.overrideOrderStatus(id, { status: overrideStatus, reason: reason! });
-    toast({ title: "Status updated" });
+    toast.success("Status updated");
     setOverrideStatus("");
     await load();
   };
@@ -192,11 +191,11 @@ export default function OrderDetailPage() {
     if (!id || !order) return;
     const amount = parseFloat(refundAmount);
     if (Number.isNaN(amount) || amount <= 0 || amount > order.total) {
-      toast({ title: `Enter an amount between ৳1 and ${formatCurrency(order.total)}`, variant: "destructive" });
+      toast.error(`Enter an amount between ৳1 and ${formatCurrency(order.total)}`);
       return;
     }
     if (refundReason.trim().length < 5) {
-      toast({ title: "Provide a refund reason (5+ chars)", variant: "destructive" });
+      toast.error("Provide a refund reason (5+ chars)");
       return;
     }
     const lineItems = [...selectedItems].map((idx) => {
@@ -210,14 +209,14 @@ export default function OrderDetailPage() {
         reason: refundReason.trim(),
         lineItems: lineItems.length ? lineItems : undefined,
       });
-      toast({ title: `Refund of ${formatCurrency(amount)} issued` });
+      toast.success(`Refund of ${formatCurrency(amount)} issued`);
       setDialog(null);
       setRefundAmount("");
       setRefundReason("");
       setSelectedItems(new Set());
       await load();
     } catch {
-      toast({ title: "Refund failed", variant: "destructive" });
+      toast.error("Refund failed");
     } finally {
       setBusy(false);
     }
@@ -235,19 +234,19 @@ export default function OrderDetailPage() {
 
   const submitReassign = async () => {
     if (!id || !driverId || reassignReason.trim().length < 5) {
-      toast({ title: "Pick a driver and give a reason", variant: "destructive" });
+      toast.error("Pick a driver and give a reason");
       return;
     }
     setBusy(true);
     try {
       await adminService.reassignDriver(id, { driverId, reason: reassignReason.trim() });
-      toast({ title: "Driver reassigned" });
+      toast.success("Driver reassigned");
       setDialog(null);
       setDriverId("");
       setReassignReason("");
       await load();
     } catch {
-      toast({ title: "Reassign failed", variant: "destructive" });
+      toast.error("Reassign failed");
     } finally {
       setBusy(false);
     }

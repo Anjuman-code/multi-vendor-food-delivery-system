@@ -11,7 +11,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { RiderProvider, useRider } from "@/contexts/RiderContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import authService from "@/services/authService";
 import { cn } from "@/utils/cn";
 import {
@@ -80,7 +80,6 @@ const RiderShell: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout: logoutContext } = useAuth();
   const confirm = useConfirm();
-  const { toast } = useToast();
   const { profile, activeOrder, toggling, toggleAvailability } = useRider();
 
   const isActive = (path: string, end?: boolean) =>
@@ -104,7 +103,7 @@ const RiderShell: React.FC = () => {
     }
     logoutContext();
     navigate("/login");
-    toast({ title: "Logged out", description: "Ride safe!" });
+    toast.success("Logged out", { description: "Ride safe!" });
   };
 
   const initials = (user?.firstName?.[0] ?? "R").toUpperCase();

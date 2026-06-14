@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useCart } from "@/contexts/CartContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronRight,
@@ -65,7 +65,6 @@ const Breadcrumb: React.FC<{ category: string }> = ({ category }) => (
 const CategoriesPage: React.FC = () => {
   const navigate = useNavigate();
   const { addItem, items, updateQuantity } = useCart();
-  const { toast } = useToast();
 
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -96,12 +95,11 @@ const CategoriesPage: React.FC = () => {
       };
 
       await addItem(menuItem.restaurantId, menuItem.restaurantName, cartItem);
-      toast({
-        title: "Added to cart",
+      toast.success("Added to cart", {
         description: `${menuItem.name} has been added to your cart.`,
       });
     },
-    [addItem, toast],
+    [addItem],
   );
 
   const handleUpdateQuantity = useCallback(
