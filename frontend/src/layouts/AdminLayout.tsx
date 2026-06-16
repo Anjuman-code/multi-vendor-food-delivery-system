@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  Map,
   Menu,
   Package,
   Search,
@@ -72,6 +73,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Restaurants", path: "/admin/restaurants", icon: Store },
       { name: "Orders", path: "/admin/orders", icon: ClipboardList },
+      { name: "Live Map", path: "/admin/orders/live", icon: Map },
       { name: "Disputes", path: "/admin/disputes", icon: Gavel },
       { name: "Support", path: "/admin/support", icon: AlertTriangle },
     ],
@@ -109,10 +111,11 @@ const getBreadcrumbs = (pathname: string) => {
   const crumbs: { label: string; href?: string }[] = [
     { label: "Admin", href: "/admin" },
   ];
-  const active = allItems.find((i) => {
-    if (i.path === "/admin") return pathname === "/admin";
-    return pathname.startsWith(i.path);
-  });
+  const active = allItems
+    .filter((i) =>
+      i.path === "/admin" ? pathname === "/admin" : pathname.startsWith(i.path),
+    )
+    .sort((a, b) => b.path.length - a.path.length)[0];
   if (active && active.path !== "/admin") {
     crumbs.push({ label: active.name, href: active.path });
   }
@@ -121,7 +124,7 @@ const getBreadcrumbs = (pathname: string) => {
   if (pathname.match(/\/admin\/users\/drivers\/[^/]+$/)) crumbs.push({ label: "Driver Detail" });
   if (pathname.match(/\/admin\/restaurants\/[^/]+$/) && !pathname.endsWith("approval-queue"))
     crumbs.push({ label: "Restaurant Detail" });
-  if (pathname.match(/\/admin\/orders\/[^/]+$/)) crumbs.push({ label: "Order Detail" });
+  if (pathname.match(/\/admin\/orders\/(?!live$)[^/]+$/)) crumbs.push({ label: "Order Detail" });
   if (pathname.match(/\/admin\/support\/[^/]+$/)) crumbs.push({ label: "Ticket Detail" });
   return crumbs;
 };

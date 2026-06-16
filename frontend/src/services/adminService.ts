@@ -240,6 +240,9 @@ const adminService = {
   getOrder: (id: string) =>
     httpClient.get(`/api/admin/orders/${id}`),
 
+  getActiveOrders: () =>
+    httpClient.get("/api/admin/orders/active"),
+
   overrideOrderStatus: (id: string, data: { status: string; reason: string }) =>
     httpClient.patch(`/api/admin/orders/${id}/status`, data),
 

@@ -58,6 +58,7 @@ import {
 // Orders
 import {
     cancelOrder,
+    getActiveOrders,
     getDisputeQueue,
     getOrderDetail,
     issueRefund,
@@ -179,6 +180,7 @@ router.patch("/restaurants/:restaurantId/menu/:itemId/visibility", ...adminOnly,
 
 // ── Orders ───────────────────────────────────────────────────────
 router.get("/orders", ...adminAuth, listOrders);
+router.get("/orders/active", ...adminAuth, getActiveOrders);
 router.get("/orders/disputes", ...adminAuth, getDisputeQueue);
 router.get("/orders/:id", ...adminAuth, getOrderDetail);
 router.patch("/orders/:id/status", ...adminOnly, overrideOrderStatus);

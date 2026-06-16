@@ -348,6 +348,8 @@ export const acceptOrder = async (
       // Tell the customer a rider is assigned and en route to the restaurant.
       io.to(`user:${order.customerId.toString()}`).emit('order:riderAssigned', payload);
       io.to(`vendor:${order.restaurantId.toString()}`).emit('order:riderAssigned', payload);
+      io.to(`order:${order._id.toString()}`).emit('order:riderAssigned', payload);
+      io.to('admin:room').emit('order:riderAssigned', payload);
     } catch {
       /* non-blocking */
     }
@@ -474,6 +476,8 @@ export const advanceDeliveryStage = async (
         updatedAt: order.updatedAt,
       };
       io.to(`user:${order.customerId.toString()}`).emit('order:stageUpdate', base);
+      io.to(`order:${order._id.toString()}`).emit('order:stageUpdate', base);
+      io.to('admin:room').emit('order:stageUpdate', base);
       if (justPickedUp) {
         io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', {
           ...base,
@@ -592,17 +596,19 @@ export const updateLocation = async (
     try {
       const order = await Order.findById(orderId).select('customerId');
       if (order) {
-        getIO()
-          .to(`user:${order.customerId.toString()}`)
-          .emit('driver:locationUpdate', {
-            driverId: user._id.toString(),
-            orderId,
-            latitude,
-            longitude,
-            heading,
-            speed,
-            timestamp: event.timestamp.toISOString(),
-          });
+        const locationPayload = {
+          driverId: user._id.toString(),
+          orderId,
+          latitude,
+          longitude,
+          heading,
+          speed,
+          timestamp: event.timestamp.toISOString(),
+        };
+        const io = getIO();
+        io.to(`user:${order.customerId.toString()}`).emit('driver:locationUpdate', locationPayload);
+        io.to(`order:${orderId}`).emit('driver:locationUpdate', locationPayload);
+        io.to('admin:room').emit('driver:locationUpdate', locationPayload);
       }
     } catch {
       /* non-blocking */

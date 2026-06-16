@@ -3,7 +3,7 @@
  */
 import httpClient from "@/lib/httpClient";
 import type { ApiResponse } from "@/services/authService";
-import type { Order, CreateOrderPayload, CreateOrderFromCartResponse, OrderReview, OrderDriverRating } from "@/types/order";
+import type { Order, CreateOrderPayload, CreateOrderFromCartResponse, OrderReview, OrderDriverRating, OrderLiveDriver, OrderLiveDriverProfile } from "@/types/order";
 
 interface OrderListData {
   orders: Order[];
@@ -101,6 +101,8 @@ const orderService = {
       order: Order;
       review: OrderReview | null;
       driverRating: OrderDriverRating | null;
+      driver?: OrderLiveDriver | null;
+      driverProfile?: OrderLiveDriverProfile | null;
     }>
   > {
     try {
@@ -109,6 +111,8 @@ const orderService = {
           order: Order;
           review: OrderReview | null;
           driverRating: OrderDriverRating | null;
+          driver?: OrderLiveDriver | null;
+          driverProfile?: OrderLiveDriverProfile | null;
         }>
       >(`/api/orders/${orderId}`);
       return response.data;
@@ -117,6 +121,8 @@ const orderService = {
         order: Order;
         review: OrderReview | null;
         driverRating: OrderDriverRating | null;
+        driver?: OrderLiveDriver | null;
+        driverProfile?: OrderLiveDriverProfile | null;
       }>;
     }
   },

@@ -95,6 +95,7 @@ const AdminApprovalQueuePage = lazy(() => import("./pages/admin/restaurants/Appr
 const AdminRestaurantDetailPage = lazy(() => import("./pages/admin/restaurants/RestaurantDetailPage"));
 const AdminOrdersPage = lazy(() => import("./pages/admin/orders/OrdersPage"));
 const AdminOrderDetailPage = lazy(() => import("./pages/admin/orders/OrderDetailPage"));
+const AdminFleetMapPage = lazy(() => import("./pages/admin/orders/FleetMapPage"));
 const AdminPayoutsPage = lazy(() => import("./pages/admin/finance/PayoutsPage"));
 const AdminRevenueReportsPage = lazy(() => import("./pages/admin/finance/RevenueReportsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/support/SupportPage"));
@@ -223,6 +224,7 @@ function App(): React.ReactElement {
                     <Route path="restaurants/approval-queue" element={<AdminApprovalQueuePage />} />
                     <Route path="restaurants/:id" element={<AdminRestaurantDetailPage />} />
                     <Route path="orders" element={<AdminOrdersPage />} />
+                    <Route path="orders/live" element={<AdminFleetMapPage />} />
                     <Route path="orders/:id" element={<AdminOrderDetailPage />} />
                     <Route path="finance/payouts" element={<AdminPayoutsPage />} />
                     <Route path="finance/revenue" element={<AdminRevenueReportsPage />} />

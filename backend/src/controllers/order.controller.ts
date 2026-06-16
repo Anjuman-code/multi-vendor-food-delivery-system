@@ -6,6 +6,8 @@ import { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
 import Coupon, { CouponType } from "../models/Coupon";
 import CustomerProfile from "../models/CustomerProfile";
+import DriverProfile from "../models/DriverProfile";
+import User from "../models/User";
 import { LoyaltyTransactionType } from "../models/LoyaltyTransaction";
 import MenuItem from "../models/MenuItem";
 import Restaurant from "../models/Restaurant";
@@ -964,17 +966,33 @@ export const getOrderById = async (
       Order.findOne({
         _id: orderId,
         customerId: authReq.user._id,
-      }).populate("restaurantId", "name images.logo contactInfo"),
+      }).populate("restaurantId", "name images.logo contactInfo address location"),
       Review.findOne({ orderId, customerId: authReq.user._id }),
       DriverRating.findOne({ orderId, customerId: authReq.user._id }),
     ]);
 
     if (!order) throw new NotFoundError("Order not found");
 
+    // Surface the assigned rider (name/phone + vehicle/rating) for the live
+    // tracking card, without populating order.driverId (keeps its type a string
+    // for existing consumers).
+    let driver = null;
+    let driverProfile = null;
+    if (order.driverId) {
+      [driver, driverProfile] = await Promise.all([
+        User.findById(order.driverId).select("firstName lastName phoneNumber"),
+        DriverProfile.findOne({ userId: order.driverId }).select(
+          "vehicleType vehicleNumber rating currentLocation",
+        ),
+      ]);
+    }
+
     successResponse(res, {
       order,
       review: existingReview,
       driverRating: existingDriverRating,
+      driver,
+      driverProfile,
     });
   } catch (error) {
     next(error);

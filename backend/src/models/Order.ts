@@ -109,6 +109,9 @@ export interface IOrder {
   specialInstructions?: string;
   estimatedDeliveryTime?: Date;
   actualDeliveryTime?: Date;
+  /** Live ETA (minutes) for the rider to reach the customer — refreshed during the delivery leg. */
+  etaMinutes?: number;
+  etaUpdatedAt?: Date;
   scheduledFor?: Date;
   vendorAcceptedAt?: Date;
   deliveryProof?: IDeliveryProof;
@@ -276,6 +279,8 @@ const orderSchema = new Schema<IOrder>(
     specialInstructions: { type: String, maxlength: 500 },
     estimatedDeliveryTime: { type: Date },
     actualDeliveryTime: { type: Date },
+    etaMinutes: { type: Number, min: 0 },
+    etaUpdatedAt: { type: Date },
     scheduledFor: { type: Date },
     vendorAcceptedAt: { type: Date },
     deliveryProof: { type: deliveryProofSchema },

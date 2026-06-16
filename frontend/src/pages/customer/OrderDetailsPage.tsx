@@ -11,7 +11,14 @@ import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
 import reviewService from '@/services/reviewService';
 import riderService from '@/services/riderService';
-import type { Order, OrderStatus, StatusHistoryEntry } from '@/types/order';
+import { LiveTrackingPanel } from '@/components/orders/LiveTrackingPanel';
+import type {
+  Order,
+  OrderLiveDriver,
+  OrderLiveDriverProfile,
+  OrderStatus,
+  StatusHistoryEntry,
+} from '@/types/order';
 import { foodFallbackSVG } from '@/utils/fallbackImages';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -118,10 +125,13 @@ const OrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addItem: addToCart } = useCart();
-  const { socket, watchOrderLocation, driverLocation } = useSocketContext();
+  const { socket, watchOrderLocation } = useSocketContext();
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [liveDriver, setLiveDriver] = useState<OrderLiveDriver | null>(null);
+  const [liveDriverProfile, setLiveDriverProfile] =
+    useState<OrderLiveDriverProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
@@ -150,6 +160,8 @@ const OrderDetailsPage: React.FC = () => {
     const res = await orderService.getOrderById(id);
     if (res.success && res.data) {
       setOrder(res.data.order);
+      setLiveDriver(res.data.driver ?? null);
+      setLiveDriverProfile(res.data.driverProfile ?? null);
       if (res.data.review) {
         setExistingReview(res.data.review as unknown as Order['_id']);
         setReviewStars(res.data.review.rating);
@@ -175,22 +187,49 @@ const OrderDetailsPage: React.FC = () => {
     fetchOrder();
   }, [fetchOrder]);
 
+  // Silent refetch (no loading flash) — used when a rider is assigned so the
+  // rider card + driver chat appear without a full-page spinner.
+  const refreshSilently = useCallback(async () => {
+    if (!id) return;
+    const res = await orderService.getOrderById(id);
+    if (res.success && res.data) {
+      setOrder(res.data.order);
+      setLiveDriver(res.data.driver ?? null);
+      setLiveDriverProfile(res.data.driverProfile ?? null);
+    }
+  }, [id]);
+
   // Live order status updates via socket
   useEffect(() => {
     if (!socket || !id) return;
-    const handler = (data: { _id: string; newStatus: OrderStatus }) => {
-      if (data._id === id || data._id === order?._id) {
-        setOrder((prev) => (prev ? { ...prev, status: data.newStatus } : prev));
-        if (data.newStatus === 'picked_up' && order?._id) {
-          watchOrderLocation(order._id);
-        }
+    const matches = (oid: string) => oid === id || oid === order?._id;
+
+    const statusHandler = (data: { _id: string; newStatus: OrderStatus }) => {
+      if (!matches(data._id)) return;
+      setOrder((prev) => (prev ? { ...prev, status: data.newStatus } : prev));
+      if (data.newStatus === 'picked_up' && order?._id) {
+        watchOrderLocation(order._id);
       }
     };
-    socket.on('orderStatusUpdate', handler);
-    return () => {
-      socket.off('orderStatusUpdate', handler);
+    const stageHandler = (data: { _id: string; deliveryStage: string }) => {
+      if (!matches(data._id)) return;
+      setOrder((prev) =>
+        prev ? { ...prev, deliveryStage: data.deliveryStage as Order['deliveryStage'] } : prev,
+      );
     };
-  }, [socket, id, order?._id, watchOrderLocation]);
+    const riderHandler = (data: { _id: string }) => {
+      if (matches(data._id)) refreshSilently();
+    };
+
+    socket.on('orderStatusUpdate', statusHandler);
+    socket.on('order:stageUpdate', stageHandler);
+    socket.on('order:riderAssigned', riderHandler);
+    return () => {
+      socket.off('orderStatusUpdate', statusHandler);
+      socket.off('order:stageUpdate', stageHandler);
+      socket.off('order:riderAssigned', riderHandler);
+    };
+  }, [socket, id, order?._id, watchOrderLocation, refreshSilently]);
 
   // Watch driver location when order is picked_up
   useEffect(() => {
@@ -491,6 +530,19 @@ const OrderDetailsPage: React.FC = () => {
             </Button>
           </div>
         </div>
+        {/* Live tracking — map, rider, stage and chat for in-flight orders */}
+        {['confirmed', 'preparing', 'ready', 'picked_up'].includes(
+          order.status,
+        ) && (
+          <div className="mb-6">
+            <LiveTrackingPanel
+              order={order}
+              driver={liveDriver}
+              driverProfile={liveDriverProfile}
+            />
+          </div>
+        )}
+
         <div ref={receiptRef} className="space-y-6">
           {order.status !== 'cancelled' ? (
             <Card className="p-5">
@@ -680,27 +732,6 @@ const OrderDetailsPage: React.FC = () => {
             </Card>
           )}
         </div>
-
-        {/* Driver location card (only when picked_up) */}
-        {order.status === 'picked_up' && (
-          <Card className="p-4 border-orange-200 bg-orange-50/60">
-            <p className="text-sm font-medium text-orange-800 flex items-center gap-2 mb-1">
-              <Bike className="h-4 w-4" /> Your order is on the way!
-            </p>
-            {driverLocation && driverLocation.orderId === order._id ? (
-              <p className="text-xs text-orange-700">
-                Driver location updated ·{' '}
-                {new Date(driverLocation.timestamp).toLocaleTimeString()}
-                {driverLocation.speed != null &&
-                  ` · ${Math.round(driverLocation.speed)} km/h`}
-              </p>
-            ) : (
-              <p className="text-xs text-orange-600">
-                Waiting for driver location…
-              </p>
-            )}
-          </Card>
-        )}
 
         {/* COD cash reminder when rider is on the way */}
         {order.status === 'picked_up' &&

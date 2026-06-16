@@ -12,6 +12,7 @@ import driverRoutes from "./driver.routes";
 import exploreRoutes from "./explore.routes";
 import menuRoutes from "./menu.routes";
 import notificationRoutes from "./notification.routes";
+import orderChatRoutes from "./orderChat.routes";
 import orderRoutes from "./order.routes";
 import payoutRoutes from "./payout.routes";
 import referralRoutes from "./referral.routes";
@@ -27,6 +28,9 @@ const router: Router = Router();
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/restaurants", restaurantRoutes);
+// Multi-role order live endpoints (chat + ETA) must precede the customer-only
+// order routes so drivers/vendors/admins can reach them.
+router.use("/orders", orderChatRoutes);
 router.use("/orders", orderRoutes);
 router.use("/restaurants", menuRoutes);
 router.use("/reviews", reviewRoutes);

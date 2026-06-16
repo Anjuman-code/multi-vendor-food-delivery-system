@@ -31,6 +31,36 @@ export type OrderStatus =
 
 export type PaymentStatusType = 'pending' | 'paid' | 'failed' | 'refunded';
 
+/** Fine-grained courier progress within the delivery leg (mirrors backend). */
+export type DeliveryStage =
+  | 'heading_to_store'
+  | 'at_store'
+  | 'picked_up'
+  | 'heading_to_customer'
+  | 'arrived';
+
+/** The two order-scoped chat channels. */
+export type MessageChannel = 'customer_driver' | 'customer_vendor';
+
+export interface OrderMessage {
+  _id: string;
+  orderId: string;
+  channel: MessageChannel;
+  text: string;
+  attachments: string[];
+  senderRole: string;
+  sender: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+  };
+  readBy: string[];
+  createdAt: string;
+  /** Client-only flag for optimistic messages awaiting server confirmation. */
+  pending?: boolean;
+}
+
 export interface StatusHistoryEntry {
   status: OrderStatus;
   timestamp: string;
@@ -44,6 +74,28 @@ export interface OrderRestaurant {
   name: string;
   images?: { logo?: string };
   contactInfo?: { phone?: string; email?: string };
+  address?: {
+    street?: string;
+    area?: string;
+    district?: string;
+    coordinates?: { lat?: number; lng?: number };
+  };
+  location?: { type?: string; coordinates?: [number, number] };
+}
+
+/** Assigned rider details surfaced on the live tracking page. */
+export interface OrderLiveDriver {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+}
+
+export interface OrderLiveDriverProfile {
+  vehicleType?: string;
+  vehicleNumber?: string;
+  rating?: { average: number; count: number };
+  currentLocation?: { latitude: number; longitude: number };
 }
 
 export interface Order {
@@ -56,6 +108,7 @@ export interface Order {
   items: OrderItem[];
   deliveryAddress: DeliveryAddress;
   status: OrderStatus;
+  deliveryStage?: DeliveryStage;
   statusHistory: StatusHistoryEntry[];
   paymentMethod: string;
   paymentStatus: PaymentStatusType;
@@ -69,6 +122,8 @@ export interface Order {
   specialInstructions?: string;
   estimatedDeliveryTime?: string;
   actualDeliveryTime?: string;
+  etaMinutes?: number;
+  etaUpdatedAt?: string;
   cancelReason?: string;
   createdAt: string;
   updatedAt: string;

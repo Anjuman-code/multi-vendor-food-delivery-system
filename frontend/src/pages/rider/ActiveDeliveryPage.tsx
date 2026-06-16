@@ -17,9 +17,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { OrderChat } from "@/components/orders";
 import { useRider } from "@/contexts/RiderContext";
+import { useSocketContext } from "@/contexts/SocketContext";
 import { toast } from "@/lib/toast";
 import { useDriverLocationBroadcast } from "@/hooks/useDriverLocationBroadcast";
+import { getRoute, etaMinutesFromRoute, type LatLng as RouteLatLng } from "@/lib/routing";
+import orderChatService from "@/services/orderChatService";
 import riderService, { type RiderOrder } from "@/services/riderService";
 import { formatCurrency } from "@/utils/format";
 import { motion } from "framer-motion";
@@ -54,9 +58,13 @@ const customerPoint = (order: RiderOrder): LatLng | null => {
 
 const ActiveDeliveryPage: React.FC = () => {
   const { activeOrder, setActiveOrder, refresh } = useRider();
+  const { joinOrderRoom, leaveOrderRoom } = useSocketContext();
   const [order, setOrder] = useState<RiderOrder | null>(activeOrder);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
+  const [route, setRoute] = useState<RouteLatLng[] | null>(null);
+  const [eta, setEta] = useState<number | null>(null);
+  const lastRouteAt = useRef(0);
 
   // Complete-delivery dialog state
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -103,6 +111,43 @@ const ActiveDeliveryPage: React.FC = () => {
       : null;
     return { store: storePoint(order), customer: customerPoint(order), driver };
   }, [order, broadcast.position]);
+
+  // Join the order socket room so chat works even before/after GPS broadcast.
+  const orderId = order?._id;
+  useEffect(() => {
+    if (!orderId) return;
+    joinOrderRoom(orderId);
+    return () => leaveOrderRoom(orderId);
+  }, [orderId, joinOrderRoom, leaveOrderRoom]);
+
+  // Compute the driving route + ETA for the current leg and publish the ETA
+  // (throttled) so the customer/vendor/admin share the rider's own estimate.
+  useEffect(() => {
+    if (!order || delivered) return;
+    const wp: RouteLatLng[] = [];
+    if (points.driver) wp.push(points.driver);
+    if (beforePickup && points.store) wp.push(points.store);
+    if (points.customer) wp.push(points.customer);
+    if (wp.length < 2) return;
+
+    const now = Date.now();
+    if (now - lastRouteAt.current < 15_000 && route) return;
+    lastRouteAt.current = now;
+
+    let active = true;
+    getRoute(wp).then((r) => {
+      if (!active || !r) return;
+      setRoute(r.geometry);
+      const m = etaMinutesFromRoute(r);
+      if (m != null) {
+        setEta(m);
+        orderChatService.updateEta(order._id, m).catch(() => {});
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [order, delivered, beforePickup, points.driver, points.store, points.customer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const action = order ? nextStageAction(stage, delivered) : null;
 
@@ -235,6 +280,9 @@ const ActiveDeliveryPage: React.FC = () => {
         store={points.store}
         customer={points.customer}
         driver={points.driver}
+        route={route}
+        driverHeading={broadcast.position?.heading ?? null}
+        eta={delivered ? null : eta}
         navigateTo={beforePickup ? points.store : points.customer}
       />
 
@@ -340,6 +388,20 @@ const ActiveDeliveryPage: React.FC = () => {
           </div>
         )}
       </SectionCard>
+
+      {/* Chat with customer */}
+      {!delivered && (
+        <SectionCard title="Chat with customer">
+          <OrderChat
+            orderId={order._id}
+            channel="customer_driver"
+            peerLabel={
+              customer ? `${customer.firstName} ${customer.lastName}`.trim() : 'Customer'
+            }
+            className="border-0"
+          />
+        </SectionCard>
+      )}
 
       {/* Order summary */}
       <SectionCard

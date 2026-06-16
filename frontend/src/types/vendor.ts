@@ -224,6 +224,9 @@ export interface VendorOrder {
     instructions?: string;
   };
   status: VendorOrderStatus;
+  deliveryStage?: import('@/types/order').DeliveryStage;
+  driverId?: string;
+  etaMinutes?: number;
   statusHistory: { status: string; timestamp: string; note?: string }[];
   paymentMethod: string;
   paymentStatus: string;

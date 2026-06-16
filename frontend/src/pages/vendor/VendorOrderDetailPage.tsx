@@ -5,7 +5,9 @@ import {
   StatusBadge,
   VendorEmptyState,
 } from '@/components/vendor';
+import { DeliveryMap, LiveStageStrip, OrderChat } from '@/components/orders';
 import { useConfirm } from '@/contexts/ConfirmContext';
+import { useSocketContext } from '@/contexts/SocketContext';
 import { toast } from '@/lib/toast';
 import vendorService from '@/services/vendorService';
 import type { VendorOrder } from '@/types/vendor';
@@ -46,21 +48,42 @@ const VendorOrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { socket, joinOrderRoom, leaveOrderRoom, orderLocations, orderStages, orderEtas } =
+    useSocketContext();
   const [order, setOrder] = useState<VendorOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
+  const reload = React.useCallback(async () => {
+    if (!id) return;
+    const res = await vendorService.getOrder(id);
+    if (res.success && res.data) setOrder(res.data.order);
+  }, [id]);
+
   useEffect(() => {
     if (!id) return;
     const load = async () => {
-      const res = await vendorService.getOrder(id);
-      if (res.success && res.data) {
-        setOrder(res.data.order);
-      }
+      await reload();
       setLoading(false);
     };
     load();
-  }, [id]);
+  }, [id, reload]);
+
+  // Join the order room + refresh on live status/stage/rider changes.
+  useEffect(() => {
+    if (!id || !socket) return;
+    joinOrderRoom(id);
+    const onChange = (data: { _id: string }) => {
+      if (data._id === id) reload();
+    };
+    socket.on('orderStatusUpdate', onChange);
+    socket.on('order:riderAssigned', onChange);
+    return () => {
+      socket.off('orderStatusUpdate', onChange);
+      socket.off('order:riderAssigned', onChange);
+      leaveOrderRoom(id);
+    };
+  }, [id, socket, joinOrderRoom, leaveOrderRoom, reload]);
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!id) return;
@@ -241,6 +264,68 @@ const VendorOrderDetailPage: React.FC = () => {
           )}
         </SectionCard>
       </motion.div>
+
+      {/* Live tracking — rider position, stage + ETA once the order is active */}
+      {['confirmed', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+        >
+          <SectionCard title="Live tracking" icon={<MapPin className="h-5 w-5" />}>
+            {(orderStages[order._id] ?? order.deliveryStage) ? (
+              <div className="mb-4">
+                <LiveStageStrip
+                  stage={orderStages[order._id] ?? order.deliveryStage}
+                />
+              </div>
+            ) : (
+              <p className="mb-4 text-sm text-muted-foreground">
+                Waiting for a rider to be assigned…
+              </p>
+            )}
+            <DeliveryMap
+              className="h-56"
+              customer={
+                order.deliveryAddress?.coordinates
+                  ? {
+                      lat: order.deliveryAddress.coordinates.latitude,
+                      lng: order.deliveryAddress.coordinates.longitude,
+                    }
+                  : null
+              }
+              driver={
+                orderLocations[order._id]
+                  ? {
+                      lat: orderLocations[order._id].latitude,
+                      lng: orderLocations[order._id].longitude,
+                    }
+                  : null
+              }
+              driverHeading={orderLocations[order._id]?.heading ?? null}
+              eta={orderEtas[order._id] ?? order.etaMinutes ?? null}
+            />
+          </SectionCard>
+        </motion.div>
+      )}
+
+      {/* Chat with the customer */}
+      {order.status !== 'cancelled' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.07 }}
+        >
+          <SectionCard title="Message customer" icon={<User className="h-5 w-5" />}>
+            <OrderChat
+              orderId={order._id}
+              channel="customer_vendor"
+              peerLabel={customerName || 'Customer'}
+              className="border-0"
+            />
+          </SectionCard>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Order Items */}

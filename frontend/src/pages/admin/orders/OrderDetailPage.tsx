@@ -21,10 +21,12 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { DeliveryMap, LiveStageStrip, OrderChat } from "@/components/orders";
+import { useSocketContext } from "@/contexts/SocketContext";
 import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
 import { formatCurrency, formatDateTime } from "@/utils/format";
-import { Bike, Clock, MapPin, Package, RefreshCcw, User } from "lucide-react";
+import { Bike, Clock, MapPin, MessageSquare, Package, RefreshCcw, User } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -58,10 +60,22 @@ interface OrderDetail {
   tipAmount?: number;
   createdAt: string;
   customer: { _id: string; firstName: string; lastName: string; email: string; phone?: string };
-  restaurant: { _id: string; name: string; address?: string };
+  restaurant: {
+    _id: string;
+    name: string;
+    address?: string;
+    coordinates?: { lat?: number; lng?: number };
+  };
   driver?: { _id: string; firstName: string; lastName: string; phone?: string };
+  driverId?: string;
+  deliveryStage?: import("@/types/order").DeliveryStage;
   items: OrderItem[];
-  deliveryAddress?: { street?: string; area?: string; district?: string };
+  deliveryAddress?: {
+    street?: string;
+    area?: string;
+    district?: string;
+    coordinates?: { latitude: number; longitude: number };
+  };
   statusHistory?: { status: string; timestamp: string; note?: string }[];
   refundLineItems?: Array<{ name: string; refundAmount: number; reason?: string }>;
 }
@@ -76,6 +90,8 @@ const str = (v: unknown) => (v == null ? undefined : String(v));
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { joinOrderRoom, leaveOrderRoom, orderLocations, orderStages, orderEtas } =
+    useSocketContext();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,6 +146,9 @@ export default function OrderDetailPage() {
               _id: r._id as string,
               name: r.name as string,
               address: addr ? `${addr.street}, ${addr.area}, ${addr.district}` : undefined,
+              coordinates: addr?.coordinates as
+                | { lat?: number; lng?: number }
+                | undefined,
             }
           : { _id: "", name: "Unknown" },
         driver: d
@@ -140,6 +159,8 @@ export default function OrderDetailPage() {
               phone: str(d.phoneNumber),
             }
           : undefined,
+        driverId: d ? (d._id as string) : str(o.driverId),
+        deliveryStage: o.deliveryStage as OrderDetail["deliveryStage"],
         items: (o.items as Array<Record<string, unknown>>).map((i) => ({
           menuItemId: str(i.menuItemId),
           name: i.name as string,
@@ -162,6 +183,13 @@ export default function OrderDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Join the order room so the live map reflects rider movement + stage/ETA.
+  useEffect(() => {
+    if (!id) return;
+    joinOrderRoom(id);
+    return () => leaveOrderRoom(id);
+  }, [id, joinOrderRoom, leaveOrderRoom]);
 
   // Keep the refund amount in sync with the selected line items.
   useEffect(() => {
@@ -333,6 +361,87 @@ export default function OrderDetailPage() {
           {refundedTotal >= order.total ? " (full)" : " (partial)"} on this order.
         </div>
       )}
+
+      {/* Live tracking (read-only) for in-flight orders */}
+      {["confirmed", "preparing", "ready", "picked_up"].includes(order.status) && (
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" /> Live tracking
+            </span>
+          }
+        >
+          {(orderStages[order._id] ?? order.deliveryStage) && (
+            <div className="mb-4">
+              <LiveStageStrip stage={orderStages[order._id] ?? order.deliveryStage} />
+            </div>
+          )}
+          <DeliveryMap
+            className="h-64"
+            store={
+              order.restaurant.coordinates?.lat != null &&
+              order.restaurant.coordinates?.lng != null
+                ? {
+                    lat: order.restaurant.coordinates.lat,
+                    lng: order.restaurant.coordinates.lng,
+                  }
+                : null
+            }
+            customer={
+              order.deliveryAddress?.coordinates
+                ? {
+                    lat: order.deliveryAddress.coordinates.latitude,
+                    lng: order.deliveryAddress.coordinates.longitude,
+                  }
+                : null
+            }
+            driver={
+              orderLocations[order._id]
+                ? {
+                    lat: orderLocations[order._id].latitude,
+                    lng: orderLocations[order._id].longitude,
+                  }
+                : null
+            }
+            driverHeading={orderLocations[order._id]?.heading ?? null}
+            eta={orderEtas[order._id] ?? null}
+          />
+        </SectionCard>
+      )}
+
+      {/* Conversation oversight (read-only) */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" /> Customer ↔ Rider
+            </span>
+          }
+        >
+          <OrderChat
+            orderId={order._id}
+            channel="customer_driver"
+            peerLabel="Customer ↔ Rider"
+            readOnly
+            className="border-0"
+          />
+        </SectionCard>
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" /> Customer ↔ Restaurant
+            </span>
+          }
+        >
+          <OrderChat
+            orderId={order._id}
+            channel="customer_vendor"
+            peerLabel="Customer ↔ Restaurant"
+            readOnly
+            className="border-0"
+          />
+        </SectionCard>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SectionCard title={<span className="flex items-center gap-2"><User className="h-4 w-4" /> Customer</span>}>

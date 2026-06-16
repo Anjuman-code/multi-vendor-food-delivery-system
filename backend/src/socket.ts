@@ -132,20 +132,37 @@ export const initSocket = (server: HTTPServer): SocketServer => {
     // recipient's role.
     void socket.join(`notify:${userId}`);
 
-    // Driver: also join order-specific rooms for active deliveries
+    // Any authenticated party viewing a live order joins its order room so it
+    // receives location, stage, ETA and chat events. Per-message/-channel
+    // authorization is still enforced by the REST layer.
+    socket.on('joinOrderRoom', (orderId: string) => {
+      if (typeof orderId === 'string' && orderId) void socket.join(`order:${orderId}`);
+    });
+    socket.on('leaveOrderRoom', (orderId: string) => {
+      if (typeof orderId === 'string' && orderId) void socket.leave(`order:${orderId}`);
+    });
+
+    // Back-compat: the rider location-broadcast hook emits this name.
     if (role === 'driver') {
       socket.on('driver:joinOrderRoom', (orderId: string) => {
-        void socket.join(`order:${orderId}`);
+        if (typeof orderId === 'string' && orderId) void socket.join(`order:${orderId}`);
       });
     }
 
-    // Customer: join own room (already done above via user:<userId>)
-    // Vendor: also join order rooms on request
-    if (role === 'vendor' || role === 'customer') {
-      socket.on('joinOrderRoom', (orderId: string) => {
-        void socket.join(`order:${orderId}`);
-      });
-    }
+    // Ephemeral typing indicator — relayed live, never persisted.
+    socket.on(
+      'order:chatTyping',
+      (data: { orderId: string; channel: string; isTyping: boolean }) => {
+        if (!data?.orderId) return;
+        socket.to(`order:${data.orderId}`).emit('order:chatTyping', {
+          orderId: data.orderId,
+          channel: data.channel,
+          isTyping: !!data.isTyping,
+          userId,
+          role,
+        });
+      },
+    );
 
     // Driver location updates — persist and relay to customer
     if (role === 'driver') {
@@ -168,11 +185,15 @@ export const initSocket = (server: HTTPServer): SocketServer => {
             timestamp: new Date(payload.timestamp),
           });
 
-          // Relay to the customer who owns this order
+          // Relay to the customer who owns this order…
           const order = await Order.findById(payload.orderId).select('customerId');
           if (order) {
             io!.to(`user:${order.customerId.toString()}`).emit('driver:locationUpdate', payload);
           }
+          // …and to anyone watching the order room (vendor, admin) plus the
+          // admin ops room that drives the live fleet map.
+          io!.to(`order:${payload.orderId}`).emit('driver:locationUpdate', payload);
+          io!.to('admin:room').emit('driver:locationUpdate', payload);
         } catch {
           // Non-blocking
         }

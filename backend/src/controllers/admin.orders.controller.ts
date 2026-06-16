@@ -3,6 +3,7 @@
  * Every mutation writes to AuditLog.
  */
 import { NextFunction, Request, Response } from 'express';
+import DriverProfile from '../models/DriverProfile';
 import Order, { OrderStatus } from '../models/Order';
 import User from '../models/User';
 import type { AuthRequest } from '../types';
@@ -68,6 +69,65 @@ export const listOrders = async (
     ]);
 
     successResponse(res, { orders, pagination: buildPagination(page, limit, total) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/orders/active — every in-flight order with the coordinates and
+ * last-known rider position needed to plot the live fleet map. Live movement
+ * thereafter arrives over the `admin:room` socket channel.
+ */
+export const getActiveOrders = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const ACTIVE = [
+      OrderStatus.CONFIRMED,
+      OrderStatus.PREPARING,
+      OrderStatus.READY,
+      OrderStatus.PICKED_UP,
+    ];
+
+    const orders = await Order.find({ status: { $in: ACTIVE } })
+      .sort({ createdAt: -1 })
+      .limit(300)
+      .populate('customerId', 'firstName lastName')
+      .populate('restaurantId', 'name address')
+      .populate('driverId', 'firstName lastName phoneNumber')
+      .select(
+        'orderNumber status deliveryStage etaMinutes total driverId restaurantId customerId deliveryAddress createdAt',
+      )
+      .lean();
+
+    // Attach each assigned rider's last known position in one extra query.
+    const driverIds = orders
+      .map((o) => o.driverId)
+      .filter(Boolean)
+      .map((d: any) => (d._id ? d._id : d).toString());
+
+    const profiles = driverIds.length
+      ? await DriverProfile.find({ userId: { $in: driverIds } })
+          .select('userId currentLocation')
+          .lean()
+      : [];
+    const locByDriver = new Map<string, { latitude: number; longitude: number }>();
+    for (const p of profiles as any[]) {
+      if (p.currentLocation) locByDriver.set(p.userId.toString(), p.currentLocation);
+    }
+
+    const enriched = orders.map((o: any) => {
+      const driverUserId = o.driverId?._id?.toString?.() ?? o.driverId?.toString?.();
+      return {
+        ...o,
+        driverLocation: driverUserId ? locByDriver.get(driverUserId) ?? null : null,
+      };
+    });
+
+    successResponse(res, { orders: enriched, total: enriched.length });
   } catch (error) {
     next(error);
   }
