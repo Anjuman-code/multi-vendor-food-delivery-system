@@ -51,24 +51,26 @@ const NearbyRestaurants: React.FC = () => {
           ? payload.data
           : [];
 
-        const mappedRestaurants = featuredRestaurants
+        const mappedRestaurants: NearbyRestaurant[] = featuredRestaurants
           .slice(0, 6)
-          .map((restaurant) => ({
-            id: restaurant._id,
-            name: restaurant.name,
-            cuisine: restaurant.cuisineType?.[0] || "Local favorite",
-            rating: restaurant.rating?.average ?? 0,
-            deliveryTime: typeof restaurant.deliveryTime === "object" && restaurant.deliveryTime !== null
-              ? `${(restaurant.deliveryTime as { min: number; max: number }).min}-${(restaurant.deliveryTime as { min: number; max: number }).max} min`
-              : (restaurant.deliveryTime as string) || "30-45 min",
-            location:
-              [restaurant.address?.city, restaurant.address?.state]
-                .filter(Boolean)
-                .join(", ") || "Nearby area",
-             image:
-               restaurant.images?.coverPhoto ||
-               restaurantFallbackSVG,
-          }));
+          .map(
+            (restaurant: ApiRestaurant): NearbyRestaurant => ({
+              id: restaurant._id,
+              name: restaurant.name,
+              cuisine: restaurant.cuisineType?.[0] || "Local favorite",
+              rating: restaurant.rating?.average ?? 0,
+              deliveryTime:
+                typeof restaurant.deliveryTime === "object" &&
+                restaurant.deliveryTime !== null
+                  ? `${(restaurant.deliveryTime as { min: number; max: number }).min}-${(restaurant.deliveryTime as { min: number; max: number }).max} min`
+                  : (restaurant.deliveryTime as string) || "30-45 min",
+              location:
+                [restaurant.address?.city, restaurant.address?.state]
+                  .filter(Boolean)
+                  .join(", ") || "Nearby area",
+              image: restaurant.images?.coverPhoto || restaurantFallbackSVG,
+            }),
+          );
 
         if (isActive) {
           setRestaurants(mappedRestaurants);
@@ -124,8 +126,12 @@ const NearbyRestaurants: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-3">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-brand-500 uppercase mb-1">Nearby</p>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Restaurants Near You</h2>
+            <p className="text-xs font-semibold tracking-widest text-brand-500 uppercase mb-1">
+              Nearby
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Restaurants Near You
+            </h2>
           </div>
           <Link
             to="/restaurants"
@@ -149,7 +155,10 @@ const NearbyRestaurants: React.FC = () => {
                 transition={{ duration: 0.4, delay: index * 0.07 }}
                 whileHover={{ y: -4 }}
               >
-                <Link to={`/restaurants/${restaurant.id}`} className="block bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+                <Link
+                  to={`/restaurants/${restaurant.id}`}
+                  className="block bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300"
+                >
                   <div className="relative">
                     <img
                       src={restaurant.image}
@@ -158,13 +167,19 @@ const NearbyRestaurants: React.FC = () => {
                     />
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center shadow-sm">
                       <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                      <span className="ml-1 text-xs font-semibold text-gray-800">{restaurant.rating}</span>
+                      <span className="ml-1 text-xs font-semibold text-gray-800">
+                        {restaurant.rating}
+                      </span>
                     </div>
                   </div>
 
                   <div className="p-4">
-                    <h3 className="text-sm font-bold text-gray-900 mb-0.5">{restaurant.name}</h3>
-                    <p className="text-xs text-brand-500 font-medium mb-3">{restaurant.cuisine}</p>
+                    <h3 className="text-sm font-bold text-gray-900 mb-0.5">
+                      {restaurant.name}
+                    </h3>
+                    <p className="text-xs text-brand-500 font-medium mb-3">
+                      {restaurant.cuisine}
+                    </p>
 
                     <div className="flex justify-between items-center text-xs text-gray-400">
                       <div className="flex items-center gap-1">
@@ -173,7 +188,9 @@ const NearbyRestaurants: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5" />
-                        <span className="truncate max-w-[100px]">{restaurant.location}</span>
+                        <span className="truncate max-w-[100px]">
+                          {restaurant.location}
+                        </span>
                       </div>
                     </div>
                   </div>
