@@ -16,12 +16,14 @@ export const updateProfileSchema = z.object({
     .string()
     .min(2, 'First name must be at least 2 characters')
     .max(50, 'First name cannot exceed 50 characters')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'First name must only contain letters')
     .trim()
     .optional(),
   lastName: z
     .string()
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name cannot exceed 50 characters')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Last name must only contain letters')
     .trim()
     .optional(),
   phoneNumber: z
