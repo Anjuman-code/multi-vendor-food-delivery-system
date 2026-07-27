@@ -5,7 +5,6 @@ import NewHeroSection from "@/components/NewHeroSection";
 import PopularRestaurants from "@/components/PopularRestaurants";
 import ReviewsAndRatings from "@/components/ReviewsAndRatings";
 import TopFoodCategories from "@/components/TopFoodCategories";
-import TrendingFoodItems from "@/components/TrendingFoodItems";
 import React from "react";
 
 /**
@@ -22,7 +21,6 @@ const NewHomePage: React.FC = () => {
       <TopFoodCategories />
       <NearbyRestaurants />
       <PopularRestaurants />
-      <TrendingFoodItems />
       <HowItWorksSection />
       <ReviewsAndRatings />
       <JoinFoodRushSection />
