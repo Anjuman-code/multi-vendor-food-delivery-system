@@ -18,7 +18,11 @@ export const createRestaurantSchema = z.object({
     .array(z.string().min(1))
     .min(1, 'Select at least one cuisine type'),
   phone: bdPhoneSchema,
-  email: z.string().email('Please enter a valid email address'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Please enter a valid email address'),
   website: z
     .string()
     .trim()

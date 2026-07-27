@@ -14,23 +14,27 @@ export const registerSchema = z
   .object({
     firstName: z
       .string()
+      .trim()
       .min(2, 'First name must be at least 2 characters')
       .max(50, 'First name cannot exceed 50 characters')
       .regex(
         /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
         'First name must only contain letters, spaces, hyphens, or apostrophes',
-      )
-      .trim(),
+      ),
     lastName: z
       .string()
+      .trim()
       .min(2, 'Last name must be at least 2 characters')
       .max(50, 'Last name cannot exceed 50 characters')
       .regex(
         /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
         'Last name must only contain letters, spaces, hyphens, or apostrophes',
-      )
-      .trim(),
-    email: z.string().email('Please enter a valid email address'),
+      ),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email('Please enter a valid email address'),
     phoneNumber: bdPhoneSchema,
     password: z
       .string()
@@ -53,9 +57,13 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
-// ── Forgot password schema ─────────────────────────────────────
+// ── Forgot password schema
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Please enter a valid email address'),
 });
 
 // ── Change password schema ─────────────────────────────────────
@@ -86,22 +94,22 @@ export const changePasswordSchema = z
 export const updateProfileSchema = z.object({
   firstName: z
     .string()
+    .trim()
     .min(2, 'First name must be at least 2 characters')
     .max(50, 'First name cannot exceed 50 characters')
     .regex(
       /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
       'First name must only contain letters, spaces, hyphens, or apostrophes',
-    )
-    .trim(),
+    ),
   lastName: z
     .string()
+    .trim()
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name cannot exceed 50 characters')
     .regex(
       /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
       'Last name must only contain letters, spaces, hyphens, or apostrophes',
-    )
-    .trim(),
+    ),
   phoneNumber: bdPhoneSchema,
   dateOfBirth: z.string().optional(),
 });
@@ -144,23 +152,27 @@ export const vendorRegisterSchema = z
   .object({
     firstName: z
       .string()
+      .trim()
       .min(2, 'First name must be at least 2 characters')
       .max(50, 'First name cannot exceed 50 characters')
       .regex(
         /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
         'First name must only contain letters, spaces, hyphens, or apostrophes',
-      )
-      .trim(),
+      ),
     lastName: z
       .string()
+      .trim()
       .min(2, 'Last name must be at least 2 characters')
       .max(50, 'First name cannot exceed 50 characters')
       .regex(
         /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
         'Last name must only contain letters, spaces, hyphens, or apostrophes',
-      )
-      .trim(),
-    email: z.string().email('Please enter a valid email address'),
+      ),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email('Please enter a valid email address'),
     phoneNumber: bdPhoneSchema,
     password: z
       .string()
@@ -205,23 +217,27 @@ export const riderRegisterSchema = z
   .object({
     firstName: z
       .string()
+      .trim()
       .min(2, 'First name must be at least 2 characters')
       .max(50)
       .regex(
         /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
         'First name must only contain letters, spaces, hyphens, or apostrophes',
-      )
-      .trim(),
+      ),
     lastName: z
       .string()
+      .trim()
       .min(2, 'Last name must be at least 2 characters')
       .max(50)
       .regex(
         /^[a-zA-Z\u0980-\u09FF\s'.-]+$/,
         'Last name must only contain letters, spaces, hyphens, or apostrophes',
-      )
-      .trim(),
-    email: z.string().email('Please enter a valid email address'),
+      ),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email('Please enter a valid email address'),
     phoneNumber: bdPhoneSchema,
     password: z
       .string()
