@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertTriangle,
   Banknote,
   CreditCard,
   Receipt,
@@ -211,6 +212,13 @@ const VendorEarningsPage = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/50 dark:text-amber-300">
+        <AlertTriangle className="h-5 w-5 shrink-0" />
+        <p>
+          <strong className="font-semibold">Under development:</strong> This page is still being built — some data and features may not work correctly yet.
+        </p>
+      </div>
+
       <PageHeader
         title="Earnings & Payouts"
         description="Track your revenue, commission and settlement history."

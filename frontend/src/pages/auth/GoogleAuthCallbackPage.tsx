@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { getPostAuthPath } from '@/hooks/useAuthRedirect';
 import { toast } from '@/lib/toast';
 import authService from '@/services/authService';
 import { Loader2 } from 'lucide-react';
@@ -45,11 +46,10 @@ const GoogleAuthCallbackPage: React.FC = () => {
         description: 'Signed in with Google',
       });
 
-      const fallbackPath =
-        response.data.user.role === 'vendor' ? '/vendor' : response.data.user.role === 'admin' ? '/admin' : response.data.user.role === 'driver' ? '/rider' : '/';
-      const redirectPath = !response.data.user.onboardingCompleted
-        ? '/onboarding'
-        : nextPath.startsWith('/') ? nextPath : fallbackPath;
+      const redirectPath =
+        nextPath && nextPath !== '/' && nextPath.startsWith('/') && response.data.user.onboardingCompleted
+          ? nextPath
+          : getPostAuthPath(response.data.user);
       navigate(redirectPath, { replace: true });
     };
 

@@ -1,4 +1,4 @@
-import NotificationPopover from "@/components/NotificationPopover";
+import NotificationPopover from '@/components/NotificationPopover';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,28 +6,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useAuth } from "@/contexts/AuthContext";
-import { useConfirm } from "@/contexts/ConfirmContext";
-import { useSocketContext } from "@/contexts/SocketContext";
-import { useVendor, VendorProvider } from "@/contexts/VendorContext";
-import { toast } from "@/lib/toast";
-import { cn } from "@/utils/cn";
-import authService from "@/services/authService";
-import { AnimatePresence, motion } from "framer-motion";
+} from '@/components/ui/select';
+import { useAuth } from '@/contexts/AuthContext';
+import { useConfirm } from '@/contexts/ConfirmContext';
+import { useSocketContext } from '@/contexts/SocketContext';
+import { useVendor, VendorProvider } from '@/contexts/VendorContext';
+import { toast } from '@/lib/toast';
+import authService from '@/services/authService';
+import { cn } from '@/utils/cn';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  HelpCircle,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -40,9 +39,9 @@ import {
   UtensilsCrossed,
   Wallet,
   Zap,
-} from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 // ── Sidebar definitions ──────────────────────────────────────────
 
@@ -60,66 +59,75 @@ interface SidebarItem {
 
 const sidebarGroups: SidebarGroup[] = [
   {
-    label: "Operations",
+    label: 'Operations',
     items: [
-      { name: "Dashboard", path: "/vendor", icon: LayoutDashboard },
-      { name: "Orders", path: "/vendor/orders", icon: ClipboardList, badge: true },
-      { name: "Menu", path: "/vendor/menu", icon: UtensilsCrossed },
+      { name: 'Dashboard', path: '/vendor', icon: LayoutDashboard },
+      {
+        name: 'Orders',
+        path: '/vendor/orders',
+        icon: ClipboardList,
+        badge: true,
+      },
+      { name: 'Menu', path: '/vendor/menu', icon: UtensilsCrossed },
     ],
   },
   {
-    label: "Business",
+    label: 'Business',
     items: [
-      { name: "Analytics", path: "/vendor/analytics", icon: BarChart3 },
-      { name: "Earnings", path: "/vendor/earnings", icon: Wallet },
-      { name: "Customers", path: "/vendor/customers", icon: Users },
-      { name: "Promotions", path: "/vendor/promotions", icon: Tag },
-      { name: "Reviews", path: "/vendor/reviews", icon: Star },
+      { name: 'Analytics', path: '/vendor/analytics', icon: BarChart3 },
+      { name: 'Earnings', path: '/vendor/earnings', icon: Wallet },
+      { name: 'Customers', path: '/vendor/customers', icon: Users },
+      { name: 'Promotions', path: '/vendor/promotions', icon: Tag },
+      { name: 'Reviews', path: '/vendor/reviews', icon: Star },
     ],
   },
   {
-    label: "Settings",
+    label: 'Settings',
     items: [
-      { name: "Restaurants", path: "/vendor/restaurants", icon: Store },
-      { name: "Settings", path: "/vendor/settings", icon: Settings },
+      { name: 'Restaurants', path: '/vendor/restaurants', icon: Store },
+      { name: 'Settings', path: '/vendor/settings', icon: Settings },
     ],
   },
-  {
-    label: "Support",
-    items: [
-      { name: "Help & Support", path: "/vendor/support", icon: HelpCircle },
-    ],
-  },
+  // {
+  //   label: "Support",
+  //   items: [
+  //     { name: "Help & Support", path: "/vendor/support", icon: HelpCircle },
+  //   ],
+  // },
 ];
 
 const allItems = sidebarGroups.flatMap((g) => g.items);
 
 // ── Breadcrumb helper ────────────────────────────────────────────
 
-const getBreadcrumbs = (pathname: string): { label: string; href?: string }[] => {
-  const crumbs: { label: string; href?: string }[] = [{ label: "Vendor", href: "/vendor" }];
+const getBreadcrumbs = (
+  pathname: string,
+): { label: string; href?: string }[] => {
+  const crumbs: { label: string; href?: string }[] = [
+    { label: 'Vendor', href: '/vendor' },
+  ];
   const active = allItems.find((i) => {
-    if (i.path === "/vendor") return pathname === "/vendor";
+    if (i.path === '/vendor') return pathname === '/vendor';
     return pathname.startsWith(i.path);
   });
-  if (active && active.path !== "/vendor") {
+  if (active && active.path !== '/vendor') {
     crumbs.push({ label: active.name, href: active.path });
   }
   // Handle sub-pages
-  if (pathname.includes("/restaurants/") && pathname.includes("/edit")) {
-    crumbs.push({ label: "Edit Restaurant" });
-  } else if (pathname.includes("/restaurants/new")) {
-    crumbs.push({ label: "New Restaurant" });
-  } else if (pathname.includes("/menu/items/new")) {
-    crumbs.push({ label: "New Item" });
-  } else if (pathname.includes("/menu/items/") && pathname.includes("/edit")) {
-    crumbs.push({ label: "Edit Item" });
-  } else if (pathname.includes("/orders/") && pathname.split("/").length > 3) {
-    crumbs.push({ label: "Order Detail" });
-  } else if (pathname.includes("/support/new")) {
-    crumbs.push({ label: "New Ticket" });
-  } else if (pathname.includes("/support/") && pathname.split("/").length > 3) {
-    crumbs.push({ label: "Ticket" });
+  if (pathname.includes('/restaurants/') && pathname.includes('/edit')) {
+    crumbs.push({ label: 'Edit Restaurant' });
+  } else if (pathname.includes('/restaurants/new')) {
+    crumbs.push({ label: 'New Restaurant' });
+  } else if (pathname.includes('/menu/items/new')) {
+    crumbs.push({ label: 'New Item' });
+  } else if (pathname.includes('/menu/items/') && pathname.includes('/edit')) {
+    crumbs.push({ label: 'Edit Item' });
+  } else if (pathname.includes('/orders/') && pathname.split('/').length > 3) {
+    crumbs.push({ label: 'Order Detail' });
+  } else if (pathname.includes('/support/new')) {
+    crumbs.push({ label: 'New Ticket' });
+  } else if (pathname.includes('/support/') && pathname.split('/').length > 3) {
+    crumbs.push({ label: 'Ticket' });
   }
   return crumbs;
 };
@@ -132,40 +140,44 @@ const VendorLayoutInner: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout: logoutContext } = useAuth();
   const confirm = useConfirm();
-  const { restaurants, selectedRestaurantId, setSelectedRestaurantId } = useVendor();
+  const { restaurants, selectedRestaurantId, setSelectedRestaurantId } =
+    useVendor();
   const { newOrderCount, clearNewOrderCount } = useSocketContext();
 
   useEffect(() => {
-    if (location.pathname.startsWith("/vendor/orders")) {
+    if (location.pathname.startsWith('/vendor/orders')) {
       clearNewOrderCount();
     }
   }, [location.pathname, clearNewOrderCount]);
 
   const isActive = (path: string) => {
-    if (path === "/vendor") return location.pathname === "/vendor";
+    if (path === '/vendor') return location.pathname === '/vendor';
     return location.pathname.startsWith(path);
   };
 
   const handleLogout = async () => {
     const ok = await confirm({
-      title: "Log out",
-      description: "Are you sure you want to log out?",
-      variant: "destructive",
+      title: 'Log out',
+      description: 'Are you sure you want to log out?',
+      variant: 'destructive',
     });
     if (!ok) return;
     try {
       await authService.logout();
       logoutContext();
-      toast.success("Success", { description: "Logged out successfully" });
-      navigate("/login");
+      toast.success('Success', { description: 'Logged out successfully' });
+      navigate('/login');
     } catch {
-      toast.error("Error", { description: "Failed to logout" });
+      toast.error('Error', { description: 'Failed to logout' });
     }
   };
 
   const getUserInitials = () => {
-    if (!user) return "V";
-    return `${user.firstName?.charAt(0) || ""}${user.lastName?.charAt(0) || ""}`.toUpperCase() || "V";
+    if (!user) return 'V';
+    return (
+      `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase() ||
+      'V'
+    );
   };
 
   const selectedRestaurant = useMemo(
@@ -173,14 +185,17 @@ const VendorLayoutInner: React.FC = () => {
     [restaurants, selectedRestaurantId],
   );
 
-  const breadcrumbs = useMemo(() => getBreadcrumbs(location.pathname), [location.pathname]);
+  const breadcrumbs = useMemo(
+    () => getBreadcrumbs(location.pathname),
+    [location.pathname],
+  );
 
   return (
     <div className="flex h-screen bg-muted/40">
       {/* ── Sidebar ──────────────────────────────────────────── */}
       <motion.aside
         animate={{ width: collapsed ? 72 : 256 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
         aria-label="Vendor navigation"
         className="fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-border bg-card"
       >
@@ -190,7 +205,11 @@ const VendorLayoutInner: React.FC = () => {
           className="flex h-16 items-center gap-3 border-b border-border px-4"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-red-500">
-            <img src="/logo.svg" alt="" className="h-5 w-5 brightness-0 invert" />
+            <img
+              src="/logo.svg"
+              alt=""
+              className="h-5 w-5 brightness-0 invert"
+            />
           </div>
           <AnimatePresence>
             {!collapsed && (
@@ -218,7 +237,10 @@ const VendorLayoutInner: React.FC = () => {
                   value={selectedRestaurantId || undefined}
                   onValueChange={setSelectedRestaurantId}
                 >
-                  <SelectTrigger className="h-9 w-full" aria-label="Select active restaurant">
+                  <SelectTrigger
+                    className="h-9 w-full"
+                    aria-label="Select active restaurant"
+                  >
                     <SelectValue placeholder="Select restaurant" />
                   </SelectTrigger>
                   <SelectContent>
@@ -278,13 +300,13 @@ const VendorLayoutInner: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      aria-current={active ? "page" : undefined}
+                      aria-current={active ? 'page' : undefined}
                       className={cn(
-                        "group/nav relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+                        'group/nav relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
                         active
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        collapsed && "justify-center",
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        collapsed && 'justify-center',
                       )}
                       title={collapsed ? item.name : undefined}
                     >
@@ -294,8 +316,10 @@ const VendorLayoutInner: React.FC = () => {
                       <span className="relative shrink-0">
                         <Icon
                           className={cn(
-                            "h-[18px] w-[18px]",
-                            active ? "text-primary" : "text-muted-foreground group-hover/nav:text-foreground",
+                            'h-[18px] w-[18px]',
+                            active
+                              ? 'text-primary'
+                              : 'text-muted-foreground group-hover/nav:text-foreground',
                           )}
                         />
                         {item.badge && newOrderCount > 0 && (
@@ -303,7 +327,7 @@ const VendorLayoutInner: React.FC = () => {
                             className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold leading-none text-primary-foreground"
                             aria-label={`${newOrderCount} new orders`}
                           >
-                            {newOrderCount > 9 ? "9+" : newOrderCount}
+                            {newOrderCount > 9 ? '9+' : newOrderCount}
                           </span>
                         )}
                       </span>
@@ -332,10 +356,10 @@ const VendorLayoutInner: React.FC = () => {
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              collapsed && "justify-center",
+              'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              collapsed && 'justify-center',
             )}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4 shrink-0" />
@@ -350,7 +374,12 @@ const VendorLayoutInner: React.FC = () => {
 
         {/* User section */}
         <div className="border-t border-border px-2.5 py-3">
-          <div className={cn("flex items-center gap-2.5", collapsed && "justify-center")}>
+          <div
+            className={cn(
+              'flex items-center gap-2.5',
+              collapsed && 'justify-center',
+            )}
+          >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-red-500 text-xs font-bold text-white">
               {getUserInitials()}
             </div>
@@ -393,7 +422,10 @@ const VendorLayoutInner: React.FC = () => {
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-lg">
           {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-1.5 text-sm"
+          >
             {breadcrumbs.map((crumb, i) => (
               <React.Fragment key={`${crumb.label}-${i}`}>
                 {i > 0 && <span className="text-border">/</span>}
@@ -405,7 +437,9 @@ const VendorLayoutInner: React.FC = () => {
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className="font-medium text-foreground">{crumb.label}</span>
+                  <span className="font-medium text-foreground">
+                    {crumb.label}
+                  </span>
                 )}
               </React.Fragment>
             ))}
@@ -414,7 +448,7 @@ const VendorLayoutInner: React.FC = () => {
           {/* Right section */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate("/vendor/menu/items/new")}
+              onClick={() => navigate('/vendor/menu/items/new')}
               className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex"
               title="Add new menu item"
             >
@@ -422,7 +456,7 @@ const VendorLayoutInner: React.FC = () => {
               Add Item
             </button>
             <button
-              onClick={() => navigate("/vendor/orders")}
+              onClick={() => navigate('/vendor/orders')}
               className="hidden items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent/70 sm:inline-flex"
               title="View live orders"
             >
@@ -438,7 +472,7 @@ const VendorLayoutInner: React.FC = () => {
                   className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold leading-none text-primary-foreground ring-2 ring-card"
                   aria-label={`${newOrderCount} new orders`}
                 >
-                  {newOrderCount > 9 ? "9+" : newOrderCount}
+                  {newOrderCount > 9 ? '9+' : newOrderCount}
                 </span>
               )}
             </div>
@@ -460,14 +494,18 @@ const VendorLayoutInner: React.FC = () => {
                   <p className="text-sm font-medium text-foreground">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{user?.email}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {user?.email}
+                  </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => navigate("/vendor/settings")}>
+                <DropdownMenuItem onSelect={() => navigate('/vendor/settings')}>
                   <User className="mr-2 h-4 w-4 text-muted-foreground" />
                   Profile Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => navigate("/vendor/restaurants")}>
+                <DropdownMenuItem
+                  onSelect={() => navigate('/vendor/restaurants')}
+                >
                   <Store className="mr-2 h-4 w-4 text-muted-foreground" />
                   Manage Restaurants
                 </DropdownMenuItem>
@@ -489,7 +527,7 @@ const VendorLayoutInner: React.FC = () => {
           className="flex-1 overflow-y-auto p-6"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
         >
           <Outlet />
         </motion.main>

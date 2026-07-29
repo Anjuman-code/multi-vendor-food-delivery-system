@@ -1,27 +1,26 @@
-import Container from "@/components/public/Container";
+import Container from '@/components/public/Container';
 import {
   BookingControls,
   BookingModal,
   EmptyState,
   FiltersPanel,
-  ImageGalleryModal,
   MapViewToggle,
   RestaurantCard,
   RestaurantCardSkeleton,
   RestaurantMapView,
-} from "@/components/restaurants";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from '@/components/restaurants';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/lib/toast";
-import { fadeInUp } from "@/lib/motion";
-import apiService from "@/services/apiService";
+} from '@/components/ui/select';
+import { fadeInUp } from '@/lib/motion';
+import { toast } from '@/lib/toast';
+import apiService from '@/services/apiService';
 import type {
   Booking,
   FilterCategory,
@@ -30,9 +29,9 @@ import type {
   Restaurant,
   SearchFilters,
   SortOption,
-} from "@/types/restaurant";
-import { cn } from "@/utils/cn";
-import { AnimatePresence, motion } from "framer-motion";
+} from '@/types/restaurant';
+import { cn } from '@/utils/cn';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Award,
   CalendarRange,
@@ -41,15 +40,21 @@ import {
   Sparkles,
   Star,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-} from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+} from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ApiRestaurant {
   _id: string;
@@ -91,64 +96,64 @@ interface ApiPopularRestaurantsResponse {
 
 const SYLHET_CENTER = { lat: 24.8949, lng: 91.8687 };
 
-const mapCuisine = (cuisine?: string): Restaurant["cuisine"] => {
-  const normalized = cuisine?.toLowerCase() || "continental";
+const mapCuisine = (cuisine?: string): Restaurant['cuisine'] => {
+  const normalized = cuisine?.toLowerCase() || 'continental';
   if (
-    normalized.includes("sylheti") ||
-    normalized.includes("bengali") ||
-    normalized.includes("bangladeshi")
+    normalized.includes('sylheti') ||
+    normalized.includes('bengali') ||
+    normalized.includes('bangladeshi')
   ) {
-    return "bengali";
+    return 'bengali';
   }
-  if (normalized.includes("indian")) return "indian";
-  if (normalized.includes("chinese")) return "chinese";
-  if (normalized.includes("italian") || normalized.includes("pizza")) {
-    return "italian";
+  if (normalized.includes('indian')) return 'indian';
+  if (normalized.includes('chinese')) return 'chinese';
+  if (normalized.includes('italian') || normalized.includes('pizza')) {
+    return 'italian';
   }
-  if (normalized.includes("american") || normalized.includes("burger")) {
-    return "american";
+  if (normalized.includes('american') || normalized.includes('burger')) {
+    return 'american';
   }
-  if (normalized.includes("thai")) return "thai";
-  if (normalized.includes("japanese")) return "japanese";
-  if (normalized.includes("mexican")) return "mexican";
-  if (normalized.includes("middle")) return "middle-eastern";
-  return "continental";
+  if (normalized.includes('thai')) return 'thai';
+  if (normalized.includes('japanese')) return 'japanese';
+  if (normalized.includes('mexican')) return 'mexican';
+  if (normalized.includes('middle')) return 'middle-eastern';
+  return 'continental';
 };
 
-const inferType = (restaurant: ApiRestaurant): Restaurant["type"] => {
-  const value = `${restaurant.name} ${(restaurant.cuisineType || []).join(" ")}`
-    .toLowerCase();
-  if (value.includes("cafe") || value.includes("coffee")) return "cafe";
+const inferType = (restaurant: ApiRestaurant): Restaurant['type'] => {
+  const value =
+    `${restaurant.name} ${(restaurant.cuisineType || []).join(' ')}`.toLowerCase();
+  if (value.includes('cafe') || value.includes('coffee')) return 'cafe';
   if (
-    value.includes("fast") ||
-    value.includes("burger") ||
-    value.includes("pizza") ||
-    value.includes("kfc") ||
-    value.includes("chillox")
+    value.includes('fast') ||
+    value.includes('burger') ||
+    value.includes('pizza') ||
+    value.includes('kfc') ||
+    value.includes('chillox')
   ) {
-    return "fast-food";
+    return 'fast-food';
   }
-  return "restaurant";
+  return 'restaurant';
 };
 
 const toPriceRange = (
   schemaPriceRange?: number,
   deliveryFee?: number,
-): Restaurant["priceRange"] | undefined => {
-  if (schemaPriceRange === 1) return "$";
-  if (schemaPriceRange === 2) return "$$";
-  if (schemaPriceRange === 3) return "$$$";
-  if (schemaPriceRange === 4) return "$$$$";
-  if (typeof deliveryFee === "number") {
-    if (deliveryFee <= 30) return "$";
-    if (deliveryFee <= 60) return "$$";
-    return "$$$";
+): Restaurant['priceRange'] | undefined => {
+  if (schemaPriceRange === 1) return '$';
+  if (schemaPriceRange === 2) return '$$';
+  if (schemaPriceRange === 3) return '$$$';
+  if (schemaPriceRange === 4) return '$$$$';
+  if (typeof deliveryFee === 'number') {
+    if (deliveryFee <= 30) return '$';
+    if (deliveryFee <= 60) return '$$';
+    return '$$$';
   }
   return undefined;
 };
 
-const toAmenities = (restaurant: ApiRestaurant): Restaurant["amenities"] => {
-  const amenities = new Set<Restaurant["amenities"][number]>();
+const toAmenities = (restaurant: ApiRestaurant): Restaurant['amenities'] => {
+  const amenities = new Set<Restaurant['amenities'][number]>();
   const paymentMethods = (restaurant.paymentMethods || []).map((method) =>
     method.toLowerCase(),
   );
@@ -159,22 +164,22 @@ const toAmenities = (restaurant: ApiRestaurant): Restaurant["amenities"] => {
 
   if (
     paymentMethods.some(
-      (method) => method.includes("card") || method.includes("visa"),
+      (method) => method.includes('card') || method.includes('visa'),
     )
   ) {
-    amenities.add("card-payment");
+    amenities.add('card-payment');
   }
 
-  if (serviceOptions.includes("takeaway")) {
-    amenities.add("to-go");
+  if (serviceOptions.includes('takeaway')) {
+    amenities.add('to-go');
   }
 
-  if (tags.some((tag) => tag.includes("wifi"))) amenities.add("wifi");
-  if (tags.some((tag) => tag.includes("parking"))) amenities.add("parking");
-  if (tags.some((tag) => tag.includes("kids") || tag.includes("family"))) {
-    amenities.add("kids");
+  if (tags.some((tag) => tag.includes('wifi'))) amenities.add('wifi');
+  if (tags.some((tag) => tag.includes('parking'))) amenities.add('parking');
+  if (tags.some((tag) => tag.includes('kids') || tag.includes('family'))) {
+    amenities.add('kids');
   }
-  if (tags.some((tag) => tag.includes("garden"))) amenities.add("garden");
+  if (tags.some((tag) => tag.includes('garden'))) amenities.add('garden');
 
   return Array.from(amenities);
 };
@@ -182,8 +187,8 @@ const toAmenities = (restaurant: ApiRestaurant): Restaurant["amenities"] => {
 const extractCoordinates = (restaurant: ApiRestaurant) => {
   const addressCoords = restaurant.address?.coordinates;
   if (
-    typeof addressCoords?.lat === "number" &&
-    typeof addressCoords?.lng === "number"
+    typeof addressCoords?.lat === 'number' &&
+    typeof addressCoords?.lng === 'number'
   ) {
     return { lat: addressCoords.lat, lng: addressCoords.lng };
   }
@@ -192,8 +197,8 @@ const extractCoordinates = (restaurant: ApiRestaurant) => {
   if (
     Array.isArray(locationCoordinates) &&
     locationCoordinates.length === 2 &&
-    typeof locationCoordinates[0] === "number" &&
-    typeof locationCoordinates[1] === "number"
+    typeof locationCoordinates[0] === 'number' &&
+    typeof locationCoordinates[1] === 'number'
   ) {
     return { lat: locationCoordinates[1], lng: locationCoordinates[0] };
   }
@@ -235,7 +240,7 @@ const mapRestaurant = (
     item.address?.district,
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(', ');
   const isRecommended =
     recommendedRestaurantIds.has(item._id) || avgRating >= 4.5;
 
@@ -246,9 +251,9 @@ const mapRestaurant = (
     cuisine: mapCuisine(item.cuisineType?.[0]),
     rating: avgRating,
     reviewCount: item.rating?.count ?? 0,
-    address: address || "Address unavailable",
+    address: address || 'Address unavailable',
     distance,
-    image: item.images?.coverPhoto || item.images?.logo || "",
+    image: item.images?.coverPhoto || item.images?.logo || '',
     images: [item.images?.coverPhoto, ...(item.images?.gallery || [])].filter(
       (image): image is string => Boolean(image),
     ),
@@ -263,52 +268,50 @@ const mapRestaurant = (
   };
 };
 
-const cuisineLabelMap: Record<Restaurant["cuisine"], string> = {
-  bengali: "Bengali",
-  sylheti: "Sylheti",
-  indian: "Indian",
-  chinese: "Chinese",
-  continental: "Continental",
-  italian: "Italian",
-  american: "American",
-  "middle-eastern": "Middle Eastern",
-  thai: "Thai",
-  japanese: "Japanese",
-  mexican: "Mexican",
+const cuisineLabelMap: Record<Restaurant['cuisine'], string> = {
+  bengali: 'Bengali',
+  sylheti: 'Sylheti',
+  indian: 'Indian',
+  chinese: 'Chinese',
+  continental: 'Continental',
+  italian: 'Italian',
+  american: 'American',
+  'middle-eastern': 'Middle Eastern',
+  thai: 'Thai',
+  japanese: 'Japanese',
+  mexican: 'Mexican',
 };
 
-const amenityLabelMap: Record<Restaurant["amenities"][number], string> = {
-  wifi: "WiFi",
-  kids: "Kid Friendly",
-  garden: "Garden",
-  "card-payment": "Card Payment",
-  parking: "Parking",
-  "to-go": "Takeaway",
-  "outdoor-seating": "Outdoor Seating",
-  "private-dining": "Private Dining",
-  "wheelchair-accessible": "Wheelchair Accessible",
-  "pet-friendly": "Pet Friendly",
+const amenityLabelMap: Record<Restaurant['amenities'][number], string> = {
+  wifi: 'WiFi',
+  kids: 'Kid Friendly',
+  garden: 'Garden',
+  'card-payment': 'Card Payment',
+  parking: 'Parking',
+  'to-go': 'Takeaway',
+  'outdoor-seating': 'Outdoor Seating',
+  'private-dining': 'Private Dining',
+  'wheelchair-accessible': 'Wheelchair Accessible',
+  'pet-friendly': 'Pet Friendly',
 };
 
-const typeLabelMap: Record<Restaurant["type"], string> = {
-  restaurant: "Restaurants",
-  cafe: "Cafes",
-  "fast-food": "Fast Food",
-  bar: "Bars",
-  bakery: "Bakeries",
+const typeLabelMap: Record<Restaurant['type'], string> = {
+  restaurant: 'Restaurants',
+  cafe: 'Cafes',
+  'fast-food': 'Fast Food',
+  bar: 'Bars',
+  bakery: 'Bakeries',
 };
 
 const sortLabels: Record<SortOption, string> = {
-  recommended: "Recommended",
-  "rating-high": "Top rated",
-  "rating-low": "Lowest rated",
-  distance: "Nearest",
-  reviews: "Most reviewed",
-  "name-asc": "Name (A–Z)",
-  "name-desc": "Name (Z–A)",
+  recommended: 'Recommended',
+  'rating-high': 'Top rated',
+  'rating-low': 'Lowest rated',
+  distance: 'Nearest',
+  reviews: 'Most reviewed',
+  'name-asc': 'Name (A–Z)',
+  'name-desc': 'Name (Z–A)',
 };
-
-const priceOptions: PriceRange[] = ["$", "$$", "$$$", "$$$$"];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -328,7 +331,7 @@ const defaultFilterState: FilterState = {
   rating: 0,
   distance: 50,
   priceRange: [],
-  sortBy: "recommended",
+  sortBy: 'recommended',
 };
 
 const ITEMS_PER_PAGE = 9;
@@ -347,13 +350,15 @@ const RestaurantsPage: React.FC = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Text search (seeded from ?q=, then driven locally for instant filtering)
-  const [textSearch, setTextSearch] = useState(() => searchParams.get("q") ?? "");
+  const [textSearch, setTextSearch] = useState(
+    () => searchParams.get('q') ?? '',
+  );
 
   // Filter states
   const [filterState, setFilterState] =
     useState<FilterState>(defaultFilterState);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
-  const [showReservation, setShowReservation] = useState(false);
+  const [showReservation] = useState(false);
 
   // UI states
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
@@ -364,10 +369,6 @@ const RestaurantsPage: React.FC = () => {
   // Modal states
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [bookingRestaurant, setBookingRestaurant] = useState<Restaurant | null>(
-    null,
-  );
-  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
-  const [galleryRestaurant, setGalleryRestaurant] = useState<Restaurant | null>(
     null,
   );
 
@@ -381,8 +382,8 @@ const RestaurantsPage: React.FC = () => {
         apiService.getPopularRestaurants(12),
       ]);
 
-      if (restaurantsResult.status !== "fulfilled") {
-        throw new Error("Unable to fetch restaurants");
+      if (restaurantsResult.status !== 'fulfilled') {
+        throw new Error('Unable to fetch restaurants');
       }
 
       const restaurantsPayload = restaurantsResult.value
@@ -392,7 +393,7 @@ const RestaurantsPage: React.FC = () => {
         : [];
 
       const popularRestaurants =
-        popularResult.status === "fulfilled"
+        popularResult.status === 'fulfilled'
           ? ((popularResult.value.data as ApiPopularRestaurantsResponse)?.data
               ?.restaurants ?? [])
           : [];
@@ -412,8 +413,8 @@ const RestaurantsPage: React.FC = () => {
     } catch {
       setRestaurants([]);
       setHasLoadError(true);
-      toast.error("Error", {
-        description: "Failed to load restaurants.",
+      toast.error('Error', {
+        description: 'Failed to load restaurants.',
       });
     } finally {
       setIsLoading(false);
@@ -425,16 +426,16 @@ const RestaurantsPage: React.FC = () => {
   }, [loadRestaurants]);
 
   useEffect(() => {
-    setTextSearch(searchParams.get("q") ?? "");
+    setTextSearch(searchParams.get('q') ?? '');
   }, [searchParams]);
 
   const typeFilters = useMemo<FilterCategory[]>(() => {
-    const typeOrder: Restaurant["type"][] = [
-      "restaurant",
-      "cafe",
-      "fast-food",
-      "bar",
-      "bakery",
+    const typeOrder: Restaurant['type'][] = [
+      'restaurant',
+      'cafe',
+      'fast-food',
+      'bar',
+      'bakery',
     ];
 
     return typeOrder
@@ -453,11 +454,11 @@ const RestaurantsPage: React.FC = () => {
         acc[restaurant.cuisine] = (acc[restaurant.cuisine] || 0) + 1;
         return acc;
       },
-      {} as Partial<Record<Restaurant["cuisine"], number>>,
+      {} as Partial<Record<Restaurant['cuisine'], number>>,
     );
 
     return Object.keys(counts)
-      .map((key) => key as Restaurant["cuisine"])
+      .map((key) => key as Restaurant['cuisine'])
       .map((cuisine) => ({
         id: cuisine,
         label: cuisineLabelMap[cuisine],
@@ -475,11 +476,11 @@ const RestaurantsPage: React.FC = () => {
         });
         return acc;
       },
-      {} as Partial<Record<Restaurant["amenities"][number], number>>,
+      {} as Partial<Record<Restaurant['amenities'][number], number>>,
     );
 
     return Object.keys(counts)
-      .map((key) => key as Restaurant["amenities"][number])
+      .map((key) => key as Restaurant['amenities'][number])
       .map((amenity) => ({
         id: amenity,
         label: amenityLabelMap[amenity],
@@ -500,7 +501,7 @@ const RestaurantsPage: React.FC = () => {
 
   const handleClearAllFilters = useCallback(() => {
     setFilterState(defaultFilterState);
-    setTextSearch("");
+    setTextSearch('');
     setDisplayCount(ITEMS_PER_PAGE);
   }, []);
 
@@ -509,7 +510,7 @@ const RestaurantsPage: React.FC = () => {
   }, []);
 
   const handleSearch = useCallback(async () => {
-    const nextQuery = (searchFilters.query || "").trim();
+    const nextQuery = (searchFilters.query || '').trim();
     setTextSearch(nextQuery);
     setDisplayCount(ITEMS_PER_PAGE);
     await loadRestaurants();
@@ -525,7 +526,7 @@ const RestaurantsPage: React.FC = () => {
       const next = filterState.cuisines.includes(cuisine)
         ? filterState.cuisines.filter((entry) => entry !== cuisine)
         : [...filterState.cuisines, cuisine];
-      handleFilterChange("cuisines", next);
+      handleFilterChange('cuisines', next);
     },
     [filterState.cuisines, handleFilterChange],
   );
@@ -535,7 +536,7 @@ const RestaurantsPage: React.FC = () => {
       const next = filterState.priceRange.includes(price)
         ? filterState.priceRange.filter((entry) => entry !== price)
         : [...filterState.priceRange, price];
-      handleFilterChange("priceRange", next);
+      handleFilterChange('priceRange', next);
     },
     [filterState.priceRange, handleFilterChange],
   );
@@ -584,7 +585,9 @@ const RestaurantsPage: React.FC = () => {
 
     if (filterState.priceRange.length > 0) {
       result = result.filter(
-        (r) => r.priceRange !== undefined && filterState.priceRange.includes(r.priceRange),
+        (r) =>
+          r.priceRange !== undefined &&
+          filterState.priceRange.includes(r.priceRange),
       );
     }
 
@@ -607,12 +610,12 @@ const RestaurantsPage: React.FC = () => {
         if (!a.isRecommended && b.isRecommended) return 1;
         return b.rating - a.rating;
       },
-      "rating-high": (a, b) => b.rating - a.rating,
-      "rating-low": (a, b) => a.rating - b.rating,
+      'rating-high': (a, b) => b.rating - a.rating,
+      'rating-low': (a, b) => a.rating - b.rating,
       distance: (a, b) => (a.distance || 0) - (b.distance || 0),
       reviews: (a, b) => b.reviewCount - a.reviewCount,
-      "name-asc": (a, b) => a.name.localeCompare(b.name),
-      "name-desc": (a, b) => b.name.localeCompare(a.name),
+      'name-asc': (a, b) => a.name.localeCompare(b.name),
+      'name-desc': (a, b) => b.name.localeCompare(a.name),
     };
 
     result.sort(sortFunctions[filterState.sortBy]);
@@ -652,7 +655,7 @@ const RestaurantsPage: React.FC = () => {
           setDisplayCount((prev) => prev + ITEMS_PER_PAGE);
         }
       },
-      { rootMargin: "400px" },
+      { rootMargin: '400px' },
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -662,14 +665,16 @@ const RestaurantsPage: React.FC = () => {
   const handleFavoriteToggle = useCallback(
     (id: string | number) => {
       setRestaurants((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, isFavorite: !r.isFavorite } : r)),
+        prev.map((r) =>
+          r.id === id ? { ...r, isFavorite: !r.isFavorite } : r,
+        ),
       );
       const restaurant = restaurants.find((r) => r.id === id);
       if (restaurant) {
         toast.success(
           restaurant.isFavorite
-            ? "Removed from favorites"
-            : "Added to favorites",
+            ? 'Removed from favorites'
+            : 'Added to favorites',
           { description: restaurant.name },
         );
       }
@@ -689,12 +694,7 @@ const RestaurantsPage: React.FC = () => {
 
   const handleImageClick = useCallback(
     (restaurant: Restaurant) => {
-      if (!restaurant.images || restaurant.images.length === 0) {
-        navigate(`/restaurants/${restaurant.id}`);
-        return;
-      }
-      setGalleryRestaurant(restaurant);
-      setGalleryModalOpen(true);
+      navigate(`/restaurants/${restaurant.id}`);
     },
     [navigate],
   );
@@ -709,14 +709,11 @@ const RestaurantsPage: React.FC = () => {
     [],
   );
 
-  const handleBookingComplete = useCallback(
-    (booking: Booking) => {
-      toast.success("Booking Confirmed!", {
-        description: `Table booked at ${booking.restaurant.name} for ${booking.date} at ${booking.time}`,
-      });
-    },
-    [],
-  );
+  const handleBookingComplete = useCallback((booking: Booking) => {
+    toast.success('Booking Confirmed!', {
+      description: `Table booked at ${booking.restaurant.name} for ${booking.date} at ${booking.time}`,
+    });
+  }, []);
 
   const handleMapToggle = useCallback(() => {
     setIsMapView((prev) => !prev);
@@ -749,7 +746,10 @@ const RestaurantsPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50/60">
       {/* ── Hero / search band ───────────────────────────────────── */}
       <section className="relative overflow-hidden border-b border-gray-100 bg-white">
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+        >
           <div className="absolute -top-24 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-brand-100/50 to-transparent blur-3xl" />
           <div className="absolute -bottom-32 right-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-tl from-red-100/40 to-transparent blur-3xl" />
         </div>
@@ -764,9 +764,9 @@ const RestaurantsPage: React.FC = () => {
             </h1>
             <p className="mt-1 text-gray-500">
               {isLoading
-                ? "Loading restaurants…"
+                ? 'Loading restaurants…'
                 : `${filteredRestaurants.length} ${
-                    filteredRestaurants.length === 1 ? "place" : "places"
+                    filteredRestaurants.length === 1 ? 'place' : 'places'
                   } ready to deliver`}
             </p>
 
@@ -784,7 +784,7 @@ const RestaurantsPage: React.FC = () => {
                 />
                 {textSearch && (
                   <button
-                    onClick={() => handleTextSearch("")}
+                    onClick={() => handleTextSearch('')}
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
                     aria-label="Clear search"
                   >
@@ -792,22 +792,33 @@ const RestaurantsPage: React.FC = () => {
                   </button>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="xl"
-                onClick={() => setShowReservation((prev) => !prev)}
-                className="gap-2 rounded-2xl"
-              >
-                <CalendarRange className="h-5 w-5" />
-                Book a table
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        variant="outline"
+                        size="xl"
+                        disabled
+                        className="gap-2 rounded-2xl"
+                      >
+                        <CalendarRange className="h-5 w-5" />
+                        Book a table
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Table booking is under construction</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             <AnimatePresence initial={false}>
               {showReservation && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
+                  animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
@@ -834,7 +845,7 @@ const RestaurantsPage: React.FC = () => {
             <div className="flex flex-1 items-center gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <FilterChip
                 active={filterState.cuisines.length === 0}
-                onClick={() => handleFilterChange("cuisines", [])}
+                onClick={() => handleFilterChange('cuisines', [])}
               >
                 All
               </FilterChip>
@@ -854,7 +865,7 @@ const RestaurantsPage: React.FC = () => {
               <Select
                 value={filterState.sortBy}
                 onValueChange={(value) =>
-                  handleFilterChange("sortBy", value as SortOption)
+                  handleFilterChange('sortBy', value as SortOption)
                 }
               >
                 <SelectTrigger className="h-10 w-[170px] rounded-full">
@@ -878,7 +889,10 @@ const RestaurantsPage: React.FC = () => {
               icon={<Star className="h-3.5 w-3.5" />}
               active={topRatedActive}
               onClick={() =>
-                handleFilterChange("rating", topRatedActive ? 0 : TOP_RATED_THRESHOLD)
+                handleFilterChange(
+                  'rating',
+                  topRatedActive ? 0 : TOP_RATED_THRESHOLD,
+                )
               }
             >
               Top rated
@@ -887,20 +901,14 @@ const RestaurantsPage: React.FC = () => {
               icon={<MapPin className="h-3.5 w-3.5" />}
               active={nearbyActive}
               onClick={() =>
-                handleFilterChange("distance", nearbyActive ? 50 : NEARBY_THRESHOLD_KM)
+                handleFilterChange(
+                  'distance',
+                  nearbyActive ? 50 : NEARBY_THRESHOLD_KM,
+                )
               }
             >
               Nearby
             </FilterChip>
-            {priceOptions.map((price) => (
-              <FilterChip
-                key={price}
-                active={filterState.priceRange.includes(price)}
-                onClick={() => togglePrice(price)}
-              >
-                {price}
-              </FilterChip>
-            ))}
             {activeFilterCount > 0 && (
               <button
                 onClick={handleClearAllFilters}
@@ -933,7 +941,7 @@ const RestaurantsPage: React.FC = () => {
               <Select
                 value={filterState.sortBy}
                 onValueChange={(value) =>
-                  handleFilterChange("sortBy", value as SortOption)
+                  handleFilterChange('sortBy', value as SortOption)
                 }
               >
                 <SelectTrigger className="h-10 flex-1 rounded-full">
@@ -969,13 +977,15 @@ const RestaurantsPage: React.FC = () => {
                   exit={{ opacity: 0 }}
                 >
                   <EmptyState
-                    type={hasLoadError ? "error" : "no-filters"}
+                    type={hasLoadError ? 'error' : 'no-filters'}
                     onAction={
                       hasLoadError
                         ? () => void loadRestaurants()
                         : handleClearAllFilters
                     }
-                    actionLabel={hasLoadError ? "Try again" : "Clear all filters"}
+                    actionLabel={
+                      hasLoadError ? 'Try again' : 'Clear all filters'
+                    }
                   />
                 </motion.div>
               ) : (
@@ -986,7 +996,10 @@ const RestaurantsPage: React.FC = () => {
                   exit={{ opacity: 0 }}
                 >
                   {recommendedRestaurants.length > 0 && (
-                    <section className="mb-10" aria-labelledby="recommended-heading">
+                    <section
+                      className="mb-10"
+                      aria-labelledby="recommended-heading"
+                    >
                       <div className="mb-4 flex items-center gap-2">
                         <Award className="h-5 w-5 text-brand-500" />
                         <h2
@@ -1081,15 +1094,6 @@ const RestaurantsPage: React.FC = () => {
         initialDate={searchFilters.date}
         initialTime={searchFilters.time}
       />
-
-      <ImageGalleryModal
-        restaurant={galleryRestaurant}
-        isOpen={galleryModalOpen}
-        onClose={() => {
-          setGalleryModalOpen(false);
-          setGalleryRestaurant(null);
-        }}
-      />
     </div>
   );
 };
@@ -1110,10 +1114,10 @@ const FilterChip: React.FC<FilterChipProps> = ({
   <button
     onClick={onClick}
     className={cn(
-      "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-all",
+      'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-all',
       active
-        ? "border-brand-500 bg-brand-50 text-brand-700"
-        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50",
+        ? 'border-brand-500 bg-brand-50 text-brand-700'
+        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50',
     )}
     aria-pressed={active}
   >

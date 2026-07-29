@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+import NotificationPopover from '@/components/NotificationPopover';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,15 +7,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCart } from "@/contexts/CartContext";
-import { useConfirm } from "@/contexts/ConfirmContext";
-import { toast } from "@/lib/toast";
-import authService from "@/services/authService";
-import userService from "@/services/userService";
-import NotificationPopover from "@/components/NotificationPopover";
-import { AnimatePresence, motion } from "framer-motion";
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useConfirm } from '@/contexts/ConfirmContext';
+import { toast } from '@/lib/toast';
+import authService from '@/services/authService';
+import userService from '@/services/userService';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
   ClipboardList,
@@ -29,9 +29,9 @@ import {
   Store,
   User,
   X,
-} from "lucide-react";
-import React, { memo, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+} from 'lucide-react';
+import React, { memo, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 interface NavItem {
   name: string;
@@ -49,10 +49,10 @@ const Navbar: React.FC = memo(() => {
   const { itemCount } = useCart();
   const confirm = useConfirm();
 
-  const isVendor = user?.role === "vendor";
+  const isVendor = user?.role === 'vendor';
 
   const API_BASE_URL =
-    import.meta.env?.VITE_API_BASE_URL || "http://localhost:2002";
+    import.meta.env?.VITE_API_BASE_URL || 'http://localhost:2002';
 
   const getImageUrl = (imagePath?: string) => {
     if (!imagePath) return undefined;
@@ -72,10 +72,10 @@ const Navbar: React.FC = memo(() => {
   }, [isAuthenticated]);
 
   const navLinks: NavItem[] = [
-    { name: "Home", path: "/" },
-    { name: "Restaurants", path: "/restaurants" },
-    { name: "Categories", path: "/categories" },
-    { name: "About", path: "/about" },
+    { name: 'Home', path: '/' },
+    { name: 'Restaurants', path: '/restaurants' },
+    { name: 'About', path: '/about' },
+    { name: 'Contact Us', path: '/contact' },
   ];
 
   // Handle scroll effect
@@ -83,8 +83,8 @@ const Navbar: React.FC = memo(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Close mobile menu when clicking outside
@@ -99,24 +99,24 @@ const Navbar: React.FC = memo(() => {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = 'unset';
     }
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       setIsOpen(false);
     }
   };
@@ -125,31 +125,31 @@ const Navbar: React.FC = memo(() => {
 
   const handleLogout = async () => {
     const ok = await confirm({
-      title: "Log out",
-      description: "Are you sure you want to log out?",
-      variant: "destructive",
+      title: 'Log out',
+      description: 'Are you sure you want to log out?',
+      variant: 'destructive',
     });
     if (!ok) return;
     try {
       await authService.logout();
       logoutContext();
-      toast.success("Success", {
-        description: "Logged out successfully",
+      toast.success('Success', {
+        description: 'Logged out successfully',
       });
-      navigate("/login");
+      navigate('/login');
     } catch {
-      toast.error("Error", {
-        description: "Failed to logout. Please try again.",
+      toast.error('Error', {
+        description: 'Failed to logout. Please try again.',
       });
     }
   };
 
   const getUserInitials = () => {
-    if (!user) return "U";
-    const firstNameInitial = user.firstName?.charAt(0) || "";
-    const lastNameInitial = user.lastName?.charAt(0) || "";
+    if (!user) return 'U';
+    const firstNameInitial = user.firstName?.charAt(0) || '';
+    const lastNameInitial = user.lastName?.charAt(0) || '';
 
-    if (!firstNameInitial && !lastNameInitial) return "U";
+    if (!firstNameInitial && !lastNameInitial) return 'U';
 
     return `${firstNameInitial}${lastNameInitial}`.toUpperCase();
   };
@@ -158,9 +158,9 @@ const Navbar: React.FC = memo(() => {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-white/80 backdrop-blur-lg shadow-lg" : "bg-transparent"
+        isScrolled ? 'bg-white/80 backdrop-blur-lg shadow-lg' : 'bg-transparent'
       }`}
       onKeyDown={handleKeyDown}
     >
@@ -192,8 +192,8 @@ const Navbar: React.FC = memo(() => {
                 to={link.path}
                 className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                   isActiveLink(link.path)
-                    ? "text-brand-600"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? 'text-brand-600'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {link.name}
@@ -201,7 +201,7 @@ const Navbar: React.FC = memo(() => {
                   <motion.div
                     layoutId="activeNav"
                     className="absolute inset-0 bg-brand-100 rounded-full -z-10"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
               </Link>
@@ -229,7 +229,7 @@ const Navbar: React.FC = memo(() => {
                 <ShoppingBag className="w-5 h-5" />
                 {itemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-brand-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {itemCount > 9 ? "9+" : itemCount}
+                    {itemCount > 9 ? '9+' : itemCount}
                   </span>
                 )}
               </Link>
@@ -281,21 +281,21 @@ const Navbar: React.FC = memo(() => {
                   {isVendor ? (
                     <>
                       <DropdownMenuItem
-                        onClick={() => navigate("/vendor")}
+                        onClick={() => navigate('/vendor')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Store className="mr-2 h-4 w-4" />
                         <span>Dashboard</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => navigate("/vendor/restaurants")}
+                        onClick={() => navigate('/vendor/restaurants')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Package className="mr-2 h-4 w-4" />
                         <span>My Restaurants</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => navigate("/vendor/orders")}
+                        onClick={() => navigate('/vendor/orders')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <ClipboardList className="mr-2 h-4 w-4" />
@@ -305,28 +305,28 @@ const Navbar: React.FC = memo(() => {
                   ) : (
                     <>
                       <DropdownMenuItem
-                        onClick={() => navigate("/profile")}
+                        onClick={() => navigate('/profile')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => navigate("/orders")}
+                        onClick={() => navigate('/orders')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Package className="mr-2 h-4 w-4" />
                         <span>Orders</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => navigate("/favorites")}
+                        onClick={() => navigate('/favorites')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <Heart className="mr-2 h-4 w-4" />
                         <span>Favorites</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => navigate("/support")}
+                        onClick={() => navigate('/support')}
                         className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                       >
                         <HelpCircle className="mr-2 h-4 w-4" />
@@ -335,7 +335,7 @@ const Navbar: React.FC = memo(() => {
                     </>
                   )}
                   <DropdownMenuItem
-                    onClick={() => navigate("/settings")}
+                    onClick={() => navigate('/settings')}
                     className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                   >
                     <Settings className="mr-2 h-4 w-4" />
@@ -385,7 +385,7 @@ const Navbar: React.FC = memo(() => {
                 <ShoppingBag className="w-5 h-5" />
                 {itemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-brand-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {itemCount > 9 ? "9+" : itemCount}
+                    {itemCount > 9 ? '9+' : itemCount}
                   </span>
                 )}
               </Link>
@@ -396,7 +396,7 @@ const Navbar: React.FC = memo(() => {
               className="p-2 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors"
               aria-expanded={isOpen}
               aria-controls="mobile-menu"
-              aria-label={isOpen ? "Close menu" : "Open menu"}
+              aria-label={isOpen ? 'Close menu' : 'Open menu'}
             >
               {isOpen ? (
                 <X className="h-6 w-6" aria-hidden="true" />
@@ -425,10 +425,10 @@ const Navbar: React.FC = memo(() => {
             <motion.div
               id="mobile-menu"
               ref={mobileMenuRef}
-              initial={{ opacity: 0, x: "100%" }}
+              initial={{ opacity: 0, x: '100%' }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              exit={{ opacity: 0, x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed top-0 right-0 bottom-0 w-[80%] max-w-sm bg-white shadow-2xl lg:hidden overflow-y-auto"
             >
               {/* Menu Header */}
@@ -487,8 +487,8 @@ const Navbar: React.FC = memo(() => {
                         onClick={() => setIsOpen(false)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
                           isActiveLink(link.path)
-                            ? "bg-brand-100 text-brand-600"
-                            : "text-gray-700 hover:bg-gray-100"
+                            ? 'bg-brand-100 text-brand-600'
+                            : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
                         {link.name}
@@ -521,7 +521,7 @@ const Navbar: React.FC = memo(() => {
                       <button
                         onClick={() => {
                           setIsOpen(false);
-                          navigate(isVendor ? "/vendor" : "/profile");
+                          navigate(isVendor ? '/vendor' : '/profile');
                         }}
                         className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
                       >
@@ -530,13 +530,13 @@ const Navbar: React.FC = memo(() => {
                         ) : (
                           <User className="w-4 h-4" />
                         )}
-                        {isVendor ? "Go to Dashboard" : "View Profile"}
+                        {isVendor ? 'Go to Dashboard' : 'View Profile'}
                       </button>
                       {!isVendor && (
                         <button
                           onClick={() => {
                             setIsOpen(false);
-                            navigate("/support");
+                            navigate('/support');
                           }}
                           className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
                         >

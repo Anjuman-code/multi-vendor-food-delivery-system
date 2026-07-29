@@ -1,16 +1,16 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import type { Restaurant } from "@/types/restaurant";
-import { cn } from "@/utils/cn";
-import { motion } from "framer-motion";
-import { Heart, Map, MapPin, Star } from "lucide-react";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+} from '@/components/ui/tooltip';
+import type { Restaurant } from '@/types/restaurant';
+import { cn } from '@/utils/cn';
+import { motion } from 'framer-motion';
+import { Heart, Map, MapPin, Star } from 'lucide-react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -27,7 +27,6 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
   ({
     restaurant,
     onFavoriteToggle,
-    onBookClick,
     onViewMapClick,
     onCardClick,
     onImageClick,
@@ -39,8 +38,8 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
 
     // Format type label
     const typeLabel =
-      restaurant.type === "fast-food"
-        ? "Fast Food"
+      restaurant.type === 'fast-food'
+        ? 'Fast Food'
         : restaurant.type.charAt(0).toUpperCase() + restaurant.type.slice(1);
 
     // Format cuisine label
@@ -54,9 +53,8 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
           ? `${Math.round(restaurant.distance * 1000)}m`
           : `${restaurant.distance.toFixed(1)}km`;
 
-    const imageSrc = imageError || !restaurant.image
-      ? "/table.png"
-      : restaurant.image;
+    const imageSrc =
+      imageError || !restaurant.image ? '/table.png' : restaurant.image;
 
     // Handle image lazy loading
     useEffect(() => {
@@ -82,14 +80,6 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
       [restaurant.id, onFavoriteToggle],
     );
 
-    const handleBookClick = useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onBookClick(restaurant);
-      },
-      [restaurant, onBookClick],
-    );
-
     const handleImageClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -112,7 +102,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onCardClick(restaurant);
         }
@@ -127,17 +117,17 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12 }}
-          whileHover={{ y: -3, boxShadow: "0 14px 32px rgba(15,23,42,0.12)" }}
+          whileHover={{ y: -3, boxShadow: '0 14px 32px rgba(15,23,42,0.12)' }}
           onClick={handleCardClick}
           onKeyDown={handleKeyDown}
           tabIndex={0}
           role="article"
           aria-label={`${restaurant.name} - ${typeLabel}, ${cuisineLabel}. Rating: ${restaurant.rating} out of 5 with ${restaurant.reviewCount} reviews. Located at ${restaurant.address}`}
           className={cn(
-            "bg-white rounded-2xl overflow-hidden shadow-sm border flex flex-col w-full max-w-[430px] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+            'bg-white rounded-2xl overflow-hidden shadow-sm border flex flex-col w-full max-w-[430px] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
             isSelected
-              ? "border-brand-400 ring-2 ring-brand-100"
-              : "border-gray-200/80",
+              ? 'border-brand-400 ring-2 ring-brand-100'
+              : 'border-gray-200/80',
           )}
         >
           {/* Image Section */}
@@ -157,11 +147,11 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
               src={imageSrc}
               alt={`${restaurant.name} restaurant interior`}
               className={cn(
-                "w-full h-full object-cover transition-all duration-500",
-                imageLoaded || imageSrc === "/table.png"
-                  ? "opacity-100"
-                  : "opacity-0",
-                "group-hover:scale-105",
+                'w-full h-full object-cover transition-all duration-500',
+                imageLoaded || imageSrc === '/table.png'
+                  ? 'opacity-100'
+                  : 'opacity-0',
+                'group-hover:scale-105',
               )}
               loading="lazy"
               decoding="async"
@@ -220,7 +210,10 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
 
                 <div className="flex items-center gap-2 shrink-0">
                   {restaurant.priceRange && (
-                    <Badge variant="outline" className="text-xs font-medium px-2 py-0.5">
+                    <Badge
+                      variant="outline"
+                      className="text-xs font-medium px-2 py-0.5"
+                    >
                       {restaurant.priceRange}
                     </Badge>
                   )}
@@ -239,16 +232,16 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                         }
                         aria-pressed={restaurant.isFavorite}
                         className={cn(
-                          "p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+                          'p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
                           restaurant.isFavorite
-                            ? "text-red-500 bg-red-50"
-                            : "text-gray-400 hover:text-red-500 hover:bg-red-50",
+                            ? 'text-red-500 bg-red-50'
+                            : 'text-gray-400 hover:text-red-500 hover:bg-red-50',
                         )}
                       >
                         <Heart
                           className={cn(
-                            "w-4.5 h-4.5",
-                            restaurant.isFavorite && "fill-current",
+                            'w-4.5 h-4.5',
+                            restaurant.isFavorite && 'fill-current',
                           )}
                           aria-hidden="true"
                         />
@@ -256,8 +249,8 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                     </TooltipTrigger>
                     <TooltipContent>
                       {restaurant.isFavorite
-                        ? "Remove from favorites"
-                        : "Add to favorites"}
+                        ? 'Remove from favorites'
+                        : 'Add to favorites'}
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -285,11 +278,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                       variant="secondary"
                       className="text-[11px] capitalize px-2 py-0.5"
                     >
-                      {amenity.replace("-", " ")}
+                      {amenity.replace('-', ' ')}
                     </Badge>
                   ))}
                   {restaurant.amenities.length > 3 && (
-                    <Badge variant="outline" className="text-[11px] px-2 py-0.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] px-2 py-0.5"
+                    >
                       +{restaurant.amenities.length - 3}
                     </Badge>
                   )}
@@ -298,14 +294,23 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                onClick={handleBookClick}
-                className="bg-brand-500 hover:bg-brand-600 text-white font-medium px-5 rounded-lg transition-colors h-9"
-                size="sm"
-                aria-label={`Book a table at ${restaurant.name}`}
-              >
-                Book a table
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      disabled
+                      className="bg-brand-500/60 text-white font-medium px-5 rounded-lg transition-colors h-9 cursor-not-allowed"
+                      size="sm"
+                      aria-label={`Book a table at ${restaurant.name}`}
+                    >
+                      Book a table
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Table booking is under construction</p>
+                </TooltipContent>
+              </Tooltip>
               <Button
                 onClick={handleViewMapClick}
                 variant="outline"

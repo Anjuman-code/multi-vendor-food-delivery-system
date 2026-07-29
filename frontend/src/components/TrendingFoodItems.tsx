@@ -1,20 +1,16 @@
-import FoodItemCard from "@/components/ui/FoodItemCard";
-import homeService from "@/services/homeService";
-import type { TrendingItem } from "@/types/home";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-    ChevronLeft,
-    ChevronRight,
-    Flame
-} from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import FoodItemCard from '@/components/ui/FoodItemCard';
+import homeService from '@/services/homeService';
+import type { TrendingItem } from '@/types/home';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Flame } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 const colorPalette = [
-  "from-brand-900 to-amber-900",
-  "from-red-900 to-rose-900",
-  "from-slate-900 to-gray-900",
-  "from-amber-950 to-brown-900",
-  "from-emerald-900 to-teal-900",
+  'from-brand-900 to-amber-900',
+  'from-red-900 to-rose-900',
+  'from-slate-900 to-gray-900',
+  'from-amber-950 to-brown-900',
+  'from-emerald-900 to-teal-900',
 ];
 const TrendingFoodItems: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -31,7 +27,7 @@ const TrendingFoodItems: React.FC = () => {
       setItems(response.data.items || []);
     } else {
       setItems([]);
-      setErrorMessage(response.message || "Failed to load trending items.");
+      setErrorMessage(response.message || 'Failed to load trending items.');
     }
 
     setIsLoading(false);
@@ -73,31 +69,31 @@ const TrendingFoodItems: React.FC = () => {
   // Variants for the 3D Card positioning
   const cardVariants = {
     center: {
-      x: "0%",
+      x: '0%',
       scale: 1,
       zIndex: 50,
       opacity: 1,
       rotateY: 0,
-      filter: "blur(0px) brightness(1)",
+      filter: 'blur(0px) brightness(1)',
     },
     left: {
-      x: "-65%",
+      x: '-65%',
       scale: 0.85,
       zIndex: 10,
       opacity: 0.6,
       rotateY: 15, // Subtle 3D rotation
-      filter: "blur(2px) brightness(0.8)",
+      filter: 'blur(2px) brightness(0.8)',
     },
     right: {
-      x: "65%",
+      x: '65%',
       scale: 0.85,
       zIndex: 10,
       opacity: 0.6,
       rotateY: -15,
-      filter: "blur(2px) brightness(0.8)",
+      filter: 'blur(2px) brightness(0.8)',
     },
     hidden: {
-      x: "0%",
+      x: '0%',
       scale: 0.5,
       zIndex: 0,
       opacity: 0,
@@ -106,18 +102,18 @@ const TrendingFoodItems: React.FC = () => {
 
   // Determine position variant based on index
   const getVariant = (index: number) => {
-    if (index === activeIndex) return "center";
+    if (index === activeIndex) return 'center';
     if (
       index === activeIndex - 1 ||
       (activeIndex === 0 && index === itemsWithColor.length - 1)
     )
-      return "left";
+      return 'left';
     if (
       index === activeIndex + 1 ||
       (activeIndex === itemsWithColor.length - 1 && index === 0)
     )
-      return "right";
-    return "hidden";
+      return 'right';
+    return 'hidden';
   };
 
   return (
@@ -137,7 +133,7 @@ const TrendingFoodItems: React.FC = () => {
             </span>
           </motion.div>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 tracking-tight">
-            Culinary{" "}
+            Culinary{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-red-500">
               Masterpieces
             </span>
@@ -172,11 +168,11 @@ const TrendingFoodItems: React.FC = () => {
                     variants={cardVariants}
                     initial="hidden"
                     animate={getVariant(index)}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                     className="absolute w-[300px] md:w-[380px] aspect-[4/3] rounded-3xl shadow-2xl cursor-grab active:cursor-grabbing"
                     style={{
                       // Force hardware acceleration for smooth 3D transforms
-                      willChange: "transform, opacity, filter",
+                      willChange: 'transform, opacity, filter',
                     }}
                     drag="x"
                     dragConstraints={{ left: 0, right: 0 }}
@@ -227,9 +223,9 @@ const TrendingFoodItems: React.FC = () => {
         {/* Feature Icons Grid (Bottom) */}
         <div className="mt-12 grid grid-cols-3 gap-8 md:gap-16 text-center">
           {[
-            { label: "Free Delivery", icon: "🚀" },
-            { label: "20-30 Mins", icon: "⏱️" },
-            { label: "Top Rated", icon: "🏆" },
+            { label: 'Free Delivery', icon: '🚀' },
+            { label: '20-30 Mins', icon: '⏱️' },
+            { label: 'Top Rated', icon: '🏆' },
           ].map((feature, i) => (
             <div key={i} className="flex flex-col items-center gap-2">
               <span className="text-2xl grayscale">{feature.icon}</span>

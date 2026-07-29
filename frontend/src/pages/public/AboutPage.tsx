@@ -1,11 +1,11 @@
-import Container from "@/components/public/Container";
-import GradientText from "@/components/public/GradientText";
-import PageHero from "@/components/public/PageHero";
-import Section from "@/components/public/Section";
-import SectionHeading from "@/components/public/SectionHeading";
-import { Button } from "@/components/ui/button";
-import { fadeInUp, inViewport } from "@/lib/motion";
-import { motion } from "framer-motion";
+import Container from '@/components/public/Container';
+import GradientText from '@/components/public/GradientText';
+import PageHero from '@/components/public/PageHero';
+import Section from '@/components/public/Section';
+import SectionHeading from '@/components/public/SectionHeading';
+import { Button } from '@/components/ui/button';
+import { fadeInUp, inViewport } from '@/lib/motion';
+import { motion } from 'framer-motion';
 import {
   Award,
   ChefHat,
@@ -18,39 +18,39 @@ import {
   Target,
   Truck,
   Users,
-} from "lucide-react";
-import React from "react";
-import { Link } from "react-router-dom";
+} from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 
 const stats = [
-  { icon: Store, value: "500+", label: "Partner Restaurants" },
-  { icon: Users, value: "50,000+", label: "Happy Customers" },
-  { icon: Truck, value: "100,000+", label: "Deliveries Completed" },
-  { icon: ChefHat, value: "200+", label: "Cuisines Available" },
+  { icon: Store, value: '500+', label: 'Partner Restaurants' },
+  { icon: Users, value: '50,000+', label: 'Happy Customers' },
+  { icon: Truck, value: '100,000+', label: 'Deliveries Completed' },
+  { icon: ChefHat, value: '200+', label: 'Cuisines Available' },
 ];
 
 const values = [
   {
     icon: Heart,
-    title: "Customer First",
+    title: 'Customer First',
     description:
-      "Every decision we make starts with our customers in mind. Your satisfaction is our ultimate goal.",
+      'Every decision we make starts with our customers in mind. Your satisfaction is our ultimate goal.',
   },
   {
     icon: Clock,
-    title: "Speed & Reliability",
+    title: 'Speed & Reliability',
     description:
-      "We promise fast deliveries without compromising on food quality. Hot food, delivered on time, every time.",
+      'We promise fast deliveries without compromising on food quality. Hot food, delivered on time, every time.',
   },
   {
     icon: Award,
-    title: "Quality Assurance",
+    title: 'Quality Assurance',
     description:
-      "We partner only with restaurants that meet our strict hygiene and quality standards.",
+      'We partner only with restaurants that meet our strict hygiene and quality standards.',
   },
   {
     icon: Users,
-    title: "Community Support",
+    title: 'Community Support',
     description:
       "We're committed to supporting local businesses and creating employment opportunities in Sylhet.",
   },
@@ -58,16 +58,22 @@ const values = [
 
 const team = [
   {
-    name: "Anjuman",
-    role: "Co-Founder & Developer",
+    name: 'Anjuman',
+    role: 'Co-Founder & Developer',
     description:
-      "Full-stack developer passionate about creating seamless user experiences for the Sylhet community.",
+      'Full-stack developer passionate about creating seamless user experiences for the Sylhet community.',
   },
   {
-    name: "Shafi",
-    role: "Co-Founder & Developer",
+    name: 'Shafi',
+    role: 'Co-Founder & Developer',
     description:
-      "Backend specialist focused on building robust, scalable systems that power our delivery network.",
+      'Backend specialist focused on building robust, scalable systems that power our delivery network.',
+  },
+  {
+    name: 'Tabassum',
+    role: 'Co-Founder & Developer',
+    description:
+      'Frontend developer focused on creating clear, user-friendly interfaces and informative public-facing pages for the platform.',
   },
 ];
 
@@ -132,7 +138,8 @@ const AboutPage: React.FC = () => (
               We believe that great food has the power to bring people together.
               Our mission is to make the diverse culinary heritage of Sylhet
               accessible to everyone, while supporting local restaurants and
-              creating meaningful employment opportunities for delivery partners.
+              creating meaningful employment opportunities for delivery
+              partners.
             </p>
             <p className="mt-4 text-lg leading-relaxed text-gray-600">
               From the aromatic biryanis of Zindabazar to the famous Pitha of
@@ -159,7 +166,9 @@ const AboutPage: React.FC = () => (
                   <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-r from-brand-500 to-red-500">
                     <Heart className="h-10 w-10 text-white" />
                   </div>
-                  <p className="font-medium text-gray-600">Made with love in Sylhet</p>
+                  <p className="font-medium text-gray-600">
+                    Made with love in Sylhet
+                  </p>
                 </div>
               </div>
             </div>
@@ -192,7 +201,9 @@ const AboutPage: React.FC = () => (
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-brand-100 to-red-100">
                 <value.icon className="h-7 w-7 text-brand-500" />
               </div>
-              <h3 className="mb-3 text-xl font-bold text-gray-900">{value.title}</h3>
+              <h3 className="mb-3 text-xl font-bold text-gray-900">
+                {value.title}
+              </h3>
               <p className="text-gray-600">{value.description}</p>
             </motion.div>
           ))}
@@ -210,7 +221,7 @@ const AboutPage: React.FC = () => (
           description="Passionate developers committed to building the best food delivery experience for Sylhet."
           className="mb-16"
         />
-        <div className="mx-auto grid max-w-3xl grid-cols-1 gap-8 md:grid-cols-2">
+        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
           {team.map((member, index) => (
             <motion.div
               key={member.name}
@@ -224,7 +235,9 @@ const AboutPage: React.FC = () => (
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-r from-brand-500 to-red-500 text-2xl font-bold text-white">
                 {member.name.charAt(0)}
               </div>
-              <h3 className="mb-2 text-2xl font-bold text-gray-900">{member.name}</h3>
+              <h3 className="mb-2 text-2xl font-bold text-gray-900">
+                {member.name}
+              </h3>
               <p className="mb-4 font-medium text-brand-500">{member.role}</p>
               <p className="text-gray-600">{member.description}</p>
             </motion.div>

@@ -8,5 +8,4 @@ export {
   default as RestaurantMapView,
   MapViewToggle,
 } from "@/components/restaurants/RestaurantMapView";
-export { default as ImageGalleryModal } from "@/components/restaurants/ImageGalleryModal";
 export { default as EmptyState } from "@/components/restaurants/EmptyState";
