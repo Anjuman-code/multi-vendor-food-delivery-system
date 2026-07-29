@@ -228,6 +228,68 @@ export const deleteReview = async (
 };
 
 /**
+ * GET /api/reviews/stats
+ * Public – aggregate review statistics across all restaurants.
+ */
+export const getReviewStats = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const [reviewAgg, restaurantCount] = await Promise.all([
+      Review.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalReviews: { $sum: 1 },
+            averageRating: { $avg: "$rating" },
+          },
+        },
+      ]),
+      Restaurant.countDocuments({
+        isActive: true,
+        approvalStatus: "approved",
+      }),
+    ]);
+
+    const totalReviews = reviewAgg.length > 0 ? reviewAgg[0].totalReviews : 0;
+    const averageRating =
+      reviewAgg.length > 0
+        ? Math.round(reviewAgg[0].averageRating * 10) / 10
+        : 0;
+
+    successResponse(res, { totalReviews, averageRating, restaurantCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/reviews/latest
+ * Public – returns the most recent reviews across all restaurants.
+ */
+export const getLatestReviews = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 6));
+
+    const reviews = await Review.find()
+      .populate("customerId", "firstName lastName profileImage")
+      .populate("restaurantId", "name address")
+      .sort("-createdAt")
+      .limit(limit);
+
+    successResponse(res, { reviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * POST /api/reviews/:reviewId/vote
  * Vote a review as helpful or unhelpful. One vote per user per review.
  */

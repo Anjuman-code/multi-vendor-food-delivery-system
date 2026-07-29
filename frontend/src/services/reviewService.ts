@@ -16,7 +16,12 @@ export interface Review {
       };
   restaurantId:
     | string
-    | { _id: string; name: string; images?: { logo?: string } };
+    | {
+        _id: string;
+        name: string;
+        images?: { logo?: string };
+        address?: { city?: string; state?: string };
+      };
   orderId: string;
   rating: number;
   title?: string;
@@ -52,6 +57,12 @@ const extractError = (error: unknown): ApiResponse => {
   }
   return { success: false, message: "An unexpected error occurred." };
 };
+
+export interface ReviewStats {
+  totalReviews: number;
+  averageRating: number;
+  restaurantCount: number;
+}
 
 const reviewService = {
   /** POST /api/reviews */
@@ -96,6 +107,32 @@ const reviewService = {
         await httpClient.get<ApiResponse<{ reviews: Review[] }>>(
           "/api/reviews/me",
         );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<{ reviews: Review[] }>;
+    }
+  },
+
+  /** GET /api/reviews/stats */
+  async getReviewStats(): Promise<ApiResponse<ReviewStats>> {
+    try {
+      const response = await httpClient.get<ApiResponse<ReviewStats>>(
+        "/api/reviews/stats",
+      );
+      return response.data;
+    } catch (error: unknown) {
+      return extractError(error) as ApiResponse<ReviewStats>;
+    }
+  },
+
+  /** GET /api/reviews/latest */
+  async getLatestReviews(
+    limit = 6,
+  ): Promise<ApiResponse<{ reviews: Review[] }>> {
+    try {
+      const response = await httpClient.get<ApiResponse<{ reviews: Review[] }>>(
+        `/api/reviews/latest?limit=${limit}`,
+      );
       return response.data;
     } catch (error: unknown) {
       return extractError(error) as ApiResponse<{ reviews: Review[] }>;

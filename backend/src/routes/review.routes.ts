@@ -7,11 +7,17 @@ import {
   getMyReviews,
   deleteReview,
   voteReview,
+  getReviewStats,
+  getLatestReviews,
 } from "../controllers/review.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { UserRole } from "../config/constants";
 
 const router: Router = Router();
+
+// Public
+router.get("/stats", getReviewStats);
+router.get("/latest", getLatestReviews);
 
 // Authenticated – customer only
 router.post("/", authenticate, authorize(UserRole.CUSTOMER), createReview);

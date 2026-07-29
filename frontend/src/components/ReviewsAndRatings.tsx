@@ -1,43 +1,21 @@
-import { Button } from "@/components/ui/button";
-import { AnimatePresence, motion, useInView } from "framer-motion";
+import { Button } from '@/components/ui/button';
+import { AnimatePresence, motion, useInView } from 'framer-motion';
 import {
-    ChevronLeft,
-    ChevronRight,
-    Quote,
-    Star,
-    Store,
-    ThumbsUp,
-    Users,
-} from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+  ChevronLeft,
+  ChevronRight,
+  Quote,
+  Star,
+  Store,
+  ThumbsUp,
+  Users,
+} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
-import apiService from "@/services/apiService";
-import reviewService from "@/services/reviewService";
-
-interface ApiRestaurant {
-  _id: string;
-  name: string;
-  address?: {
-    city?: string;
-    state?: string;
-  };
-}
-
-interface ApiReviewCustomer {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  profileImage?: string;
-}
-
-interface ApiReview {
-  _id: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
-  customerId: string | ApiReviewCustomer;
-}
+import reviewService, {
+  type Review as ApiReview,
+  type ReviewStats,
+} from '@/services/reviewService';
 
 interface Review {
   id: string;
@@ -158,8 +136,8 @@ const ReviewCard: React.FC<{ review: Review; index: number }> = ({
               key={i}
               className={`w-5 h-5 transition-colors duration-300 ${
                 i < review.rating
-                  ? "text-yellow-400 fill-yellow-400"
-                  : "text-gray-200"
+                  ? 'text-yellow-400 fill-yellow-400'
+                  : 'text-gray-200'
               }`}
             />
           ))}
@@ -204,103 +182,81 @@ const ReviewsAndRatings: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const reviewsPerPage = 3;
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [restaurantCount, setRestaurantCount] = useState(0);
+  const [stats, setStats] = useState<ReviewStats>({
+    totalReviews: 0,
+    averageRating: 0,
+    restaurantCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(reviews.length / reviewsPerPage));
 
   const formatDate = (dateValue: string) =>
-    new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+    new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     }).format(new Date(dateValue));
+
+  const mapApiReview = (review: ApiReview): Review => {
+    const customer =
+      typeof review.customerId === 'string' ? null : review.customerId;
+    const customerName = customer
+      ? `${customer.firstName} ${customer.lastName}`.trim()
+      : 'Verified customer';
+    const restaurantInfo =
+      typeof review.restaurantId === 'string'
+        ? null
+        : review.restaurantId;
+    const location =
+      [restaurantInfo?.address?.city, restaurantInfo?.address?.state]
+        .filter(Boolean)
+        .join(', ') || restaurantInfo?.name || 'Our restaurant';
+    const avatarName = encodeURIComponent(customerName);
+
+    return {
+      id: review._id,
+      name: customerName,
+      rating: review.rating,
+      comment: review.comment,
+      date: formatDate(review.createdAt),
+      avatar:
+        customer?.profileImage ||
+        `https://ui-avatars.com/api/?name=${avatarName}&background=f97316&color=ffffff`,
+      location,
+      createdAt: review.createdAt,
+    };
+  };
 
   useEffect(() => {
     let isActive = true;
 
-    const loadReviews = async () => {
+    const loadData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const featuredResponse = await apiService.getFeaturedRestaurants();
-        const featuredPayload = featuredResponse.data as {
-          data?: ApiRestaurant[];
-        };
-        let restaurants = Array.isArray(featuredPayload.data)
-          ? featuredPayload.data
-          : [];
+        const [statsResponse, reviewsResponse] = await Promise.all([
+          reviewService.getReviewStats(),
+          reviewService.getLatestReviews(6),
+        ]);
 
-        if (restaurants.length === 0) {
-          const allResponse = await apiService.getAllRestaurants();
-          const allPayload = allResponse.data as { data?: ApiRestaurant[] };
-          restaurants = Array.isArray(allPayload.data) ? allPayload.data : [];
+        if (!isActive) return;
+
+        if (statsResponse.success && statsResponse.data) {
+          setStats(statsResponse.data);
         }
 
-        const selectedRestaurants = restaurants.slice(0, 3);
-        const reviewGroups = await Promise.all(
-          selectedRestaurants.map(async (restaurant) => {
-            const response = await reviewService.getRestaurantReviews(
-              restaurant._id,
-              1,
-              3,
-            );
-
-            if (!response.success || !response.data?.reviews) {
-              return [] as Review[];
-            }
-
-            return response.data.reviews.map((review: ApiReview) => {
-              const customer =
-                typeof review.customerId === "string"
-                  ? null
-                  : review.customerId;
-              const customerName = customer
-                ? `${customer.firstName} ${customer.lastName}`.trim()
-                : "Verified customer";
-              const location =
-                [restaurant.address?.city, restaurant.address?.state]
-                  .filter(Boolean)
-                  .join(", ") || restaurant.name;
-              const avatarName = encodeURIComponent(customerName);
-
-              return {
-                id: review._id,
-                name: customerName,
-                rating: review.rating,
-                comment: review.comment,
-                date: formatDate(review.createdAt),
-                avatar:
-                  customer?.profileImage ||
-                  `https://ui-avatars.com/api/?name=${avatarName}&background=f97316&color=ffffff`,
-                location,
-                createdAt: review.createdAt,
-              };
-            });
-          }),
-        );
-
-        const combinedReviews = reviewGroups
-          .flat()
-          .sort(
-            (left, right) =>
-              new Date(right.createdAt).getTime() -
-              new Date(left.createdAt).getTime(),
-          )
-          .slice(0, 6);
-
-        if (isActive) {
-          setReviews(combinedReviews);
-          setRestaurantCount(selectedRestaurants.length);
+        if (reviewsResponse.success && reviewsResponse.data?.reviews) {
+          const mapped = reviewsResponse.data.reviews.map(mapApiReview);
+          setReviews(mapped);
           setCurrentPage(0);
         }
       } catch {
         if (isActive) {
-          setError("Failed to load customer reviews.");
+          setError('Failed to load customer reviews.');
           setReviews([]);
-          setRestaurantCount(0);
         }
       } finally {
         if (isActive) {
@@ -309,7 +265,7 @@ const ReviewsAndRatings: React.FC = () => {
       }
     };
 
-    void loadReviews();
+    void loadData();
 
     return () => {
       isActive = false;
@@ -340,10 +296,6 @@ const ReviewsAndRatings: React.FC = () => {
 
     return () => window.clearInterval(interval);
   }, [reviews.length, totalPages]);
-
-  const averageRating = reviews.length
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-    : 0;
 
   return (
     <section className="py-20">
@@ -439,8 +391,8 @@ const ReviewsAndRatings: React.FC = () => {
                     onClick={() => setCurrentPage(i)}
                     className={`transition-all duration-300 rounded-full ${
                       i === currentPage
-                        ? "w-8 h-3 bg-gradient-to-r from-brand-500 to-red-500"
-                        : "w-3 h-3 bg-gray-300 hover:bg-gray-400"
+                        ? 'w-8 h-3 bg-gradient-to-r from-brand-500 to-red-500'
+                        : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
                     }`}
                   />
                 ))}
@@ -467,22 +419,22 @@ const ReviewsAndRatings: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
           <StatCard
             icon={<ThumbsUp className="w-7 h-7" />}
-            value={Number(averageRating.toFixed(1))}
+            value={stats.averageRating}
             suffix="/5"
             label="Average Rating"
             delay={0}
           />
           <StatCard
             icon={<Users className="w-7 h-7" />}
-            value={reviews.length}
-            suffix=""
+            value={stats.totalReviews}
+            suffix="+"
             label="Verified Reviews"
             delay={0.1}
           />
           <StatCard
             icon={<Store className="w-7 h-7" />}
-            value={restaurantCount}
-            suffix=""
+            value={stats.restaurantCount}
+            suffix="+"
             label="Partner Restaurants"
             delay={0.2}
           />
