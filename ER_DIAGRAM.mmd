@@ -1,0 +1,590 @@
+erDiagram
+
+    %% ================================================================
+    %% MULTI-VENDOR FOOD DELIVERY SYSTEM — COMPLETE ER DIAGRAM
+    %% All 28 Mongoose models with fields, types, and relationships
+    %% ================================================================
+
+    USER {
+        ObjectId _id PK
+        String email UK
+        String password
+        String googleId UK
+        String role "customer|vendor|driver|admin|support"
+        String adminTier "super_admin|admin|support"
+        Boolean isEmailVerified
+        Boolean isActive
+        Boolean isSuspended
+        String suspendedReason
+        Date suspendedUntil
+        ObjectId suspendedBy FK
+        Boolean isBanned
+        String bannedReason
+        Date bannedAt
+        ObjectId bannedBy FK
+        String firstName
+        String lastName
+        String phoneNumber UK
+        Boolean isPhoneVerified
+        String profileImage
+        String coverImage
+        Number coverImagePosition
+        Date dateOfBirth
+        Boolean onboardingCompleted
+        Array addresses "type|street|apartment|area|district|coordinates|isDefault"
+        String passwordResetToken
+        Date passwordResetExpires
+        String emailVerificationToken
+        Date emailVerificationExpires
+        String emailVerificationOTP
+        Date emailVerificationOTPExpires
+        Array refreshToken
+        Date lastLogin
+        Number failedLoginAttempts
+        Date accountLockedUntil
+        Date deletedAt
+        Date createdAt
+        Date updatedAt
+    }
+
+    VENDOR_PROFILE {
+        ObjectId _id PK
+        ObjectId userId FK "1:1 with User"
+        Array restaurantIds FK "refs Restaurant[]"
+        String businessName
+        String businessLicense
+        String taxId
+        Object bankDetails "bankName|accountNumber|accountName|branchName|routingNumber|mobileMoneyNumber|mobileMoneyProvider"
+        Number commissionRate
+        Array commissionHistory "rate|effectiveFrom|setBy|reason"
+        Boolean isVerified
+        Array verificationDocuments "type|url|uploadedAt|status"
+        Boolean autoAcceptOrders
+        Object notificationSettings "emailOnNewOrder|lowStockAlerts|reviewAlerts|promotionPerformance"
+        Number totalOrders
+        Number totalEarnings
+        Number pendingPayout
+        Number averageRating
+        Date createdAt
+        Date updatedAt
+    }
+
+    CUSTOMER_PROFILE {
+        ObjectId _id PK
+        ObjectId userId FK "1:1 with User"
+        Array dietaryPreferences
+        Array favoriteRestaurants FK "refs Restaurant[]"
+        Array paymentMethods "type|provider|token|last4|isDefault|expiryMonth|expiryYear"
+        Number loyaltyPoints
+        String tier "bronze|silver|gold|platinum"
+        Number totalOrders
+        Number totalSpent
+        Number averageOrderValue
+        ObjectId referredBy FK "refs User"
+        Object notifications "email|sms|push|orderUpdates|promotions"
+        Date createdAt
+        Date updatedAt
+    }
+
+    DRIVER_PROFILE {
+        ObjectId _id PK
+        ObjectId userId FK "1:1 with User"
+        String applicationStatus "pending|approved|rejected"
+        String rejectionReason
+        ObjectId approvedBy FK "refs User"
+        Date approvedAt
+        String licenseNumber
+        String vehicleType "bicycle|motorcycle|car|van"
+        String vehicleNumber
+        Object documents "licensePhoto|vehicleRegistrationPhoto|insurancePhoto"
+        Boolean isAvailable
+        Object currentLocation "latitude|longitude"
+        Object rating "average|count"
+        Number totalDeliveries
+        Number totalEarnings
+        Object bankDetails "bankName|accountNumber|accountHolderName|mobileMoneyNumber|mobileMoneyProvider"
+        Boolean onboardingCompleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    RESTAURANT {
+        ObjectId _id PK
+        String name
+        Map nameI18n "i18n translations"
+        String slug UK
+        String description
+        Map descriptionI18n "i18n translations"
+        Object address "street|area|district|coordinates"
+        Object location "GeoJSON Point 2dsphere"
+        Object contactInfo "phone|email|website"
+        Array cuisineType
+        Array tags
+        Object images "logo|coverPhoto|gallery[]"
+        Array operatingHours "day|openTime|closeTime|isOpen"
+        Boolean isActive
+        Boolean isTemporarilyClosed
+        String closureReason
+        String approvalStatus "pending|approved|rejected"
+        String rejectionReason
+        Object rating "average|count"
+        Object deliveryTime "min|max"
+        Number deliveryFee
+        Number minimumOrder
+        Number priceRange "1|2|3|4"
+        Array serviceOptions "delivery|dine-in|takeaway"
+        Array paymentMethods
+        Number totalOrders
+        Number averagePreparationTime
+        Date deletedAt
+        Date createdAt
+        Date updatedAt
+    }
+
+    MENU_ITEM {
+        ObjectId _id PK
+        ObjectId restaurantId FK "refs Restaurant"
+        ObjectId categoryId FK "refs MenuCategory"
+        String name
+        Map nameI18n "i18n translations"
+        String description
+        Map descriptionI18n "i18n translations"
+        Number price
+        Number originalPrice
+        String image
+        Array imageGallery
+        Array dietaryTags
+        Array variants "name|price"
+        Array addons "name|price|isRequired"
+        Boolean isAvailable
+        String stockStatus "available|out_of_stock|hidden"
+        Number preparationTime
+        Number displayOrder
+        Boolean isPopular
+        Boolean isFeatured
+        String spiceLevel "none|mild|medium|hot|extra-hot"
+        Number calories
+        String servingSize
+        Object nutritionInfo "calories|protein|carbs|fat|fiber|sodium|sugar|saturatedFat|transFat|cholesterol|servingSize|isEstimated"
+        Date deletedAt
+        Date createdAt
+        Date updatedAt
+    }
+
+    MENU_CATEGORY {
+        ObjectId _id PK
+        ObjectId restaurantId FK "refs Restaurant"
+        String name
+        String description
+        String image
+        String icon
+        Number displayOrder
+        Boolean isActive
+        String availableFrom
+        String availableUntil
+        Date deletedAt
+        Date createdAt
+        Date updatedAt
+    }
+
+    CART {
+        ObjectId _id PK
+        ObjectId userId FK "1:1 with User"
+        Array items "key|restaurantId|restaurantName|menuItemId|name|price|image|quantity|variants|addons|specialInstructions"
+        Date expiresAt "TTL index"
+        Date createdAt
+        Date updatedAt
+    }
+
+    ORDER {
+        ObjectId _id PK
+        String orderNumber UK
+        ObjectId customerId FK "refs User"
+        ObjectId restaurantId FK "refs Restaurant"
+        ObjectId groupOrderId FK "refs Order self-ref"
+        ObjectId driverId FK "refs User"
+        Array items "menuItemId|name|price|quantity|variants|addons|specialInstructions|itemTotal"
+        Object deliveryAddress "street|apartment|area|district|coordinates"
+        String status "pending|confirmed|preparing|ready|picked_up|delivered|cancelled"
+        String deliveryStage "heading_to_store|at_store|picked_up|heading_to_customer|arrived"
+        Array statusHistory "status|timestamp|actorId|actorRole|note"
+        String paymentMethod
+        String paymentStatus "pending|paid|failed|refunded"
+        Boolean codCollected
+        Number subtotal
+        Number tax
+        Number deliveryFee
+        Number discount
+        Number tipAmount
+        Number total
+        String couponCode
+        String specialInstructions
+        Date estimatedDeliveryTime
+        Date actualDeliveryTime
+        Number etaMinutes
+        Date etaUpdatedAt
+        Date scheduledFor
+        Date vendorAcceptedAt
+        Object deliveryProof "photoUrl|timestamp|note"
+        Array refundLineItems "menuItemId|itemName|quantity|refundAmount|reason"
+        String cancelReason
+        Date createdAt
+        Date updatedAt
+    }
+
+    REVIEW {
+        ObjectId _id PK
+        ObjectId customerId FK "refs User"
+        ObjectId restaurantId FK "refs Restaurant"
+        ObjectId orderId FK "refs Order UK per customer"
+        Number rating "1-5"
+        String title
+        String comment
+        Array images
+        Number helpfulVotes
+        Number unhelpfulVotes
+        Object reply "text|repliedAt"
+        Date createdAt
+        Date updatedAt
+    }
+
+    REVIEW_VOTE {
+        ObjectId _id PK
+        ObjectId reviewId FK "refs Review"
+        ObjectId userId FK "refs User"
+        String vote "helpful|unhelpful"
+        Date createdAt
+    }
+
+    DRIVER_RATING {
+        ObjectId _id PK
+        ObjectId driverId FK "refs User"
+        ObjectId customerId FK "refs User"
+        ObjectId orderId FK "refs Order UK per order"
+        Number rating "1-5"
+        String comment
+        Date createdAt
+        Date updatedAt
+    }
+
+    NOTIFICATION {
+        ObjectId _id PK
+        ObjectId userId FK "refs User"
+        String type "order_update|promotion|system|review_reply"
+        String title
+        String message
+        Boolean isRead
+        Object data
+        Date createdAt
+        Date updatedAt
+    }
+
+    SUPPORT_TICKET {
+        ObjectId _id PK
+        ObjectId userId FK "refs User"
+        ObjectId orderId FK "refs Order"
+        String type "order_issue|refund_request|account_issue|restaurant_complaint|driver_complaint|general"
+        String priority "low|medium|high|urgent"
+        String status "open|in_progress|waiting_on_user|resolved|closed"
+        String subject
+        Array messages "senderId|senderRole|message|attachments|createdAt"
+        ObjectId assignedTo FK "refs User"
+        String resolution
+        Date createdAt
+        Date updatedAt
+    }
+
+    ORDER_MESSAGE {
+        ObjectId _id PK
+        ObjectId orderId FK "refs Order"
+        String channel "customer_driver|customer_vendor"
+        ObjectId senderId FK "refs User"
+        String senderRole
+        String text
+        Array attachments
+        Array readBy FK "refs User[]"
+        Date createdAt
+        Date updatedAt
+    }
+
+    COUPON {
+        ObjectId _id PK
+        String code UK
+        String type "percentage|fixed"
+        Number value
+        Number minOrderAmount
+        Number maxDiscount
+        Date validFrom
+        Date validTo
+        Number usageLimit
+        Number usedCount
+        Number perUserLimit
+        Array usedBy "userId|usedAt"
+        Array applicableRestaurants FK "refs Restaurant[]"
+        Boolean isActive
+        Date createdAt
+        Date updatedAt
+    }
+
+    CAMPAIGN {
+        ObjectId _id PK
+        String name
+        String type "free_delivery|discount|bogo|loyalty_boost|vendor_sponsored"
+        Object rules "minOrderAmount|maxDiscount|discountType|discountValue|applicableRestaurants|applicableCategories|applicableCuisineTypes|userTiers|firstOrderOnly|maxRedemptions|maxPerUser"
+        Object schedule "start|end"
+        Boolean isActive
+        Object budget "total|used"
+        Array redemptions "userId|orderId|discountAmount|redeemedAt"
+        Date createdAt
+        Date updatedAt
+    }
+
+    DELIVERY_ZONE {
+        ObjectId _id PK
+        ObjectId restaurantId FK "1:1 with Restaurant"
+        String type "radius|polygon|district"
+        Object center "GeoJSON Point"
+        Number radiusKm
+        Object polygon "GeoJSON Polygon"
+        Array districts
+        Array feeTiers "maxDistanceKm|fee|minOrderForFree"
+        Boolean isActive
+        Number minimumOrder
+        Date createdAt
+        Date updatedAt
+    }
+
+    DRIVER_LOCATION_EVENT {
+        ObjectId _id PK
+        ObjectId driverId FK "refs User"
+        ObjectId orderId FK "refs Order"
+        Object location "GeoJSON Point 2dsphere"
+        Number heading
+        Number speed
+        Number accuracy
+        Number batteryLevel
+        Date timestamp "timeseries timeField"
+    }
+
+    PAYOUT {
+        ObjectId _id PK
+        ObjectId vendorId FK "refs User"
+        Number amount
+        Date periodStart
+        Date periodEnd
+        String status "pending|processing|completed|failed"
+        String method
+        Object bankSnapshot "bankName|accountNumber|accountName|routingNumber|mobileMoneyNumber|mobileMoneyProvider"
+        Number orderCount
+        Number commissionTotal
+        String transactionRef
+        ObjectId processedBy FK "refs User"
+        Date processedAt
+        String notes
+        Date createdAt
+        Date updatedAt
+    }
+
+    REFERRAL {
+        ObjectId _id PK
+        ObjectId referrerId FK "refs User"
+        ObjectId referredUserId FK "refs User"
+        String referralCode UK
+        String status "pending|signed_up|completed"
+        String rewardType "credit|points"
+        Number rewardAmount
+        Boolean referrerRewarded
+        Boolean referredRewarded
+        Date createdAt
+        Date updatedAt
+    }
+
+    LOYALTY_TRANSACTION {
+        ObjectId _id PK
+        ObjectId customerId FK "refs User"
+        Number amount
+        String type "order_earned|bonus|redeemed|expired|admin_adjustment"
+        ObjectId referenceId FK "refs Order or other"
+        String description
+        Number balanceAfter
+        Date createdAt
+    }
+
+    PLATFORM_SETTINGS {
+        ObjectId _id PK
+        String platformName
+        String logoUrl
+        String faviconUrl
+        String contactEmail
+        Number defaultCommissionRate
+        Number defaultDeliveryFee
+        Number minimumOrderValue
+        Number maxDeliveryRadiusKm
+        String currency
+        String locale
+        String payoutSchedule "weekly|biweekly|monthly"
+        Number minimumPayoutThreshold
+        Object featureFlags "scheduledOrders|referralProgram|loyaltyTiers|campaignAutoApply|maintenanceMode|maintenanceMessage|maintenanceWhitelistIPs"
+        Boolean smtpConfigured
+        Boolean pushConfigured
+        ObjectId updatedBy FK "refs User"
+        Date updatedAt
+    }
+
+    CONTENT_BLOCK {
+        ObjectId _id PK
+        String type "banner|featured_restaurants|featured_items"
+        String title
+        String subtitle
+        String ctaText
+        String ctaLink
+        String imageUrl
+        Array entityIds "refs Restaurant or MenuItem"
+        Number position
+        Boolean isActive
+        Date startsAt
+        Date endsAt
+        ObjectId createdBy FK "refs User"
+        ObjectId updatedBy FK "refs User"
+        Date createdAt
+        Date updatedAt
+    }
+
+    CUISINE_TYPE {
+        ObjectId _id PK
+        String name UK
+        String slug UK
+        String icon
+        Number displayOrder
+        Boolean isActive
+        Date createdAt
+        Date updatedAt
+    }
+
+    TAG {
+        ObjectId _id PK
+        String name UK
+        String slug UK
+        String category "dietary|amenity|feature|meal_type"
+        Number displayOrder
+        Boolean isActive
+        Date createdAt
+        Date updatedAt
+    }
+
+    AUDIT_LOG {
+        ObjectId _id PK
+        ObjectId actorId FK "refs User"
+        String actorRole
+        String action
+        String resourceType
+        ObjectId resourceId FK "refs any entity"
+        Array changes "field|oldValue|newValue"
+        Object metadata
+        Date timestamp
+    }
+
+    NAME {
+        ObjectId _id PK
+        String name
+    }
+
+    %% ================================================================
+    %% RELATIONSHIPS
+    %% ================================================================
+
+    %% --- User为中心的1:1 Profile关系 ---
+    USER ||--o| VENDOR_PROFILE : "has vendor profile"
+    USER ||--o| CUSTOMER_PROFILE : "has customer profile"
+    USER ||--o| DRIVER_PROFILE : "has driver profile"
+
+    %% --- VendorProfile → Restaurant ---
+    VENDOR_PROFILE ||--o{ RESTAURANT : "owns restaurants"
+
+    %% --- Restaurant → Menu ---
+    RESTAURANT ||--o{ MENU_CATEGORY : "has categories"
+    RESTAURANT ||--o{ MENU_ITEM : "has menu items"
+    MENU_CATEGORY ||--o{ MENU_ITEM : "groups items"
+
+    %% --- Restaurant → Delivery Zone ---
+    RESTAURANT ||--o| DELIVERY_ZONE : "has delivery zone"
+
+    %% --- Cart ---
+    USER ||--o| CART : "has cart"
+    CART }o--|| RESTAURANT : "items from restaurant"
+    CART }o--|| MENU_ITEM : "references menu item"
+
+    %% --- Order核心关系 ---
+    USER ||--o{ ORDER : "places orders (customer)"
+    RESTAURANT ||--o{ ORDER : "receives orders"
+    USER }o--o| ORDER : "delivers order (driver)"
+    ORDER ||--o{ ORDER : "group order self-ref"
+
+    %% --- Order Items → MenuItem ---
+    ORDER }o--|| MENU_ITEM : "orders menu item"
+
+    %% --- Order Status History → User ---
+    ORDER }o--o| USER : "status changed by actor"
+
+    %% --- Review ---
+    USER ||--o{ REVIEW : "writes reviews"
+    RESTAURANT ||--o{ REVIEW : "receives reviews"
+    ORDER ||--o| REVIEW : "1 review per order"
+
+    %% --- Review Vote ---
+    REVIEW ||--o{ REVIEW_VOTE : "has votes"
+    USER ||--o{ REVIEW_VOTE : "votes on reviews"
+
+    %% --- Driver Rating ---
+    USER ||--o{ DRIVER_RATING : "rates driver (customer)"
+    USER ||--o{ DRIVER_RATING : "receives ratings (driver)"
+    ORDER ||--o| DRIVER_RATING : "1 rating per order"
+
+    %% --- Notification ---
+    USER ||--o{ NOTIFICATION : "receives notifications"
+
+    %% --- Support Ticket ---
+    USER ||--o{ SUPPORT_TICKET : "creates tickets"
+    ORDER ||--o{ SUPPORT_TICKET : "linked to order"
+    USER ||--o{ SUPPORT_TICKET : "assigned agent"
+
+    %% --- Order Message (Chat) ---
+    ORDER ||--o{ ORDER_MESSAGE : "order chat messages"
+    USER ||--o{ ORDER_MESSAGE : "sends messages"
+    USER ||--o{ ORDER_MESSAGE : "read by users"
+
+    %% --- Coupon ---
+    RESTAURANT ||--o{ COUPON : "restaurant coupons"
+    USER ||--o{ COUPON : "used by customers"
+
+    %% --- Campaign (refs inside rules sub-schema) ---
+    RESTAURANT ||--o{ CAMPAIGN : "rules.applicableRestaurants"
+    MENU_CATEGORY ||--o{ CAMPAIGN : "rules.applicableCategories"
+    USER ||--o{ CAMPAIGN : "redemptions[].userId"
+    ORDER ||--o{ CAMPAIGN : "redemptions[].orderId"
+
+    %% --- Driver Location Events ---
+    USER ||--o{ DRIVER_LOCATION_EVENT : "driver broadcasts location"
+    ORDER ||--o{ DRIVER_LOCATION_EVENT : "tracked per order"
+
+    %% --- Payout ---
+    USER ||--o{ PAYOUT : "vendor receives payouts"
+    USER ||--o{ PAYOUT : "admin processes payout"
+
+    %% --- Referral ---
+    USER ||--o{ REFERRAL : "referrer creates code"
+    USER ||--o{ REFERRAL : "referred user signs up"
+
+    %% --- Loyalty Transaction ---
+    USER ||--o{ LOYALTY_TRANSACTION : "earns/redeems points"
+    ORDER ||--o{ LOYALTY_TRANSACTION : "linked to order"
+
+    %% --- Platform Settings ---
+    USER ||--o| PLATFORM_SETTINGS : "admin updates settings"
+
+    %% --- Content Block ---
+    USER ||--o{ CONTENT_BLOCK : "creates content"
+    USER ||--o{ CONTENT_BLOCK : "updates content"
+
+    %% --- Audit Log ---
+    USER ||--o{ AUDIT_LOG : "actor performs action"

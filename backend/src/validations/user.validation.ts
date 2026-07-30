@@ -9,21 +9,25 @@ import {
   normalizeBdPhoneNumber,
 } from '../utils/phone.util';
 
+const NAME_PATTERN = /^[a-zA-Z]+$/;
+
+const AT_LEAST_ONE_LETTER = /[a-zA-Z]/;
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Must be at least 2 characters')
+  .max(50, 'Cannot exceed 50 characters')
+  .regex(NAME_PATTERN, 'Can only contain letters')
+  .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+    message: 'Must contain at least one letter',
+  });
+
 // ── Profile update ─────────────────────────────────────────────
 
 export const updateProfileSchema = z.object({
-  firstName: z
-    .string()
-    .min(2, 'First name must be at least 2 characters')
-    .max(50, 'First name cannot exceed 50 characters')
-    .trim()
-    .optional(),
-  lastName: z
-    .string()
-    .min(2, 'Last name must be at least 2 characters')
-    .max(50, 'Last name cannot exceed 50 characters')
-    .trim()
-    .optional(),
+  firstName: nameSchema.optional(),
+  lastName: nameSchema.optional(),
   phoneNumber: z
     .string()
     .transform((v) => normalizeBdPhoneNumber(v))
@@ -48,10 +52,26 @@ const coordinatesSchema = z.object({
 
 export const addAddressSchema = z.object({
   type: z.nativeEnum(AddressType),
-  street: z.string().min(1, 'Street is required').trim(),
-  apartment: z.string().trim().optional(),
-  area: z.string().min(1, 'Area is required').trim(),
-  district: z.string().min(1, 'District is required').trim(),
+  street: z
+    .string()
+    .trim()
+    .min(2, 'Street must be at least 2 characters')
+    .max(200, 'Street cannot exceed 200 characters'),
+  apartment: z
+    .string()
+    .trim()
+    .max(200, 'Apartment cannot exceed 200 characters')
+    .optional(),
+  area: z
+    .string()
+    .trim()
+    .min(2, 'Area must be at least 2 characters')
+    .max(100, 'Area cannot exceed 100 characters'),
+  district: z
+    .string()
+    .trim()
+    .min(2, 'District must be at least 2 characters')
+    .max(100, 'District cannot exceed 100 characters'),
   coordinates: coordinatesSchema,
   isDefault: z.boolean().optional().default(false),
 });

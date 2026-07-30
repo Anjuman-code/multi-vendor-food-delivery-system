@@ -26,10 +26,12 @@ const ticketSchema = z.object({
   ]),
   subject: z
     .string()
+    .trim()
     .min(5, "Subject must be at least 5 characters")
     .max(200, "Subject must be at most 200 characters"),
   message: z
     .string()
+    .trim()
     .min(10, "Message must be at least 10 characters")
     .max(2000, "Message must be at most 2000 characters"),
   orderId: z.string().optional(),

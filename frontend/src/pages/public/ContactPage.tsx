@@ -1,17 +1,17 @@
-import Container from "@/components/public/Container";
-import Eyebrow from "@/components/public/Eyebrow";
-import PageHero from "@/components/public/PageHero";
-import Section from "@/components/public/Section";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast";
-import { fadeInUp, inViewport } from "@/lib/motion";
-import { applyServerErrors, getErrorMessage } from "@/lib/formErrors";
-import httpClient from "@/lib/httpClient";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
+import Container from '@/components/public/Container';
+import Eyebrow from '@/components/public/Eyebrow';
+import PageHero from '@/components/public/PageHero';
+import Section from '@/components/public/Section';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { applyServerErrors, getErrorMessage } from '@/lib/formErrors';
+import httpClient from '@/lib/httpClient';
+import { fadeInUp, inViewport } from '@/lib/motion';
+import { toast } from '@/lib/toast';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
 import {
   Clock,
   Facebook,
@@ -24,17 +24,63 @@ import {
   Send,
   Sparkles,
   Twitter,
-} from "lucide-react";
-import React from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+} from 'lucide-react';
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+const namePattern = /^[a-zA-Z]+$/;
 
 const contactSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  phone: z.string().optional(),
-  subject: z.string().min(5, "Subject must be at least 5 characters"),
-  message: z.string().min(20, "Message must be at least 20 characters"),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name cannot exceed 100 characters')
+    .regex(namePattern, 'Name Can only contain letters')
+    .refine((v) => /[a-zA-Z]/.test(v), {
+      message: 'Must contain at least one letter',
+    }),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .max(254, 'Email is too long')
+    .email('Please enter a valid email address')
+    .refine(
+      (v) => {
+        const [local, domain] = v.split('@');
+        if (!local || !domain) return false;
+        if (!/[a-zA-Z]/.test(local)) return false;
+        const dotIdx = domain.lastIndexOf('.');
+        if (dotIdx <= 0 || dotIdx >= domain.length - 1) return false;
+        const tld = domain.slice(dotIdx + 1);
+        if (!/^[a-zA-Z]{2,}$/.test(tld)) return false;
+        if (tld.length <= 2 && [...new Set(tld)].length === 1) return false;
+        if (!/[a-zA-Z]/.test(domain)) return false;
+        return true;
+      },
+      { message: 'Please enter a valid email address' },
+    ),
+  phone: z
+    .string()
+    .trim()
+    .refine(
+      (v) => !v || /^(?:\+?88)?[- ]?01[3-9]\d{2}[- ]?\d{3}[- ]?\d{3}$/.test(v),
+      'Please enter a valid Bangladesh mobile number',
+    )
+    .optional()
+    .or(z.literal('')),
+  subject: z
+    .string()
+    .min(5, 'Subject must be at least 5 characters')
+    .max(200, 'Subject cannot exceed 200 characters')
+    .trim(),
+  message: z
+    .string()
+    .min(20, 'Message must be at least 20 characters')
+    .max(2000, 'Message cannot exceed 2000 characters')
+    .trim(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -42,46 +88,46 @@ type ContactFormData = z.infer<typeof contactSchema>;
 const contactInfo = [
   {
     icon: MapPin,
-    title: "Visit Us",
-    details: ["30/7 Lovely Road", "Sylhet 3100, Bangladesh"],
-    color: "bg-brand-100 text-brand-500",
+    title: 'Visit Us',
+    details: ['30/7 Lovely Road', 'Sylhet 3100, Bangladesh'],
+    color: 'bg-brand-100 text-brand-500',
   },
   {
     icon: Phone,
-    title: "Call Us",
-    details: ["+880 1637 429498", "+880 1XXX XXXXXX"],
-    color: "bg-green-100 text-green-500",
+    title: 'Call Us',
+    details: ['+880 1637 429498', '+880 1XXX XXXXXX'],
+    color: 'bg-green-100 text-green-500',
   },
   {
     icon: Mail,
-    title: "Email Us",
-    details: ["support@foodrush.com", "business@foodrush.com"],
-    color: "bg-blue-100 text-blue-500",
+    title: 'Email Us',
+    details: ['support@foodrush.com', 'business@foodrush.com'],
+    color: 'bg-blue-100 text-blue-500',
   },
   {
     icon: Clock,
-    title: "Business Hours",
-    details: ["Daily: 8:00 AM - 12:00 AM", "Customer Support: 24/7"],
-    color: "bg-purple-100 text-purple-500",
+    title: 'Business Hours',
+    details: ['Daily: 8:00 AM - 12:00 AM', 'Customer Support: 24/7'],
+    color: 'bg-purple-100 text-purple-500',
   },
 ];
 
 const socialLinks = [
-  { name: "Facebook", icon: Facebook, href: "#", color: "hover:bg-blue-500" },
-  { name: "Twitter", icon: Twitter, href: "#", color: "hover:bg-sky-500" },
-  { name: "Instagram", icon: Instagram, href: "#", color: "hover:bg-pink-500" },
+  { name: 'Facebook', icon: Facebook, href: '#', color: 'hover:bg-blue-500' },
+  { name: 'Twitter', icon: Twitter, href: '#', color: 'hover:bg-sky-500' },
+  { name: 'Instagram', icon: Instagram, href: '#', color: 'hover:bg-pink-500' },
 ];
 
 const responseTiers = [
-  "General inquiries: Response within 24 hours",
-  "Order issues: Immediate support via phone",
-  "Partnership inquiries: Response within 48 hours",
+  'General inquiries: Response within 24 hours',
+  'Order issues: Immediate support via phone',
+  'Partnership inquiries: Response within 48 hours',
 ];
 
 const ContactPage: React.FC = () => {
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
-    mode: "onTouched",
+    mode: 'onTouched',
   });
 
   const {
@@ -93,10 +139,10 @@ const ContactPage: React.FC = () => {
 
   const onSubmit = async (data: ContactFormData) => {
     try {
-      const res = await httpClient.post("/api/contact", data);
+      const res = await httpClient.post('/api/contact', data);
       const result = res.data as { success: boolean; message: string };
       if (result.success) {
-        toast.success("Message Sent!", {
+        toast.success('Message Sent!', {
           description:
             result.message ||
             "Thank you for reaching out. We'll get back to you within 24 hours.",
@@ -106,14 +152,14 @@ const ContactPage: React.FC = () => {
         // Attach any backend field errors inline; toast otherwise.
         applyServerErrors(form, result, {
           fallbackMessage:
-            result.message || "Failed to send message. Please try again.",
+            result.message || 'Failed to send message. Please try again.',
         });
       }
     } catch (err) {
       applyServerErrors(form, err, {
         fallbackMessage: getErrorMessage(
           err,
-          "Failed to send message. Please try again later.",
+          'Failed to send message. Please try again later.',
         ),
       });
     }
@@ -154,7 +200,9 @@ const ContactPage: React.FC = () => {
                 >
                   <info.icon className="h-7 w-7" />
                 </div>
-                <h3 className="mb-3 text-lg font-bold text-gray-900">{info.title}</h3>
+                <h3 className="mb-3 text-lg font-bold text-gray-900">
+                  {info.title}
+                </h3>
                 {info.details.map((detail) => (
                   <p key={detail} className="text-sm text-gray-600">
                     {detail}
@@ -182,7 +230,9 @@ const ContactPage: React.FC = () => {
                 <Eyebrow icon={Send} className="mb-4">
                   Send a Message
                 </Eyebrow>
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Contact Form</h2>
+                <h2 className="mb-2 text-2xl font-bold text-gray-900">
+                  Contact Form
+                </h2>
                 <p className="text-gray-600">
                   Fill out the form below and we'll get back to you shortly.
                 </p>
@@ -196,10 +246,12 @@ const ContactPage: React.FC = () => {
                       id="name"
                       placeholder="Your name"
                       aria-invalid={!!errors.name}
-                      {...register("name")}
+                      {...register('name')}
                     />
                     {errors.name && (
-                      <p className="text-sm text-destructive">{errors.name.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.name.message}
+                      </p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -209,10 +261,12 @@ const ContactPage: React.FC = () => {
                       type="email"
                       placeholder="you@example.com"
                       aria-invalid={!!errors.email}
-                      {...register("email")}
+                      {...register('email')}
                     />
                     {errors.email && (
-                      <p className="text-sm text-destructive">{errors.email.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.email.message}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -223,7 +277,7 @@ const ContactPage: React.FC = () => {
                     <Input
                       id="phone"
                       placeholder="+880 1XXX XXXXXX"
-                      {...register("phone")}
+                      {...register('phone')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -232,10 +286,12 @@ const ContactPage: React.FC = () => {
                       id="subject"
                       placeholder="How can we help?"
                       aria-invalid={!!errors.subject}
-                      {...register("subject")}
+                      {...register('subject')}
                     />
                     {errors.subject && (
-                      <p className="text-sm text-destructive">{errors.subject.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.subject.message}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -247,10 +303,12 @@ const ContactPage: React.FC = () => {
                     rows={5}
                     placeholder="Tell us more about your inquiry..."
                     aria-invalid={!!errors.message}
-                    {...register("message")}
+                    {...register('message')}
                   />
                   {errors.message && (
-                    <p className="text-sm text-destructive">{errors.message.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.message.message}
+                    </p>
                   )}
                 </div>
 
@@ -291,7 +349,9 @@ const ContactPage: React.FC = () => {
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-brand-500 to-red-500">
                       <MapPin className="h-8 w-8 text-white" />
                     </div>
-                    <h3 className="mb-2 text-xl font-bold text-gray-900">Our Location</h3>
+                    <h3 className="mb-2 text-xl font-bold text-gray-900">
+                      Our Location
+                    </h3>
                     <p className="text-gray-600">
                       30/7 Lovely Road, Sylhet 3100
                       <br />
@@ -323,7 +383,9 @@ const ContactPage: React.FC = () => {
 
               {/* Social */}
               <div className="rounded-2xl bg-white p-8 shadow-xl">
-                <h3 className="mb-4 text-xl font-bold text-gray-900">Connect With Us</h3>
+                <h3 className="mb-4 text-xl font-bold text-gray-900">
+                  Connect With Us
+                </h3>
                 <p className="mb-6 text-gray-600">
                   Follow us on social media for updates, offers, and more.
                 </p>

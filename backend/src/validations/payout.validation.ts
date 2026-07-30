@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const createPayoutSchema = z.object({
   vendorId: z.string().min(1, "Vendor ID is required"),
-  amount: z.number().min(0, "Amount must be non-negative"),
+  amount: z.number().min(0.01, "Amount must be greater than 0"),
   periodStart: z.preprocess((v) => (v instanceof Date ? v : new Date(v as string)), z.date()),
   periodEnd: z.preprocess((v) => (v instanceof Date ? v : new Date(v as string)), z.date()),
   method: z.string().min(1, "Payout method is required"),

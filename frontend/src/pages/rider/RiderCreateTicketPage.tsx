@@ -30,8 +30,8 @@ const ticketSchema = z.object({
     "driver_complaint",
     "general",
   ]),
-  subject: z.string().min(5, "At least 5 characters").max(200),
-  message: z.string().min(10, "At least 10 characters").max(2000),
+  subject: z.string().trim().min(5, "At least 5 characters").max(200),
+  message: z.string().trim().min(10, "At least 10 characters").max(2000),
   orderId: z.string().optional(),
 });
 type TicketFormData = z.infer<typeof ticketSchema>;

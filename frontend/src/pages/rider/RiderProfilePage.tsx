@@ -41,13 +41,13 @@ import { z } from "zod";
 
 const profileSchema = z.object({
   vehicleType: z.enum(["bicycle", "motorcycle", "car", "van"]).optional(),
-  vehicleNumber: z.string().optional(),
-  licenseNumber: z.string().optional(),
-  bankName: z.string().optional(),
-  accountNumber: z.string().optional(),
-  accountHolderName: z.string().optional(),
+  vehicleNumber: z.string().trim().max(30, 'Cannot exceed 30 characters').optional().or(z.literal('')),
+  licenseNumber: z.string().trim().max(50, 'Cannot exceed 50 characters').optional().or(z.literal('')),
+  bankName: z.string().trim().max(100, 'Cannot exceed 100 characters').optional().or(z.literal('')),
+  accountNumber: z.string().trim().max(50, 'Cannot exceed 50 characters').optional().or(z.literal('')),
+  accountHolderName: z.string().trim().max(100, 'Cannot exceed 100 characters').optional().or(z.literal('')),
   mobileMoneyNumber: optionalBdPhoneSchema as unknown as z.ZodOptional<z.ZodString>,
-  mobileMoneyProvider: z.string().optional(),
+  mobileMoneyProvider: z.string().trim().max(50, 'Cannot exceed 50 characters').optional().or(z.literal('')),
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
 

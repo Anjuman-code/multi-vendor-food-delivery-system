@@ -1,14 +1,45 @@
 import { bdPhoneSchema } from '@/lib/phone';
 import { z } from 'zod';
 
+const namePattern = /^[a-zA-Z]+$/;
+
+const atLeastOneLetter = /[a-zA-Z]/;
+
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(254, 'Email is too long')
+  .email('Please enter a valid email address')
+  .refine(
+    (v) => {
+      const [local, domain] = v.split('@');
+      if (!local || !domain) return false;
+      if (!/[a-zA-Z]/.test(local)) return false;
+      const dotIdx = domain.lastIndexOf('.');
+      if (dotIdx <= 0 || dotIdx >= domain.length - 1) return false;
+      const tld = domain.slice(dotIdx + 1);
+      if (!/^[a-zA-Z]{2,}$/.test(tld)) return false;
+      if (tld.length <= 2 && [...new Set(tld)].length === 1) return false;
+      if (!/[a-zA-Z]/.test(domain)) return false;
+      return true;
+    },
+    { message: 'Please enter a valid email address' },
+  )
+  .transform((v) => v.toLowerCase());
+
 // ── Restaurant schemas ───────────────────────────────────────────
 
 export const createRestaurantSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(2, 'Restaurant name must be at least 2 characters')
     .max(100, 'Restaurant name cannot exceed 100 characters')
-    .trim(),
+    .regex(namePattern, 'Name Can only contain letters')
+    .refine((v) => atLeastOneLetter.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   description: z
     .string()
     .min(10, 'Description must be at least 10 characters')
@@ -18,7 +49,7 @@ export const createRestaurantSchema = z.object({
     .array(z.string().min(1))
     .min(1, 'Select at least one cuisine type'),
   phone: bdPhoneSchema,
-  email: z.string().email('Please enter a valid email address'),
+  email: emailSchema,
   website: z
     .string()
     .trim()
@@ -63,9 +94,13 @@ const updateRestaurantSchema = createRestaurantSchema.partial();
 const menuCategorySchema = z.object({
   name: z
     .string()
+    .trim()
     .min(2, 'Category name must be at least 2 characters')
     .max(50, 'Category name cannot exceed 50 characters')
-    .trim(),
+    .regex(namePattern, 'Name Can only contain letters')
+    .refine((v) => atLeastOneLetter.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   description: z
     .string()
     .max(200, 'Description cannot exceed 200 characters')
@@ -79,9 +114,13 @@ const menuCategorySchema = z.object({
 const menuItemSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(2, 'Item name must be at least 2 characters')
     .max(100, 'Item name cannot exceed 100 characters')
-    .trim(),
+    .regex(namePattern, 'Name Can only contain letters')
+    .refine((v) => atLeastOneLetter.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   description: z
     .string()
     .min(5, 'Description must be at least 5 characters')
@@ -99,7 +138,11 @@ const menuItemSchema = z.object({
   variants: z
     .array(
       z.object({
-        name: z.string().min(1, 'Variant name is required'),
+        name: z
+          .string()
+          .trim()
+          .min(1, 'Variant name is required')
+          .max(100, 'Variant name cannot exceed 100 characters'),
         price: z.number().min(0, 'Variant price cannot be negative'),
       }),
     )
@@ -107,7 +150,11 @@ const menuItemSchema = z.object({
   addons: z
     .array(
       z.object({
-        name: z.string().min(1, 'Addon name is required'),
+        name: z
+          .string()
+          .trim()
+          .min(1, 'Addon name is required')
+          .max(100, 'Addon name cannot exceed 100 characters'),
         price: z.number().min(0, 'Addon price cannot be negative'),
       }),
     )

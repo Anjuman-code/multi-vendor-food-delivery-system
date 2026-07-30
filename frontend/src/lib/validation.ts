@@ -1,6 +1,71 @@
 import { bdPhoneSchema, emailOrBdPhoneSchema } from '@/lib/phone';
 import { z } from 'zod';
 
+const namePattern = /^[a-zA-Z]+$/;
+
+const atLeastOneLetter = /[a-zA-Z]/;
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Must be at least 2 characters')
+  .max(50, 'Cannot exceed 50 characters')
+  .regex(namePattern, 'Can only contain letters')
+  .refine((v) => atLeastOneLetter.test(v), {
+    message: 'Must contain at least one letter',
+  });
+
+const allowedDomains = [
+  'gmail.com',
+  'yahoo.com',
+  'outlook.com',
+  'live.com',
+  'hotmail.com',
+  'proton.me',
+  'protonmail.com',
+  'duck.com',
+  'office.com',
+  'icloud.com',
+  'aol.com',
+  'zoho.com',
+  'yandex.com',
+  'gmx.com',
+  'fastmail.com',
+  'tutanota.com',
+];
+
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(254, 'Email is too long')
+  .email('Please enter a valid email address')
+  .refine(
+    (v) => {
+      const [local, domain] = v.split('@');
+      if (!local || !domain) return false;
+      if (!/[a-zA-Z]/.test(local)) return false;
+      return allowedDomains.includes(domain.toLowerCase());
+    },
+    {
+      message:
+        'Only emails from major providers (Gmail, Yahoo, Outlook, etc.) are allowed',
+    },
+  )
+  .transform((v) => v.toLowerCase());
+
+const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must not exceed 128 characters')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(
+    /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
+    'Password must contain at least one special character',
+  );
+
 // ── Login schema ───────────────────────────────────────────────
 // Backend expects { emailOrPhone, password }
 export const loginSchema = z.object({
@@ -12,29 +77,11 @@ export const loginSchema = z.object({
 // Backend expects { firstName, lastName, email, phoneNumber, password }
 export const registerSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, 'First name must be at least 2 characters')
-      .max(50, 'First name cannot exceed 50 characters')
-      .trim(),
-    lastName: z
-      .string()
-      .min(2, 'Last name must be at least 2 characters')
-      .max(50, 'Last name cannot exceed 50 characters')
-      .trim(),
-    email: z.string().email('Please enter a valid email address'),
+    firstName: nameSchema,
+    lastName: nameSchema,
+    email: emailSchema,
     phoneNumber: bdPhoneSchema,
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(128, 'Password must not exceed 128 characters')
-      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-      .regex(/[0-9]/, 'Password must contain at least one number')
-      .regex(
-        /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
-        'Password must contain at least one special character',
-      ),
+    password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     agreedToTerms: z.boolean().refine((val) => val === true, {
       message: 'You must agree to the terms and privacy policy',
@@ -47,26 +94,14 @@ export const registerSchema = z
 
 // ── Forgot password schema ─────────────────────────────────────
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: emailSchema,
 });
 
 // ── Change password schema ─────────────────────────────────────
-const passwordSchemaStrict = z
-  .string()
-  .min(8, 'Password must be at least 8 characters')
-  .max(128, 'Password must not exceed 128 characters')
-  .regex(/[a-z]/, 'Must contain at least one lowercase letter')
-  .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
-  .regex(/[0-9]/, 'Must contain at least one number')
-  .regex(
-    /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
-    'Must contain at least one special character',
-  );
-
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: passwordSchemaStrict,
+    newPassword: passwordSchema,
     confirmNewPassword: z.string().min(1, 'Please confirm your new password'),
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {
@@ -76,16 +111,8 @@ export const changePasswordSchema = z
 
 // ── Update profile schema ──────────────────────────────────────
 export const updateProfileSchema = z.object({
-  firstName: z
-    .string()
-    .min(2, 'First name must be at least 2 characters')
-    .max(50, 'First name cannot exceed 50 characters')
-    .trim(),
-  lastName: z
-    .string()
-    .min(2, 'Last name must be at least 2 characters')
-    .max(50, 'Last name cannot exceed 50 characters')
-    .trim(),
+  firstName: nameSchema,
+  lastName: nameSchema,
   phoneNumber: bdPhoneSchema,
   dateOfBirth: z.string().optional(),
 });
@@ -95,10 +122,26 @@ export const addAddressSchema = z.object({
   type: z.enum(['home', 'work', 'other'], {
     message: 'Address type is required',
   }),
-  street: z.string().min(1, 'Street is required').trim(),
-  apartment: z.string().trim().optional(),
-  district: z.string().min(1, 'District is required').trim(),
-  area: z.string().min(1, 'Area is required').trim(),
+  street: z
+    .string()
+    .trim()
+    .min(2, 'Street must be at least 2 characters')
+    .max(200, 'Street cannot exceed 200 characters'),
+  apartment: z
+    .string()
+    .trim()
+    .max(200, 'Apartment cannot exceed 200 characters')
+    .optional(),
+  district: z
+    .string()
+    .trim()
+    .min(2, 'District must be at least 2 characters')
+    .max(100, 'District cannot exceed 100 characters'),
+  area: z
+    .string()
+    .trim()
+    .min(2, 'Area must be at least 2 characters')
+    .max(100, 'Area cannot exceed 100 characters'),
   latitude: z.coerce
     .number()
     .min(-90, 'Latitude must be between -90 and 90')
@@ -126,35 +169,13 @@ export type DeactivateAccountFormData = z.infer<typeof deactivateAccountSchema>;
 // ── Vendor Registration schema ─────────────────────────────────
 export const vendorRegisterSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, 'First name must be at least 2 characters')
-      .max(50, 'First name cannot exceed 50 characters')
-      .trim(),
-    lastName: z
-      .string()
-      .min(2, 'Last name must be at least 2 characters')
-      .max(50, 'Last name cannot exceed 50 characters')
-      .trim(),
-    email: z.string().email('Please enter a valid email address'),
+    firstName: nameSchema,
+    lastName: nameSchema,
+    email: emailSchema,
     phoneNumber: bdPhoneSchema,
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(128, 'Password must not exceed 128 characters')
-      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-      .regex(/[0-9]/, 'Password must contain at least one number')
-      .regex(
-        /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
-        'Password must contain at least one special character',
-      ),
+    password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
-    businessName: z
-      .string()
-      .min(2, 'Business name must be at least 2 characters')
-      .max(100, 'Business name cannot exceed 100 characters')
-      .trim(),
+    businessName: nameSchema.max(100, 'Cannot exceed 100 characters'),
     businessLicense: z
       .string()
       .min(1, 'Business license number is required')
@@ -179,29 +200,11 @@ export type VendorRegisterFormData = z.infer<typeof vendorRegisterSchema>;
 // ── Rider Registration schema ──────────────────────────────────
 export const riderRegisterSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, 'First name must be at least 2 characters')
-      .max(50)
-      .trim(),
-    lastName: z
-      .string()
-      .min(2, 'Last name must be at least 2 characters')
-      .max(50)
-      .trim(),
-    email: z.string().email('Please enter a valid email address'),
+    firstName: nameSchema,
+    lastName: nameSchema,
+    email: emailSchema,
     phoneNumber: bdPhoneSchema,
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(128)
-      .regex(/[a-z]/, 'Must contain a lowercase letter')
-      .regex(/[A-Z]/, 'Must contain an uppercase letter')
-      .regex(/[0-9]/, 'Must contain a number')
-      .regex(
-        /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
-        'Must contain a special character',
-      ),
+    password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     licenseNumber: z
       .string()

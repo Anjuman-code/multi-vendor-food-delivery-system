@@ -10,6 +10,20 @@ import {
 
 // ── Reusable field schemas ─────────────────────────────────────
 
+const NAME_PATTERN = /^[a-zA-Z]+$/;
+
+const AT_LEAST_ONE_LETTER = /[a-zA-Z]/;
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Must be at least 2 characters')
+  .max(50, 'Cannot exceed 50 characters')
+  .regex(NAME_PATTERN, 'Can only contain letters')
+  .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+    message: 'Must contain at least one letter',
+  });
+
 const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
@@ -24,7 +38,25 @@ const passwordSchema = z
 
 const emailSchema = z
   .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(254, 'Email is too long')
   .email('Please enter a valid email address')
+  .refine(
+    (v) => {
+      const [local, domain] = v.split('@');
+      if (!local || !domain) return false;
+      if (!/[a-zA-Z]/.test(local)) return false;
+      const dotIdx = domain.lastIndexOf('.');
+      if (dotIdx <= 0 || dotIdx >= domain.length - 1) return false;
+      const tld = domain.slice(dotIdx + 1);
+      if (!/^[a-zA-Z]{2,}$/.test(tld)) return false;
+      if (tld.length <= 2 && [...new Set(tld)].length === 1) return false;
+      if (!/[a-zA-Z]/.test(domain)) return false;
+      return true;
+    },
+    { message: 'Please enter a valid email address' },
+  )
   .transform((v) => v.toLowerCase().trim());
 
 const phoneSchema = z
@@ -39,16 +71,8 @@ const phoneSchema = z
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  firstName: z
-    .string()
-    .min(2, 'First name must be at least 2 characters')
-    .max(50, 'First name cannot exceed 50 characters')
-    .trim(),
-  lastName: z
-    .string()
-    .min(2, 'Last name must be at least 2 characters')
-    .max(50, 'Last name cannot exceed 50 characters')
-    .trim(),
+  firstName: nameSchema,
+  lastName: nameSchema,
   phoneNumber: phoneSchema,
 });
 

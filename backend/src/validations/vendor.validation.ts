@@ -10,6 +10,22 @@ import {
 
 // ── Reusable field schemas ─────────────────────────────────────
 
+const NAME_PATTERN = /^[a-zA-Z]+$/;
+
+const AT_LEAST_ONE_LETTER = /[a-zA-Z]/;
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Must be at least 2 characters')
+  .max(50, 'Cannot exceed 50 characters')
+  .regex(NAME_PATTERN, 'Can only contain letters')
+  .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+    message: 'Must contain at least one letter',
+  });
+
+const businessNameSchema = nameSchema.max(100, 'Cannot exceed 100 characters');
+
 const phoneSchema = z
   .string()
   .transform((v) => normalizeBdPhoneNumber(v))
@@ -19,7 +35,25 @@ const phoneSchema = z
 
 const emailSchema = z
   .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(254, 'Email is too long')
   .email('Please enter a valid email address')
+  .refine(
+    (v) => {
+      const [local, domain] = v.split('@');
+      if (!local || !domain) return false;
+      if (!/[a-zA-Z]/.test(local)) return false;
+      const dotIdx = domain.lastIndexOf('.');
+      if (dotIdx <= 0 || dotIdx >= domain.length - 1) return false;
+      const tld = domain.slice(dotIdx + 1);
+      if (!/^[a-zA-Z]{2,}$/.test(tld)) return false;
+      if (tld.length <= 2 && [...new Set(tld)].length === 1) return false;
+      if (!/[a-zA-Z]/.test(domain)) return false;
+      return true;
+    },
+    { message: 'Please enter a valid email address' },
+  )
   .transform((v) => v.toLowerCase().trim());
 
 // ── Vendor Registration (extends base register) ────────────────
@@ -37,22 +71,10 @@ export const vendorRegisterSchema = z.object({
       /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/,
       'Password must contain at least one special character',
     ),
-  firstName: z
-    .string()
-    .min(2, 'First name must be at least 2 characters')
-    .max(50, 'First name cannot exceed 50 characters')
-    .trim(),
-  lastName: z
-    .string()
-    .min(2, 'Last name must be at least 2 characters')
-    .max(50, 'Last name cannot exceed 50 characters')
-    .trim(),
+  firstName: nameSchema,
+  lastName: nameSchema,
   phoneNumber: phoneSchema,
-  businessName: z
-    .string()
-    .min(2, 'Business name must be at least 2 characters')
-    .max(100, 'Business name cannot exceed 100 characters')
-    .trim(),
+  businessName: businessNameSchema,
   businessLicense: z
     .string()
     .min(1, 'Business license is required')
@@ -70,12 +92,7 @@ export type VendorRegisterInput = z.infer<typeof vendorRegisterSchema>;
 // ── Vendor Profile Update ──────────────────────────────────────
 
 export const updateVendorProfileSchema = z.object({
-  businessName: z
-    .string()
-    .min(2, 'Business name must be at least 2 characters')
-    .max(100, 'Business name cannot exceed 100 characters')
-    .trim()
-    .optional(),
+  businessName: businessNameSchema.optional(),
   businessLicense: z
     .string()
     .min(1, 'Business license is required')
@@ -88,7 +105,7 @@ export const updateVendorProfileSchema = z.object({
     .max(50, 'Tax ID cannot exceed 50 characters')
     .trim()
     .optional(),
-  bankDetails: z.record(z.unknown()).optional(),
+  bankDetails: z.record(z.string(), z.unknown()).optional(),
   autoAcceptOrders: z.boolean().optional(),
   notificationSettings: z
     .object({
@@ -114,16 +131,33 @@ const coordinatesSchema = z
   .optional();
 
 const addressSchema = z.object({
-  street: z.string().min(1, 'Street is required').trim(),
-  area: z.string().min(1, 'Area is required').trim(),
-  district: z.string().min(1, 'District is required').trim(),
+  street: z
+    .string()
+    .trim()
+    .min(2, 'Street must be at least 2 characters')
+    .max(200, 'Street cannot exceed 200 characters'),
+  area: z
+    .string()
+    .trim()
+    .min(2, 'Area must be at least 2 characters')
+    .max(100, 'Area cannot exceed 100 characters'),
+  district: z
+    .string()
+    .trim()
+    .min(2, 'District must be at least 2 characters')
+    .max(100, 'District cannot exceed 100 characters'),
   coordinates: coordinatesSchema,
 });
 
 const contactInfoSchema = z.object({
   phone: phoneSchema,
   email: emailSchema,
-  website: z.string().trim().optional(),
+  website: z
+    .string()
+    .trim()
+    .url('Please enter a valid URL')
+    .optional()
+    .or(z.literal('')),
 });
 
 const operatingHoursSchema = z.object({
@@ -144,14 +178,18 @@ const operatingHoursSchema = z.object({
 export const createRestaurantSchema = z.object({
   name: z
     .string()
-    .min(1, 'Restaurant name is required')
+    .trim()
+    .min(2, 'Restaurant name must be at least 2 characters')
     .max(100, 'Name cannot exceed 100 characters')
-    .trim(),
+    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   description: z
     .string()
-    .min(1, 'Description is required')
-    .max(500, 'Description cannot exceed 500 characters')
-    .trim(),
+    .trim()
+    .min(10, 'Description must be at least 10 characters')
+    .max(500, 'Description cannot exceed 500 characters'),
   address: addressSchema,
   contactInfo: contactInfoSchema,
   cuisineType: z
@@ -179,15 +217,19 @@ export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
 export const updateRestaurantSchema = z.object({
   name: z
     .string()
-    .min(1, 'Restaurant name is required')
-    .max(100, 'Name cannot exceed 100 characters')
     .trim()
+    .min(2, 'Restaurant name must be at least 2 characters')
+    .max(100, 'Name cannot exceed 100 characters')
+    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+      message: 'Must contain at least one letter',
+    })
     .optional(),
   description: z
     .string()
-    .min(1, 'Description is required')
-    .max(500, 'Description cannot exceed 500 characters')
     .trim()
+    .min(10, 'Description must be at least 10 characters')
+    .max(500, 'Description cannot exceed 500 characters')
     .optional(),
   address: addressSchema.optional(),
   contactInfo: contactInfoSchema.optional(),
@@ -223,9 +265,13 @@ export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;
 export const createMenuCategorySchema = z.object({
   name: z
     .string()
-    .min(1, 'Category name is required')
+    .trim()
+    .min(2, 'Category name must be at least 2 characters')
     .max(80, 'Category name cannot exceed 80 characters')
-    .trim(),
+    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   description: z
     .string()
     .max(300, 'Description cannot exceed 300 characters')
@@ -239,9 +285,13 @@ export type CreateMenuCategoryInput = z.infer<typeof createMenuCategorySchema>;
 export const updateMenuCategorySchema = z.object({
   name: z
     .string()
-    .min(1, 'Category name is required')
-    .max(80, 'Category name cannot exceed 80 characters')
     .trim()
+    .min(2, 'Category name must be at least 2 characters')
+    .max(80, 'Category name cannot exceed 80 characters')
+    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+      message: 'Must contain at least one letter',
+    })
     .optional(),
   description: z
     .string()
@@ -270,15 +320,19 @@ export const createMenuItemSchema = z.object({
   categoryId: z.string().optional(),
   name: z
     .string()
-    .min(1, 'Item name is required')
+    .trim()
+    .min(2, 'Item name must be at least 2 characters')
     .max(100, 'Item name cannot exceed 100 characters')
-    .trim(),
+    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   description: z
     .string()
-    .min(1, 'Description is required')
-    .max(500, 'Description cannot exceed 500 characters')
-    .trim(),
-  price: z.number().min(0, 'Price must be non-negative'),
+    .trim()
+    .min(5, 'Description must be at least 5 characters')
+    .max(500, 'Description cannot exceed 500 characters'),
+  price: z.number().min(0.01, 'Price must be greater than 0'),
   image: z.string().trim().optional(),
   dietaryTags: z.array(z.string().trim()).optional().default([]),
   variants: z.array(variantSchema).optional().default([]),
@@ -297,17 +351,21 @@ export const updateMenuItemSchema = z.object({
   categoryId: z.string().nullable().optional(),
   name: z
     .string()
-    .min(1, 'Item name is required')
-    .max(100, 'Item name cannot exceed 100 characters')
     .trim()
+    .min(2, 'Item name must be at least 2 characters')
+    .max(100, 'Item name cannot exceed 100 characters')
+    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+      message: 'Must contain at least one letter',
+    })
     .optional(),
   description: z
     .string()
-    .min(1, 'Description is required')
-    .max(500, 'Description cannot exceed 500 characters')
     .trim()
+    .min(5, 'Description must be at least 5 characters')
+    .max(500, 'Description cannot exceed 500 characters')
     .optional(),
-  price: z.number().min(0, 'Price must be non-negative').optional(),
+  price: z.number().min(0.01, 'Price must be greater than 0').optional(),
   image: z.string().trim().nullable().optional(),
   dietaryTags: z.array(z.string().trim()).optional(),
   variants: z.array(variantSchema).optional(),
@@ -358,7 +416,7 @@ export const createCouponSchema = z.object({
   type: z.enum(['percentage', 'fixed'], {
     message: 'Type must be percentage or fixed',
   }),
-  value: z.number().min(0, 'Value must be non-negative'),
+  value: z.number().min(0.01, 'Value must be greater than 0'),
   minOrderAmount: z.number().min(0).optional().default(0),
   maxDiscount: z.number().min(0).optional(),
   validFrom: z.preprocess((value) => {

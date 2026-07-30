@@ -9,9 +9,9 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/lib/toast';
 import { getErrorMessage } from '@/lib/formErrors';
 import { bdPhoneSchema } from '@/lib/phone';
+import { toast } from '@/lib/toast';
 import type { Booking, BookingSlot, Restaurant } from '@/types/restaurant';
 import { cn } from '@/utils/cn';
 import { restaurantFallbackSVG } from '@/utils/fallbackImages';
@@ -40,7 +40,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import z from 'zod';
 
-// Validation schema
+const namePattern = /^[a-zA-Z]+$/;
+
 const bookingSchema = z.object({
   guests: z
     .number()
@@ -48,9 +49,37 @@ const bookingSchema = z.object({
     .max(20, 'Maximum 20 guests'),
   date: z.string().min(1, 'Please select a date'),
   time: z.string().min(1, 'Please select a time'),
-  contactName: z.string().min(2, 'Name is required'),
+  contactName: z
+    .string()
+    .trim()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name cannot exceed 100 characters')
+    .regex(namePattern, 'Name Can only contain letters')
+    .refine((v) => /[a-zA-Z]/.test(v), {
+      message: 'Must contain at least one letter',
+    }),
   contactPhone: bdPhoneSchema,
-  contactEmail: z.string().email('Valid email required'),
+  contactEmail: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .max(254, 'Email is too long')
+    .email('Valid email required')
+    .refine(
+      (v) => {
+        const [local, domain] = v.split('@');
+        if (!local || !domain) return false;
+        if (!/[a-zA-Z]/.test(local)) return false;
+        const dotIdx = domain.lastIndexOf('.');
+        if (dotIdx <= 0 || dotIdx >= domain.length - 1) return false;
+        const tld = domain.slice(dotIdx + 1);
+        if (!/^[a-zA-Z]{2,}$/.test(tld)) return false;
+        if (tld.length <= 2 && [...new Set(tld)].length === 1) return false;
+        if (!/[a-zA-Z]/.test(domain)) return false;
+        return true;
+      },
+      { message: 'Valid email required' },
+    ),
   specialRequests: z.string().optional(),
 });
 

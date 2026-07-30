@@ -70,7 +70,7 @@ export const createOrderFromCartSchema = z.object({
 });
 
 export const cancelOrderSchema = z.object({
-  reason: z.string().trim().max(300).optional(),
+  reason: z.string().trim().min(10, 'Reason must be at least 10 characters').max(300).optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
