@@ -269,7 +269,7 @@ export const updateSettings = async (req: Request, res: Response, next: NextFunc
     const allowedKeys = [
       'platformName', 'contactEmail', 'defaultCommissionRate', 'defaultDeliveryFee',
       'minimumOrderValue', 'maxDeliveryRadiusKm', 'currency', 'locale',
-      'payoutSchedule', 'minimumPayoutThreshold', 'featureFlags',
+      'payoutSchedule', 'minimumPayoutThreshold', 'featureFlags', 'paymentGatewaySettings',
     ];
 
     const changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown }> = [];

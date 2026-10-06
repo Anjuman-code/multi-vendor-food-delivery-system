@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32">
+  <rect width="48" height="32" rx="4" fill="#059669"/>
+  <rect x="7" y="7" width="34" height="18" rx="2" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
+  <circle cx="24" cy="16" r="4.5" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
+  <circle cx="11.5" cy="16" r="1.5" fill="#FFFFFF"/>
+  <circle cx="36.5" cy="16" r="1.5" fill="#FFFFFF"/>
+  <text x="24" y="29" fill="#FFFFFF" font-family="sans-serif" font-weight="bold" font-size="6" text-anchor="middle">CASH ON DELIVERY</text>
+</svg>

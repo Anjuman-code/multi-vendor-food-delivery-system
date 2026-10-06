@@ -1,4 +1,5 @@
 import { PageHeader, SectionCard } from "@/components/admin";
+import { PaymentBrandIcon } from "@/components/payment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import adminService from "@/services/adminService";
-import { Save } from "lucide-react";
+import { CreditCard, Save, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 interface FeatureFlags {
@@ -24,6 +25,18 @@ interface FeatureFlags {
   campaignAutoApply: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+}
+
+interface PaymentGatewaySettings {
+  cardsEnabled: boolean;
+  bkashEnabled: boolean;
+  nagadEnabled: boolean;
+  rocketEnabled: boolean;
+  upayEnabled: boolean;
+  walletEnabled: boolean;
+  codEnabled: boolean;
+  otpExpiryMinutes: number;
+  sandboxMode: boolean;
 }
 
 interface PlatformSettings {
@@ -38,6 +51,7 @@ interface PlatformSettings {
   payoutSchedule: "weekly" | "biweekly" | "monthly";
   minimumPayoutThreshold: number;
   featureFlags: FeatureFlags;
+  paymentGatewaySettings?: PaymentGatewaySettings;
 }
 
 /** Editable numeric fields are kept as strings so empty input is distinguishable from NaN. */
@@ -46,7 +60,8 @@ type NumericKey =
   | "defaultDeliveryFee"
   | "minimumOrderValue"
   | "maxDeliveryRadiusKm"
-  | "minimumPayoutThreshold";
+  | "minimumPayoutThreshold"
+  | "otpExpiryMinutes";
 
 const NUMERIC_KEYS: NumericKey[] = [
   "defaultCommissionRate",
@@ -54,6 +69,7 @@ const NUMERIC_KEYS: NumericKey[] = [
   "minimumOrderValue",
   "maxDeliveryRadiusKm",
   "minimumPayoutThreshold",
+  "otpExpiryMinutes",
 ];
 
 interface FormState {
@@ -63,12 +79,14 @@ interface FormState {
   locale: string;
   payoutSchedule: PlatformSettings["payoutSchedule"];
   featureFlags: FeatureFlags;
+  paymentGatewaySettings: PaymentGatewaySettings;
   // numeric-as-string
   defaultCommissionRate: string;
   defaultDeliveryFee: string;
   minimumOrderValue: string;
   maxDeliveryRadiusKm: string;
   minimumPayoutThreshold: string;
+  otpExpiryMinutes: string;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -85,11 +103,23 @@ const toForm = (s: PlatformSettings): FormState => ({
     maintenanceMode: !!s.featureFlags?.maintenanceMode,
     maintenanceMessage: s.featureFlags?.maintenanceMessage ?? "",
   },
+  paymentGatewaySettings: {
+    cardsEnabled: s.paymentGatewaySettings?.cardsEnabled ?? true,
+    bkashEnabled: s.paymentGatewaySettings?.bkashEnabled ?? true,
+    nagadEnabled: s.paymentGatewaySettings?.nagadEnabled ?? true,
+    rocketEnabled: s.paymentGatewaySettings?.rocketEnabled ?? true,
+    upayEnabled: s.paymentGatewaySettings?.upayEnabled ?? true,
+    walletEnabled: s.paymentGatewaySettings?.walletEnabled ?? true,
+    codEnabled: s.paymentGatewaySettings?.codEnabled ?? true,
+    otpExpiryMinutes: s.paymentGatewaySettings?.otpExpiryMinutes ?? 3,
+    sandboxMode: s.paymentGatewaySettings?.sandboxMode ?? true,
+  },
   defaultCommissionRate: String(s.defaultCommissionRate ?? ""),
   defaultDeliveryFee: String(s.defaultDeliveryFee ?? ""),
   minimumOrderValue: String(s.minimumOrderValue ?? ""),
   maxDeliveryRadiusKm: String(s.maxDeliveryRadiusKm ?? ""),
   minimumPayoutThreshold: String(s.minimumPayoutThreshold ?? ""),
+  otpExpiryMinutes: String(s.paymentGatewaySettings?.otpExpiryMinutes ?? 3),
 });
 
 type Errors = Partial<Record<NumericKey | "contactEmail" | "platformName", string>>;
@@ -117,6 +147,8 @@ const validate = (f: FormState): Errors => {
       if (n < 0 || n > 100) errs[key] = "Must be between 0 and 100.";
     } else if (key === "maxDeliveryRadiusKm") {
       if (n < 1) errs[key] = "Must be at least 1.";
+    } else if (key === "otpExpiryMinutes") {
+      if (n < 1 || n > 30) errs[key] = "Must be between 1 and 30 minutes.";
     } else if (n < 0) {
       errs[key] = "Cannot be negative.";
     }
@@ -159,6 +191,19 @@ export default function PlatformSettingsPage() {
       prev ? { ...prev, featureFlags: { ...prev.featureFlags, [key]: value } } : prev,
     );
 
+  const setGateway = <K extends keyof PaymentGatewaySettings>(
+    key: K,
+    value: PaymentGatewaySettings[K],
+  ) =>
+    setForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            paymentGatewaySettings: { ...prev.paymentGatewaySettings, [key]: value },
+          }
+        : prev,
+    );
+
   const handleSave = async () => {
     if (!form || hasErrors) return;
     setSaving(true);
@@ -175,6 +220,10 @@ export default function PlatformSettingsPage() {
         minimumOrderValue: parseFloat(form.minimumOrderValue),
         maxDeliveryRadiusKm: parseFloat(form.maxDeliveryRadiusKm),
         minimumPayoutThreshold: parseFloat(form.minimumPayoutThreshold),
+        paymentGatewaySettings: {
+          ...form.paymentGatewaySettings,
+          otpExpiryMinutes: parseInt(form.otpExpiryMinutes, 10) || 3,
+        },
       };
       const res = await adminService.updateSettings(patch);
       const s = (res.data as { data: { settings: PlatformSettings } }).data.settings;
@@ -205,7 +254,7 @@ export default function PlatformSettingsPage() {
     <div className="max-w-3xl space-y-5">
       <PageHeader
         title="Platform Settings"
-        description="System-wide configuration."
+        description="System-wide configuration and payment controls."
         actions={
           <Button variant="brand" size="sm" onClick={handleSave} disabled={!dirty || hasErrors || saving}>
             <Save className="mr-1.5 h-4 w-4" />
@@ -244,6 +293,101 @@ export default function PlatformSettingsPage() {
             value={form.locale}
             onChange={(v) => set("locale", v)}
           />
+        </div>
+      </SectionCard>
+
+      {/* Payment Gateway & Methods */}
+      <SectionCard
+        title="Payment Gateway & Methods"
+        description="Control available payment channels, mobile wallets, and authentication settings."
+      >
+        <div className="space-y-3">
+          <div className="rounded-lg border border-border p-3.5 bg-muted/20 space-y-3">
+            <div className="flex items-center gap-2 font-medium text-sm text-foreground">
+              <CreditCard className="h-4 w-4 text-brand" />
+              <span>Accepted Payment Methods</span>
+            </div>
+
+            <div className="divide-y divide-border">
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="visa" className="h-5 w-8" />}
+                label="Card Payments (Visa / Mastercard / Amex)"
+                description="Accept credit and debit cards with Luhn & CVV validation."
+                value={form.paymentGatewaySettings.cardsEnabled}
+                onChange={(v) => setGateway("cardsEnabled", v)}
+              />
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="bkash" className="h-5 w-8" />}
+                label="bKash Mobile Wallet"
+                description="Enable instant mobile payments via bKash gateway & OTP."
+                value={form.paymentGatewaySettings.bkashEnabled}
+                onChange={(v) => setGateway("bkashEnabled", v)}
+              />
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="nagad" className="h-5 w-8" />}
+                label="Nagad Mobile Wallet"
+                description="Enable instant mobile payments via Nagad gateway & OTP."
+                value={form.paymentGatewaySettings.nagadEnabled}
+                onChange={(v) => setGateway("nagadEnabled", v)}
+              />
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="rocket" className="h-5 w-8" />}
+                label="Rocket (DBBL)"
+                description="Enable payments via DBBL Rocket mobile wallet."
+                value={form.paymentGatewaySettings.rocketEnabled}
+                onChange={(v) => setGateway("rocketEnabled", v)}
+              />
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="upay" className="h-5 w-8" />}
+                label="Upay (UCB)"
+                description="Enable payments via Upay mobile wallet."
+                value={form.paymentGatewaySettings.upayEnabled}
+                onChange={(v) => setGateway("upayEnabled", v)}
+              />
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="wallet" className="h-5 w-8" />}
+                label="Food Rush In-App Wallet"
+                description="Allow customers to store balance and pay instantly without OTP."
+                value={form.paymentGatewaySettings.walletEnabled}
+                onChange={(v) => setGateway("walletEnabled", v)}
+              />
+              <ToggleWithIcon
+                icon={<PaymentBrandIcon brand="cash" className="h-5 w-8" />}
+                label="Cash on Delivery (COD)"
+                description="Allow riders to collect physical cash upon doorstep delivery."
+                value={form.paymentGatewaySettings.codEnabled}
+                onChange={(v) => setGateway("codEnabled", v)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
+            <Field
+              id="otpExpiryMinutes"
+              label="OTP expiry duration"
+              type="number"
+              suffix="mins"
+              value={form.otpExpiryMinutes}
+              onChange={(v) => set("otpExpiryMinutes", v)}
+              error={errors.otpExpiryMinutes}
+            />
+
+            <div className="flex items-center justify-between rounded-lg border border-border p-3.5 bg-muted/20">
+              <div className="min-w-0 pr-3">
+                <div className="flex items-center gap-1.5">
+                  <ShieldAlert className="h-4 w-4 text-amber-500" />
+                  <p className="text-sm font-medium text-foreground">Sandbox / Test Gateway</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Simulates OTP and gateway sessions with developer console codes.
+                </p>
+              </div>
+              <Switch
+                checked={form.paymentGatewaySettings.sandboxMode}
+                onCheckedChange={(v) => setGateway("sandboxMode", v)}
+              />
+            </div>
+          </div>
         </div>
       </SectionCard>
 
@@ -416,6 +560,27 @@ const Toggle: React.FC<{
     <div className="min-w-0">
       <p className="text-sm font-medium text-foreground">{label}</p>
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
+    </div>
+    <Switch checked={value} onCheckedChange={onChange} />
+  </div>
+);
+
+const ToggleWithIcon: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}> = ({ icon, label, description, value, onChange }) => (
+  <div className="flex items-center justify-between gap-4 py-2.5">
+    <div className="flex items-center gap-3 min-w-0">
+      <div className="flex h-7 w-10 shrink-0 items-center justify-center rounded border border-border bg-card p-0.5">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
     </div>
     <Switch checked={value} onCheckedChange={onChange} />
   </div>

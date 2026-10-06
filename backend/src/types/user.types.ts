@@ -137,6 +137,7 @@ export interface ICustomerProfile {
   dietaryPreferences: string[];
   favoriteRestaurants: Types.ObjectId[];
   paymentMethods: IPaymentMethod[];
+  walletBalance: number;
   loyaltyPoints: number;
   tier: CustomerTier;
   totalOrders: number;
@@ -253,6 +254,7 @@ export interface IDriverProfile {
   rating: { average: number; count: number };
   totalDeliveries: number;
   totalEarnings: number;
+  pendingPayout?: number;
   // Bank details
   bankDetails?: IDriverBankDetails;
   // Onboarding

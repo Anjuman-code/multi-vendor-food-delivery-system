@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import Payout, { PayoutStatus } from "../models/Payout";
 import VendorProfile from "../models/VendorProfile";
+import DriverProfile from "../models/DriverProfile";
 import { createAuditLog } from "../utils/audit.util";
 import { successResponse } from "../utils/response.util";
 import {
@@ -15,7 +16,11 @@ import {
   ValidationError,
 } from "../utils/errors";
 import type { AuthRequest } from "../types";
-import type { CreatePayoutInput, ProcessPayoutInput } from "../validations/payout.validation";
+import type {
+  CreatePayoutInput,
+  ProcessPayoutInput,
+  RequestPayoutInput,
+} from "../validations/payout.validation";
 
 // ── Admin: Create Payout ─────────────────────────────────────────
 
@@ -96,6 +101,8 @@ export const listPayouts = async (
 
     const status = req.query.status as string | undefined;
     const vendorId = req.query.vendorId as string | undefined;
+    const driverId = req.query.driverId as string | undefined;
+    const recipientRole = req.query.recipientRole as string | undefined;
 
     const filter: Record<string, unknown> = {};
     if (status && Object.values(PayoutStatus).includes(status as PayoutStatus)) {
@@ -104,9 +111,16 @@ export const listPayouts = async (
     if (vendorId && mongoose.Types.ObjectId.isValid(vendorId)) {
       filter.vendorId = new mongoose.Types.ObjectId(vendorId);
     }
+    if (driverId && mongoose.Types.ObjectId.isValid(driverId)) {
+      filter.driverId = new mongoose.Types.ObjectId(driverId);
+    }
+    if (recipientRole && ["vendor", "driver"].includes(recipientRole)) {
+      filter.recipientRole = recipientRole;
+    }
 
     const payouts = await Payout.find(filter)
       .populate("vendorId", "firstName lastName email")
+      .populate("driverId", "firstName lastName email")
       .sort("-createdAt");
 
     successResponse(res, { payouts, count: payouts.length });
@@ -130,7 +144,8 @@ export const getPayout = async (
     if (!authReq.user) throw new AuthenticationError();
 
     const payout = await Payout.findById(req.params.payoutId)
-      .populate("vendorId", "firstName lastName email");
+      .populate("vendorId", "firstName lastName email")
+      .populate("driverId", "firstName lastName email");
     if (!payout) throw new NotFoundError("Payout not found");
 
     successResponse(res, { payout });
@@ -174,7 +189,7 @@ export const processPayout = async (
       throw new ValidationError("Completed payouts cannot be failed");
     }
     if (status === "failed" && payout.status === PayoutStatus.FAILED) {
-      // Guard against re-failing — would restore pendingPayout a second time.
+      // Guard against re-failing — would restore pending balance a second time.
       throw new ValidationError("Payout has already failed");
     }
 
@@ -185,12 +200,21 @@ export const processPayout = async (
     payout.processedAt = new Date();
     await payout.save();
 
-    // If payout failed, restore pending balance
+    // If payout failed, restore pending balance safely for either vendor or driver
     if (status === "failed") {
-      const vendor = await VendorProfile.findOne({ userId: payout.vendorId });
-      if (vendor) {
-        vendor.pendingPayout += payout.amount;
-        await vendor.save();
+      if (payout.recipientRole === "driver" || payout.driverId) {
+        const driverId = payout.driverId || payout.vendorId;
+        const driver = await DriverProfile.findOne({ userId: driverId });
+        if (driver) {
+          driver.pendingPayout = (driver.pendingPayout ?? 0) + payout.amount;
+          await driver.save();
+        }
+      } else if (payout.vendorId) {
+        const vendor = await VendorProfile.findOne({ userId: payout.vendorId });
+        if (vendor) {
+          vendor.pendingPayout += payout.amount;
+          await vendor.save();
+        }
       }
     }
 
@@ -254,3 +278,182 @@ export const getVendorPayouts = async (
     next(error);
   }
 };
+
+// ── Vendor: Request Withdrawal ──────────────────────────────────
+
+/**
+ * POST /api/vendor/payouts/request
+ * Authenticated vendor requests a withdrawal against their pending balance.
+ */
+export const requestVendorPayout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { amount, method, notes } = req.body as RequestPayoutInput;
+    const vendor = await VendorProfile.findOne({ userId: authReq.user._id });
+    if (!vendor) throw new NotFoundError("Vendor profile not found");
+
+    if (amount > (vendor.pendingPayout ?? 0)) {
+      throw new ValidationError(
+        `Withdrawal amount exceeds your available balance of ৳${(vendor.pendingPayout ?? 0).toFixed(2)}`,
+      );
+    }
+
+    const bank = vendor.bankDetails ?? {};
+    const payout = await Payout.create({
+      recipientRole: "vendor",
+      vendorId: authReq.user._id,
+      amount,
+      periodStart: new Date(),
+      periodEnd: new Date(),
+      status: PayoutStatus.PENDING,
+      method: method || (bank.mobileMoneyNumber ? "mobile_money" : "bank_transfer"),
+      bankSnapshot: {
+        bankName: bank.bankName,
+        accountNumber: bank.accountNumber,
+        accountName: bank.accountName,
+        mobileMoneyNumber: bank.mobileMoneyNumber,
+        mobileMoneyProvider: bank.mobileMoneyProvider,
+      },
+      notes: notes || "Vendor withdrawal request",
+    });
+
+    vendor.pendingPayout -= amount;
+    await vendor.save();
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "payout.requested",
+      resourceType: "Payout",
+      resourceId: payout._id as mongoose.Types.ObjectId,
+      changes: [{ field: "amount", newValue: amount }],
+    });
+
+    successResponse(
+      res,
+      { payout, availableBalance: vendor.pendingPayout },
+      "Withdrawal request submitted successfully",
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── Driver: Request Cashout ─────────────────────────────────────
+
+/**
+ * POST /api/driver/payouts/request
+ * Authenticated rider/driver requests cashout of their delivery earnings.
+ */
+export const requestDriverPayout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const { amount, method, notes } = req.body as RequestPayoutInput;
+    const driver = await DriverProfile.findOne({ userId: authReq.user._id });
+    if (!driver) throw new NotFoundError("Driver profile not found");
+
+    const available = driver.pendingPayout ?? driver.totalEarnings ?? 0;
+    if (amount > available) {
+      throw new ValidationError(
+        `Cashout amount exceeds your available balance of ৳${available.toFixed(2)}`,
+      );
+    }
+
+    const bank = driver.bankDetails ?? {};
+    const payout = await Payout.create({
+      recipientRole: "driver",
+      driverId: authReq.user._id,
+      amount,
+      periodStart: new Date(),
+      periodEnd: new Date(),
+      status: PayoutStatus.PENDING,
+      method: method || (bank.mobileMoneyNumber ? "mobile_money" : "bank_transfer"),
+      bankSnapshot: {
+        bankName: bank.bankName,
+        accountNumber: bank.accountNumber,
+        accountName: bank.accountHolderName,
+        mobileMoneyNumber: bank.mobileMoneyNumber,
+        mobileMoneyProvider: bank.mobileMoneyProvider,
+      },
+      notes: notes || "Rider cashout request",
+    });
+
+    driver.pendingPayout = Math.max(0, available - amount);
+    await driver.save();
+
+    await createAuditLog({
+      actorId: authReq.user._id,
+      actorRole: authReq.user.role,
+      action: "payout.driver_requested",
+      resourceType: "Payout",
+      resourceId: payout._id as mongoose.Types.ObjectId,
+      changes: [{ field: "amount", newValue: amount }],
+    });
+
+    successResponse(
+      res,
+      { payout, availableBalance: driver.pendingPayout },
+      "Cashout request submitted successfully",
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── Driver: My Payouts ───────────────────────────────────────────
+
+/**
+ * GET /api/driver/payouts
+ * List payout / cashout history for the authenticated rider.
+ */
+export const getDriverPayouts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!authReq.user) throw new AuthenticationError();
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const status = req.query.status as string | undefined;
+
+    const filter: Record<string, unknown> = {
+      $or: [{ driverId: authReq.user._id }, { recipientRole: "driver", driverId: authReq.user._id }],
+    };
+    if (status && Object.values(PayoutStatus).includes(status as PayoutStatus)) {
+      filter.status = status;
+    }
+
+    const [payouts, total] = await Promise.all([
+      Payout.find(filter)
+        .sort("-createdAt")
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Payout.countDocuments(filter),
+    ]);
+
+    successResponse(res, {
+      payouts,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

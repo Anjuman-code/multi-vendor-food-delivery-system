@@ -8,6 +8,8 @@ import Order from '../models/Order';
 import Payout, { PayoutStatus } from '../models/Payout';
 import PlatformSettings from '../models/PlatformSettings';
 import VendorProfile from '../models/VendorProfile';
+import DriverProfile from '../models/DriverProfile';
+import PaymentTransaction from '../models/PaymentTransaction';
 import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
 import { AuthenticationError, NotFoundError, ValidationError } from '../utils/errors';
@@ -41,27 +43,42 @@ export const listPayouts = async (
     const filter: Record<string, unknown> = {};
     if (req.query.status) filter.status = req.query.status;
     if (req.query.vendorId) filter.vendorId = req.query.vendorId;
+    if (req.query.driverId) filter.driverId = req.query.driverId;
+    if (req.query.recipientRole) filter.recipientRole = req.query.recipientRole;
 
     const [payouts, total] = await Promise.all([
       Payout.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('vendorId', 'firstName lastName email'),
+        .populate('vendorId', 'firstName lastName email')
+        .populate('driverId', 'firstName lastName email phone'),
       Payout.countDocuments(filter),
     ]);
 
-    // Pending payout summary
-    const pendingVendors = await VendorProfile.find({ pendingPayout: { $gt: 0 } })
-      .populate('userId', 'firstName lastName email')
-      .select('userId businessName pendingPayout totalEarnings')
-      .sort({ pendingPayout: -1 });
+    // Pending payout summaries for both vendors and drivers
+    const [pendingVendors, pendingDrivers] = await Promise.all([
+      VendorProfile.find({ pendingPayout: { $gt: 0 } })
+        .populate('userId', 'firstName lastName email')
+        .select('userId businessName pendingPayout totalEarnings')
+        .sort({ pendingPayout: -1 }),
+      DriverProfile.find({ pendingPayout: { $gt: 0 } })
+        .populate('userId', 'firstName lastName email')
+        .select('userId pendingPayout totalEarnings rating')
+        .sort({ pendingPayout: -1 }),
+    ]);
+
+    const pendingVendorTotal = pendingVendors.reduce((sum, v) => sum + (v.pendingPayout ?? 0), 0);
+    const pendingDriverTotal = pendingDrivers.reduce((sum, d) => sum + (d.pendingPayout ?? 0), 0);
 
     successResponse(res, {
       payouts,
       pagination: buildPagination(page, limit, total),
       pendingVendors,
-      pendingTotal: pendingVendors.reduce((sum, v) => sum + v.pendingPayout, 0),
+      pendingDrivers,
+      pendingTotal: pendingVendorTotal + pendingDriverTotal,
+      pendingVendorTotal,
+      pendingDriverTotal,
     });
   } catch (error) {
     next(error);
@@ -78,44 +95,88 @@ export const createPayout = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const { vendorId, amount: amountOverride, notes } = req.body as {
-      vendorId: string;
+    const { vendorId, driverId, amount: amountOverride, notes } = req.body as {
+      vendorId?: string;
+      driverId?: string;
       amount?: number;
       notes?: string;
     };
-    if (!vendorId) throw new ValidationError('Vendor ID is required');
 
-    const profile = await VendorProfile.findOne({ userId: vendorId });
-    if (!profile) throw new NotFoundError('Vendor not found');
+    if (!vendorId && !driverId) {
+      throw new ValidationError('Either Vendor ID or Driver ID is required');
+    }
 
-    const pending = profile.pendingPayout ?? 0;
-    const amount = amountOverride && amountOverride > 0 ? amountOverride : pending;
-    if (amount <= 0) throw new ValidationError('Vendor has no pending balance to pay out');
-    if (amount > pending) throw new ValidationError('Amount exceeds the vendor pending balance');
+    let payout;
 
-    const bank = profile.bankDetails ?? {};
-    const method = bank.mobileMoneyNumber ? 'mobile_money' : 'bank_transfer';
+    if (driverId) {
+      const profile = await DriverProfile.findOne({ userId: driverId });
+      if (!profile) throw new NotFoundError('Driver not found');
 
-    // Period covers from the last payout (if any) to now.
-    const lastPayout = await Payout.findOne({ vendorId }).sort({ periodEnd: -1 });
-    const periodStart = lastPayout?.periodEnd ?? subDays(new Date(), 30);
+      const pending = profile.pendingPayout ?? profile.totalEarnings ?? 0;
+      const amount = amountOverride && amountOverride > 0 ? amountOverride : pending;
+      if (amount <= 0) throw new ValidationError('Driver has no pending balance to pay out');
+      if (amount > pending) throw new ValidationError('Amount exceeds driver pending balance');
 
-    const payout = await Payout.create({
-      vendorId,
-      amount,
-      periodStart,
-      periodEnd: new Date(),
-      status: PayoutStatus.PENDING,
-      method,
-      bankSnapshot: {
-        bankName: bank.bankName,
-        accountNumber: bank.accountNumber,
-        accountName: bank.accountName,
-        mobileMoneyNumber: bank.mobileMoneyNumber,
-        mobileMoneyProvider: bank.mobileMoneyProvider,
-      },
-      notes,
-    });
+      const bank = profile.bankDetails ?? {};
+      const method = bank.mobileMoneyNumber ? 'mobile_money' : 'bank_transfer';
+
+      payout = await Payout.create({
+        recipientRole: 'driver',
+        driverId,
+        amount,
+        periodStart: subDays(new Date(), 30),
+        periodEnd: new Date(),
+        status: PayoutStatus.PENDING,
+        method,
+        bankSnapshot: {
+          bankName: bank.bankName,
+          accountNumber: bank.accountNumber,
+          accountName: bank.accountHolderName,
+          mobileMoneyNumber: bank.mobileMoneyNumber,
+          mobileMoneyProvider: bank.mobileMoneyProvider,
+        },
+        notes: notes || 'Admin initiated rider payout',
+      });
+
+      profile.pendingPayout = Math.max(0, pending - amount);
+      await profile.save();
+    } else {
+      const profile = await VendorProfile.findOne({ userId: vendorId });
+      if (!profile) throw new NotFoundError('Vendor not found');
+
+      const pending = profile.pendingPayout ?? 0;
+      const amount = amountOverride && amountOverride > 0 ? amountOverride : pending;
+      if (amount <= 0) throw new ValidationError('Vendor has no pending balance to pay out');
+      if (amount > pending) throw new ValidationError('Amount exceeds vendor pending balance');
+
+      const bank = profile.bankDetails ?? {};
+      const method = bank.mobileMoneyNumber ? 'mobile_money' : 'bank_transfer';
+
+      const lastPayout = await Payout.findOne({ vendorId }).sort({ periodEnd: -1 });
+      const periodStart = lastPayout?.periodEnd ?? subDays(new Date(), 30);
+
+      payout = await Payout.create({
+        recipientRole: 'vendor',
+        vendorId,
+        amount,
+        periodStart,
+        periodEnd: new Date(),
+        status: PayoutStatus.PENDING,
+        method,
+        bankSnapshot: {
+          bankName: bank.bankName,
+          accountNumber: bank.accountNumber,
+          accountName: bank.accountName,
+          mobileMoneyNumber: bank.mobileMoneyNumber,
+          mobileMoneyProvider: bank.mobileMoneyProvider,
+        },
+        notes,
+      });
+
+      // Deduct immediately so balance cannot be double-paid
+      profile.pendingPayout -= amount;
+      await profile.save();
+    }
 
     await createAuditLog({
       actorId: authReq.user._id,
@@ -123,8 +184,8 @@ export const createPayout = async (
       action: 'payout.created',
       resourceType: 'Payout',
       resourceId: payout._id,
-      changes: [{ field: 'amount', newValue: amount }],
-      metadata: { vendorId },
+      changes: [{ field: 'amount', newValue: payout.amount }],
+      metadata: { vendorId, driverId },
     });
 
     successResponse(res, { payout }, 'Payout initiated', 201);
@@ -157,10 +218,8 @@ export const batchProcessPayouts = async (
       payout.processedBy = authReq.user._id;
       if (transactionRef) payout.transactionRef = transactionRef;
       await payout.save();
-      await VendorProfile.findOneAndUpdate(
-        { userId: payout.vendorId },
-        { $inc: { pendingPayout: -payout.amount } },
-      );
+      // Note: pendingPayout was already deducted when payout was created/requested.
+      // Do not double-decrement.
       processed.push(payout._id.toString());
     }
 
@@ -187,10 +246,9 @@ export const getPayoutDetail = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const payout = await Payout.findById(req.params.id).populate(
-      'vendorId',
-      'firstName lastName email',
-    );
+    const payout = await Payout.findById(req.params.id)
+      .populate('vendorId', 'firstName lastName email')
+      .populate('driverId', 'firstName lastName email phone');
     if (!payout) throw new NotFoundError('Payout not found');
 
     successResponse(res, { payout });
@@ -209,35 +267,96 @@ export const processPayout = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const { transactionRef } = req.body as { transactionRef?: string };
+    const { transactionRef, status = PayoutStatus.COMPLETED, notes } = req.body as {
+      transactionRef?: string;
+      status?: PayoutStatus;
+      notes?: string;
+    };
 
     const payout = await Payout.findById(req.params.id);
     if (!payout) throw new NotFoundError('Payout not found');
-    if (payout.status === 'completed') throw new ValidationError('Payout already completed');
+    if (payout.status === PayoutStatus.COMPLETED) {
+      throw new ValidationError('Payout already completed');
+    }
 
-    payout.status = PayoutStatus.COMPLETED;
+    const previousStatus = payout.status;
+    payout.status = status;
     payout.processedAt = new Date();
     payout.processedBy = authReq.user._id;
     if (transactionRef) payout.transactionRef = transactionRef;
+    if (notes) payout.notes = notes;
     await payout.save();
 
-    // Deduct from vendor's pendingPayout
-    await VendorProfile.findOneAndUpdate(
-      { userId: payout.vendorId },
-      { $inc: { pendingPayout: -payout.amount } },
-    );
+    // If payout failed or was rejected, restore the pending balance
+    if (status === PayoutStatus.FAILED) {
+      if (payout.recipientRole === 'driver' || payout.driverId) {
+        await DriverProfile.findOneAndUpdate(
+          { userId: payout.driverId || payout.vendorId },
+          { $inc: { pendingPayout: payout.amount } },
+        );
+      } else if (payout.vendorId) {
+        await VendorProfile.findOneAndUpdate(
+          { userId: payout.vendorId },
+          { $inc: { pendingPayout: payout.amount } },
+        );
+      }
+    }
 
     await createAuditLog({
       actorId: authReq.user._id,
       actorRole: authReq.user.role,
-      action: 'payout.processed',
+      action: `payout.${status}`,
       resourceType: 'Payout',
       resourceId: payout._id,
-      changes: [{ field: 'status', oldValue: 'pending', newValue: 'completed' }],
+      changes: [{ field: 'status', oldValue: previousStatus, newValue: status }],
       metadata: { transactionRef, amount: payout.amount },
     });
 
-    successResponse(res, { payout }, 'Payout processed');
+    successResponse(res, { payout }, `Payout ${status}`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/admin/finance/cod-reconciliation — monitor driver collected COD vs remitted cash */
+export const getCodReconciliation = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const codOrders = await Order.find({
+      paymentMethod: 'cash_on_delivery',
+      status: 'delivered',
+    })
+      .select('orderNumber driverId total codCollected codRemitted actualDeliveryTime createdAt')
+      .populate('driverId', 'firstName lastName email phone')
+      .sort({ actualDeliveryTime: -1 });
+
+    const remittances = await PaymentTransaction.find({
+      purpose: 'cod_remittance',
+      status: 'success',
+    })
+      .populate('payerId', 'firstName lastName email phone')
+      .sort({ createdAt: -1 });
+
+    const totalCollected = codOrders.reduce(
+      (sum, o) => sum + (o.codCollected ? (o.total ?? 0) : 0),
+      0,
+    );
+    const totalRemitted = remittances.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+    const outstandingCod = Math.max(0, Math.round((totalCollected - totalRemitted) * 100) / 100);
+
+    successResponse(res, {
+      summary: {
+        totalOrders: codOrders.length,
+        totalCollected: Math.round(totalCollected * 100) / 100,
+        totalRemitted: Math.round(totalRemitted * 100) / 100,
+        outstandingCod,
+      },
+      codOrders: codOrders.slice(0, 50),
+      remittances: remittances.slice(0, 50),
+    });
   } catch (error) {
     next(error);
   }

@@ -72,6 +72,7 @@ import {
     batchProcessPayouts,
     createPayout,
     getCommissionHistory,
+    getCodReconciliation,
     getPayoutDetail,
     getRevenueStats,
     listPayouts,
@@ -196,6 +197,7 @@ router.get("/finance/payouts/:id", ...superAdminOnly, getPayoutDetail);
 router.post("/finance/payouts/:id/process", ...superAdminOnly, processPayout);
 router.get("/finance/revenue", ...superAdminOnly, getRevenueStats);
 router.get("/finance/commission-history", ...superAdminOnly, getCommissionHistory);
+router.get("/finance/cod-reconciliation", ...adminAuth, getCodReconciliation);
 
 // ── Content: Cuisine Types ────────────────────────────────────────
 router.get("/content/cuisine-types", ...adminAuth, listCuisineTypes);

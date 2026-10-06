@@ -212,11 +212,26 @@ const OrdersPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="flex items-center gap-2.5 flex-shrink-0">
                         <span
                           className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[order.status]}`}
                         >
                           {STATUS_LABEL[order.status]}
+                        </span>
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
+                            order.paymentStatus === 'paid'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                              : order.paymentMethod === 'cash_on_delivery'
+                              ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                          }`}
+                        >
+                          {order.paymentStatus === 'paid'
+                            ? 'Paid'
+                            : order.paymentMethod === 'cash_on_delivery'
+                            ? 'Cash'
+                            : 'Unpaid'}
                         </span>
                         <span className="font-bold text-gray-900 text-sm">
                           ৳{order.total.toFixed(2)}

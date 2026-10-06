@@ -16,7 +16,9 @@ export enum PayoutStatus {
 }
 
 export interface IPayout {
-  vendorId: Types.ObjectId;
+  vendorId?: Types.ObjectId;
+  driverId?: Types.ObjectId;
+  recipientRole: 'vendor' | 'driver';
   amount: number;
   periodStart: Date;
   periodEnd: Date;
@@ -47,7 +49,17 @@ const payoutSchema = new Schema<IPayout>(
     vendorId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      index: true,
+    },
+    driverId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+    recipientRole: {
+      type: String,
+      enum: ['vendor', 'driver'],
+      default: 'vendor',
       index: true,
     },
     amount: { type: Number, required: true, min: 0 },
@@ -82,6 +94,8 @@ const payoutSchema = new Schema<IPayout>(
 );
 
 payoutSchema.index({ vendorId: 1, createdAt: -1 });
+payoutSchema.index({ driverId: 1, createdAt: -1 });
+payoutSchema.index({ recipientRole: 1, status: 1 });
 payoutSchema.index({ status: 1 });
 
 payoutSchema.pre('validate', function () {

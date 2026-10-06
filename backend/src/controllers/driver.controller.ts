@@ -679,7 +679,11 @@ export const updateDeliveryStatus = async (
         { userId: user._id },
         {
           isAvailable: true,
-          $inc: { totalDeliveries: 1, totalEarnings: deliveryEarnings },
+          $inc: {
+            totalDeliveries: 1,
+            totalEarnings: deliveryEarnings,
+            pendingPayout: deliveryEarnings,
+          },
         },
       );
 

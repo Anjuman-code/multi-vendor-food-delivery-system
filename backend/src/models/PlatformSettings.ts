@@ -30,6 +30,19 @@ export interface IPlatformSettings {
     maintenanceWhitelistIPs: string[];
   };
 
+  // Payment Gateway
+  paymentGatewaySettings: {
+    cardsEnabled: boolean;
+    bkashEnabled: boolean;
+    nagadEnabled: boolean;
+    rocketEnabled: boolean;
+    upayEnabled: boolean;
+    walletEnabled: boolean;
+    codEnabled: boolean;
+    otpExpiryMinutes: number;
+    sandboxMode: boolean;
+  };
+
   // Notification / email config status (references, not secrets)
   smtpConfigured: boolean;
   pushConfigured: boolean;
@@ -70,6 +83,18 @@ const platformSettingsSchema = new Schema<IPlatformSettings>(
         default: 'We are performing maintenance. Please check back soon.',
       },
       maintenanceWhitelistIPs: [{ type: String }],
+    },
+
+    paymentGatewaySettings: {
+      cardsEnabled: { type: Boolean, default: true },
+      bkashEnabled: { type: Boolean, default: true },
+      nagadEnabled: { type: Boolean, default: true },
+      rocketEnabled: { type: Boolean, default: true },
+      upayEnabled: { type: Boolean, default: true },
+      walletEnabled: { type: Boolean, default: true },
+      codEnabled: { type: Boolean, default: true },
+      otpExpiryMinutes: { type: Number, default: 3 },
+      sandboxMode: { type: Boolean, default: true },
     },
 
     smtpConfigured: { type: Boolean, default: false },

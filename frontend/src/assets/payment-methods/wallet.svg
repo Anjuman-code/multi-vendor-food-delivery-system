@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32">
+  <defs>
+    <linearGradient id="foodRushGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5722"/>
+      <stop offset="100%" stop-color="#E64A19"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="32" rx="4" fill="url(#foodRushGrad)"/>
+  <path d="M12 10h22a2 2 0 0 1 2 2v2H12v-4zm-2 6h28v9a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2v-9zm20 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" fill="#FFFFFF"/>
+  <text x="24" y="29.5" fill="#FFFFFF" font-family="sans-serif" font-weight="900" font-size="5.5" text-anchor="middle" letter-spacing="0.5">FOOD RUSH WALLET</text>
+</svg>

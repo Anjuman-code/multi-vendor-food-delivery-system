@@ -60,6 +60,7 @@ const driverProfileSchema = new Schema<IDriverProfileDocument>(
     },
     totalDeliveries: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 },
+    pendingPayout: { type: Number, default: 0 },
 
     // ── Bank / payout details ──────────────────────────────────
     bankDetails: {

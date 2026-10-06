@@ -8,8 +8,15 @@ import {
   getPayout,
   processPayout,
   getVendorPayouts,
+  requestVendorPayout,
+  requestDriverPayout,
+  getDriverPayouts,
 } from "../controllers/payout.controller";
-import { createPayoutSchema, processPayoutSchema } from "../validations/payout.validation";
+import {
+  createPayoutSchema,
+  processPayoutSchema,
+  requestPayoutSchema,
+} from "../validations/payout.validation";
 
 const router = Router();
 
@@ -22,5 +29,22 @@ router.patch("/admin/payouts/:payoutId/process", validate(processPayoutSchema), 
 
 // Vendor routes
 router.get("/vendor/payouts", authenticate, authorize(UserRole.VENDOR), getVendorPayouts);
+router.post(
+  "/vendor/payouts/request",
+  authenticate,
+  authorize(UserRole.VENDOR),
+  validate(requestPayoutSchema),
+  requestVendorPayout,
+);
+
+// Driver routes
+router.get("/driver/payouts", authenticate, authorize(UserRole.DRIVER), getDriverPayouts);
+router.post(
+  "/driver/payouts/request",
+  authenticate,
+  authorize(UserRole.DRIVER),
+  validate(requestPayoutSchema),
+  requestDriverPayout,
+);
 
 export default router;

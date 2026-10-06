@@ -266,8 +266,13 @@ const adminService = {
   getPayout: (id: string) =>
     httpClient.get(`/api/admin/finance/payouts/${id}`),
 
-  createPayout: (data: { vendorId: string; amount?: number; notes?: string }) =>
-    httpClient.post("/api/admin/finance/payouts", data),
+  createPayout: (data: {
+    vendorId?: string;
+    driverId?: string;
+    recipientRole?: "vendor" | "driver";
+    amount?: number;
+    notes?: string;
+  }) => httpClient.post("/api/admin/finance/payouts", data),
 
   processPayout: (id: string, data?: { transactionRef?: string }) =>
     httpClient.post(`/api/admin/finance/payouts/${id}/process`, data),

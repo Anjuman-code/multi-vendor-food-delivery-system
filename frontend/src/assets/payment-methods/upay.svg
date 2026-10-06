@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32">
+  <rect width="48" height="32" rx="4" fill="#003974"/>
+  <circle cx="14" cy="16" r="6" fill="#FFC82E"/>
+  <path d="M12 14v3c0 1.1.9 2 2 2s2-.9 2-2v-3" stroke="#003974" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <text x="23" y="20" fill="#FFFFFF" font-family="sans-serif" font-weight="900" font-size="9">upay</text>
+</svg>

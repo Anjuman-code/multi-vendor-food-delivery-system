@@ -60,6 +60,7 @@ const customerProfileSchema = new Schema<ICustomerProfileDocument>(
 
     // Payment
     paymentMethods: { type: [paymentMethodSchema], default: [] },
+    walletBalance: { type: Number, default: 0, min: 0 },
 
     // Loyalty
     loyaltyPoints: { type: Number, default: 0 },

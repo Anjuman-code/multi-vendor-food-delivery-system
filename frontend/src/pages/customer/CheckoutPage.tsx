@@ -9,6 +9,9 @@ import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
 import type { PaymentMethod, UserAddress } from '@/services/userService';
 import userService from '@/services/userService';
+import paymentService from '@/services/paymentService';
+import { PaymentMethodSelector } from '@/components/payment/PaymentMethodSelector';
+import type { SupportedPaymentMethod } from '@/utils/paymentUtils';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -78,7 +81,10 @@ const CheckoutPage: React.FC = () => {
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
-  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(COD_PAYMENT_ID);
+  const [activePaymentMethod, setActivePaymentMethod] = useState<SupportedPaymentMethod>('cash_on_delivery');
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [tipAmount, setTipAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
@@ -117,9 +123,10 @@ const CheckoutPage: React.FC = () => {
 
     const loadData = async () => {
       setLoading(true);
-      const [profileRes, pmRes] = await Promise.all([
+      const [profileRes, pmRes, walletRes] = await Promise.all([
         userService.getProfile(),
         userService.getPaymentMethods(),
+        paymentService.getCustomerWallet(),
       ]);
       if (profileRes.success && profileRes.data) {
         setAddresses(profileRes.data.user.addresses);
@@ -132,6 +139,9 @@ const CheckoutPage: React.FC = () => {
         setPaymentMethods(pmRes.data.paymentMethods);
         const defaultPm = pmRes.data.paymentMethods.find((p) => p.isDefault);
         if (defaultPm) setSelectedPayment(defaultPm._id);
+      }
+      if (walletRes.success && walletRes.data) {
+        setWalletBalance(walletRes.data.walletBalance);
       }
       setLoading(false);
     };
@@ -183,10 +193,14 @@ const CheckoutPage: React.FC = () => {
   const effectiveStep: Step = stepExceedsAllowed ? maxAllowedStep : step;
 
   const selectedAddr = addresses.find((a) => a._id === selectedAddress);
-  const isCOD = selectedPayment === COD_PAYMENT_ID;
-  const selectedPm = isCOD
-    ? null
-    : paymentMethods.find((p) => p._id === selectedPayment);
+  const isCOD =
+    selectedPayment === COD_PAYMENT_ID ||
+    activePaymentMethod === 'cash_on_delivery';
+  const selectedPm = !isCOD
+    ? paymentMethods.find((p) => p._id === selectedPayment)
+    : null;
+
+  const finalTotal = Math.round((total + tipAmount) * 100) / 100;
 
   const stepIndex = STEPS.findIndex((s) => s.key === effectiveStep);
 
@@ -201,7 +215,7 @@ const CheckoutPage: React.FC = () => {
       setAdvanceError(null);
       setStep('payment');
     } else if (effectiveStep === 'payment') {
-      if (!selectedPayment) {
+      if (!selectedPayment && !activePaymentMethod) {
         const msg = 'Please select a payment method to continue.';
         setAdvanceError(msg);
         toast.error('Select Payment', { description: msg });
@@ -219,11 +233,14 @@ const CheckoutPage: React.FC = () => {
   };
 
   const placeOrder = useCallback(async () => {
-    if (!selectedAddr || !selectedPayment) return;
+    if (!selectedAddr || (!selectedPayment && !activePaymentMethod)) return;
 
-    const paymentMethodValue = isCOD
-      ? 'cash_on_delivery'
-      : `${selectedPm!.type} - ${selectedPm!.provider} ****${selectedPm!.last4}`;
+    let paymentMethodValue: string = 'cash_on_delivery';
+    if (selectedPm) {
+      paymentMethodValue = `${selectedPm.type} - ${selectedPm.provider} ****${selectedPm.last4}`;
+    } else if (activePaymentMethod) {
+      paymentMethodValue = activePaymentMethod;
+    }
 
     setOrderError(null);
     setOrderFieldErrors([]);
@@ -240,6 +257,7 @@ const CheckoutPage: React.FC = () => {
         },
         paymentMethod: paymentMethodValue,
         couponCode: promoCode || undefined,
+        tipAmount: tipAmount > 0 ? tipAmount : undefined,
       });
     } catch (err) {
       // Surface the specific server message rather than a vague one.
@@ -454,89 +472,86 @@ const CheckoutPage: React.FC = () => {
                 key="payment"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="space-y-3"
+                className="space-y-4"
               >
-                <h2 className="text-lg font-semibold mb-3">
-                  Select Payment Method
-                </h2>
+                <div>
+                  <h2 className="text-lg font-semibold mb-1">
+                    Select Payment Method
+                  </h2>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Choose from digital wallets, cards, or pay cash on arrival.
+                  </p>
+                  <PaymentMethodSelector
+                    selectedMethod={activePaymentMethod}
+                    onSelectMethod={(m) => {
+                      setActivePaymentMethod(m);
+                      if (m === 'cash_on_delivery') setSelectedPayment(COD_PAYMENT_ID);
+                      else setSelectedPayment(m);
+                      setAdvanceError(null);
+                    }}
+                    walletBalance={walletBalance}
+                    amountToPay={finalTotal}
+                    showWallet={true}
+                    showCod={true}
+                    showCards={true}
+                    showMobileWallets={true}
+                  />
+                </div>
 
-                <Card
-                  className={`p-4 cursor-pointer border-2 transition-colors ${
-                    selectedPayment === COD_PAYMENT_ID
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-transparent hover:border-gray-200'
-                  }`}
-                  onClick={() => {
-                    setSelectedPayment(COD_PAYMENT_ID);
-                    setAdvanceError(null);
-                  }}
-                >
-                  <div className="flex items-start gap-3">
-                    <Banknote className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Cash on Delivery</p>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        Pay in cash when your order arrives. Please have the
-                        exact amount ready.
+                {paymentMethods.length > 0 && (
+                  <div className="pt-3 border-t">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Or use a saved method
                       </p>
+                      <a
+                        href="/profile?tab=payment"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1 font-medium"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Manage saved
+                      </a>
+                    </div>
+                    <div className="space-y-2">
+                      {paymentMethods.map((pm) => (
+                        <Card
+                          key={pm._id}
+                          className={`p-3.5 cursor-pointer border-2 transition-colors ${
+                            selectedPayment === pm._id
+                              ? 'border-orange-500 bg-orange-50'
+                              : 'border-transparent hover:border-gray-200'
+                          }`}
+                          onClick={() => {
+                            setSelectedPayment(pm._id);
+                            setActivePaymentMethod((pm.provider as SupportedPaymentMethod) || 'card');
+                            setAdvanceError(null);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <CreditCard className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium capitalize text-sm">
+                                {pm.type} – {pm.provider}
+                                {pm.isDefault && (
+                                  <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                                    Default
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                ****{pm.last4}
+                                {pm.expiryMonth && pm.expiryYear
+                                  ? ` · Exp ${String(pm.expiryMonth).padStart(2, '0')}/${pm.expiryYear}`
+                                  : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
                     </div>
                   </div>
-                </Card>
-
-                <div className="flex items-center justify-between mt-4 mb-1">
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                    Saved cards &amp; wallets
-                  </p>
-                  <a
-                    href="/profile?tab=payment"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add payment method
-                  </a>
-                </div>
-                {paymentMethods.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-2">
-                    No saved cards or wallets. You can add one via the link
-                    above or pay cash on delivery.
-                  </p>
-                ) : (
-                  paymentMethods.map((pm) => (
-                    <Card
-                      key={pm._id}
-                      className={`p-4 cursor-pointer border-2 transition-colors ${
-                        selectedPayment === pm._id
-                          ? 'border-orange-500 bg-orange-50'
-                          : 'border-transparent hover:border-gray-200'
-                      }`}
-                      onClick={() => {
-                        setSelectedPayment(pm._id);
-                        setAdvanceError(null);
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium capitalize">
-                            {pm.type} – {pm.provider}
-                            {pm.isDefault && (
-                              <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                                Default
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            ****{pm.last4}
-                            {pm.expiryMonth && pm.expiryYear
-                              ? ` · Exp ${String(pm.expiryMonth).padStart(2, '0')}/${pm.expiryYear}`
-                              : ''}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))
                 )}
 
                 <div className="mt-4">
@@ -766,7 +781,7 @@ const CheckoutPage: React.FC = () => {
                   ) : (
                     <>
                       Place Order{isMultiRestaurant ? 's' : ''} · ৳
-                      {total.toFixed(2)}
+                      {finalTotal.toFixed(2)}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -798,9 +813,41 @@ const CheckoutPage: React.FC = () => {
                     )}
                   </span>
                 </div>
+                {tipAmount > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Rider Tip</span>
+                    <span>৳{tipAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t pt-2 mt-2 flex justify-between font-bold text-gray-900">
                   <span>Total</span>
-                  <span>৳{total.toFixed(2)}</span>
+                  <span>৳{finalTotal.toFixed(2)}</span>
+                </div>
+
+                {/* Rider Tip Selection */}
+                <div className="pt-3 border-t mt-3 space-y-1.5">
+                  <div className="flex justify-between items-center text-xs font-semibold text-gray-700">
+                    <span>Add Rider Tip</span>
+                    <span className="text-orange-600 font-bold">
+                      {tipAmount > 0 ? `৳${tipAmount.toFixed(2)}` : 'Optional'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[0, 20, 50, 100].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTipAmount(t)}
+                        className={`py-1 rounded-md text-xs font-semibold border transition-all ${
+                          tipAmount === t
+                            ? 'border-orange-500 bg-orange-50 text-orange-600 font-bold'
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {t === 0 ? 'None' : `৳${t}`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </Card>

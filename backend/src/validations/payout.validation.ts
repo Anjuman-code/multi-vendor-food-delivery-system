@@ -17,5 +17,12 @@ export const processPayoutSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+export const requestPayoutSchema = z.object({
+  amount: z.number().min(100, "Minimum withdrawal amount is ৳100"),
+  method: z.enum(["bank_transfer", "mobile_money"]).default("mobile_money"),
+  notes: z.string().max(500).optional(),
+});
+
 export type CreatePayoutInput = z.infer<typeof createPayoutSchema>;
 export type ProcessPayoutInput = z.infer<typeof processPayoutSchema>;
+export type RequestPayoutInput = z.infer<typeof requestPayoutSchema>;

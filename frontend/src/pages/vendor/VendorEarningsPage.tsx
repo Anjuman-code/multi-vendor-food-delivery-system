@@ -10,15 +10,16 @@ import {
   YAxis,
 } from "recharts";
 import {
-  AlertTriangle,
   Banknote,
   CreditCard,
   Receipt,
   TrendingUp,
   Wallet,
+  ArrowDownRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { WithdrawalRequestModal } from "@/components/payment/WithdrawalRequestModal";
 import {
   Select,
   SelectContent,
@@ -67,6 +68,7 @@ const VendorEarningsPage = () => {
   const [payoutsLoading, setPayoutsLoading] = useState(true);
 
   const [bank, setBank] = useState<Record<string, unknown> | null>(null);
+  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
 
   const loadEarnings = useCallback(
     async (p: string) => {
@@ -212,29 +214,32 @@ const VendorEarningsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/50 dark:text-amber-300">
-        <AlertTriangle className="h-5 w-5 shrink-0" />
-        <p>
-          <strong className="font-semibold">Under development:</strong> This page is still being built — some data and features may not work correctly yet.
-        </p>
-      </div>
-
       <PageHeader
         title="Earnings & Payouts"
-        description="Track your revenue, commission and settlement history."
+        description="Track your revenue, commission breakdown and settlement history."
         actions={
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[160px]" aria-label="Select period">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIOD_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={() => setWithdrawalOpen(true)}
+              className="gap-1.5 rounded-xl font-semibold shadow-xs"
+            >
+              <ArrowDownRight className="h-4 w-4" />
+              Request Withdrawal
+            </Button>
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-[160px]" aria-label="Select period">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 
@@ -381,6 +386,21 @@ const VendorEarningsPage = () => {
           }
         />
       </div>
+
+      {/* Withdrawal Request Modal */}
+      {withdrawalOpen && (
+        <WithdrawalRequestModal
+          open={withdrawalOpen}
+          onOpenChange={setWithdrawalOpen}
+          role="vendor"
+          availableBalance={earnings?.availableBalance ?? 0}
+          bankDetails={bank as any}
+          onSuccess={() => {
+            loadEarnings(period);
+            loadPayouts(1);
+          }}
+        />
+      )}
     </div>
   );
 };

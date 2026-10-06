@@ -1,13 +1,27 @@
 import { PageHeader, SectionCard, StatCard } from "@/components/rider";
+import { Button } from "@/components/ui/button";
+import { WithdrawalRequestModal } from "@/components/payment/WithdrawalRequestModal";
+import { UnifiedPaymentModal } from "@/components/payment/UnifiedPaymentModal";
+import paymentService, { type PayoutItem } from "@/services/paymentService";
 import { useRider } from "@/contexts/RiderContext";
 import { toast } from "@/lib/toast";
 import riderService, {
   type EarningsData,
   type EarningsPeriod,
 } from "@/services/riderService";
-import { formatCurrency } from "@/utils/format";
+import { formatCurrency, formatDate } from "@/utils/format";
 import { motion } from "framer-motion";
-import { Banknote, Coins, Star, TrendingUp, Truck, Wallet } from "lucide-react";
+import {
+  Banknote,
+  Coins,
+  Star,
+  TrendingUp,
+  Truck,
+  Wallet,
+  ArrowDownRight,
+  ArrowUpRight,
+  Clock,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -50,11 +64,15 @@ const PeriodCard: React.FC<{ label: string; data: EarningsPeriod }> = ({
 );
 
 const RiderEarningsPage: React.FC = () => {
-  const { profile } = useRider();
+  const { profile, refresh } = useRider();
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cashoutOpen, setCashoutOpen] = useState(false);
+  const [remitOpen, setRemitOpen] = useState(false);
+  const [payouts, setPayouts] = useState<PayoutItem[]>([]);
+  const [loadingPayouts, setLoadingPayouts] = useState(false);
 
-  useEffect(() => {
+  const loadEarnings = () => {
     riderService
       .getEarnings()
       .then((res) =>
@@ -65,6 +83,23 @@ const RiderEarningsPage: React.FC = () => {
       )
       .catch(() => toast.error("Failed to load earnings"))
       .finally(() => setLoading(false));
+  };
+
+  const loadPayouts = () => {
+    setLoadingPayouts(true);
+    paymentService
+      .getDriverPayouts({ limit: 10 })
+      .then((res) => {
+        if (res.success && res.data) {
+          setPayouts(res.data.payouts);
+        }
+      })
+      .finally(() => setLoadingPayouts(false));
+  };
+
+  useEffect(() => {
+    loadEarnings();
+    loadPayouts();
   }, []);
 
   if (loading) {
@@ -84,18 +119,31 @@ const RiderEarningsPage: React.FC = () => {
     day: new Date(d.date).toLocaleDateString("en-BD", { weekday: "short" }),
   }));
 
+  const availableCashout = profile?.totalEarnings ?? earnings.allTime.earnings;
+
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Earnings"
-        subtitle="Your delivery income and cash reconciliation"
+        subtitle="Your delivery income, cash reconciliation, and cashout history"
         actions={
-          <Link
-            to="/rider/history"
-            className="text-sm font-medium text-brand-600 hover:text-brand-700"
-          >
-            Delivery history
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setCashoutOpen(true)}
+              className="rounded-xl font-semibold gap-1.5 shadow-xs"
+            >
+              <ArrowDownRight className="h-4 w-4" />
+              Request Cashout
+            </Button>
+            <Link
+              to="/rider/history"
+              className="text-sm font-medium text-brand-600 hover:text-brand-700"
+            >
+              Delivery history
+            </Link>
+          </div>
         }
       />
 
@@ -131,7 +179,7 @@ const RiderEarningsPage: React.FC = () => {
           label="Cash today"
           value={formatCurrency(earnings.today.cashCollected)}
           icon={Coins}
-          hint="COD to deposit"
+          hint="COD collected"
         />
       </div>
 
@@ -140,7 +188,7 @@ const RiderEarningsPage: React.FC = () => {
         <SectionCard
           title="Cash to deposit"
           icon={<Banknote className="h-4 w-4 text-amber-600" />}
-          description="Cash you collected on COD orders that belongs to the platform."
+          description="Cash you physically collected on COD orders that belongs to the platform."
         >
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -149,12 +197,18 @@ const RiderEarningsPage: React.FC = () => {
               </p>
               <p className="text-sm text-muted-foreground">collected this week</p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Today:{" "}
-              <strong className="text-foreground">
-                {formatCurrency(earnings.today.cashCollected)}
-              </strong>
-            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRemitOpen(true)}
+                className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10 font-semibold gap-1.5"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+                Deposit Cash Online
+              </Button>
+            </div>
           </div>
         </SectionCard>
       )}
@@ -194,6 +248,68 @@ const RiderEarningsPage: React.FC = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </SectionCard>
+
+      {/* Payout / Cashout History */}
+      <SectionCard
+        title="Cashout History"
+        icon={<Clock className="h-4 w-4 text-brand-500" />}
+        description="Track your withdrawal requests and settlements"
+      >
+        {loadingPayouts ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            Loading payout history...
+          </div>
+        ) : payouts.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            No cashouts requested yet. Tap "Request Cashout" above to withdraw your earnings.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {payouts.map((p) => {
+              const statusClass =
+                p.status === "completed"
+                  ? "bg-emerald-500/10 text-emerald-600"
+                  : p.status === "processing"
+                  ? "bg-blue-500/10 text-blue-600"
+                  : p.status === "failed"
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-amber-500/10 text-amber-600";
+
+              return (
+                <div
+                  key={p._id}
+                  className="flex items-center justify-between rounded-xl border border-border/70 p-3 text-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <ArrowDownRight className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {p.method === "mobile_money" ? "Mobile Money Payout" : "Bank Transfer"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDate(p.createdAt)}
+                        {p.transactionRef && ` • Ref: ${p.transactionRef}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-foreground">
+                      ৳{p.amount.toFixed(2)}
+                    </p>
+                    <span
+                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${statusClass}`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </SectionCard>
 
       {/* Payout method summary */}
@@ -248,6 +364,41 @@ const RiderEarningsPage: React.FC = () => {
           </p>
         )}
       </SectionCard>
+
+      {/* Withdrawal Request Modal */}
+      {cashoutOpen && (
+        <WithdrawalRequestModal
+          open={cashoutOpen}
+          onOpenChange={setCashoutOpen}
+          role="driver"
+          availableBalance={availableCashout}
+          bankDetails={profile?.bankDetails}
+          onSuccess={() => {
+            loadEarnings();
+            loadPayouts();
+            void refresh?.();
+          }}
+        />
+      )}
+
+      {/* Remit COD Cash Modal */}
+      {remitOpen && (
+        <UnifiedPaymentModal
+          open={remitOpen}
+          onOpenChange={setRemitOpen}
+          amount={earnings.thisWeek.cashCollected}
+          purpose="cod_remittance"
+          title="Remit Collected COD Cash"
+          description="Transfer physical cash collected from customers back to the platform."
+          defaultMethod="bkash"
+          showWalletOption={false}
+          showCodOption={false}
+          onSuccess={() => {
+            loadEarnings();
+            toast.success("COD cash remittance authorized successfully!");
+          }}
+        />
+      )}
     </div>
   );
 };
