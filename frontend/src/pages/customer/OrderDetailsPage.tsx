@@ -141,7 +141,11 @@ const OrderDetailsPage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('pay') === 'now' || searchParams.get('openPayment') === 'true') {
+    if (
+      searchParams.get('pay') === 'now' ||
+      searchParams.get('pay') === 'retry' ||
+      searchParams.get('openPayment') === 'true'
+    ) {
       setShowPaymentModal(true);
     }
   }, [searchParams]);
@@ -994,11 +998,15 @@ const OrderDetailsPage: React.FC = () => {
           onOpenChange={setShowPaymentModal}
           order={order}
           defaultMethod={
-            order.paymentMethod === 'bkash' ||
-            order.paymentMethod === 'nagad' ||
-            order.paymentMethod === 'card'
-              ? order.paymentMethod
-              : 'bkash'
+            order.paymentMethod?.toLowerCase().includes('nagad')
+              ? 'nagad'
+              : order.paymentMethod?.toLowerCase().includes('rocket')
+                ? 'rocket'
+                : order.paymentMethod?.toLowerCase().includes('upay')
+                  ? 'upay'
+                  : order.paymentMethod?.toLowerCase().includes('card')
+                    ? 'card'
+                    : 'bkash'
           }
           onSuccess={(transactionId, updatedOrder) => {
             setOrder((prev) =>

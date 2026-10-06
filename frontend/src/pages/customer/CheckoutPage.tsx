@@ -40,7 +40,7 @@ import {
   Tag,
   Truck,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 type Step = 'delivery-address' | 'payment' | 'review';
@@ -92,8 +92,8 @@ const CheckoutPage: React.FC = () => {
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
-  const [selectedPayment, setSelectedPayment] = useState<string | null>(COD_PAYMENT_ID);
-  const [activePaymentMethod, setActivePaymentMethod] = useState<SupportedPaymentMethod>('cash_on_delivery');
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [activePaymentMethod, setActivePaymentMethod] = useState<SupportedPaymentMethod>('bkash');
   const [tipAmount, setTipAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
@@ -123,16 +123,17 @@ const CheckoutPage: React.FC = () => {
   // Payment gateway modal state for online payments
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<any | null>(null);
+  const isOrderSubmitted = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    if (items.length === 0) {
+    if (items.length === 0 && !isOrderSubmitted.current && !createdOrder && !paymentModalOpen) {
       navigate('/cart');
     }
-  }, [isAuthenticated, items.length, navigate]);
+  }, [isAuthenticated, items.length, navigate, createdOrder, paymentModalOpen]);
 
   const loadAddresses = useCallback(async () => {
     const profileRes = await userService.getProfile();
@@ -166,7 +167,12 @@ const CheckoutPage: React.FC = () => {
       if (pmRes.success && pmRes.data) {
         setPaymentMethods(pmRes.data.paymentMethods);
         const defaultPm = pmRes.data.paymentMethods.find((p) => p.isDefault);
-        if (defaultPm) setSelectedPayment(defaultPm._id);
+        if (defaultPm) {
+          setSelectedPayment(defaultPm._id);
+          setActivePaymentMethod(
+            (defaultPm.provider as SupportedPaymentMethod) || 'card',
+          );
+        }
       }
       setLoading(false);
     };
@@ -352,6 +358,7 @@ const CheckoutPage: React.FC = () => {
     setOrderError(null);
     setOrderFieldErrors([]);
     setPlacing(true);
+    isOrderSubmitted.current = true;
     let res;
     try {
       res = await orderService.createOrderFromCart({
@@ -367,6 +374,7 @@ const CheckoutPage: React.FC = () => {
         tipAmount: tipAmount > 0 ? tipAmount : undefined,
       });
     } catch (err) {
+      isOrderSubmitted.current = false;
       setPlacing(false);
       const fieldErrors = getFieldErrors(extractApiError(err)).map(
         (e) => e.message,
@@ -405,6 +413,7 @@ const CheckoutPage: React.FC = () => {
         setPaymentModalOpen(true);
       }
     } else {
+      isOrderSubmitted.current = false;
       const fieldErrors = getFieldErrors(extractApiError(res)).map(
         (e) => e.message,
       );
@@ -1083,7 +1092,13 @@ const CheckoutPage: React.FC = () => {
       {createdOrder && (
         <UnifiedPaymentModal
           open={paymentModalOpen}
-          onOpenChange={setPaymentModalOpen}
+          onOpenChange={(isOpen) => {
+            setPaymentModalOpen(isOpen);
+            if (!isOpen) {
+              clearCart();
+              navigate(`/orders/${createdOrder._id}?pay=retry`);
+            }
+          }}
           orderId={createdOrder._id}
           amount={finalTotal}
           purpose="order_payment"

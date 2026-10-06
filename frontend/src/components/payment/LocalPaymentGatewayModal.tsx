@@ -7,7 +7,7 @@ export interface LocalPaymentGatewayModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order;
-  defaultMethod?: 'bkash' | 'nagad' | 'card';
+  defaultMethod?: SupportedPaymentMethod;
   onSuccess: (transactionId: string, order: Order) => void;
 }
 
