@@ -49,14 +49,8 @@ import {
   Trash2,
   User,
   UtensilsCrossed,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownLeft,
-  RotateCw,
   X,
 } from "lucide-react";
-import { UnifiedPaymentModal } from "@/components/payment/UnifiedPaymentModal";
-import paymentService, { type CustomerWalletData } from "@/services/paymentService";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -1241,12 +1235,8 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
 
 const PaymentSection: React.FC = () => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [walletData, setWalletData] = useState<CustomerWalletData | null>(null);
   const [isLoadingPayments, setIsLoadingPayments] = useState(true);
-  const [isLoadingWallet, setIsLoadingWallet] = useState(true);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
-  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState<number>(500);
 
   const fetchPaymentMethods = useCallback(async () => {
     setIsLoadingPayments(true);
@@ -1261,192 +1251,55 @@ const PaymentSection: React.FC = () => {
     setIsLoadingPayments(false);
   }, []);
 
-  const fetchWallet = useCallback(async () => {
-    setIsLoadingWallet(true);
-    const res = await paymentService.getCustomerWallet();
-    if (res.success && res.data) {
-      setWalletData(res.data);
-    }
-    setIsLoadingWallet(false);
-  }, []);
-
   useEffect(() => {
     void fetchPaymentMethods();
-    void fetchWallet();
-  }, [fetchPaymentMethods, fetchWallet]);
+  }, [fetchPaymentMethods]);
 
   return (
     <div className="space-y-6">
-      {/* Food Rush In-App Wallet Card */}
-      <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-border/60">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-              <Wallet className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-foreground">
-                  Food Rush Wallet
-                </h2>
-                <span className="rounded-full bg-primary/20 text-primary px-2 py-0.5 text-[11px] font-semibold">
-                  Instant Checkout
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Use your wallet balance to pay instantly for any food order without OTP.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                setTopUpAmount(500);
-                setIsTopUpOpen(true);
-              }}
-              className="rounded-xl font-semibold shadow-xs"
-            >
-              <ArrowUpRight className="h-4 w-4 mr-1.5" />
-              Top Up Wallet
-            </Button>
-          </div>
-        </div>
-
-        {/* Balance Display & Quick Presets */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-5">
-          <div className="sm:col-span-1">
-            <span className="text-xs text-muted-foreground block font-medium">
-              Available Balance
-            </span>
-            <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-3xl font-black text-foreground">
-                {isLoadingWallet ? "..." : `৳${(walletData?.walletBalance ?? 0).toFixed(2)}`}
-              </span>
-            </div>
-          </div>
-
-          <div className="sm:col-span-2 flex flex-col justify-center">
-            <span className="text-xs text-muted-foreground mb-2 font-medium">
-              Quick Top Up
-            </span>
-            <div className="flex gap-2">
-              {[200, 500, 1000, 2000].map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => {
-                    setTopUpAmount(amt);
-                    setIsTopUpOpen(true);
-                  }}
-                  className="flex-1 py-1.5 rounded-lg border border-border/80 bg-background text-xs font-semibold text-foreground hover:border-primary hover:bg-primary/5 transition-all cursor-pointer shadow-2xs"
-                >
-                  +৳{amt}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Wallet Transactions */}
-        {walletData?.transactions && walletData.transactions.length > 0 && (
-          <div className="mt-6 pt-5 border-t border-border/60">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Recent Wallet Activity
-              </span>
-              <button
-                type="button"
-                onClick={fetchWallet}
-                className="text-xs text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCw className="h-3 w-3" /> Refresh
-              </button>
-            </div>
-            <div className="space-y-2">
-              {walletData.transactions.slice(0, 5).map((txn) => {
-                const isCredit = txn.type === "topup" || txn.type === "refund" || txn.type === "cashback";
-                return (
-                  <div
-                    key={txn._id}
-                    className="flex items-center justify-between rounded-xl bg-background/80 border border-border/60 p-3 text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg ${
-                          isCredit ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {isCredit ? (
-                          <ArrowDownLeft className="h-3.5 w-3.5" />
-                        ) : (
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground capitalize">
-                          {txn.description || txn.type.replace(/_/g, " ")}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(txn.createdAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`font-bold ${
-                          isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
-                        }`}
-                      >
-                        {isCredit ? "+" : "-"}৳{txn.amount.toFixed(2)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Bal: ৳{txn.balanceAfter.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Saved Payment Methods Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
+      <div className="bg-white dark:bg-card rounded-2xl border border-border p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-orange-500" />
-            Saved Cards &amp; Mobile Wallets
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary" />
+              Saved Cards &amp; Mobile Wallets
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage your saved cards, bKash, and Nagad wallets for instant checkout.
+            </p>
+          </div>
           <Button
             type="button"
             onClick={() => setIsAddPaymentOpen(true)}
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl"
+            className="rounded-xl font-semibold gap-1.5"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-4 h-4" />
             Add Payment Method
           </Button>
         </div>
 
         {isLoadingPayments ? (
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground p-6 text-center">
             Loading payment methods...
           </div>
         ) : paymentMethods.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-600 mb-2">
-              No saved payment methods yet.
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
+            <p className="text-sm font-semibold text-foreground mb-1">
+              No saved payment methods yet
             </p>
-            <p className="text-xs text-gray-500">
-              Add a card or bKash/Nagad wallet to checkout faster.
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-4">
+              Add a debit/credit card or bKash/Nagad wallet to enjoy quick, seamless checkouts.
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddPaymentOpen(true)}
+              className="rounded-lg text-xs"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Payment Method
+            </Button>
           </div>
         ) : (
           <PaymentMethodsList
@@ -1457,30 +1310,12 @@ const PaymentSection: React.FC = () => {
         )}
       </div>
 
-      {/* Top Up Modal */}
-      {isTopUpOpen && (
-        <UnifiedPaymentModal
-          open={isTopUpOpen}
-          onOpenChange={setIsTopUpOpen}
-          amount={topUpAmount}
-          purpose="wallet_topup"
-          title="Top Up Food Rush Wallet"
-          description={`Add ৳${topUpAmount.toFixed(2)} instantly to your in-app wallet balance.`}
-          defaultMethod="bkash"
-          showWalletOption={false}
-          showCodOption={false}
-          onSuccess={() => {
-            fetchWallet();
-            toast.success("Wallet topped up successfully!");
-          }}
-        />
-      )}
-
       <PaymentMethodsDialog
         isOpen={isAddPaymentOpen}
         onOpenChange={setIsAddPaymentOpen}
         paymentMethods={paymentMethods}
         isLoadingPayments={isLoadingPayments}
+        onSuccess={fetchPaymentMethods}
       />
     </div>
   );

@@ -29,33 +29,13 @@ interface MethodOption {
 export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   selectedMethod,
   onSelectMethod,
-  walletBalance = 0,
-  amountToPay,
   disabled = false,
-  showWallet = true,
   showCod = true,
   showCards = true,
   showMobileWallets = true,
   className,
 }) => {
-  const isWalletInsufficient =
-    amountToPay !== undefined && walletBalance < amountToPay;
-
   const methods: MethodOption[] = [
-    ...(showWallet
-      ? [
-          {
-            id: 'wallet' as SupportedPaymentMethod,
-            name: 'Food Rush Wallet',
-            description: `Available: ৳${walletBalance.toFixed(2)}`,
-            category: 'wallet' as const,
-            badge: isWalletInsufficient ? 'Insufficient' : 'Instant Pay',
-            disabledReason: isWalletInsufficient
-              ? `Requires ৳${(amountToPay ?? 0).toFixed(2)}`
-              : undefined,
-          },
-        ]
-      : []),
     ...(showMobileWallets
       ? [
           {
@@ -113,8 +93,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {methods.map((method) => {
           const isSelected = selectedMethod === method.id;
-          const isMethodDisabled =
-            disabled || (method.id === 'wallet' && isWalletInsufficient);
+          const isMethodDisabled = disabled;
 
           return (
             <button

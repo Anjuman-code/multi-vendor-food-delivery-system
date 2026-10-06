@@ -9,9 +9,19 @@ import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
 import type { PaymentMethod, UserAddress } from '@/services/userService';
 import userService from '@/services/userService';
-import paymentService from '@/services/paymentService';
 import { PaymentMethodSelector } from '@/components/payment/PaymentMethodSelector';
-import type { SupportedPaymentMethod } from '@/utils/paymentUtils';
+import { CardPaymentForm, type CardFormData } from '@/components/payment/CardPaymentForm';
+import { MobileWalletForm, type MobileWalletFormData } from '@/components/payment/MobileWalletForm';
+import { UnifiedPaymentModal } from '@/components/payment/UnifiedPaymentModal';
+import { PaymentBrandIcon } from '@/components/payment/PaymentBrandIcon';
+import {
+  validateBdPhone,
+  validateLuhn,
+  validateExpiryDate,
+  validateCvv,
+  detectCardBrand,
+  type SupportedPaymentMethod,
+} from '@/utils/paymentUtils';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -22,6 +32,7 @@ import {
   Clock,
   CreditCard,
   Loader2,
+  Lock,
   MapPin,
   Navigation,
   Plus,
@@ -83,7 +94,6 @@ const CheckoutPage: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(COD_PAYMENT_ID);
   const [activePaymentMethod, setActivePaymentMethod] = useState<SupportedPaymentMethod>('cash_on_delivery');
-  const [walletBalance, setWalletBalance] = useState<number>(0);
   const [tipAmount, setTipAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
@@ -94,6 +104,25 @@ const CheckoutPage: React.FC = () => {
   // Server error(s) from the place-order call, surfaced inline on the review step.
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderFieldErrors, setOrderFieldErrors] = useState<string[]>([]);
+
+  // Detailed payment form state
+  const [cardData, setCardData] = useState<CardFormData>({
+    cardNumber: '',
+    cardHolder: '',
+    expiry: '',
+    cvv: '',
+    saveCard: true,
+  });
+  const [walletData, setWalletData] = useState<MobileWalletFormData>({
+    walletNumber: '',
+    pin: '',
+  });
+  const [cardErrors, setCardErrors] = useState<Partial<Record<keyof CardFormData, string>>>({});
+  const [walletErrors, setWalletErrors] = useState<Partial<Record<keyof MobileWalletFormData, string>>>({});
+
+  // Payment gateway modal state for online payments
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<any | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -123,10 +152,9 @@ const CheckoutPage: React.FC = () => {
 
     const loadData = async () => {
       setLoading(true);
-      const [profileRes, pmRes, walletRes] = await Promise.all([
+      const [profileRes, pmRes] = await Promise.all([
         userService.getProfile(),
         userService.getPaymentMethods(),
-        paymentService.getCustomerWallet(),
       ]);
       if (profileRes.success && profileRes.data) {
         setAddresses(profileRes.data.user.addresses);
@@ -140,26 +168,50 @@ const CheckoutPage: React.FC = () => {
         const defaultPm = pmRes.data.paymentMethods.find((p) => p.isDefault);
         if (defaultPm) setSelectedPayment(defaultPm._id);
       }
-      if (walletRes.success && walletRes.data) {
-        setWalletBalance(walletRes.data.walletBalance);
-      }
       setLoading(false);
     };
     loadData();
   }, [isAuthenticated]);
 
-  /**
-   * The furthest step the current selections actually permit. This is the
-   * single source of truth for navigation: it is derived purely from state, so
-   * it can't be bypassed by editing the `?step=` URL.
-   *   - `payment`/`review` require a selected delivery address.
-   *   - `review` additionally requires a selected payment method.
-   */
+  const selectedAddr = addresses.find((a) => a._id === selectedAddress);
+  const isCOD =
+    selectedPayment === COD_PAYMENT_ID ||
+    activePaymentMethod === 'cash_on_delivery';
+  const selectedPm = !isCOD && selectedPayment !== null
+    ? paymentMethods.find((p) => p._id === selectedPayment)
+    : null;
+
+  const isPaymentValid = useMemo(() => {
+    if (isCOD) return true;
+    if (selectedPm) return true;
+    if (activePaymentMethod === 'card') {
+      const cleanNum = cardData.cardNumber.replace(/\s+/g, '');
+      const brand = detectCardBrand(cardData.cardNumber);
+      return Boolean(
+        cleanNum.length >= 13 &&
+        validateLuhn(cleanNum) &&
+        cardData.cardHolder.trim().length >= 3 &&
+        cardData.expiry.length === 5 &&
+        validateExpiryDate(cardData.expiry) &&
+        validateCvv(cardData.cvv, brand)
+      );
+    }
+    if (
+      activePaymentMethod === 'bkash' ||
+      activePaymentMethod === 'nagad' ||
+      activePaymentMethod === 'rocket' ||
+      activePaymentMethod === 'upay'
+    ) {
+      return validateBdPhone(walletData.walletNumber);
+    }
+    return false;
+  }, [isCOD, selectedPm, activePaymentMethod, cardData, walletData]);
+
   const maxAllowedStep: Step = useMemo(() => {
     if (!selectedAddress) return 'delivery-address';
-    if (!selectedPayment) return 'payment';
+    if (!isPaymentValid) return 'payment';
     return 'review';
-  }, [selectedAddress, selectedPayment]);
+  }, [selectedAddress, isPaymentValid]);
 
   // The earliest step the user still needs to complete (== maxAllowedStep here,
   // since each step gates the next), used as the redirect target.
@@ -177,7 +229,7 @@ const CheckoutPage: React.FC = () => {
       toast.info(
         maxAllowedStep === 'delivery-address'
           ? 'Please select a delivery address to continue.'
-          : 'Please select a payment method to continue.',
+          : 'Please enter your payment details to continue.',
       );
     }
   }, [
@@ -191,14 +243,6 @@ const CheckoutPage: React.FC = () => {
   // While the guard's redirect is pending, render the step the state allows so
   // we never momentarily show a step the user hasn't earned.
   const effectiveStep: Step = stepExceedsAllowed ? maxAllowedStep : step;
-
-  const selectedAddr = addresses.find((a) => a._id === selectedAddress);
-  const isCOD =
-    selectedPayment === COD_PAYMENT_ID ||
-    activePaymentMethod === 'cash_on_delivery';
-  const selectedPm = !isCOD
-    ? paymentMethods.find((p) => p._id === selectedPayment)
-    : null;
 
   const finalTotal = Math.round((total + tipAmount) * 100) / 100;
 
@@ -215,14 +259,72 @@ const CheckoutPage: React.FC = () => {
       setAdvanceError(null);
       setStep('payment');
     } else if (effectiveStep === 'payment') {
-      if (!selectedPayment && !activePaymentMethod) {
-        const msg = 'Please select a payment method to continue.';
-        setAdvanceError(msg);
-        toast.error('Select Payment', { description: msg });
+      if (isCOD || selectedPm) {
+        setAdvanceError(null);
+        setStep('review');
         return;
       }
-      setAdvanceError(null);
-      setStep('review');
+
+      if (activePaymentMethod === 'card') {
+        const cleanNum = cardData.cardNumber.replace(/\s+/g, '');
+        const brand = detectCardBrand(cardData.cardNumber);
+        const errs: Partial<Record<keyof CardFormData, string>> = {};
+
+        if (!cleanNum || cleanNum.length < 13 || !validateLuhn(cleanNum)) {
+          errs.cardNumber = 'Valid card number is required (Luhn check failed)';
+        }
+        if (!cardData.cardHolder || cardData.cardHolder.trim().length < 3) {
+          errs.cardHolder = 'Cardholder name is required (at least 3 characters)';
+        }
+        if (!cardData.expiry || !validateExpiryDate(cardData.expiry)) {
+          errs.expiry = 'Valid MM/YY future expiry is required';
+        }
+        if (!cardData.cvv || !validateCvv(cardData.cvv, brand)) {
+          errs.cvv = brand === 'amex' ? '4-digit CVV required' : '3-digit CVV required';
+        }
+
+        if (Object.keys(errs).length > 0) {
+          setCardErrors(errs);
+          const firstErr = Object.values(errs)[0];
+          setAdvanceError(firstErr);
+          toast.error('Card Details Incomplete', { description: firstErr });
+          return;
+        }
+
+        setCardErrors({});
+        setAdvanceError(null);
+        setStep('review');
+        return;
+      }
+
+      if (
+        activePaymentMethod === 'bkash' ||
+        activePaymentMethod === 'nagad' ||
+        activePaymentMethod === 'rocket' ||
+        activePaymentMethod === 'upay'
+      ) {
+        const errs: Partial<Record<keyof MobileWalletFormData, string>> = {};
+        if (!walletData.walletNumber || !validateBdPhone(walletData.walletNumber)) {
+          errs.walletNumber = 'Valid Bangladeshi mobile number (013-019) required';
+        }
+
+        if (Object.keys(errs).length > 0) {
+          setWalletErrors(errs);
+          const firstErr = Object.values(errs)[0];
+          setAdvanceError(firstErr);
+          toast.error('Mobile Number Required', { description: firstErr });
+          return;
+        }
+
+        setWalletErrors({});
+        setAdvanceError(null);
+        setStep('review');
+        return;
+      }
+
+      const msg = 'Please select a payment method to continue.';
+      setAdvanceError(msg);
+      toast.error('Select Payment', { description: msg });
     }
   };
 
@@ -233,13 +335,18 @@ const CheckoutPage: React.FC = () => {
   };
 
   const placeOrder = useCallback(async () => {
-    if (!selectedAddr || (!selectedPayment && !activePaymentMethod)) return;
+    if (!selectedAddr) return;
+    if (!isCOD && !selectedPm && !isPaymentValid) return;
 
     let paymentMethodValue: string = 'cash_on_delivery';
     if (selectedPm) {
       paymentMethodValue = `${selectedPm.type} - ${selectedPm.provider} ****${selectedPm.last4}`;
+    } else if (activePaymentMethod === 'card') {
+      const cleanNum = cardData.cardNumber.replace(/\s+/g, '');
+      const brand = detectCardBrand(cardData.cardNumber).toUpperCase();
+      paymentMethodValue = `card - ${brand} ****${cleanNum.slice(-4)}`;
     } else if (activePaymentMethod) {
-      paymentMethodValue = activePaymentMethod;
+      paymentMethodValue = `${activePaymentMethod} - ${walletData.walletNumber}`;
     }
 
     setOrderError(null);
@@ -260,7 +367,6 @@ const CheckoutPage: React.FC = () => {
         tipAmount: tipAmount > 0 ? tipAmount : undefined,
       });
     } catch (err) {
-      // Surface the specific server message rather than a vague one.
       setPlacing(false);
       const fieldErrors = getFieldErrors(extractApiError(err)).map(
         (e) => e.message,
@@ -278,28 +384,27 @@ const CheckoutPage: React.FC = () => {
     setPlacing(false);
 
     if (res.success && res.data) {
-      clearCart();
       const firstOrder = res.data.orders[0];
       const orderCount = res.data.orders.length;
 
-      if (orderCount > 1) {
-        toast.success('Orders Placed!', {
-          description: `${orderCount} orders confirmed across ${orderCount} restaurants.`,
-        });
-      } else {
-        toast.success('Order Placed!', {
-          description: `Order ${firstOrder.orderNumber} confirmed.`,
-        });
-      }
-
-      if (!isCOD) {
-        navigate(`/orders/${firstOrder._id}?pay=now`);
-      } else {
+      if (isCOD) {
+        clearCart();
+        if (orderCount > 1) {
+          toast.success('Orders Placed!', {
+            description: `${orderCount} orders confirmed across ${orderCount} restaurants.`,
+          });
+        } else {
+          toast.success('Order Placed!', {
+            description: `Order ${firstOrder.orderNumber} confirmed.`,
+          });
+        }
         navigate(`/orders/${firstOrder._id}`);
+      } else {
+        // Online Payment: Launch Unified Payment Gateway Modal with autoInitiate (triggers OTP)
+        setCreatedOrder(firstOrder);
+        setPaymentModalOpen(true);
       }
     } else {
-      // Service returned the error body directly (not thrown). Pull out the
-      // specific server message and any field-level errors.
       const fieldErrors = getFieldErrors(extractApiError(res)).map(
         (e) => e.message,
       );
@@ -314,10 +419,14 @@ const CheckoutPage: React.FC = () => {
     }
   }, [
     selectedAddr,
-    selectedPayment,
     isCOD,
     selectedPm,
+    isPaymentValid,
+    activePaymentMethod,
+    cardData,
+    walletData,
     promoCode,
+    tipAmount,
     clearCart,
     navigate,
   ]);
@@ -479,25 +588,87 @@ const CheckoutPage: React.FC = () => {
                     Select Payment Method
                   </h2>
                   <p className="text-xs text-gray-500 mb-3">
-                    Choose from digital wallets, cards, or pay cash on arrival.
+                    Choose from mobile wallets, cards, or pay cash on arrival.
                   </p>
                   <PaymentMethodSelector
-                    selectedMethod={activePaymentMethod}
+                    selectedMethod={selectedPm ? (selectedPm.provider as SupportedPaymentMethod) || 'card' : activePaymentMethod}
                     onSelectMethod={(m) => {
                       setActivePaymentMethod(m);
-                      if (m === 'cash_on_delivery') setSelectedPayment(COD_PAYMENT_ID);
-                      else setSelectedPayment(m);
+                      if (m === 'cash_on_delivery') {
+                        setSelectedPayment(COD_PAYMENT_ID);
+                      } else {
+                        setSelectedPayment(null);
+                      }
                       setAdvanceError(null);
                     }}
-                    walletBalance={walletBalance}
-                    amountToPay={finalTotal}
-                    showWallet={true}
+                    showWallet={false}
                     showCod={true}
                     showCards={true}
                     showMobileWallets={true}
                   />
                 </div>
 
+                {/* Inline Detail Forms for New Method Selection */}
+                {!selectedPm && activePaymentMethod === 'card' && (
+                  <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Card Details
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Enter your card details for secure 3D-Secure processing
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+                        <Lock className="h-3 w-3" /> 256-bit Encrypted
+                      </div>
+                    </div>
+                    <CardPaymentForm
+                      value={cardData}
+                      onChange={(val) => {
+                        setCardData(val);
+                        setCardErrors({});
+                        setAdvanceError(null);
+                      }}
+                      errors={cardErrors}
+                      showSaveCard={true}
+                    />
+                  </Card>
+                )}
+
+                {!selectedPm &&
+                  (activePaymentMethod === 'bkash' ||
+                    activePaymentMethod === 'nagad' ||
+                    activePaymentMethod === 'rocket' ||
+                    activePaymentMethod === 'upay') && (
+                    <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3">
+                      <MobileWalletForm
+                        method={activePaymentMethod}
+                        value={walletData}
+                        onChange={(val) => {
+                          setWalletData(val);
+                          setWalletErrors({});
+                          setAdvanceError(null);
+                        }}
+                        errors={walletErrors}
+                      />
+                    </Card>
+                  )}
+
+                {activePaymentMethod === 'cash_on_delivery' && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1">
+                    <div className="flex items-center gap-2 font-semibold text-amber-950">
+                      <Banknote className="h-4 w-4 text-amber-600" />
+                      Cash on Delivery Selected
+                    </div>
+                    <p>
+                      Please keep <strong>৳{finalTotal.toFixed(2)}</strong> in cash ready for our delivery partner upon arrival.
+                    </p>
+                  </div>
+                )}
+
+                {/* Saved Payment Methods (if user has any saved) */}
                 {paymentMethods.length > 0 && (
                   <div className="pt-3 border-t">
                     <div className="flex items-center justify-between mb-2">
@@ -525,12 +696,17 @@ const CheckoutPage: React.FC = () => {
                           }`}
                           onClick={() => {
                             setSelectedPayment(pm._id);
-                            setActivePaymentMethod((pm.provider as SupportedPaymentMethod) || 'card');
+                            setActivePaymentMethod(
+                              (pm.provider as SupportedPaymentMethod) || 'card',
+                            );
                             setAdvanceError(null);
                           }}
                         >
                           <div className="flex items-center gap-3">
-                            <CreditCard className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                            <PaymentBrandIcon
+                              brandOrMethod={pm.provider || pm.type}
+                              className="h-6 w-9"
+                            />
                             <div>
                               <p className="font-medium capitalize text-sm">
                                 {pm.type} – {pm.provider}
@@ -595,26 +771,74 @@ const CheckoutPage: React.FC = () => {
                   </Card>
                 )}
 
-                {selectedPayment && (
-                  <Card className="p-4">
-                    <p className="text-xs font-medium text-gray-400 uppercase mb-1">
-                      Payment
-                    </p>
-                    {isCOD ? (
-                      <div className="flex items-center gap-2">
-                        <Banknote className="h-4 w-4 text-orange-500" />
-                        <p className="text-sm text-gray-800 font-medium">
+                {/* Selected payment summary with authentic brand logos */}
+                <Card className="p-4">
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-2">
+                    Payment Method
+                  </p>
+                  {isCOD ? (
+                    <div className="flex items-center gap-3">
+                      <PaymentBrandIcon brandOrMethod="cash_on_delivery" className="h-6 w-9" />
+                      <div>
+                        <p className="text-sm text-gray-900 font-semibold">
                           Cash on Delivery
                         </p>
+                        <p className="text-xs text-gray-500">
+                          Pay ৳{finalTotal.toFixed(2)} in cash to the rider on arrival
+                        </p>
                       </div>
-                    ) : selectedPm ? (
-                      <p className="text-sm text-gray-800 capitalize">
-                        {selectedPm.type} – {selectedPm.provider} ****
-                        {selectedPm.last4}
-                      </p>
-                    ) : null}
-                  </Card>
-                )}
+                    </div>
+                  ) : selectedPm ? (
+                    <div className="flex items-center gap-3">
+                      <PaymentBrandIcon
+                        brandOrMethod={selectedPm.provider || selectedPm.type}
+                        className="h-6 w-9"
+                      />
+                      <div>
+                        <p className="text-sm text-gray-900 font-semibold capitalize">
+                          {selectedPm.type} · {selectedPm.provider}
+                        </p>
+                        <p className="text-xs text-gray-500 font-mono">
+                          •••• {selectedPm.last4}
+                          {selectedPm.expiryMonth && selectedPm.expiryYear
+                            ? ` · Exp ${String(selectedPm.expiryMonth).padStart(2, '0')}/${selectedPm.expiryYear}`
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ) : activePaymentMethod === 'card' ? (
+                    <div className="flex items-center gap-3">
+                      <PaymentBrandIcon
+                        brandOrMethod={detectCardBrand(cardData.cardNumber)}
+                        className="h-6 w-9"
+                      />
+                      <div>
+                        <p className="text-sm text-gray-900 font-semibold">
+                          {cardData.cardHolder || 'Credit / Debit Card'}
+                        </p>
+                        <p className="text-xs text-gray-500 font-mono">
+                          •••• •••• •••• {cardData.cardNumber.replace(/\s+/g, '').slice(-4)}
+                          {cardData.expiry ? ` · Exp ${cardData.expiry}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <PaymentBrandIcon
+                        brandOrMethod={activePaymentMethod}
+                        className="h-6 w-9"
+                      />
+                      <div>
+                        <p className="text-sm text-gray-900 font-semibold capitalize">
+                          {activePaymentMethod} Account
+                        </p>
+                        <p className="text-xs text-gray-500 font-mono">
+                          {walletData.walletNumber}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </Card>
 
                 {/* Items grouped by restaurant */}
                 {itemsByRestaurant.map((group) => (
@@ -757,11 +981,12 @@ const CheckoutPage: React.FC = () => {
               </Button>
               {effectiveStep !== 'review' ? (
                 <Button
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-orange-500 hover:bg-orange-600 font-semibold"
                   onClick={goNext}
                   disabled={
-                    (effectiveStep === 'delivery-address' && !selectedAddress) ||
-                    (effectiveStep === 'payment' && !selectedPayment)
+                    effectiveStep === 'delivery-address'
+                      ? !selectedAddress
+                      : !isPaymentValid
                   }
                 >
                   Continue
@@ -769,19 +994,19 @@ const CheckoutPage: React.FC = () => {
                 </Button>
               ) : (
                 <Button
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-orange-500 hover:bg-orange-600 font-semibold"
                   onClick={placeOrder}
                   disabled={placing || (isMultiRestaurant && !disclaimerAccepted)}
                 >
                   {placing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Placing…
+                      {isCOD ? 'Placing Order…' : 'Preparing Payment…'}
                     </>
                   ) : (
                     <>
-                      Place Order{isMultiRestaurant ? 's' : ''} · ৳
-                      {finalTotal.toFixed(2)}
+                      {isCOD ? 'Place Order' : 'Place Order & Pay'}{' '}
+                      {isMultiRestaurant ? 's' : ''} · ৳{finalTotal.toFixed(2)}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -854,6 +1079,45 @@ const CheckoutPage: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {createdOrder && (
+        <UnifiedPaymentModal
+          open={paymentModalOpen}
+          onOpenChange={setPaymentModalOpen}
+          orderId={createdOrder._id}
+          amount={finalTotal}
+          purpose="order_payment"
+          defaultMethod={activePaymentMethod}
+          initialCardData={activePaymentMethod === 'card' ? cardData : undefined}
+          initialWalletData={
+            activePaymentMethod === 'bkash' ||
+            activePaymentMethod === 'nagad' ||
+            activePaymentMethod === 'rocket' ||
+            activePaymentMethod === 'upay'
+              ? walletData
+              : undefined
+          }
+          autoInitiate={true}
+          showWalletOption={false}
+          showCodOption={false}
+          title={`Verify Payment for Order #${createdOrder.orderNumber || ''}`}
+          description="Verification OTP has been sent to your phone/console."
+          onSuccess={() => {
+            clearCart();
+            toast.success('Payment Verified!', {
+              description: `Order ${createdOrder.orderNumber} confirmed and paid.`,
+            });
+            navigate(`/orders/${createdOrder._id}`);
+          }}
+          onCancel={() => {
+            clearCart();
+            toast.info('Order placed with payment pending', {
+              description: 'You can complete payment anytime from order details.',
+            });
+            navigate(`/orders/${createdOrder._id}?pay=retry`);
+          }}
+        />
+      )}
     </div>
   );
 };

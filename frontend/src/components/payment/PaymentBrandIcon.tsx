@@ -58,7 +58,7 @@ export const PaymentBrandIcon: React.FC<PaymentBrandIconProps> = ({
     label = 'Cash on Delivery';
   } else if (norm.includes('wallet') || norm.includes('balance')) {
     src = walletSvg;
-    label = 'Food Rush Wallet';
+    label = 'Wallet';
   }
 
   if (src) {

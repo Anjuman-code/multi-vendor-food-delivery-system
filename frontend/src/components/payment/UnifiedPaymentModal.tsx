@@ -33,6 +33,9 @@ export interface UnifiedPaymentModalProps {
   defaultMethod?: SupportedPaymentMethod;
   showWalletOption?: boolean;
   showCodOption?: boolean;
+  initialCardData?: CardFormData;
+  initialWalletData?: MobileWalletFormData;
+  autoInitiate?: boolean;
   onSuccess: (transactionId: string, result: any) => void;
   onCancel?: () => void;
 }
@@ -49,8 +52,11 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   title,
   description,
   defaultMethod = 'bkash',
-  showWalletOption = true,
+  showWalletOption = false,
   showCodOption = true,
+  initialCardData,
+  initialWalletData,
+  autoInitiate = false,
   onSuccess,
   onCancel,
 }) => {
@@ -59,17 +65,21 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   const [walletBalance, setWalletBalance] = useState<number>(0);
 
   // Forms
-  const [cardData, setCardData] = useState<CardFormData>({
-    cardNumber: '',
-    cardHolder: '',
-    expiry: '',
-    cvv: '',
-    saveCard: false,
-  });
-  const [walletData, setWalletData] = useState<MobileWalletFormData>({
-    walletNumber: '',
-    pin: '',
-  });
+  const [cardData, setCardData] = useState<CardFormData>(
+    initialCardData || {
+      cardNumber: '',
+      cardHolder: '',
+      expiry: '',
+      cvv: '',
+      saveCard: false,
+    }
+  );
+  const [walletData, setWalletData] = useState<MobileWalletFormData>(
+    initialWalletData || {
+      walletNumber: '',
+      pin: '',
+    }
+  );
 
   // Validation errors
   const [cardErrors, setCardErrors] = useState<Partial<Record<keyof CardFormData, string>>>({});
@@ -82,23 +92,86 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   const [resultStatus, setResultStatus] = useState<'success' | 'failed'>('success');
   const [resultMessage, setResultMessage] = useState<string | undefined>();
   const [completedTxnId, setCompletedTxnId] = useState<string | undefined>();
+  const autoInitiatedRef = React.useRef(false);
 
-  // Fetch wallet balance when opened
+  // Handle open / auto-initiate
   useEffect(() => {
     if (open) {
-      // Reset state on open
-      setStep('select');
-      setSession(null);
+      if (defaultMethod) setMethod(defaultMethod);
+      if (initialCardData) setCardData(initialCardData);
+      if (initialWalletData) setWalletData(initialWalletData);
       setOtpError(null);
       setCompletedTxnId(undefined);
 
-      paymentService.getCustomerWallet().then((res) => {
-        if (res.success && res.data) {
-          setWalletBalance(res.data.walletBalance);
-        }
-      });
+      if (showWalletOption) {
+        paymentService.getCustomerWallet().then((res) => {
+          if (res.success && res.data) {
+            setWalletBalance(res.data.walletBalance);
+          }
+        });
+      }
+
+      if (autoInitiate && !autoInitiatedRef.current) {
+        autoInitiatedRef.current = true;
+        const targetMethod = defaultMethod;
+        const targetCard = initialCardData || cardData;
+        const targetWallet = initialWalletData || walletData;
+
+        setLoading(true);
+        paymentService
+          .initiateSession({
+            orderId,
+            purpose,
+            amount,
+            method: targetMethod,
+            cardDetails: targetMethod === 'card' ? targetCard : undefined,
+            walletDetails:
+              targetMethod === 'bkash' ||
+              targetMethod === 'nagad' ||
+              targetMethod === 'rocket' ||
+              targetMethod === 'upay'
+                ? targetWallet
+                : undefined,
+          })
+          .then((res) => {
+            if (!res.success || !res.data) {
+              toast.error(res.message || 'Payment initiation failed');
+              setResultStatus('failed');
+              setResultMessage(res.message || 'Payment initiation failed');
+              setStep('result');
+              return;
+            }
+
+            const sess = res.data;
+            setSession(sess);
+
+            if (sess.requiresOtp) {
+              setStep('otp');
+            } else {
+              setCompletedTxnId(sess.transactionId);
+              setResultStatus('success');
+              setStep('result');
+              onSuccess(sess.transactionId || `TXN-${Date.now()}`, sess);
+            }
+          })
+          .catch((err: any) => {
+            toast.error(err.message || 'Network error occurred');
+            setResultStatus('failed');
+            setResultMessage(err.message);
+            setStep('result');
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } else if (!autoInitiate) {
+        setStep('select');
+      }
+    } else {
+      autoInitiatedRef.current = false;
+      setSession(null);
+      setStep('select');
     }
-  }, [open]);
+  }, [open, autoInitiate, defaultMethod, initialCardData, initialWalletData, orderId, purpose, amount, showWalletOption, onSuccess]);
 
   // Validation before submission
   const validateForm = (): boolean => {
@@ -234,7 +307,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   const modalTitle =
     title ||
     (purpose === 'wallet_topup'
-      ? 'Top Up Food Rush Wallet'
+      ? 'Add In-App Balance'
       : purpose === 'cod_remittance'
       ? 'Remit Physical COD Cash'
       : 'Complete Payment');

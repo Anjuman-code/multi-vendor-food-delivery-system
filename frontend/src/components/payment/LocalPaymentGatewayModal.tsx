@@ -28,7 +28,7 @@ export const LocalPaymentGatewayModal: React.FC<LocalPaymentGatewayModalProps> =
       defaultMethod={defaultMethod as SupportedPaymentMethod}
       title={`Pay for Order #${order?.orderNumber || ''}`}
       description="Choose your preferred payment method to complete this order."
-      showWalletOption={true}
+      showWalletOption={false}
       showCodOption={false} // Retrying already-placed order payment
       onSuccess={(txnId, result) => {
         const updatedOrder = result?.order || {
