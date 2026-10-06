@@ -18,7 +18,10 @@ import paymentService, {
 } from '@/services/paymentService';
 import type { SupportedPaymentMethod } from '@/utils/paymentUtils';
 import { validateBdPhone, validateLuhn, validateExpiryDate, validateCvv, detectCardBrand } from '@/utils/paymentUtils';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { PaymentBrandIcon } from '@/components/payment/PaymentBrandIcon';
+import userService, { type PaymentMethod } from '@/services/userService';
+import { cn } from '@/utils/cn';
+import { Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from '@/lib/toast';
 
 export interface UnifiedPaymentModalProps {
@@ -31,6 +34,7 @@ export interface UnifiedPaymentModalProps {
   title?: string;
   description?: string;
   defaultMethod?: SupportedPaymentMethod;
+  savedPaymentMethodId?: string;
   showWalletOption?: boolean;
   showCodOption?: boolean;
   initialCardData?: CardFormData;
@@ -52,6 +56,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   title,
   description,
   defaultMethod = 'bkash',
+  savedPaymentMethodId,
   showWalletOption = false,
   showCodOption = true,
   initialCardData,
@@ -63,6 +68,11 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   const [step, setStep] = useState<ModalStep>('select');
   const [method, setMethod] = useState<SupportedPaymentMethod>(defaultMethod);
   const [walletBalance, setWalletBalance] = useState<number>(0);
+
+  // Saved payment methods state
+  const [savedMethods, setSavedMethods] = useState<PaymentMethod[]>([]);
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(savedPaymentMethodId || null);
+  const [mode, setMode] = useState<'saved' | 'new'>(savedPaymentMethodId ? 'saved' : 'new');
 
   // Forms
   const [cardData, setCardData] = useState<CardFormData>(
@@ -103,6 +113,21 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
       setOtpError(null);
       setCompletedTxnId(undefined);
 
+      // Fetch saved payment methods automatically
+      userService.getPaymentMethods().then((res) => {
+        if (res.success && res.data?.paymentMethods && res.data.paymentMethods.length > 0) {
+          setSavedMethods(res.data.paymentMethods);
+          if (savedPaymentMethodId) {
+            setSelectedSavedId(savedPaymentMethodId);
+            setMode('saved');
+          } else if (!autoInitiate) {
+            const def = res.data.paymentMethods.find((p) => p.isDefault) || res.data.paymentMethods[0];
+            setSelectedSavedId(def._id);
+            setMode('saved');
+          }
+        }
+      }).catch(() => {});
+
       if (showWalletOption) {
         paymentService.getCustomerWallet().then((res) => {
           if (res.success && res.data) {
@@ -123,13 +148,15 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
             orderId,
             purpose,
             amount,
-            method: targetMethod,
-            cardDetails: targetMethod === 'card' ? targetCard : undefined,
+            method: savedPaymentMethodId ? undefined : targetMethod,
+            savedPaymentMethodId: savedPaymentMethodId || undefined,
+            cardDetails: !savedPaymentMethodId && targetMethod === 'card' ? targetCard : undefined,
             walletDetails:
-              targetMethod === 'bkash' ||
-              targetMethod === 'nagad' ||
-              targetMethod === 'rocket' ||
-              targetMethod === 'upay'
+              !savedPaymentMethodId &&
+              (targetMethod === 'bkash' ||
+                targetMethod === 'nagad' ||
+                targetMethod === 'rocket' ||
+                targetMethod === 'upay')
                 ? targetWallet
                 : undefined,
           })
@@ -171,7 +198,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
       setSession(null);
       setStep('select');
     }
-  }, [open, autoInitiate, defaultMethod, initialCardData, initialWalletData, orderId, purpose, amount, showWalletOption, onSuccess]);
+  }, [open, autoInitiate, defaultMethod, savedPaymentMethodId, initialCardData, initialWalletData, orderId, purpose, amount, showWalletOption, onSuccess]);
 
   // Validation before submission
   const validateForm = (): boolean => {
@@ -217,20 +244,26 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   };
 
   const handleInitiatePayment = async () => {
-    if (!validateForm()) return;
+    if (mode === 'new' && !validateForm()) return;
 
     setLoading(true);
     setOtpError(null);
 
     try {
+      const activeSaved = mode === 'saved' && selectedSavedId
+        ? savedMethods.find((s) => s._id === selectedSavedId)
+        : null;
+
       const res = await paymentService.initiateSession({
         orderId,
         purpose,
         amount,
-        method,
-        cardDetails: method === 'card' ? cardData : undefined,
+        method: activeSaved ? undefined : method,
+        savedPaymentMethodId: activeSaved ? activeSaved._id : undefined,
+        cardDetails: !activeSaved && method === 'card' ? cardData : undefined,
         walletDetails:
-          method === 'bkash' || method === 'nagad' || method === 'rocket' || method === 'upay'
+          !activeSaved &&
+          (method === 'bkash' || method === 'nagad' || method === 'rocket' || method === 'upay')
             ? walletData
             : undefined,
       });
@@ -358,77 +391,152 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
         <div className="p-6">
           {step === 'select' && (
             <div className="space-y-5">
-              {/* Method Selector */}
-              <div>
-                <Label className="text-xs font-semibold text-foreground mb-2 block">
-                  Select Payment Method
-                </Label>
-                <PaymentMethodSelector
-                  selectedMethod={method}
-                  onSelectMethod={(m) => {
-                    setMethod(m);
-                    setCardErrors({});
-                    setWalletErrors({});
-                  }}
-                  walletBalance={walletBalance}
-                  amountToPay={amount}
-                  showWallet={showWalletOption && purpose !== 'wallet_topup'}
-                  showCod={showCodOption && purpose === 'order_payment'}
-                  showCards={true}
-                  showMobileWallets={true}
-                />
-              </div>
-
-              {/* Dynamic Sub-forms */}
-              {method === 'card' && (
-                <div className="pt-2 border-t border-border/60">
-                  <CardPaymentForm
-                    value={cardData}
-                    onChange={setCardData}
-                    errors={cardErrors}
-                    disabled={loading}
-                  />
-                </div>
-              )}
-
-              {(method === 'bkash' || method === 'nagad' || method === 'rocket' || method === 'upay') && (
-                <div className="pt-2 border-t border-border/60">
-                  <MobileWalletForm
-                    method={method}
-                    value={walletData}
-                    onChange={setWalletData}
-                    errors={walletErrors}
-                    disabled={loading}
-                  />
-                </div>
-              )}
-
-              {method === 'wallet' && (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs text-foreground space-y-1.5">
-                  <div className="flex items-center justify-between font-semibold">
-                    <span>Current Wallet Balance</span>
-                    <span>{currency}{walletBalance.toFixed(2)}</span>
+              {/* Saved Payment Methods Section */}
+              {savedMethods.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Saved Payment Methods
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setMode(mode === 'saved' ? 'new' : 'saved')}
+                      className="text-xs text-orange-600 font-medium hover:underline"
+                    >
+                      {mode === 'saved' ? '+ Use new payment method' : '← Use saved method'}
+                    </button>
                   </div>
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>After Payment Balance</span>
-                    <span>{currency}{(walletBalance - amount).toFixed(2)}</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground pt-1">
-                    Funds will be deducted instantly without OTP.
-                  </p>
+
+                  {mode === 'saved' && (
+                    <div className="space-y-2">
+                      {savedMethods.map((pm) => (
+                        <div
+                          key={pm._id}
+                          onClick={() => setSelectedSavedId(pm._id)}
+                          className={cn(
+                            'flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all',
+                            selectedSavedId === pm._id
+                              ? 'border-orange-500 bg-orange-50/60 ring-1 ring-orange-500'
+                              : 'border-border/70 hover:border-gray-300',
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <PaymentBrandIcon
+                              brandOrMethod={pm.provider || pm.type}
+                              className="h-6 w-9"
+                            />
+                            <div>
+                              <p className="text-xs font-semibold text-gray-900 capitalize">
+                                {pm.provider} {pm.type === 'wallet' ? 'Wallet' : 'Card'}
+                                {pm.isDefault && (
+                                  <span className="ml-1.5 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">
+                                    Default
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] text-gray-500 font-mono">
+                                •••• {pm.last4}
+                                {pm.expiryMonth && pm.expiryYear
+                                  ? ` · Exp ${String(pm.expiryMonth).padStart(2, '0')}/${pm.expiryYear}`
+                                  : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <div
+                            className={cn(
+                              'h-4 w-4 rounded-full border flex items-center justify-center',
+                              selectedSavedId === pm._id
+                                ? 'border-orange-500 bg-orange-500 text-white'
+                                : 'border-gray-300',
+                            )}
+                          >
+                            {selectedSavedId === pm._id && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-[11px] text-gray-500 flex items-center gap-1 pt-1">
+                        🔒 An OTP will be sent to your phone/console to verify this transaction.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {method === 'cash_on_delivery' && (
-                <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">Cash on Delivery Selected</p>
-                  <p>
-                    Please prepare the exact cash amount of{' '}
-                    <span className="font-bold text-foreground">
-                      {currency}{amount.toFixed(2)}
-                    </span>{' '}
-                    for our delivery partner upon arrival.
-                  </p>
+              {/* New Payment Method Selector & Details */}
+              {(mode === 'new' || savedMethods.length === 0) && (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground mb-2 block">
+                      Select Payment Method
+                    </Label>
+                    <PaymentMethodSelector
+                      selectedMethod={method}
+                      onSelectMethod={(m) => {
+                        setMethod(m);
+                        setCardErrors({});
+                        setWalletErrors({});
+                      }}
+                      walletBalance={walletBalance}
+                      amountToPay={amount}
+                      showWallet={showWalletOption && purpose !== 'wallet_topup'}
+                      showCod={showCodOption && purpose === 'order_payment'}
+                      showCards={true}
+                      showMobileWallets={true}
+                    />
+                  </div>
+
+                  {/* Dynamic Sub-forms */}
+                  {method === 'card' && (
+                    <div className="pt-2 border-t border-border/60">
+                      <CardPaymentForm
+                        value={cardData}
+                        onChange={setCardData}
+                        errors={cardErrors}
+                        disabled={loading}
+                      />
+                    </div>
+                  )}
+
+                  {(method === 'bkash' || method === 'nagad' || method === 'rocket' || method === 'upay') && (
+                    <div className="pt-2 border-t border-border/60">
+                      <MobileWalletForm
+                        method={method}
+                        value={walletData}
+                        onChange={setWalletData}
+                        errors={walletErrors}
+                        disabled={loading}
+                      />
+                    </div>
+                  )}
+
+                  {method === 'wallet' && (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs text-foreground space-y-1.5">
+                      <div className="flex items-center justify-between font-semibold">
+                        <span>Current Wallet Balance</span>
+                        <span>{currency}{walletBalance.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>After Payment Balance</span>
+                        <span>{currency}{(walletBalance - amount).toFixed(2)}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground pt-1">
+                        Funds will be deducted instantly.
+                      </p>
+                    </div>
+                  )}
+
+                  {method === 'cash_on_delivery' && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground space-y-1">
+                      <p className="font-semibold text-foreground">Cash on Delivery Selected</p>
+                      <p>
+                        Please prepare the exact cash amount of{' '}
+                        <span className="font-bold text-foreground">
+                          {currency}{amount.toFixed(2)}
+                        </span>{' '}
+                        for our delivery partner upon arrival.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -437,16 +545,18 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
                 type="button"
                 disabled={loading}
                 onClick={handleInitiatePayment}
-                className="w-full h-11 text-sm font-semibold rounded-xl"
+                className="w-full h-11 text-sm font-semibold rounded-xl bg-orange-500 hover:bg-orange-600 text-white"
               >
                 {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Processing Securely...
-                  </span>
-                ) : method === 'cash_on_delivery' ? (
-                  'Confirm Order with Cash on Delivery'
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Preparing Payment…
+                  </>
                 ) : (
-                  `Pay ${currency}${amount.toFixed(2)} via ${method.toUpperCase()}`
+                  <>
+                    Proceed to Pay {currency}{amount.toFixed(2)}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
                 )}
               </Button>
             </div>

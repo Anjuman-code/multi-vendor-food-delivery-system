@@ -4,11 +4,13 @@
  * bKash, Nagad, Rocket, Upay, Cash on Delivery, and In-App Wallet),
  * OTP verification with rate limiting, wallet top-up, and COD remittance.
  */
+import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
 import Order, { PaymentStatus } from '../models/Order';
 import Restaurant from '../models/Restaurant';
 import CustomerProfile from '../models/CustomerProfile';
+import { PaymentMethodType } from '../config/constants';
 import WalletTransaction from '../models/WalletTransaction';
 import PaymentSession from '../models/PaymentSession';
 import PaymentTransaction from '../models/PaymentTransaction';
@@ -49,10 +51,13 @@ export const initiatePaymentSession = async (
       method,
       cardDetails,
       walletDetails,
+      savedPaymentMethodId,
       idempotencyKey,
     } = req.body;
 
-    if (!method) throw new ValidationError('Payment method is required');
+    if (!method && !savedPaymentMethodId) {
+      throw new ValidationError('Payment method is required');
+    }
 
     let finalAmount = manualAmount;
     let orderObjectId: Types.ObjectId | undefined;
@@ -108,6 +113,7 @@ export const initiatePaymentSession = async (
       idempotencyKey,
       cardDetails,
       walletDetails,
+      savedPaymentMethodId,
     });
 
     successResponse(res, sessionResult, 'Payment session initialized', 201);
@@ -116,11 +122,169 @@ export const initiatePaymentSession = async (
   }
 };
 
+/**
+ * Helper to finalize post-payment processing:
+ * updates order to PAID, saves customer payment method, dispatches sockets and notifications.
+ */
+const finalizePaymentFulfillment = async (
+  session: any,
+  execResult: any,
+  authReq: AuthRequest,
+) => {
+  if (!session) return null;
+
+  // Auto-save payment method to customer profile for fast future checkout
+  try {
+    const profile = await CustomerProfile.findOne({ userId: session.userId });
+    if (profile && session.paymentDetails?.last4) {
+      const isCard = session.method === 'card';
+      const providerName = isCard
+        ? (session.paymentDetails.brand || 'card').toUpperCase()
+        : session.method.toUpperCase();
+      const last4 = session.paymentDetails.last4;
+
+      const alreadyExists = profile.paymentMethods.some(
+        (pm) => pm.provider.toUpperCase() === providerName && pm.last4 === last4,
+      );
+
+      if (!alreadyExists) {
+        let expiryMonth: number | undefined;
+        let expiryYear: number | undefined;
+        if (session.paymentDetails.expiry && session.paymentDetails.expiry.includes('/')) {
+          const [m, y] = session.paymentDetails.expiry.split('/');
+          expiryMonth = parseInt(m, 10);
+          expiryYear = 2000 + parseInt(y, 10);
+        }
+
+        profile.paymentMethods.push({
+          type: isCard ? PaymentMethodType.CARD : PaymentMethodType.WALLET,
+          provider: providerName,
+          token: `tok_${isCard ? 'card' : 'mw'}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+          last4,
+          expiryMonth,
+          expiryYear,
+          isDefault: profile.paymentMethods.length === 0,
+        } as any);
+        await profile.save();
+      }
+    }
+  } catch {
+    // Best-effort auto-save
+  }
+
+  // Handle wallet top-up purpose
+  if (session.purpose === 'wallet_topup') {
+    const profile = await CustomerProfile.findOne({ userId: session.userId });
+    if (profile) {
+      const balanceBefore = profile.walletBalance ?? 0;
+      profile.walletBalance = Math.round((balanceBefore + session.amount) * 100) / 100;
+      await profile.save();
+
+      await WalletTransaction.create({
+        userId: session.userId,
+        amount: session.amount,
+        type: 'topup',
+        status: 'completed',
+        paymentSessionId: session.sessionId,
+        transactionRef: execResult.transactionId,
+        description: `Top-up via ${session.method.toUpperCase()} (Ref: ${execResult.transactionId})`,
+        balanceBefore,
+        balanceAfter: profile.walletBalance,
+      });
+
+      await createNotification({
+        userId: session.userId,
+        title: 'Wallet Top-Up Successful',
+        message: `৳${session.amount.toFixed(2)} added to your Food Rush Wallet. Balance: ৳${profile.walletBalance.toFixed(2)}`,
+        type: NotificationType.ORDER_UPDATE,
+      });
+    }
+  }
+
+  // Handle COD Remittance by Driver
+  if (session.purpose === 'cod_remittance') {
+    await createNotification({
+      userId: session.userId,
+      title: 'COD Remittance Received',
+      message: `৳${session.amount.toFixed(2)} in cash collection has been successfully remitted.`,
+      type: NotificationType.ORDER_UPDATE,
+    });
+  }
+
+  // Handle Order payment notifications and sockets
+  let updatedOrder: any = null;
+  if (session.orderId) {
+    const order = await Order.findById(session.orderId);
+    if (order) {
+      order.paymentStatus = PaymentStatus.PAID;
+      order.paymentMethod = session.method;
+      order.transactionId = execResult.transactionId;
+      await order.save();
+      updatedOrder = order;
+
+      // Customer notification
+      await createNotification({
+        userId: order.customerId,
+        title: 'Payment Successful',
+        message: `Your payment of ৳${order.total.toFixed(2)} for order #${order.orderNumber} was confirmed. Transaction ID: ${execResult.transactionId}`,
+        type: NotificationType.ORDER_UPDATE,
+        data: { orderId: order._id },
+      });
+
+      // Socket events
+      try {
+        const io = getIO();
+        io.to(`order_${order._id}`).emit('order:paid', {
+          orderId: order._id,
+          paymentStatus: PaymentStatus.PAID,
+          transactionId: execResult.transactionId,
+          paymentMethod: session.method,
+        });
+
+        const restaurant = await Restaurant.findById(order.restaurantId);
+        if (restaurant) {
+          io.to(`restaurant_${restaurant._id}`).emit('order:payment_update', {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            paymentStatus: PaymentStatus.PAID,
+            total: order.total,
+          });
+        }
+      } catch {
+        // Socket emission is best-effort
+      }
+
+      // Audit log
+      if (authReq.user) {
+        await createAuditLog({
+          actorId: authReq.user._id,
+          actorRole: authReq.user.role,
+          action: 'order.payment_completed',
+          resourceType: 'Order',
+          resourceId: order._id,
+          changes: [
+            { field: 'paymentStatus', oldValue: 'pending', newValue: 'paid' },
+            { field: 'transactionId', newValue: execResult.transactionId },
+            { field: 'paymentMethod', newValue: session.method },
+          ],
+          metadata: {
+            method: session.method,
+            transactionId: execResult.transactionId,
+            total: order.total,
+          },
+        });
+      }
+    }
+  }
+
+  return updatedOrder;
+};
+
 // ── 2. Verify OTP ───────────────────────────────────────────────
 
 /**
  * POST /api/payments/verify-otp
- * Verifies the short-lived OTP for a payment session.
+ * Verifies the short-lived OTP for a payment session and executes payment fulfillment.
  */
 export const verifyPaymentOtp = async (
   req: Request,
@@ -135,8 +299,27 @@ export const verifyPaymentOtp = async (
     if (!sessionId) throw new ValidationError('Session ID is required');
     if (!otp) throw new ValidationError('OTP code is required');
 
-    const result = await paymentProvider.verifyOtp(sessionId, otp);
-    successResponse(res, result, result.message);
+    // 1. Verify OTP
+    await paymentProvider.verifyOtp(sessionId, otp);
+
+    // 2. Process and finalize payment execution
+    const execResult = await paymentProvider.processPayment({
+      sessionId,
+      otp,
+    });
+
+    // 3. Complete fulfillment (mark order paid, emit sockets, save payment method)
+    const session = await PaymentSession.findOne({ sessionId });
+    const order = await finalizePaymentFulfillment(session, execResult, authReq);
+
+    successResponse(
+      res,
+      {
+        ...execResult,
+        order,
+      },
+      'Payment verified and completed successfully',
+    );
   } catch (error) {
     next(error);
   }
@@ -201,103 +384,9 @@ export const confirmPayment = async (
       otp,
     });
 
-    // Handle wallet top-up purpose
-    if (session.purpose === 'wallet_topup') {
-      const profile = await CustomerProfile.findOne({ userId: session.userId });
-      if (profile) {
-        const balanceBefore = profile.walletBalance ?? 0;
-        profile.walletBalance = Math.round((balanceBefore + session.amount) * 100) / 100;
-        await profile.save();
+    const order = await finalizePaymentFulfillment(session, execResult, authReq);
 
-        await WalletTransaction.create({
-          userId: session.userId,
-          amount: session.amount,
-          type: 'topup',
-          status: 'completed',
-          paymentSessionId: session.sessionId,
-          transactionRef: execResult.transactionId,
-          description: `Top-up via ${session.method.toUpperCase()} (Ref: ${execResult.transactionId})`,
-          balanceBefore,
-          balanceAfter: profile.walletBalance,
-        });
-
-        await createNotification({
-          userId: session.userId,
-          title: 'Wallet Top-Up Successful',
-          message: `৳${session.amount.toFixed(2)} added to your Food Rush Wallet. Balance: ৳${profile.walletBalance.toFixed(2)}`,
-          type: NotificationType.ORDER_UPDATE,
-        });
-      }
-    }
-
-    // Handle COD Remittance by Driver
-    if (session.purpose === 'cod_remittance') {
-      await createNotification({
-        userId: session.userId,
-        title: 'COD Remittance Received',
-        message: `৳${session.amount.toFixed(2)} in cash collection has been successfully remitted.`,
-        type: NotificationType.ORDER_UPDATE,
-      });
-    }
-
-    // Handle Order payment notifications and sockets
-    if (session.orderId) {
-      const order = await Order.findById(session.orderId);
-      if (order) {
-        // Customer notification
-        await createNotification({
-          userId: order.customerId,
-          title: 'Payment Successful',
-          message: `Your payment of ৳${order.total.toFixed(2)} for order #${order.orderNumber} was confirmed. Transaction ID: ${execResult.transactionId}`,
-          type: NotificationType.ORDER_UPDATE,
-          data: { orderId: order._id },
-        });
-
-        // Socket events
-        try {
-          const io = getIO();
-          io.to(`order_${order._id}`).emit('order:paid', {
-            orderId: order._id,
-            paymentStatus: PaymentStatus.PAID,
-            transactionId: execResult.transactionId,
-            paymentMethod: session.method,
-          });
-
-          const restaurant = await Restaurant.findById(order.restaurantId);
-          if (restaurant) {
-            io.to(`restaurant_${restaurant._id}`).emit('order:payment_update', {
-              orderId: order._id,
-              orderNumber: order.orderNumber,
-              paymentStatus: PaymentStatus.PAID,
-              total: order.total,
-            });
-          }
-        } catch {
-          // Socket emission is best-effort
-        }
-
-        // Audit log
-        await createAuditLog({
-          actorId: authReq.user._id,
-          actorRole: authReq.user.role,
-          action: 'order.payment_completed',
-          resourceType: 'Order',
-          resourceId: order._id,
-          changes: [
-            { field: 'paymentStatus', oldValue: 'pending', newValue: 'paid' },
-            { field: 'transactionId', newValue: execResult.transactionId },
-            { field: 'paymentMethod', newValue: session.method },
-          ],
-          metadata: {
-            method: session.method,
-            transactionId: execResult.transactionId,
-            total: order.total,
-          },
-        });
-      }
-    }
-
-    successResponse(res, execResult, 'Payment confirmed successfully');
+    successResponse(res, { ...execResult, order }, 'Payment confirmed successfully');
   } catch (error) {
     next(error);
   }

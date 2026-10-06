@@ -40,6 +40,7 @@ export interface CreateSessionParams {
   idempotencyKey?: string;
   cardDetails?: CardDetailsInput;
   walletDetails?: WalletDetailsInput;
+  savedPaymentMethodId?: string;
 }
 
 export interface PaymentSessionResult {
@@ -168,12 +169,15 @@ export class LocalPaymentProvider implements IPaymentProvider {
       orderId,
       purpose,
       amount,
-      method,
+      method: initialMethod,
       currency = 'BDT',
       idempotencyKey,
       cardDetails,
       walletDetails,
+      savedPaymentMethodId,
     } = params;
+
+    let method = initialMethod;
 
     if (amount <= 0) {
       throw new ValidationError('Payment amount must be greater than zero');
@@ -208,7 +212,21 @@ export class LocalPaymentProvider implements IPaymentProvider {
     let cardHolder = '';
     let expiry = '';
 
-    if (method === 'card') {
+    if (savedPaymentMethodId) {
+      const profile = await CustomerProfile.findOne({ userId });
+      const savedPm = profile?.paymentMethods.find(
+        (p: any) => p._id.toString() === savedPaymentMethodId,
+      );
+      if (!savedPm) throw new ValidationError('Saved payment method not found');
+
+      method = savedPm.type === 'card' ? 'card' : (savedPm.provider.toLowerCase() as any);
+      brand = savedPm.provider.toLowerCase();
+      last4 = savedPm.last4;
+      if (savedPm.expiryMonth && savedPm.expiryYear) {
+        expiry = `${String(savedPm.expiryMonth).padStart(2, '0')}/${String(savedPm.expiryYear).slice(-2)}`;
+      }
+      walletNumber = savedPm.type === 'wallet' ? `017****${savedPm.last4}` : '';
+    } else if (method === 'card') {
       if (!cardDetails) throw new ValidationError('Card details are required');
       const cleanNum = cardDetails.cardNumber.replace(/\D/g, '');
       if (!isValidLuhn(cleanNum)) {
@@ -416,8 +434,8 @@ export class LocalPaymentProvider implements IPaymentProvider {
       await this.verifyOtp(sessionId, otp);
     }
 
-    // Wallets require PIN verification step
-    if (['bkash', 'nagad', 'rocket', 'upay'].includes(session.method)) {
+    // Wallets require PIN verification step only if not already verified via OTP/processing
+    if (session.status !== 'processing' && ['bkash', 'nagad', 'rocket', 'upay'].includes(session.method)) {
       if (!pin || pin.length < 4 || pin.length > 5) {
         throw new ValidationError('Please enter a valid 4 or 5-digit PIN');
       }

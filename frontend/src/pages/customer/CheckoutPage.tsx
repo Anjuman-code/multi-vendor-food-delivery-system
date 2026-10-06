@@ -164,13 +164,13 @@ const CheckoutPage: React.FC = () => {
         );
         if (defaultAddr) setSelectedAddress(defaultAddr._id);
       }
-      if (pmRes.success && pmRes.data) {
+      if (pmRes.success && pmRes.data && pmRes.data.paymentMethods && pmRes.data.paymentMethods.length > 0) {
         setPaymentMethods(pmRes.data.paymentMethods);
-        const defaultPm = pmRes.data.paymentMethods.find((p) => p.isDefault);
+        const defaultPm = pmRes.data.paymentMethods.find((p) => p.isDefault) || pmRes.data.paymentMethods[0];
         if (defaultPm) {
           setSelectedPayment(defaultPm._id);
           setActivePaymentMethod(
-            (defaultPm.provider as SupportedPaymentMethod) || 'card',
+            (defaultPm.provider.toLowerCase() as SupportedPaymentMethod) || 'card',
           );
         }
       }
@@ -592,150 +592,287 @@ const CheckoutPage: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 className="space-y-4"
               >
-                <div>
-                  <h2 className="text-lg font-semibold mb-1">
-                    Select Payment Method
-                  </h2>
-                  <p className="text-xs text-gray-500 mb-3">
-                    Choose from mobile wallets, cards, or pay cash on arrival.
-                  </p>
-                  <PaymentMethodSelector
-                    selectedMethod={selectedPm ? (selectedPm.provider as SupportedPaymentMethod) || 'card' : activePaymentMethod}
-                    onSelectMethod={(m) => {
-                      setActivePaymentMethod(m);
-                      if (m === 'cash_on_delivery') {
-                        setSelectedPayment(COD_PAYMENT_ID);
-                      } else {
-                        setSelectedPayment(null);
-                      }
-                      setAdvanceError(null);
-                    }}
-                    showWallet={false}
-                    showCod={true}
-                    showCards={true}
-                    showMobileWallets={true}
-                  />
-                </div>
-
-                {/* Inline Detail Forms for New Method Selection */}
-                {!selectedPm && activePaymentMethod === 'card' && (
-                  <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900">
-                          Card Details
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          Enter your card details for secure 3D-Secure processing
-                        </p>
+                {paymentMethods.length > 0 ? (
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          Saved Payment Methods
+                        </h2>
+                        <a
+                          href="/profile?tab=payment"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1 font-medium"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Manage in profile
+                        </a>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
-                        <Lock className="h-3 w-3" /> 256-bit Encrypted
-                      </div>
-                    </div>
-                    <CardPaymentForm
-                      value={cardData}
-                      onChange={(val) => {
-                        setCardData(val);
-                        setCardErrors({});
-                        setAdvanceError(null);
-                      }}
-                      errors={cardErrors}
-                      showSaveCard={true}
-                    />
-                  </Card>
-                )}
-
-                {!selectedPm &&
-                  (activePaymentMethod === 'bkash' ||
-                    activePaymentMethod === 'nagad' ||
-                    activePaymentMethod === 'rocket' ||
-                    activePaymentMethod === 'upay') && (
-                    <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3">
-                      <MobileWalletForm
-                        method={activePaymentMethod}
-                        value={walletData}
-                        onChange={(val) => {
-                          setWalletData(val);
-                          setWalletErrors({});
-                          setAdvanceError(null);
-                        }}
-                        errors={walletErrors}
-                      />
-                    </Card>
-                  )}
-
-                {activePaymentMethod === 'cash_on_delivery' && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1">
-                    <div className="flex items-center gap-2 font-semibold text-amber-950">
-                      <Banknote className="h-4 w-4 text-amber-600" />
-                      Cash on Delivery Selected
-                    </div>
-                    <p>
-                      Please keep <strong>৳{finalTotal.toFixed(2)}</strong> in cash ready for our delivery partner upon arrival.
-                    </p>
-                  </div>
-                )}
-
-                {/* Saved Payment Methods (if user has any saved) */}
-                {paymentMethods.length > 0 && (
-                  <div className="pt-3 border-t">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        Or use a saved method
+                      <p className="text-xs text-gray-500 mb-3">
+                        Choose one of your saved methods or add a new one. Each transaction is protected by OTP verification.
                       </p>
-                      <a
-                        href="/profile?tab=payment"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1 font-medium"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Manage saved
-                      </a>
-                    </div>
-                    <div className="space-y-2">
-                      {paymentMethods.map((pm) => (
+
+                      <div className="space-y-2">
+                        {paymentMethods.map((pm) => {
+                          const isSelected = selectedPayment === pm._id;
+                          return (
+                            <Card
+                              key={pm._id}
+                              className={`p-3.5 cursor-pointer border-2 transition-all flex items-center justify-between ${
+                                isSelected
+                                  ? 'border-orange-500 bg-orange-50/70 shadow-xs'
+                                  : 'border-gray-200 hover:border-gray-300 bg-white'
+                              }`}
+                              onClick={() => {
+                                setSelectedPayment(pm._id);
+                                setActivePaymentMethod(
+                                  (pm.provider.toLowerCase() as SupportedPaymentMethod) || 'card',
+                                );
+                                setAdvanceError(null);
+                              }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                                    isSelected
+                                      ? 'border-orange-600 bg-orange-600'
+                                      : 'border-gray-400'
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                                  )}
+                                </div>
+                                <PaymentBrandIcon
+                                  brandOrMethod={pm.provider || pm.type}
+                                  className="h-6 w-9"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold capitalize text-sm text-gray-900">
+                                      {pm.provider}
+                                    </span>
+                                    {pm.isDefault && (
+                                      <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-semibold">
+                                        Default
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-600 font-mono">
+                                    •••• {pm.last4}
+                                    {pm.expiryMonth && pm.expiryYear
+                                      ? ` · Exp ${String(pm.expiryMonth).padStart(2, '0')}/${pm.expiryYear}`
+                                      : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Lock className="h-2.5 w-2.5" /> OTP Protected
+                              </span>
+                            </Card>
+                          );
+                        })}
+
+                        {/* Option to select another method */}
                         <Card
-                          key={pm._id}
-                          className={`p-3.5 cursor-pointer border-2 transition-colors ${
-                            selectedPayment === pm._id
-                              ? 'border-orange-500 bg-orange-50'
-                              : 'border-transparent hover:border-gray-200'
+                          className={`p-3.5 cursor-pointer border-2 transition-all flex items-center gap-3 ${
+                            selectedPayment === null || selectedPayment === COD_PAYMENT_ID
+                              ? 'border-orange-500 bg-orange-50/50'
+                              : 'border-dashed border-gray-300 hover:border-gray-400 bg-gray-50/60'
                           }`}
                           onClick={() => {
-                            setSelectedPayment(pm._id);
-                            setActivePaymentMethod(
-                              (pm.provider as SupportedPaymentMethod) || 'card',
-                            );
-                            setAdvanceError(null);
+                            if (selectedPayment !== null && selectedPayment !== COD_PAYMENT_ID) {
+                              setSelectedPayment(null);
+                              setActivePaymentMethod('card');
+                              setAdvanceError(null);
+                            }
                           }}
                         >
-                          <div className="flex items-center gap-3">
-                            <PaymentBrandIcon
-                              brandOrMethod={pm.provider || pm.type}
-                              className="h-6 w-9"
-                            />
-                            <div>
-                              <p className="font-medium capitalize text-sm">
-                                {pm.type} – {pm.provider}
-                                {pm.isDefault && (
-                                  <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
-                                    Default
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-gray-600">
-                                ****{pm.last4}
-                                {pm.expiryMonth && pm.expiryYear
-                                  ? ` · Exp ${String(pm.expiryMonth).padStart(2, '0')}/${pm.expiryYear}`
-                                  : ''}
-                              </p>
-                            </div>
+                          <div
+                            className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                              selectedPayment === null || selectedPayment === COD_PAYMENT_ID
+                                ? 'border-orange-600 bg-orange-600'
+                                : 'border-gray-400'
+                            }`}
+                          >
+                            {(selectedPayment === null || selectedPayment === COD_PAYMENT_ID) && (
+                              <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Plus className="h-4 w-4 text-orange-600" />
+                            <span className="text-sm font-medium text-gray-900">
+                              Use another method (Card, Mobile Wallet, or Cash on Delivery)
+                            </span>
                           </div>
                         </Card>
-                      ))}
+                      </div>
                     </div>
+
+                    {/* New Method Selector & Forms */}
+                    {(selectedPayment === null || selectedPayment === COD_PAYMENT_ID) && (
+                      <div className="pt-3 border-t border-gray-100 space-y-3">
+                        <PaymentMethodSelector
+                          selectedMethod={activePaymentMethod}
+                          onSelectMethod={(m) => {
+                            setActivePaymentMethod(m);
+                            if (m === 'cash_on_delivery') {
+                              setSelectedPayment(COD_PAYMENT_ID);
+                            } else {
+                              setSelectedPayment(null);
+                            }
+                            setAdvanceError(null);
+                          }}
+                          showWallet={false}
+                          showCod={true}
+                          showCards={true}
+                          showMobileWallets={true}
+                        />
+
+                        {activePaymentMethod === 'card' && (
+                          <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900">
+                                  Card Details
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                  Enter card details. Will be securely saved for future checkouts.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+                                <Lock className="h-3 w-3" /> 256-bit Encrypted
+                              </div>
+                            </div>
+                            <CardPaymentForm
+                              value={cardData}
+                              onChange={(val) => {
+                                setCardData(val);
+                                setCardErrors({});
+                                setAdvanceError(null);
+                              }}
+                              errors={cardErrors}
+                              showSaveCard={true}
+                            />
+                          </Card>
+                        )}
+
+                        {(activePaymentMethod === 'bkash' ||
+                          activePaymentMethod === 'nagad' ||
+                          activePaymentMethod === 'rocket' ||
+                          activePaymentMethod === 'upay') && (
+                          <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3">
+                            <MobileWalletForm
+                              method={activePaymentMethod}
+                              value={walletData}
+                              onChange={(val) => {
+                                setWalletData(val);
+                                setWalletErrors({});
+                                setAdvanceError(null);
+                              }}
+                              errors={walletErrors}
+                            />
+                          </Card>
+                        )}
+
+                        {activePaymentMethod === 'cash_on_delivery' && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1">
+                            <div className="flex items-center gap-2 font-semibold text-amber-950">
+                              <Banknote className="h-4 w-4 text-amber-600" />
+                              Cash on Delivery Selected
+                            </div>
+                            <p>
+                              Please keep <strong>৳{finalTotal.toFixed(2)}</strong> in cash ready for our delivery partner upon arrival.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-1">
+                      Select Payment Method
+                    </h2>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Choose from mobile wallets, cards, or pay cash on arrival.
+                    </p>
+                    <PaymentMethodSelector
+                      selectedMethod={activePaymentMethod}
+                      onSelectMethod={(m) => {
+                        setActivePaymentMethod(m);
+                        if (m === 'cash_on_delivery') {
+                          setSelectedPayment(COD_PAYMENT_ID);
+                        } else {
+                          setSelectedPayment(null);
+                        }
+                        setAdvanceError(null);
+                      }}
+                      showWallet={false}
+                      showCod={true}
+                      showCards={true}
+                      showMobileWallets={true}
+                    />
+
+                    {/* Inline Detail Forms for New Method Selection */}
+                    {activePaymentMethod === 'card' && (
+                      <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3 mt-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-900">
+                              Card Details
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                              Enter your card details for secure 3D-Secure processing
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+                            <Lock className="h-3 w-3" /> 256-bit Encrypted
+                          </div>
+                        </div>
+                        <CardPaymentForm
+                          value={cardData}
+                          onChange={(val) => {
+                            setCardData(val);
+                            setCardErrors({});
+                            setAdvanceError(null);
+                          }}
+                          errors={cardErrors}
+                          showSaveCard={true}
+                        />
+                      </Card>
+                    )}
+
+                    {(activePaymentMethod === 'bkash' ||
+                      activePaymentMethod === 'nagad' ||
+                      activePaymentMethod === 'rocket' ||
+                      activePaymentMethod === 'upay') && (
+                      <Card className="p-4 border border-orange-100 bg-white shadow-xs space-y-3 mt-3">
+                        <MobileWalletForm
+                          method={activePaymentMethod}
+                          value={walletData}
+                          onChange={(val) => {
+                            setWalletData(val);
+                            setWalletErrors({});
+                            setAdvanceError(null);
+                          }}
+                          errors={walletErrors}
+                        />
+                      </Card>
+                    )}
+
+                    {activePaymentMethod === 'cash_on_delivery' && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1 mt-3">
+                        <div className="flex items-center gap-2 font-semibold text-amber-950">
+                          <Banknote className="h-4 w-4 text-amber-600" />
+                          Cash on Delivery Selected
+                        </div>
+                        <p>
+                          Please keep <strong>৳{finalTotal.toFixed(2)}</strong> in cash ready for our delivery partner upon arrival.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1102,13 +1239,15 @@ const CheckoutPage: React.FC = () => {
           orderId={createdOrder._id}
           amount={finalTotal}
           purpose="order_payment"
-          defaultMethod={activePaymentMethod}
-          initialCardData={activePaymentMethod === 'card' ? cardData : undefined}
+          defaultMethod={selectedPm ? ((selectedPm.provider.toLowerCase() as SupportedPaymentMethod) || 'card') : activePaymentMethod}
+          savedPaymentMethodId={selectedPm ? selectedPm._id : undefined}
+          initialCardData={!selectedPm && activePaymentMethod === 'card' ? cardData : undefined}
           initialWalletData={
-            activePaymentMethod === 'bkash' ||
-            activePaymentMethod === 'nagad' ||
-            activePaymentMethod === 'rocket' ||
-            activePaymentMethod === 'upay'
+            !selectedPm &&
+            (activePaymentMethod === 'bkash' ||
+              activePaymentMethod === 'nagad' ||
+              activePaymentMethod === 'rocket' ||
+              activePaymentMethod === 'upay')
               ? walletData
               : undefined
           }

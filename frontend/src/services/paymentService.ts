@@ -22,9 +22,10 @@ export interface InitiatePaymentPayload {
   orderId?: string;
   purpose?: PaymentPurpose;
   amount?: number;
-  method: SupportedPaymentMethod;
+  method?: SupportedPaymentMethod;
   cardDetails?: CardDetailsPayload;
   walletDetails?: WalletDetailsPayload;
+  savedPaymentMethodId?: string;
   paymentToken?: string;
 }
 

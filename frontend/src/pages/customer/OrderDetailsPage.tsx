@@ -234,14 +234,35 @@ const OrderDetailsPage: React.FC = () => {
     const riderHandler = (data: { _id: string }) => {
       if (matches(data._id)) refreshSilently();
     };
+    const paymentHandler = (data: {
+      orderId: string;
+      paymentStatus: string;
+      transactionId?: string;
+      paymentMethod?: string;
+    }) => {
+      if (matches(data.orderId)) {
+        setOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                paymentStatus: 'paid',
+                transactionId: data.transactionId || prev.transactionId,
+                paymentMethod: data.paymentMethod || prev.paymentMethod,
+              }
+            : prev,
+        );
+      }
+    };
 
     socket.on('orderStatusUpdate', statusHandler);
     socket.on('order:stageUpdate', stageHandler);
     socket.on('order:riderAssigned', riderHandler);
+    socket.on('order:paid', paymentHandler);
     return () => {
       socket.off('orderStatusUpdate', statusHandler);
       socket.off('order:stageUpdate', stageHandler);
       socket.off('order:riderAssigned', riderHandler);
+      socket.off('order:paid', paymentHandler);
     };
   }, [socket, id, order?._id, watchOrderLocation, refreshSilently]);
 
