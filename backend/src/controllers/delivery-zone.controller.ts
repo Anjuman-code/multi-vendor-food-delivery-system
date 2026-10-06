@@ -14,9 +14,10 @@ import type { CreateDeliveryZoneInput, UpdateDeliveryZoneInput } from "../valida
 const getVendorRestaurantIds = async (req: Request) => {
   const authReq = req as AuthRequest;
   if (!authReq.user) throw new AuthenticationError();
-  const profile = await VendorProfile.findOne({ userId: authReq.user._id });
+  const user = authReq.user;
+  const profile = await VendorProfile.findOne({ userId: user._id });
   if (!profile) throw new NotFoundError("Vendor profile not found");
-  return { authReq, profile, restaurantIds: profile.restaurantIds };
+  return { authReq, user, profile, restaurantIds: profile.restaurantIds };
 };
 
 /** POST /api/vendor/delivery-zone — Create or replace a zone */
@@ -26,7 +27,7 @@ export const upsertZone = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { authReq, restaurantIds } = await getVendorRestaurantIds(req);
+    const { user, restaurantIds } = await getVendorRestaurantIds(req);
     const data = req.body as CreateDeliveryZoneInput;
 
     if (!restaurantIds.some((id) => id.toString() === data.restaurantId)) {
@@ -50,8 +51,8 @@ export const upsertZone = async (
     );
 
     await createAuditLog({
-      actorId: authReq.user._id,
-      actorRole: authReq.user.role,
+      actorId: user._id,
+      actorRole: user.role,
       action: "delivery_zone.upserted",
       resourceType: "DeliveryZone",
       resourceId: zone._id,

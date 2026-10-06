@@ -73,7 +73,7 @@ export const validateReferralCode = async (
   try {
     const { code } = req.params;
     const referral = await Referral.findOne({
-      referralCode: code.toUpperCase(),
+      referralCode: (code as string).toUpperCase(),
     }).populate("referrerId", "firstName");
 
     if (!referral) throw new NotFoundError("Invalid referral code");

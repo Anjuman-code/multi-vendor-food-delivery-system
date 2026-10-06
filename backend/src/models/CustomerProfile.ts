@@ -1,7 +1,7 @@
 /**
  * CustomerProfile Mongoose model – customer-specific data linked 1:1 to User.
  */
-import mongoose, { Schema, Model } from "mongoose";
+import mongoose, { Schema, Model, Types } from "mongoose";
 import { PaymentMethodType, CustomerTier } from "../config/constants";
 import {
   ICustomerProfileDocument,

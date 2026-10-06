@@ -25,7 +25,6 @@ import type {
   Booking,
   FilterCategory,
   FilterState,
-  PriceRange,
   Restaurant,
   SearchFilters,
   SortOption,
@@ -529,16 +528,6 @@ const RestaurantsPage: React.FC = () => {
       handleFilterChange('cuisines', next);
     },
     [filterState.cuisines, handleFilterChange],
-  );
-
-  const togglePrice = useCallback(
-    (price: PriceRange) => {
-      const next = filterState.priceRange.includes(price)
-        ? filterState.priceRange.filter((entry) => entry !== price)
-        : [...filterState.priceRange, price];
-      handleFilterChange('priceRange', next);
-    },
-    [filterState.priceRange, handleFilterChange],
   );
 
   const topRatedActive = filterState.rating >= TOP_RATED_THRESHOLD;

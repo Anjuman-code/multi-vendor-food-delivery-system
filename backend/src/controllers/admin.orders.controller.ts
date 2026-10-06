@@ -3,8 +3,9 @@
  * Every mutation writes to AuditLog.
  */
 import { NextFunction, Request, Response } from 'express';
+import { Types } from 'mongoose';
 import DriverProfile from '../models/DriverProfile';
-import Order, { OrderStatus } from '../models/Order';
+import Order, { OrderStatus, PaymentStatus } from '../models/Order';
 import User from '../models/User';
 import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
@@ -219,10 +220,10 @@ export const cancelOrder = async (
     if (order.status === 'delivered') throw new ValidationError('Cannot cancel a delivered order');
 
     const oldStatus = order.status;
-    order.status = 'cancelled';
+    order.status = OrderStatus.CANCELLED;
     order.cancelReason = `Admin: ${reason}`;
     order.statusHistory.push({
-      status: 'cancelled',
+      status: OrderStatus.CANCELLED,
       timestamp: new Date(),
       note: `Cancelled by admin: ${reason}`,
     });
@@ -271,8 +272,8 @@ export const issueRefund = async (
     if (lineItems?.length) {
       order.refundLineItems.push(
         ...lineItems.map((li) => ({
-          menuItemId: li.menuItemId,
-          name: li.name,
+          menuItemId: new Types.ObjectId(li.menuItemId),
+          itemName: li.name,
           quantity: li.quantity,
           refundAmount: li.amount,
           reason,
@@ -280,7 +281,7 @@ export const issueRefund = async (
       );
     }
 
-    order.paymentStatus = amount >= order.total ? 'refunded' : order.paymentStatus;
+    order.paymentStatus = amount >= order.total ? PaymentStatus.REFUNDED : order.paymentStatus;
     await order.save();
 
     // Claw back the vendor's net share of the refund — only if the order was

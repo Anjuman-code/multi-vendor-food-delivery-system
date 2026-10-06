@@ -47,11 +47,12 @@ const STATUS_LABELS: Record<string, string> = {
 const getVendorRestaurantIds = async (req: Request) => {
   const authReq = req as AuthRequest;
   if (!authReq.user) throw new AuthenticationError();
+  const user = authReq.user;
 
-  const profile = await VendorProfile.findOne({ userId: authReq.user._id });
+  const profile = await VendorProfile.findOne({ userId: user._id });
   if (!profile) throw new NotFoundError("Vendor profile not found");
 
-  return { authReq, profile, restaurantIds: profile.restaurantIds };
+  return { authReq, user, profile, restaurantIds: profile.restaurantIds };
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -182,7 +183,7 @@ export const updateVendorOrderStatus = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { authReq, restaurantIds } = await getVendorRestaurantIds(req);
+    const { user, restaurantIds } = await getVendorRestaurantIds(req);
     const { orderId } = req.params;
     const { status: newStatus, note } = req.body as UpdateOrderStatusInput;
 
@@ -208,8 +209,8 @@ export const updateVendorOrderStatus = async (
     order.statusHistory.push({
       status: newStatus as OrderStatus,
       timestamp: new Date(),
-      actorId: authReq.user._id,
-      actorRole: authReq.user.role,
+      actorId: user._id,
+      actorRole: user.role,
       note,
     });
 

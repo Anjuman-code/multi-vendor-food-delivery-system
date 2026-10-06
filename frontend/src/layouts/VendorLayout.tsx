@@ -29,6 +29,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Menu,
   Plus,
   Settings,
   Star,
@@ -136,6 +137,7 @@ const getBreadcrumbs = (
 
 const VendorLayoutInner: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout: logoutContext } = useAuth();
@@ -149,6 +151,10 @@ const VendorLayoutInner: React.FC = () => {
       clearNewOrderCount();
     }
   }, [location.pathname, clearNewOrderCount]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const isActive = (path: string) => {
     if (path === '/vendor') return location.pathname === '/vendor';
@@ -190,166 +196,174 @@ const VendorLayoutInner: React.FC = () => {
     [location.pathname],
   );
 
+  const renderSidebarContent = (isCollapsed: boolean, onNavigate?: () => void) => (
+    <>
+      {/* Logo */}
+      <Link
+        to="/vendor"
+        onClick={onNavigate}
+        className="flex h-16 items-center gap-3 border-b border-border px-4"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-red-500">
+          <img
+            src="/logo.svg"
+            alt=""
+            className="h-5 w-5 brightness-0 invert"
+          />
+        </div>
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="whitespace-nowrap text-lg font-bold text-foreground"
+            >
+              Food Rush
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </Link>
+
+      {/* Restaurant switcher */}
+      <div className="border-b border-border px-3 py-3">
+        {restaurants.length > 0 ? (
+          !isCollapsed ? (
+            <>
+              <label className="mb-1.5 block px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Active Restaurant
+              </label>
+              <Select
+                value={selectedRestaurantId || undefined}
+                onValueChange={setSelectedRestaurantId}
+              >
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-label="Select active restaurant"
+                >
+                  <SelectValue placeholder="Select restaurant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {restaurants.map((r) => (
+                    <SelectItem key={r._id} value={r._id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ) : (
+            <div className="flex justify-center">
+              {selectedRestaurant?.images?.logo ? (
+                <img
+                  src={selectedRestaurant.images.logo}
+                  alt={selectedRestaurant.name}
+                  className="h-8 w-8 rounded-xl border border-border object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted">
+                  <Store className="h-4 w-4 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          )
+        ) : (
+          !isCollapsed && (
+            <p className="py-2 text-center text-xs text-muted-foreground">
+              No restaurants yet
+            </p>
+          )
+        )}
+      </div>
+
+      {/* Navigation groups */}
+      <nav className="vendor-scrollbar flex-1 space-y-5 overflow-y-auto px-2.5 py-3">
+        {sidebarGroups.map((group) => (
+          <div key={group.label}>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+                >
+                  {group.label}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={onNavigate}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'group/nav relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
+                      active
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      isCollapsed && 'justify-center',
+                    )}
+                    title={isCollapsed ? item.name : undefined}
+                  >
+                    {active && (
+                      <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+                    )}
+                    <span className="relative shrink-0">
+                      <Icon
+                        className={cn(
+                          'h-[18px] w-[18px]',
+                          active
+                            ? 'text-primary'
+                            : 'text-muted-foreground group-hover/nav:text-foreground',
+                        )}
+                      />
+                      {item.badge && newOrderCount > 0 && (
+                        <span
+                          className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold leading-none text-primary-foreground"
+                          aria-label={`${newOrderCount} new orders`}
+                        >
+                          {newOrderCount > 9 ? '9+' : newOrderCount}
+                        </span>
+                      )}
+                    </span>
+                    <AnimatePresence>
+                      {!isCollapsed && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="whitespace-nowrap"
+                        >
+                          {item.name}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </>
+  );
+
   return (
     <div className="flex h-screen bg-muted/40">
-      {/* ── Sidebar ──────────────────────────────────────────── */}
+      {/* ── Desktop sidebar ─────────────────────────────────── */}
       <motion.aside
         animate={{ width: collapsed ? 72 : 256 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
         aria-label="Vendor navigation"
-        className="fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-border bg-card"
+        className="fixed bottom-0 left-0 top-0 z-40 hidden flex-col border-r border-border bg-card lg:flex"
       >
-        {/* Logo */}
-        <Link
-          to="/vendor"
-          className="flex h-16 items-center gap-3 border-b border-border px-4"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-red-500">
-            <img
-              src="/logo.svg"
-              alt=""
-              className="h-5 w-5 brightness-0 invert"
-            />
-          </div>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="whitespace-nowrap text-lg font-bold text-foreground"
-              >
-                Food Rush
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </Link>
-
-        {/* Restaurant switcher */}
-        <div className="border-b border-border px-3 py-3">
-          {restaurants.length > 0 ? (
-            !collapsed ? (
-              <>
-                <label className="mb-1.5 block px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Active Restaurant
-                </label>
-                <Select
-                  value={selectedRestaurantId || undefined}
-                  onValueChange={setSelectedRestaurantId}
-                >
-                  <SelectTrigger
-                    className="h-9 w-full"
-                    aria-label="Select active restaurant"
-                  >
-                    <SelectValue placeholder="Select restaurant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {restaurants.map((r) => (
-                      <SelectItem key={r._id} value={r._id}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            ) : (
-              <div className="flex justify-center">
-                {selectedRestaurant?.images?.logo ? (
-                  <img
-                    src={selectedRestaurant.images.logo}
-                    alt={selectedRestaurant.name}
-                    className="h-8 w-8 rounded-xl border border-border object-cover"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted">
-                    <Store className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            )
-          ) : (
-            !collapsed && (
-              <p className="py-2 text-center text-xs text-muted-foreground">
-                No restaurants yet
-              </p>
-            )
-          )}
-        </div>
-
-        {/* Navigation groups */}
-        <nav className="vendor-scrollbar flex-1 space-y-5 overflow-y-auto px-2.5 py-3">
-          {sidebarGroups.map((group) => (
-            <div key={group.label}>
-              <AnimatePresence>
-                {!collapsed && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
-                  >
-                    {group.label}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      aria-current={active ? 'page' : undefined}
-                      className={cn(
-                        'group/nav relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
-                        active
-                          ? 'bg-accent text-accent-foreground'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                        collapsed && 'justify-center',
-                      )}
-                      title={collapsed ? item.name : undefined}
-                    >
-                      {active && (
-                        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
-                      )}
-                      <span className="relative shrink-0">
-                        <Icon
-                          className={cn(
-                            'h-[18px] w-[18px]',
-                            active
-                              ? 'text-primary'
-                              : 'text-muted-foreground group-hover/nav:text-foreground',
-                          )}
-                        />
-                        {item.badge && newOrderCount > 0 && (
-                          <span
-                            className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold leading-none text-primary-foreground"
-                            aria-label={`${newOrderCount} new orders`}
-                          >
-                            {newOrderCount > 9 ? '9+' : newOrderCount}
-                          </span>
-                        )}
-                      </span>
-                      <AnimatePresence>
-                        {!collapsed && (
-                          <motion.span
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="whitespace-nowrap"
-                          >
-                            {item.name}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
+        {renderSidebarContent(collapsed)}
 
         {/* Collapse toggle */}
         <div className="border-t border-border px-2.5 py-2">
@@ -414,36 +428,79 @@ const VendorLayoutInner: React.FC = () => {
         </div>
       </motion.aside>
 
+      {/* ── Mobile drawer ──────────────────────────────────── */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -288 }}
+              animate={{ x: 0 }}
+              exit={{ x: -288 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="fixed bottom-0 left-0 top-0 z-50 flex w-72 flex-col border-r border-border bg-card lg:hidden"
+              aria-label="Vendor navigation"
+            >
+              {renderSidebarContent(false, () => setMobileOpen(false))}
+              <div className="border-t border-border px-2.5 py-3">
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  Log out
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* ── Main area ─────────────────────────────────────────── */}
       <div
-        className="flex flex-1 flex-col transition-all duration-200"
-        style={{ marginLeft: collapsed ? 72 : 256 }}
+        className="flex min-w-0 flex-1 flex-col transition-[padding] duration-200 lg:pl-[var(--vendor-sidebar)]"
+        style={{ ['--vendor-sidebar' as string]: `${collapsed ? 72 : 256}px` } as React.CSSProperties}
       >
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-lg">
-          {/* Breadcrumbs */}
-          <nav
-            aria-label="Breadcrumb"
-            className="flex items-center gap-1.5 text-sm"
-          >
-            {breadcrumbs.map((crumb, i) => (
-              <React.Fragment key={`${crumb.label}-${i}`}>
-                {i > 0 && <span className="text-border">/</span>}
-                {crumb.href && i < breadcrumbs.length - 1 ? (
-                  <Link
-                    to={crumb.href}
-                    className="text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {crumb.label}
-                  </Link>
-                ) : (
-                  <span className="font-medium text-foreground">
-                    {crumb.label}
-                  </span>
-                )}
-              </React.Fragment>
-            ))}
-          </nav>
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 backdrop-blur-lg sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            {/* Breadcrumbs */}
+            <nav
+              aria-label="Breadcrumb"
+              className="flex items-center gap-1.5 text-sm"
+            >
+              {breadcrumbs.map((crumb, i) => (
+                <React.Fragment key={`${crumb.label}-${i}`}>
+                  {i > 0 && <span className="text-border">/</span>}
+                  {crumb.href && i < breadcrumbs.length - 1 ? (
+                    <Link
+                      to={crumb.href}
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {crumb.label}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-foreground">
+                      {crumb.label}
+                    </span>
+                  )}
+                </React.Fragment>
+              ))}
+            </nav>
+          </div>
 
           {/* Right section */}
           <div className="flex items-center gap-2">

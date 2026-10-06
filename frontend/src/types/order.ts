@@ -112,6 +112,7 @@ export interface Order {
   statusHistory: StatusHistoryEntry[];
   paymentMethod: string;
   paymentStatus: PaymentStatusType;
+  transactionId?: string;
   codCollected?: boolean;
   subtotal: number;
   tax: number;

@@ -9,7 +9,7 @@ import AuditLog from '../models/AuditLog';
 import CustomerProfile from '../models/CustomerProfile';
 import DriverProfile from '../models/DriverProfile';
 import DriverRating from '../models/DriverRating';
-import LoyaltyTransaction from '../models/LoyaltyTransaction';
+import LoyaltyTransaction, { LoyaltyTransactionType } from '../models/LoyaltyTransaction';
 import { NotificationType } from '../models/Notification';
 import { createNotification } from '../services/notification.service';
 import Order from '../models/Order';
@@ -108,7 +108,7 @@ export const getCustomerDetail = async (
         .limit(20)
         .select('orderNumber status total createdAt restaurantId')
         .populate('restaurantId', 'name'),
-      LoyaltyTransaction.find({ userId: user._id })
+      LoyaltyTransaction.find({ customerId: user._id })
         .sort({ createdAt: -1 })
         .limit(30),
     ]);
@@ -359,12 +359,12 @@ export const adjustLoyaltyPoints = async (
     if (!profile) throw new NotFoundError('Customer profile not found');
 
     await LoyaltyTransaction.create({
-      userId: req.params.id,
-      points,
-      type: points > 0 ? 'credit' : 'debit',
+      customerId: new mongoose.Types.ObjectId(req.params.id as string),
+      amount: points,
+      type: LoyaltyTransactionType.ADMIN_ADJUSTMENT,
       description: `Admin adjustment: ${reason}`,
       referenceId: authReq.user._id,
-      referenceType: 'AdminAdjustment',
+      balanceAfter: profile.loyaltyPoints,
     });
 
     await createAuditLog({
@@ -372,7 +372,7 @@ export const adjustLoyaltyPoints = async (
       actorRole: authReq.user.role,
       action: 'customer.loyalty_adjusted',
       resourceType: 'User',
-      resourceId: new mongoose.Types.ObjectId(req.params.id),
+      resourceId: new mongoose.Types.ObjectId(req.params.id as string),
       changes: [{ field: 'loyaltyPoints', newValue: points }],
       metadata: { reason },
     });

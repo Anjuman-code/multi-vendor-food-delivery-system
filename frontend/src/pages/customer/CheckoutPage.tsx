@@ -274,7 +274,11 @@ const CheckoutPage: React.FC = () => {
         });
       }
 
-      navigate(`/orders/${firstOrder._id}`);
+      if (!isCOD) {
+        navigate(`/orders/${firstOrder._id}?pay=now`);
+      } else {
+        navigate(`/orders/${firstOrder._id}`);
+      }
     } else {
       // Service returned the error body directly (not thrown). Pull out the
       // specific server message and any field-level errors.

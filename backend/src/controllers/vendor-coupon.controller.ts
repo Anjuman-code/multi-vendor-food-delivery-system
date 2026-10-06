@@ -28,11 +28,12 @@ import type {
 const getVendorProfile = async (req: Request) => {
   const authReq = req as AuthRequest;
   if (!authReq.user) throw new AuthenticationError();
+  const user = authReq.user;
 
-  const profile = await VendorProfile.findOne({ userId: authReq.user._id });
+  const profile = await VendorProfile.findOne({ userId: user._id });
   if (!profile) throw new NotFoundError("Vendor profile not found");
 
-  return { authReq, profile };
+  return { authReq, user, profile };
 };
 
 /** Verify all applicable restaurants belong to the vendor. */
@@ -96,7 +97,7 @@ export const createVendorCoupon = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { authReq, profile } = await getVendorProfile(req);
+    const { user, profile } = await getVendorProfile(req);
     const data = req.body as CreateCouponInput;
 
     // If no restaurants specified, apply to all vendor's restaurants
@@ -115,8 +116,8 @@ export const createVendorCoupon = async (
     });
 
     await createAuditLog({
-      actorId: authReq.user._id,
-      actorRole: authReq.user.role,
+      actorId: user._id,
+      actorRole: user.role,
       action: "coupon.created",
       resourceType: "Coupon",
       resourceId: coupon._id,
@@ -183,7 +184,7 @@ export const deleteVendorCoupon = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { authReq, profile } = await getVendorProfile(req);
+    const { user, profile } = await getVendorProfile(req);
     const { couponId } = req.params;
 
     const coupon = await Coupon.findById(couponId);
@@ -201,8 +202,8 @@ export const deleteVendorCoupon = async (
     await coupon.save();
 
     await createAuditLog({
-      actorId: authReq.user._id,
-      actorRole: authReq.user.role,
+      actorId: user._id,
+      actorRole: user.role,
       action: "coupon.deactivated",
       resourceType: "Coupon",
       resourceId: coupon._id,

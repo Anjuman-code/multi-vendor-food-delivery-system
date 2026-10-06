@@ -14,6 +14,7 @@ interface SubmitButtonProps extends ButtonProps {
  * gradients scattered across the auth pages (now the `brand` button variant).
  */
 export function SubmitButton({
+  type = "submit",
   loading = false,
   loadingText,
   children,
@@ -25,6 +26,7 @@ export function SubmitButton({
 }: SubmitButtonProps) {
   return (
     <Button
+      type={type}
       variant={variant}
       size={size}
       disabled={loading || disabled}

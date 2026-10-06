@@ -146,6 +146,7 @@ export const createOrder = async (
   try {
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
+    const user = authReq.user;
 
     const {
       restaurantId,
@@ -248,7 +249,7 @@ export const createOrder = async (
       if (
         coupon.perUserLimit > 0 &&
         coupon.usedBy.filter(
-          (entry) => entry.userId.toString() === authReq.user._id.toString(),
+          (entry) => entry.userId.toString() === user._id.toString(),
         ).length >= coupon.perUserLimit
       ) {
         throw new ValidationError("You have already used this coupon");

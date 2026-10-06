@@ -80,10 +80,10 @@ export const AUTH = {
 
 // ── Rate Limit Constants ───────────────────────────────────────
 export const RATE_LIMITS = {
-  LOGIN: { windowMs: 15 * 60 * 1000, max: 5 },
-  REGISTER: { windowMs: 60 * 60 * 1000, max: 3 },
-  GOOGLE_OAUTH: { windowMs: 10 * 60 * 1000, max: 20 },
-  GOOGLE_OAUTH_CALLBACK: { windowMs: 10 * 60 * 1000, max: 30 },
-  PASSWORD_RESET: { windowMs: 60 * 60 * 1000, max: 3 },
-  GENERAL_API: { windowMs: 15 * 60 * 1000, max: 1000 },
+  LOGIN: { windowMs: 15 * 60 * 1000, max: process.env.NODE_ENV === 'production' ? 5 : 500 },
+  REGISTER: { windowMs: 60 * 60 * 1000, max: process.env.NODE_ENV === 'production' ? 3 : 500 },
+  GOOGLE_OAUTH: { windowMs: 10 * 60 * 1000, max: 50 },
+  GOOGLE_OAUTH_CALLBACK: { windowMs: 10 * 60 * 1000, max: 50 },
+  PASSWORD_RESET: { windowMs: 60 * 60 * 1000, max: process.env.NODE_ENV === 'production' ? 3 : 50 },
+  GENERAL_API: { windowMs: 15 * 60 * 1000, max: 2000 },
 } as const;

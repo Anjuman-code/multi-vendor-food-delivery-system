@@ -5,7 +5,7 @@
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { UserRole } from "../config/constants";
-import SupportTicket, { TicketStatus } from "../models/SupportTicket";
+import SupportTicket, { TicketPriority, TicketStatus } from "../models/SupportTicket";
 import { NotificationType } from "../models/Notification";
 import { createNotification } from "../services/notification.service";
 import type { AuthRequest } from "../types";
@@ -248,11 +248,11 @@ export const updateTicket = async (
 
     if (updates.status && updates.status !== ticket.status) {
       changes.push({ field: "status", oldValue: ticket.status, newValue: updates.status });
-      ticket.status = updates.status;
+      ticket.status = updates.status as TicketStatus;
     }
     if (updates.priority && updates.priority !== ticket.priority) {
       changes.push({ field: "priority", oldValue: ticket.priority, newValue: updates.priority });
-      ticket.priority = updates.priority;
+      ticket.priority = updates.priority as TicketPriority;
     }
     if (updates.assignedTo !== undefined) {
       changes.push({

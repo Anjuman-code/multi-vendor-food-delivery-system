@@ -275,8 +275,8 @@ export const updateSettings = async (req: Request, res: Response, next: NextFunc
     const changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown }> = [];
     for (const key of allowedKeys) {
       if (req.body[key] !== undefined) {
-        changes.push({ field: key, oldValue: (settings as Record<string, unknown>)[key], newValue: req.body[key] });
-        (settings as Record<string, unknown>)[key] = req.body[key];
+        changes.push({ field: key, oldValue: (settings as unknown as Record<string, unknown>)[key], newValue: req.body[key] });
+        (settings as unknown as Record<string, unknown>)[key] = req.body[key];
       }
     }
     settings.updatedBy = authReq.user._id;

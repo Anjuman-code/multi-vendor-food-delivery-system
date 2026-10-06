@@ -244,6 +244,7 @@ export const completeOnboardingWithDetails = async (
       action: 'driver.onboarding_completed',
       resourceType: 'DriverProfile',
       resourceId: profile._id as mongoose.Types.ObjectId,
+      changes: [],
     });
 
     successResponse(res, { profile }, 'Onboarding completed successfully');

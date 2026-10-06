@@ -132,12 +132,43 @@ const EMPTY_CART: CartState = {
   promoCode: "",
 };
 
+const GUEST_CART_STORAGE_KEY = "food_rush_guest_cart";
+
+const loadGuestCart = (): CartState => {
+  try {
+    const raw = localStorage.getItem(GUEST_CART_STORAGE_KEY);
+    if (!raw) return EMPTY_CART;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.items)) {
+      return {
+        items: parsed.items,
+        promoCode: typeof parsed.promoCode === "string" ? parsed.promoCode : "",
+      };
+    }
+  } catch {
+    // Ignore corrupt local state
+  }
+  return EMPTY_CART;
+};
+
+const saveGuestCart = (state: CartState) => {
+  try {
+    if (state.items.length === 0 && !state.promoCode) {
+      localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+    } else {
+      localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(state));
+    }
+  } catch {
+    // Ignore quota or private mode errors
+  }
+};
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [cart, setCart] = useState<CartState>(EMPTY_CART);
+  const [cart, setCart] = useState<CartState>(() => loadGuestCart());
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const { isAuthenticated } = useAuth();
@@ -147,12 +178,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   cartRef.current = cart;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      saveGuestCart(cart);
+    }
+  }, [cart, isAuthenticated]);
+
+  useEffect(() => {
     if (isAuthenticated && !initialFetchDone.current) {
       initialFetchDone.current = true;
       setIsLoading(true);
 
       const doLoginSync = async () => {
-        const guestCart = cartRef.current;
+        const guestCart = cartRef.current.items.length > 0 ? cartRef.current : loadGuestCart();
         if (guestCart.items.length > 0) {
           try {
             await cartService.mergeCart({
@@ -177,6 +214,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
                 specialInstructions: i.specialInstructions,
               })),
             });
+            try {
+              localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+            } catch {
+              // Ignore
+            }
           } catch {
             // Non-critical
           }
@@ -200,7 +242,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       doLoginSync();
     } else if (!isAuthenticated) {
       initialFetchDone.current = false;
-      setCart(EMPTY_CART);
+      setCart(loadGuestCart());
       setIsLoading(false);
     }
   }, [isAuthenticated]);
@@ -209,6 +251,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     if (prevAuth.current && !isAuthenticated) {
       initialFetchDone.current = false;
       setCart(EMPTY_CART);
+      try {
+        localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+      } catch {
+        // Ignore
+      }
       cartService.clearCart().catch(() => {});
     }
     prevAuth.current = isAuthenticated;

@@ -33,11 +33,12 @@ import type {
 const getVendorProfile = async (req: Request) => {
   const authReq = req as AuthRequest;
   if (!authReq.user) throw new AuthenticationError();
+  const user = authReq.user;
 
-  const profile = await VendorProfile.findOne({ userId: authReq.user._id });
+  const profile = await VendorProfile.findOne({ userId: user._id });
   if (!profile) throw new NotFoundError("Vendor profile not found");
 
-  return { authReq, profile };
+  return { authReq, user, profile };
 };
 
 /** Verify the vendor owns the given restaurant. */
@@ -237,7 +238,7 @@ export const createMyRestaurant = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { authReq, profile } = await getVendorProfile(req);
+    const { user, profile } = await getVendorProfile(req);
     const data = req.body as CreateRestaurantInput;
 
     const restaurant = new Restaurant({
@@ -252,8 +253,8 @@ export const createMyRestaurant = async (
     await profile.save();
 
     await createAuditLog({
-      actorId: authReq.user._id,
-      actorRole: authReq.user.role,
+      actorId: user._id,
+      actorRole: user.role,
       action: "restaurant.created",
       resourceType: "Restaurant",
       resourceId: restaurant._id as mongoose.Types.ObjectId,
@@ -316,7 +317,7 @@ export const deleteMyRestaurant = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { authReq, profile } = await getVendorProfile(req);
+    const { user, profile } = await getVendorProfile(req);
     const restaurantId = req.params.restaurantId as string;
 
     if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
@@ -333,8 +334,8 @@ export const deleteMyRestaurant = async (
     await restaurant.save();
 
     await createAuditLog({
-      actorId: authReq.user._id,
-      actorRole: authReq.user.role,
+      actorId: user._id,
+      actorRole: user.role,
       action: "restaurant.deactivated",
       resourceType: "Restaurant",
       resourceId: restaurant._id,

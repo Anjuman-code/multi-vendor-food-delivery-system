@@ -41,7 +41,9 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { LocalPaymentGatewayModal } from '@/components/payment/LocalPaymentGatewayModal';
+import { cn } from '@/utils/cn';
 
 const STATUS_STEPS: OrderStatus[] = [
   'pending',
@@ -124,6 +126,7 @@ const StarRating = ({
 const OrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addItem: addToCart } = useCart();
   const { socket, watchOrderLocation } = useSocketContext();
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -135,6 +138,13 @@ const OrderDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('pay') === 'now' || searchParams.get('openPayment') === 'true') {
+      setShowPaymentModal(true);
+    }
+  }, [searchParams]);
 
   // Restaurant review state
   const [existingReview, setExistingReview] = useState<Order['_id'] | null>(null);
@@ -680,17 +690,48 @@ const OrderDetailsPage: React.FC = () => {
                   Cash on Delivery
                 </p>
               ) : (
-                <p className="text-sm text-gray-800 capitalize">
+                <p className="text-sm text-gray-800 capitalize flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
                   {order.paymentMethod}
                 </p>
               )}
-              <p className="text-sm text-gray-600 capitalize">
-                Status:{' '}
-                {order.paymentMethod === 'cash_on_delivery' &&
-                order.paymentStatus === 'pending'
-                  ? 'Pay on delivery'
-                  : order.paymentStatus}
-              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">Status:</p>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold',
+                      order.paymentStatus === 'paid'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+                    )}
+                  >
+                    {order.paymentStatus === 'paid' && (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    )}
+                    {order.paymentMethod === 'cash_on_delivery' &&
+                    order.paymentStatus === 'pending'
+                      ? 'Pay on delivery'
+                      : order.paymentStatus.toUpperCase()}
+                  </span>
+                </div>
+                {order.paymentStatus === 'pending' &&
+                  order.paymentMethod !== 'cash_on_delivery' &&
+                  order.status !== 'cancelled' && (
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm"
+                      onClick={() => setShowPaymentModal(true)}
+                    >
+                      Pay Now
+                    </Button>
+                  )}
+              </div>
+              {order.transactionId && (
+                <p className="mt-2 font-mono text-[11px] text-gray-500">
+                  Ref: {order.transactionId}
+                </p>
+              )}
             </Card>
           </div>
 
@@ -946,6 +987,33 @@ const OrderDetailsPage: React.FC = () => {
           </motion.div>
         )}
       </motion.div>
+
+      {showPaymentModal && order && (
+        <LocalPaymentGatewayModal
+          open={showPaymentModal}
+          onOpenChange={setShowPaymentModal}
+          order={order}
+          defaultMethod={
+            order.paymentMethod === 'bkash' ||
+            order.paymentMethod === 'nagad' ||
+            order.paymentMethod === 'card'
+              ? order.paymentMethod
+              : 'bkash'
+          }
+          onSuccess={(transactionId, updatedOrder) => {
+            setOrder((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    ...updatedOrder,
+                    paymentStatus: 'paid',
+                    transactionId,
+                  }
+                : prev,
+            );
+          }}
+        />
+      )}
     </div>
   );
 };

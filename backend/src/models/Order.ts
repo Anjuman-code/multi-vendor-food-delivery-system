@@ -99,6 +99,7 @@ export interface IOrder {
   paymentMethod: string;
   paymentStatus: PaymentStatus;
   codCollected?: boolean;
+  transactionId?: string;
   subtotal: number;
   tax: number;
   deliveryFee: number;
@@ -268,6 +269,7 @@ const orderSchema = new Schema<IOrder>(
       enum: Object.values(PaymentStatus),
       default: PaymentStatus.PENDING,
     },
+    transactionId: { type: String, trim: true },
     codCollected: { type: Boolean, default: false },
     subtotal: { type: Number, required: true, min: 0 },
     tax: { type: Number, required: true, min: 0 },

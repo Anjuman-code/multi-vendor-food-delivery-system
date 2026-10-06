@@ -147,11 +147,11 @@ function downloadFile(url: string, dest: string): Promise<boolean> {
     }
     const mod = url.startsWith('https') ? https : http;
     const file = fs.createWriteStream(dest);
-    mod
-      .get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+    const req = mod
+      .get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 3000 }, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
           file.close();
-          fs.unlinkSync(dest);
+          try { fs.unlinkSync(dest); } catch {}
           downloadFile(res.headers.location!, dest).then(resolve);
           return;
         }
@@ -168,6 +168,12 @@ function downloadFile(url: string, dest: string): Promise<boolean> {
         });
       })
       .on('error', () => {
+        file.close();
+        try { fs.unlinkSync(dest); } catch {}
+        resolve(false);
+      })
+      .on('timeout', () => {
+        req.destroy();
         file.close();
         try { fs.unlinkSync(dest); } catch {}
         resolve(false);
@@ -1083,7 +1089,7 @@ const seedDatabase = async (): Promise<void> => {
         address: { street, area, district, coordinates: { lat: r.latitude, lng: r.longitude } },
         location: { type: 'Point', coordinates: [r.longitude, r.latitude] },
         contactInfo: {
-          phone: r.customer_phone || '+8801700000000',
+          phone: (r.customer_phone && /^\+8801[3-9]\d{8}$/.test(r.customer_phone)) ? r.customer_phone : '+8801700000000',
           email: `contact.${r.code}@restaurant.com`,
         },
         cuisineType: cuisineNames,
@@ -1120,7 +1126,9 @@ const seedDatabase = async (): Promise<void> => {
         const doc = await User.create(vu);
         createdVendorUsers.push(doc);
         vendorUserByEmail.set(vu.email, doc);
-      } catch {}
+      } catch (err) {
+        console.error(`Failed to create vendor user ${vu.email}:`, err);
+      }
     }
     console.log(c(ANSI.green, `✓ ${createdVendorUsers.length} vendor users created`));
 
@@ -1132,7 +1140,9 @@ const seedDatabase = async (): Promise<void> => {
         const doc = await Restaurant.create(restaurantDocs[i]);
         createdRestaurants.push(doc);
         scrapedByRestaurantId.set(doc._id.toString(), restaurants[i]);
-      } catch {}
+      } catch (err) {
+        console.error(`Failed to create restaurant ${restaurantDocs[i]?.name}:`, err);
+      }
     }
     console.log(c(ANSI.green, `✓ ${createdRestaurants.length} restaurants created`));
 

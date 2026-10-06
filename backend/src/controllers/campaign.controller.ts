@@ -169,7 +169,7 @@ export const applyCampaigns = async (
     }
 
     totalDiscount += discount;
-    appliedIds.push(c._id as string);
+    appliedIds.push(c._id.toString());
   }
 
   return { discount: totalDiscount, appliedCampaignIds: appliedIds };
