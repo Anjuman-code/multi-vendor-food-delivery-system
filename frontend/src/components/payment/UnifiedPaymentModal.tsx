@@ -31,6 +31,7 @@ export interface UnifiedPaymentModalProps {
   currency?: string;
   purpose?: PaymentPurpose;
   orderId?: string;
+  reservationId?: string;
   title?: string;
   description?: string;
   defaultMethod?: SupportedPaymentMethod;
@@ -53,6 +54,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   currency = '৳',
   purpose = 'order_payment',
   orderId,
+  reservationId,
   title,
   description,
   defaultMethod = 'bkash',
@@ -146,6 +148,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
         paymentService
           .initiateSession({
             orderId,
+            reservationId,
             purpose,
             amount,
             method: savedPaymentMethodId ? undefined : targetMethod,
@@ -256,6 +259,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
 
       const res = await paymentService.initiateSession({
         orderId,
+        reservationId,
         purpose,
         amount,
         method: activeSaved ? undefined : method,

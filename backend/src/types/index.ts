@@ -5,6 +5,7 @@ import { HydratedDocument } from "mongoose";
 // Re-export all user types from the dedicated module
 // ────────────────────────────────────────────────────────────────
 export * from "./user.types";
+export * from "./reservation.types";
 
 // ────────────────────────────────────────────────────────────────
 // Restaurant
@@ -93,6 +94,7 @@ export interface IRestaurant {
   minimumOrder: number;
   priceRange: 1 | 2 | 3 | 4;
   serviceOptions: ("delivery" | "dine-in" | "takeaway")[];
+  reservationSettings?: import("./reservation.types").IReservationSettings;
   totalOrders: number;
   averagePreparationTime: number;
   paymentMethods: string[];

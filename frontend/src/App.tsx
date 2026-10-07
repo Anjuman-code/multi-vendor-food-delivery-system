@@ -55,6 +55,12 @@ const OrdersPage = lazy(() => import('./pages/customer/OrdersPage'));
 const OrderDetailsPage = lazy(
   () => import('./pages/customer/OrderDetailsPage'),
 );
+const ReservationsPage = lazy(
+  () => import('./pages/customer/ReservationsPage'),
+);
+const ReservationDetailsPage = lazy(
+  () => import('./pages/customer/ReservationDetailsPage'),
+);
 const NotificationsPage = lazy(
   () => import('./pages/customer/NotificationsPage'),
 );
@@ -84,6 +90,12 @@ const MenuItemEditorPage = lazy(
 const VendorOrdersPage = lazy(() => import('./pages/vendor/VendorOrdersPage'));
 const VendorOrderDetailPage = lazy(
   () => import('./pages/vendor/VendorOrderDetailPage'),
+);
+const VendorReservationsPage = lazy(
+  () => import('./pages/vendor/VendorReservationsPage'),
+);
+const VendorReservationSettingsPage = lazy(
+  () => import('./pages/vendor/VendorReservationSettingsPage'),
 );
 const VendorReviewsPage = lazy(
   () => import('./pages/vendor/VendorReviewsPage'),
@@ -170,6 +182,9 @@ const AdminRestaurantDetailPage = lazy(
 const AdminOrdersPage = lazy(() => import('./pages/admin/orders/OrdersPage'));
 const AdminOrderDetailPage = lazy(
   () => import('./pages/admin/orders/OrderDetailPage'),
+);
+const AdminReservationsPage = lazy(
+  () => import('./pages/admin/reservations/AdminReservationsPage'),
 );
 const AdminFleetMapPage = lazy(
   () => import('./pages/admin/orders/FleetMapPage'),
@@ -269,6 +284,14 @@ function App(): React.ReactElement {
                             element={<OrderDetailsPage />}
                           />
                           <Route
+                            path="/reservations"
+                            element={<ReservationsPage />}
+                          />
+                          <Route
+                            path="/reservations/:id"
+                            element={<ReservationDetailsPage />}
+                          />
+                          <Route
                             path="/notifications"
                             element={<NotificationsPage />}
                           />
@@ -365,6 +388,18 @@ function App(): React.ReactElement {
                         <Route
                           path="/vendor/orders/:id"
                           element={<VendorOrderDetailPage />}
+                        />
+                        <Route
+                          path="/vendor/reservations"
+                          element={<VendorReservationsPage />}
+                        />
+                        <Route
+                          path="/vendor/reservations/settings"
+                          element={<VendorReservationSettingsPage />}
+                        />
+                        <Route
+                          path="/vendor/restaurants/:id/reservations/settings"
+                          element={<VendorReservationSettingsPage />}
                         />
                         <Route
                           path="/vendor/reviews"
@@ -494,6 +529,10 @@ function App(): React.ReactElement {
                         <Route
                           path="orders/:id"
                           element={<AdminOrderDetailPage />}
+                        />
+                        <Route
+                          path="reservations"
+                          element={<AdminReservationsPage />}
                         />
                         <Route
                           path="finance/payouts"

@@ -29,6 +29,52 @@ const operatingHoursSchema = new Schema<IOperatingHours>(
   { _id: false },
 );
 
+// ── Sub-schema: table inventory ─────────────────────────────────
+const tableInventorySchema = new Schema(
+  {
+    tableNumber: { type: String, required: true, trim: true },
+    capacity: { type: Number, required: true, min: 1 },
+  },
+  { _id: false },
+);
+
+// ── Sub-schema: closed date override ────────────────────────────
+const closedDateOverrideSchema = new Schema(
+  {
+    date: { type: String, required: true }, // "YYYY-MM-DD"
+    reason: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+// ── Sub-schema: reservation settings ─────────────────────────────
+const reservationSettingsSchema = new Schema(
+  {
+    isEnabled: { type: Boolean, default: false },
+    totalSeats: { type: Number, default: 40, min: 1 },
+    tables: { type: [tableInventorySchema], default: [] },
+    walkInAllocationType: {
+      type: String,
+      enum: ['percentage', 'fixed_seats'],
+      default: 'percentage',
+    },
+    walkInAllocationValue: { type: Number, default: 20, min: 0 },
+    minPartySize: { type: Number, default: 1, min: 1 },
+    maxPartySize: { type: Number, default: 10, min: 1 },
+    slotDurationMinutes: { type: Number, default: 90, min: 15 },
+    slotIntervalMinutes: { type: Number, default: 30, min: 15 },
+    maxAdvanceDays: { type: Number, default: 30, min: 1 },
+    minLeadTimeHours: { type: Number, default: 2, min: 0 },
+    closedDates: { type: [closedDateOverrideSchema], default: [] },
+    autoConfirm: { type: Boolean, default: true },
+    cancellationWindowHours: { type: Number, default: 2, min: 0 },
+    noShowGracePeriodMinutes: { type: Number, default: 15, min: 0 },
+    depositRequired: { type: Boolean, default: false },
+    depositAmountPerGuest: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false },
+);
+
 // ── Main schema ──────────────────────────────────────────────────
 const restaurantSchema = new Schema<IRestaurant>(
   {
@@ -112,6 +158,10 @@ const restaurantSchema = new Schema<IRestaurant>(
       type: [String],
       enum: ['delivery', 'dine-in', 'takeaway'],
       default: ['delivery'],
+    },
+    reservationSettings: {
+      type: reservationSettingsSchema,
+      default: () => ({}),
     },
     paymentMethods: {
       type: [String],

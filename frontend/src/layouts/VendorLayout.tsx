@@ -24,6 +24,7 @@ import { cn } from '@/utils/cn';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BarChart3,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -68,6 +69,11 @@ const sidebarGroups: SidebarGroup[] = [
         path: '/vendor/orders',
         icon: ClipboardList,
         badge: true,
+      },
+      {
+        name: 'Reservations',
+        path: '/vendor/reservations',
+        icon: CalendarDays,
       },
       { name: 'Menu', path: '/vendor/menu', icon: UtensilsCrossed },
     ],
@@ -115,7 +121,12 @@ const getBreadcrumbs = (
     crumbs.push({ label: active.name, href: active.path });
   }
   // Handle sub-pages
-  if (pathname.includes('/restaurants/') && pathname.includes('/edit')) {
+  if (pathname.includes('/reservations/settings') || pathname.includes('/reservations')) {
+    crumbs.push({ label: 'Reservations', href: '/vendor/reservations' });
+    if (pathname.includes('/settings')) {
+      crumbs.push({ label: 'Reservation Settings' });
+    }
+  } else if (pathname.includes('/restaurants/') && pathname.includes('/edit')) {
     crumbs.push({ label: 'Edit Restaurant' });
   } else if (pathname.includes('/restaurants/new')) {
     crumbs.push({ label: 'New Restaurant' });

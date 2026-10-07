@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   BarChart3,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -73,6 +74,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Restaurants", path: "/admin/restaurants", icon: Store },
       { name: "Orders", path: "/admin/orders", icon: ClipboardList },
+      { name: "Reservations", path: "/admin/reservations", icon: CalendarDays },
       { name: "Live Map", path: "/admin/orders/live", icon: Map },
       { name: "Disputes", path: "/admin/disputes", icon: Gavel },
       { name: "Support", path: "/admin/support", icon: AlertTriangle },

@@ -3,7 +3,12 @@ import type { ApiResponse } from "@/services/authService";
 import type { Order } from "@/types/order";
 import type { SupportedPaymentMethod } from "@/utils/paymentUtils";
 
-export type PaymentPurpose = "order_payment" | "wallet_topup" | "cod_remittance" | "tip";
+export type PaymentPurpose =
+  | "order_payment"
+  | "wallet_topup"
+  | "cod_remittance"
+  | "tip"
+  | "reservation_deposit";
 
 export interface CardDetailsPayload {
   cardNumber: string;
@@ -20,6 +25,7 @@ export interface WalletDetailsPayload {
 
 export interface InitiatePaymentPayload {
   orderId?: string;
+  reservationId?: string;
   purpose?: PaymentPurpose;
   amount?: number;
   method?: SupportedPaymentMethod;

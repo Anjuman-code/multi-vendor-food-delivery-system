@@ -18,6 +18,7 @@ import payoutRoutes from "./payout.routes";
 import referralRoutes from "./referral.routes";
 import restaurantRoutes from "./restaurantRoutes";
 import paymentRoutes from "./payment.routes";
+import reservationRoutes from "./reservation.routes";
 import reviewRoutes from "./review.routes";
 import supportRoutes from "./support.routes";
 import contactRoutes from "./contact.routes";
@@ -27,6 +28,7 @@ import vendorRoutes from "./vendor.routes";
 const router: Router = Router();
 
 router.use("/payments", paymentRoutes);
+router.use("/reservations", reservationRoutes);
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);

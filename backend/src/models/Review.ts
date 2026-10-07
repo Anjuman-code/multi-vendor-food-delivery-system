@@ -6,7 +6,8 @@ import mongoose, { Schema, Model, Types } from "mongoose";
 export interface IReview {
   customerId: Types.ObjectId;
   restaurantId: Types.ObjectId;
-  orderId: Types.ObjectId;
+  orderId?: Types.ObjectId;
+  reservationId?: Types.ObjectId;
   rating: number;
   title?: string;
   comment: string;
@@ -40,8 +41,14 @@ const reviewSchema = new Schema<IReview>(
     orderId: {
       type: Schema.Types.ObjectId,
       ref: "Order",
-      required: true,
-      unique: true,
+      index: true,
+      sparse: true,
+    },
+    reservationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Reservation",
+      index: true,
+      sparse: true,
     },
     rating: {
       type: Number,
@@ -67,8 +74,9 @@ const reviewSchema = new Schema<IReview>(
   { timestamps: true },
 );
 
-// One review per order
-reviewSchema.index({ customerId: 1, orderId: 1 }, { unique: true });
+// One review per order or per reservation
+reviewSchema.index({ customerId: 1, orderId: 1 }, { unique: true, sparse: true });
+reviewSchema.index({ customerId: 1, reservationId: 1 }, { unique: true, sparse: true });
 reviewSchema.index({ restaurantId: 1, createdAt: -1 });
 
 const Review: Model<IReview> = mongoose.model<IReview>("Review", reviewSchema);

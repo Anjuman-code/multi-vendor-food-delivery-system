@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
 import Order, { PaymentStatus } from '../models/Order';
+import Reservation from '../models/Reservation';
 import Restaurant from '../models/Restaurant';
 import CustomerProfile from '../models/CustomerProfile';
 import { PaymentMethodType } from '../config/constants';
@@ -46,6 +47,7 @@ export const initiatePaymentSession = async (
 
     const {
       orderId,
+      reservationId,
       purpose = 'order_payment',
       amount: manualAmount,
       method,
@@ -61,6 +63,7 @@ export const initiatePaymentSession = async (
 
     let finalAmount = manualAmount;
     let orderObjectId: Types.ObjectId | undefined;
+    let reservationObjectId: Types.ObjectId | undefined;
 
     if (purpose === 'order_payment') {
       if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
@@ -91,6 +94,38 @@ export const initiatePaymentSession = async (
 
       finalAmount = order.total;
       orderObjectId = order._id as Types.ObjectId;
+    } else if (purpose === 'reservation_deposit') {
+      if (!reservationId || !mongoose.Types.ObjectId.isValid(reservationId)) {
+        throw new ValidationError('A valid reservation ID is required');
+      }
+      const reservation = await Reservation.findById(reservationId);
+      if (!reservation) throw new NotFoundError('Reservation not found');
+
+      if (
+        authReq.user.role !== 'admin' &&
+        reservation.customerId &&
+        reservation.customerId.toString() !== authReq.user._id.toString()
+      ) {
+        throw new ValidationError(
+          'You are not authorized to pay for this reservation',
+        );
+      }
+
+      if (reservation.deposit.status === 'paid') {
+        successResponse(
+          res,
+          {
+            alreadyPaid: true,
+            transactionId: reservation.deposit.transactionId,
+            reservation,
+          },
+          'Reservation deposit has already been paid',
+        );
+        return;
+      }
+
+      finalAmount = reservation.deposit.amount;
+      reservationObjectId = reservation._id as Types.ObjectId;
     } else if (purpose === 'wallet_topup') {
       if (!manualAmount || manualAmount < 10) {
         throw new ValidationError('Minimum wallet top-up amount is ৳10');
@@ -107,6 +142,7 @@ export const initiatePaymentSession = async (
       userId: authReq.user._id,
       userRole: authReq.user.role,
       orderId: orderObjectId,
+      reservationId: reservationObjectId,
       purpose,
       amount: finalAmount,
       method,
@@ -272,6 +308,36 @@ const finalizePaymentFulfillment = async (
             transactionId: execResult.transactionId,
             total: order.total,
           },
+        });
+      }
+    }
+  }
+
+  // Handle Reservation deposit confirmation
+  if (session.reservationId) {
+    const reservation = await Reservation.findById(session.reservationId);
+    if (reservation) {
+      reservation.deposit.status = 'paid';
+      reservation.deposit.transactionId = execResult.transactionId;
+      reservation.deposit.paidAt = new Date();
+      if (reservation.status === 'pending') {
+        reservation.status = 'confirmed';
+      }
+      reservation.statusHistory.push({
+        status: reservation.status,
+        timestamp: new Date(),
+        updatedBy: session.userId,
+        reason: `Deposit of ৳${execResult.amount} confirmed via ${session.method}`,
+      });
+      await reservation.save();
+
+      if (reservation.customerId) {
+        await createNotification({
+          userId: reservation.customerId,
+          title: 'Deposit Paid - Reservation Confirmed',
+          message: `Your deposit of ৳${execResult.amount} for reservation #${reservation.reservationNumber} was confirmed.`,
+          type: NotificationType.SYSTEM,
+          data: { reservationId: reservation._id },
         });
       }
     }

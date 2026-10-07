@@ -17,7 +17,11 @@ export type PaymentMethodName =
   | 'wallet'
   | 'cash_on_delivery';
 
-export type PaymentPurpose = 'order_payment' | 'wallet_topup' | 'cod_remittance';
+export type PaymentPurpose =
+  | 'order_payment'
+  | 'wallet_topup'
+  | 'cod_remittance'
+  | 'reservation_deposit';
 
 export interface IPaymentSession {
   sessionId: string;
@@ -25,6 +29,7 @@ export interface IPaymentSession {
   userId: Types.ObjectId;
   userRole: string;
   orderId?: Types.ObjectId;
+  reservationId?: Types.ObjectId;
   purpose: PaymentPurpose;
   amount: number;
   currency: string;
@@ -82,9 +87,19 @@ const paymentSessionSchema = new Schema<IPaymentSessionDocument>(
       ref: 'Order',
       index: true,
     },
+    reservationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Reservation',
+      index: true,
+    },
     purpose: {
       type: String,
-      enum: ['order_payment', 'wallet_topup', 'cod_remittance'],
+      enum: [
+        'order_payment',
+        'wallet_topup',
+        'cod_remittance',
+        'reservation_deposit',
+      ],
       default: 'order_payment',
     },
     amount: {

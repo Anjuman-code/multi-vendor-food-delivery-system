@@ -1,27 +1,23 @@
 import { Button } from '@/components/ui/button';
-import { DialogHeader } from '@/components/ui/dialog';
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { getErrorMessage } from '@/lib/formErrors';
-import { bdPhoneSchema } from '@/lib/phone';
-import { toast } from '@/lib/toast';
-import type { Booking, BookingSlot, Restaurant } from '@/types/restaurant';
-import { cn } from '@/utils/cn';
-import { restaurantFallbackSVG } from '@/utils/fallbackImages';
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
-} from '@radix-ui/react-dialog';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { bdPhoneSchema } from '@/lib/phone';
+import { toast } from '@/lib/toast';
+import reservationService, {
+  CreateReservationResult,
+} from '@/services/reservationService';
+import type { AvailableSlot, Reservation } from '@/types/reservation';
+import type { Restaurant } from '@/types/restaurant';
+import { cn } from '@/utils/cn';
+import { restaurantFallbackSVG } from '@/utils/fallbackImages';
 import { addDays, format } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -29,129 +25,34 @@ import {
   Calendar,
   CalendarPlus,
   Check,
+  ChevronRight,
   Clock,
-  Form,
+  CreditCard,
   Loader2,
   MapPin,
+  ShieldCheck,
   Star,
   Users,
 } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import z from 'zod';
-
-const namePattern = /^[a-zA-Z]+$/;
-
-const bookingSchema = z.object({
-  guests: z
-    .number()
-    .min(1, 'At least 1 guest required')
-    .max(20, 'Maximum 20 guests'),
-  date: z.string().min(1, 'Please select a date'),
-  time: z.string().min(1, 'Please select a time'),
-  contactName: z
-    .string()
-    .trim()
-    .min(2, 'Name must be at least 2 characters')
-    .max(100, 'Name cannot exceed 100 characters')
-    .regex(namePattern, 'Name Can only contain letters')
-    .refine((v) => /[a-zA-Z]/.test(v), {
-      message: 'Must contain at least one letter',
-    }),
-  contactPhone: bdPhoneSchema,
-  contactEmail: z
-    .string()
-    .trim()
-    .min(1, 'Email is required')
-    .max(254, 'Email is too long')
-    .email('Valid email required')
-    .refine(
-      (v) => {
-        const [local, domain] = v.split('@');
-        if (!local || !domain) return false;
-        if (!/[a-zA-Z]/.test(local)) return false;
-        const dotIdx = domain.lastIndexOf('.');
-        if (dotIdx <= 0 || dotIdx >= domain.length - 1) return false;
-        const tld = domain.slice(dotIdx + 1);
-        if (!/^[a-zA-Z]{2,}$/.test(tld)) return false;
-        if (tld.length <= 2 && [...new Set(tld)].length === 1) return false;
-        if (!/[a-zA-Z]/.test(domain)) return false;
-        return true;
-      },
-      { message: 'Valid email required' },
-    ),
-  specialRequests: z.string().optional(),
-});
-
-type BookingFormData = z.infer<typeof bookingSchema>;
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UnifiedPaymentModal } from '@/components/payment/UnifiedPaymentModal';
 
 interface BookingModalProps {
   restaurant: Restaurant | null;
   isOpen: boolean;
   onClose: () => void;
-  onBookingComplete?: (booking: Booking) => void;
+  onBookingComplete?: (reservation: Reservation) => void;
   initialGuests?: number;
   initialDate?: string;
   initialTime?: string;
 }
 
-// Mock time slots - in production this would come from API
-const generateTimeSlots = (_date: string): BookingSlot[] => {
-  const slots: BookingSlot[] = [];
-  const baseHour = 12;
+type BookingStep = 'date_party' | 'time' | 'details' | 'confirm' | 'success';
 
-  for (let hour = baseHour; hour <= 21; hour++) {
-    for (const minute of [0, 30]) {
-      if (hour === 21 && minute === 30) continue;
+const guestPresets = [1, 2, 3, 4, 5, 6, 8, 10];
 
-      const hour12 = hour > 12 ? hour - 12 : hour;
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-
-      // Random availability for demo
-      const available = Math.random() > 0.2;
-      const tablesLeft = available ? Math.floor(Math.random() * 5) + 1 : 0;
-
-      slots.push({
-        time: `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`,
-        available,
-        tablesLeft: available ? tablesLeft : undefined,
-      });
-    }
-  }
-
-  return slots;
-};
-
-// Quick date options
-const getQuickDates = () => {
-  const today = new Date();
-  return [
-    { label: 'Today', date: format(today, 'yyyy-MM-dd'), isToday: true },
-    {
-      label: 'Tomorrow',
-      date: format(addDays(today, 1), 'yyyy-MM-dd'),
-      isToday: false,
-    },
-    {
-      label: format(addDays(today, 2), 'EEE'),
-      date: format(addDays(today, 2), 'yyyy-MM-dd'),
-      isToday: false,
-    },
-    {
-      label: format(addDays(today, 3), 'EEE'),
-      date: format(addDays(today, 3), 'yyyy-MM-dd'),
-      isToday: false,
-    },
-  ];
-};
-
-// Guest options
-const guestOptions = [1, 2, 3, 4, 5, 6, 7, 8];
-
-// Booking steps
-type BookingStep = 'select' | 'details' | 'confirm' | 'success';
-
-const BookingModal: React.FC<BookingModalProps> = ({
+export const BookingModal: React.FC<BookingModalProps> = ({
   restaurant,
   isOpen,
   onClose,
@@ -160,582 +61,868 @@ const BookingModal: React.FC<BookingModalProps> = ({
   initialDate,
   initialTime,
 }) => {
-  const [step, setStep] = useState<BookingStep>('select');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedGuests, setSelectedGuests] = useState(initialGuests);
-  const [selectedDate, setSelectedDate] = useState(
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [step, setStep] = useState<BookingStep>('date_party');
+  const [selectedGuests, setSelectedGuests] = useState<number>(initialGuests);
+  const [selectedDate, setSelectedDate] = useState<string>(
     initialDate || format(new Date(), 'yyyy-MM-dd'),
   );
-  const [selectedTime, setSelectedTime] = useState(initialTime || '');
-  const [confirmationCode, setConfirmationCode] = useState('');
+  const [selectedTime, setSelectedTime] = useState<string>(initialTime || '');
+  const [specialRequests, setSpecialRequests] = useState<string>('');
 
-  // Generate time slots based on selected date
-  const timeSlots = useMemo(
-    () => generateTimeSlots(selectedDate),
-    [selectedDate],
-  );
-  const quickDates = useMemo(() => getQuickDates(), []);
+  // Guest details form state
+  const [contactName, setContactName] = useState<string>('');
+  const [contactPhone, setContactPhone] = useState<string>('');
+  const [contactEmail, setContactEmail] = useState<string>('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const form = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
-    mode: 'onTouched',
-    defaultValues: {
-      guests: initialGuests,
-      date: selectedDate,
-      time: selectedTime,
-      contactName: '',
-      contactPhone: '',
-      contactEmail: '',
-      specialRequests: '',
-    },
-  });
+  // Availability state
+  const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
+  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [depositRequired, setDepositRequired] = useState<boolean>(false);
+  const [depositAmount, setDepositAmount] = useState<number>(0);
+  const [availabilityMessage, setAvailabilityMessage] = useState<string>('');
 
-  // Update form when selections change
-  React.useEffect(() => {
-    form.setValue('guests', selectedGuests);
-    form.setValue('date', selectedDate);
-    form.setValue('time', selectedTime);
-  }, [selectedGuests, selectedDate, selectedTime, form]);
+  // Submission state
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [createdReservation, setCreatedReservation] =
+    useState<Reservation | null>(null);
 
-  const handleTimeSelect = useCallback((time: string) => {
-    setSelectedTime(time);
-    setStep('details');
-  }, []);
+  // Payment modal state for deposit
+  const [paymentModalOpen, setPaymentModalOpen] = useState<boolean>(false);
+  const [pendingReservationResult, setPendingReservationResult] =
+    useState<CreateReservationResult | null>(null);
 
-  const handleBack = useCallback(() => {
-    if (step === 'details') {
-      setStep('select');
-    } else if (step === 'confirm') {
-      setStep('details');
+  // Auto-fill logged-in user profile
+  useEffect(() => {
+    if (user) {
+      if (user.firstName || user.lastName) {
+        setContactName(
+          `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        );
+      }
+      if (user.email) setContactEmail(user.email);
+      const maybePhone = (user as { phoneNumber?: string; phone?: string }).phoneNumber || (user as { phoneNumber?: string; phone?: string }).phone;
+      if (maybePhone) setContactPhone(maybePhone);
     }
-  }, [step]);
+  }, [user]);
 
-  const handleDetailsSubmit = useCallback(() => {
-    setStep('confirm');
+  // Generate 7-day quick date picker items
+  const quickDates = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(today, i);
+      return {
+        date: format(d, 'yyyy-MM-dd'),
+        label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(d, 'EEE'),
+        subLabel: format(d, 'MMM d'),
+      };
+    });
   }, []);
 
-  const handleConfirmBooking = useCallback(async () => {
+  // Fetch real-time availability from server
+  const fetchAvailability = useCallback(async () => {
+    if (!restaurant?.id || !selectedDate) return;
+    setLoadingSlots(true);
+    setAvailabilityMessage('');
+    try {
+      const res = await reservationService.getAvailability(
+        String(restaurant.id),
+        selectedDate,
+        selectedGuests,
+      );
+      setSlots(res.slots || []);
+      setDepositRequired(res.depositRequired);
+      setDepositAmount(res.depositAmount);
+      if (res.slots.length === 0) {
+        setAvailabilityMessage(
+          'No available tables for this date and party size.',
+        );
+      }
+    } catch {
+      setSlots([]);
+      setAvailabilityMessage('Unable to fetch availability for this date.');
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [restaurant?.id, selectedDate, selectedGuests]);
+
+  useEffect(() => {
+    if (isOpen && restaurant?.id) {
+      void fetchAvailability();
+    }
+  }, [isOpen, restaurant?.id, selectedDate, selectedGuests, fetchAvailability]);
+
+  // Validate guest details
+  const validateDetails = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!contactName.trim() || contactName.trim().length < 2) {
+      errors.contactName = 'Please enter your name (at least 2 characters)';
+    }
+
+    const phoneCheck = bdPhoneSchema.safeParse(contactPhone);
+    if (!phoneCheck.success) {
+      errors.contactPhone =
+        'Valid Bangladeshi phone required (e.g. +8801712345678)';
+    }
+
+    if (contactEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(contactEmail.trim())) {
+        errors.contactEmail = 'Please enter a valid email address';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Submit booking
+  const handleConfirmBooking = async () => {
+    if (!restaurant?.id) return;
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Generate confirmation code
-      const code = `BK${Date.now().toString(36).toUpperCase()}`;
-      setConfirmationCode(code);
-
-      // Mock booking response
-      const booking: Booking = {
-        id: code,
-        restaurant: restaurant!,
-        guests: selectedGuests,
+      const payload = {
+        restaurantId: String(restaurant.id),
+        partySize: selectedGuests,
         date: selectedDate,
         time: selectedTime,
-        status: 'confirmed',
-        confirmationCode: code,
-        specialRequests: form.getValues('specialRequests'),
-        createdAt: new Date().toISOString(),
+        specialRequests: specialRequests.trim() || undefined,
+        guestInfo: {
+          name: contactName.trim(),
+          phone: contactPhone.trim(),
+          email: contactEmail.trim() || undefined,
+        },
       };
 
-      setStep('success');
+      const result = await reservationService.createReservation(payload);
 
-      toast.success('Booking Confirmed!', {
-        description: `Your table at ${restaurant?.name} is booked.`,
-      });
-
-      onBookingComplete?.(booking);
-    } catch (error) {
-      toast.error('Booking Failed', {
-        description: getErrorMessage(
-          error,
-          'Something went wrong. Please try again.',
-        ),
-      });
+      if (result.requiresDeposit && result.depositAmount > 0) {
+        // Needs deposit payment
+        setPendingReservationResult(result);
+        setPaymentModalOpen(true);
+      } else {
+        // Confirmed immediately
+        setCreatedReservation(result.reservation);
+        setStep('success');
+        toast.success('Reservation Confirmed!', {
+          description: `Your table at ${restaurant.name} is reserved.`,
+        });
+        onBookingComplete?.(result.reservation);
+      }
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Reservation failed. Please try again.';
+      toast.error('Booking Failed', { description: msg });
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    restaurant,
-    selectedGuests,
-    selectedDate,
-    selectedTime,
-    form,
-    onBookingComplete,
-  ]);
+  };
 
-  const handleClose = useCallback(() => {
-    // Reset state on close
-    setStep('select');
+  // Handle deposit payment completion
+  const handleDepositSuccess = () => {
+    setPaymentModalOpen(false);
+    if (pendingReservationResult) {
+      setCreatedReservation(pendingReservationResult.reservation);
+      setStep('success');
+      toast.success('Deposit Paid & Reservation Confirmed!', {
+        description: `Your table at ${restaurant?.name} is confirmed.`,
+      });
+      onBookingComplete?.(pendingReservationResult.reservation);
+    }
+  };
+
+  const handleClose = () => {
+    setStep('date_party');
     setSelectedTime('');
-    form.reset();
+    setFormErrors({});
     onClose();
-  }, [form, onClose]);
+  };
 
-  const handleAddToCalendar = useCallback(() => {
-    // Generate Google Calendar link
-    const startDate = new Date(
-      `${selectedDate}T${selectedTime.replace(
-        /(\d+):(\d+)\s*(AM|PM)/i,
-        (_, h, m, p) => {
-          let hour = parseInt(h);
-          if (p.toUpperCase() === 'PM' && hour !== 12) hour += 12;
-          if (p.toUpperCase() === 'AM' && hour === 12) hour = 0;
-          return `${hour.toString().padStart(2, '0')}:${m}`;
-        },
-      )}:00`,
+  // Google Calendar link
+  const handleAddToCalendar = () => {
+    if (!createdReservation || !restaurant) return;
+    const [h, m] = selectedTime.split(':');
+    const start = new Date(
+      `${selectedDate}T${h.padStart(2, '0')}:${m.padStart(2, '0')}:00`,
     );
+    const end = new Date(start.getTime() + 90 * 60 * 1000); // 90 mins
 
-    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours
-
-    const formatGoogleDate = (date: Date) =>
-      date.toISOString().replace(/-|:|\.\d+/g, '');
+    const formatGoogleDate = (d: Date) =>
+      d.toISOString().replace(/-|:|\.\d+/g, '');
 
     const url = new URL('https://calendar.google.com/calendar/render');
     url.searchParams.set('action', 'TEMPLATE');
-    url.searchParams.set('text', `Dinner at ${restaurant?.name}`);
+    url.searchParams.set('text', `Table Reservation at ${restaurant.name}`);
     url.searchParams.set(
       'dates',
-      `${formatGoogleDate(startDate)}/${formatGoogleDate(endDate)}`,
+      `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
     );
-    url.searchParams.set('location', restaurant?.address || '');
+    url.searchParams.set('location', restaurant.address || '');
     url.searchParams.set(
       'details',
-      `Booking for ${selectedGuests} guests. Confirmation: ${confirmationCode}`,
+      `Reservation #${createdReservation.reservationNumber} for ${selectedGuests} guests at ${restaurant.name}.`,
     );
 
     window.open(url.toString(), '_blank');
-  }, [
-    restaurant,
-    selectedDate,
-    selectedTime,
-    selectedGuests,
-    confirmationCode,
-  ]);
+  };
 
   if (!restaurant) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <img
-              src={restaurant.image || restaurantFallbackSVG}
-              alt=""
-              className="w-12 h-12 rounded-lg object-cover"
-            />
-            <div>
-              <DialogTitle className="text-left">{restaurant.name}</DialogTitle>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Star className="w-3.5 h-3.5 text-brand-500 fill-brand-500" />
-                <span>{restaurant.rating}</span>
-                <span>•</span>
-                <MapPin className="w-3.5 h-3.5" />
-                <span className="truncate max-w-[150px]">
-                  {restaurant.address}
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="w-full max-w-lg overflow-hidden p-0 sm:rounded-2xl border-0 shadow-2xl">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-5 text-white">
+            <DialogHeader className="space-y-1">
+              <div className="flex items-center gap-3">
+                <img
+                  src={restaurant.image || restaurantFallbackSVG}
+                  alt={restaurant.name}
+                  className="h-12 w-12 rounded-xl object-cover ring-2 ring-white/30"
+                />
+                <div className="text-left">
+                  <DialogTitle className="text-lg font-bold text-white">
+                    {restaurant.name}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-white/80 flex items-center gap-1.5 mt-0.5">
+                    <Star className="h-3 w-3 fill-amber-300 text-amber-300" />
+                    <span>{restaurant.rating}</span>
+                    <span>•</span>
+                    <MapPin className="h-3 w-3" />
+                    <span className="truncate max-w-[200px]">
+                      {restaurant.address}
+                    </span>
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {/* Stepper Dots / Bar */}
+            {step !== 'success' && (
+              <div className="mt-4 flex items-center justify-between text-xs font-medium text-white/80">
+                <span
+                  className={cn(
+                    'transition-colors',
+                    step === 'date_party' && 'text-white font-bold',
+                  )}
+                >
+                  1. Date & Guests
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                <span
+                  className={cn(
+                    'transition-colors',
+                    step === 'time' && 'text-white font-bold',
+                  )}
+                >
+                  2. Time Slot
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                <span
+                  className={cn(
+                    'transition-colors',
+                    step === 'details' && 'text-white font-bold',
+                  )}
+                >
+                  3. Details
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                <span
+                  className={cn(
+                    'transition-colors',
+                    step === 'confirm' && 'text-white font-bold',
+                  )}
+                >
+                  4. Review
                 </span>
               </div>
-            </div>
+            )}
           </div>
-          <DialogDescription className="sr-only">
-            Book a table at {restaurant.name}
-          </DialogDescription>
-        </DialogHeader>
 
-        <AnimatePresence mode="wait">
-          {/* Step 1: Select Date, Time & Guests */}
-          {step === 'select' && (
-            <motion.div
-              key="select"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              {/* Guest Selection */}
-              <div>
-                <label className="text-sm font-medium text-gray-900 mb-2 block">
-                  <Users className="w-4 h-4 inline mr-2" />
-                  Party Size
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {guestOptions.map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setSelectedGuests(num)}
-                      className={cn(
-                        'w-10 h-10 rounded-lg text-sm font-medium transition-all',
-                        selectedGuests === num
-                          ? 'bg-brand-500 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-                      )}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedGuests(10)}
-                    className={cn(
-                      'px-4 h-10 rounded-lg text-sm font-medium transition-all',
-                      selectedGuests > 8
-                        ? 'bg-brand-500 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-                    )}
-                  >
-                    9+
-                  </button>
-                </div>
-              </div>
-
-              {/* Date Selection */}
-              <div>
-                <label className="text-sm font-medium text-gray-900 mb-2 block">
-                  <Calendar className="w-4 h-4 inline mr-2" />
-                  Date
-                </label>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {quickDates.map((option) => (
-                    <button
-                      key={option.date}
-                      type="button"
-                      onClick={() => setSelectedDate(option.date)}
-                      className={cn(
-                        'flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-                        selectedDate === option.date
-                          ? 'bg-brand-500 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-                      )}
-                    >
-                      <div>{option.label}</div>
-                      <div className="text-xs opacity-80">
-                        {format(new Date(option.date), 'MMM d')}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Time Selection */}
-              <div>
-                <label className="text-sm font-medium text-gray-900 mb-2 block">
-                  <Clock className="w-4 h-4 inline mr-2" />
-                  Available Times
-                </label>
-                <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
-                  {timeSlots.map((slot) => (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      onClick={() =>
-                        slot.available && handleTimeSelect(slot.time)
-                      }
-                      disabled={!slot.available}
-                      className={cn(
-                        'py-2 px-3 rounded-lg text-sm font-medium transition-all',
-                        !slot.available &&
-                          'opacity-50 cursor-not-allowed bg-gray-50 text-gray-400 line-through',
-                        slot.available && selectedTime === slot.time
-                          ? 'bg-brand-500 text-white shadow-md'
-                          : slot.available &&
-                              'bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-600',
-                      )}
-                    >
-                      {slot.time}
-                      {slot.tablesLeft !== undefined &&
-                        slot.tablesLeft <= 2 && (
-                          <div className="text-xs text-brand-600">
-                            {slot.tablesLeft} left
-                          </div>
-                        )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 2: Contact Details */}
-          {step === 'details' && (
-            <motion.div
-              key="details"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
-            >
-              {/* Booking Summary */}
-              <div className="bg-brand-50 rounded-lg p-3 flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="flex items-center gap-1">
-                    <Users className="w-4 h-4 text-brand-500" />
-                    {selectedGuests}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4 text-brand-500" />
-                    {format(new Date(selectedDate), 'MMM d')}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4 text-brand-500" />
-                    {selectedTime}
-                  </span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleBack}>
-                  Edit
-                </Button>
-              </div>
-
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(handleDetailsSubmit)}
-                  className="space-y-4"
+          {/* Body */}
+          <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+            <AnimatePresence mode="wait">
+              {/* Step 1: Date & Guests */}
+              {step === 'date_party' && (
+                <motion.div
+                  key="date_party"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  className="space-y-6"
                 >
-                  <FormField
-                    control={form.control}
-                    name="contactName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Date Selector Rail */}
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <Calendar className="mr-1.5 inline h-4 w-4 text-brand-500" />
+                      Select Date
+                    </label>
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                      {quickDates.map((item) => {
+                        const isSelected = selectedDate === item.date;
+                        return (
+                          <button
+                            key={item.date}
+                            type="button"
+                            onClick={() => setSelectedDate(item.date)}
+                            className={cn(
+                              'flex min-w-[76px] flex-col items-center justify-center rounded-xl p-3 text-center transition-all min-h-[58px]',
+                              isSelected
+                                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/25 ring-2 ring-brand-500'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/70',
+                            )}
+                          >
+                            <span className="text-xs font-bold leading-tight">
+                              {item.label}
+                            </span>
+                            <span
+                              className={cn(
+                                'text-[11px] mt-0.5',
+                                isSelected ? 'text-white/90' : 'text-gray-500',
+                              )}
+                            >
+                              {item.subLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="contactPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            placeholder="+880 1XXX-XXXXXX"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Party Size Selector */}
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                        <Users className="mr-1.5 inline h-4 w-4 text-brand-500" />
+                        Party Size
+                      </label>
+                      <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-0.5 rounded-full">
+                        {selectedGuests} {selectedGuests === 1 ? 'Guest' : 'Guests'}
+                      </span>
+                    </div>
 
-                  <FormField
-                    control={form.control}
-                    name="contactEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="john@example.com"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <div className="grid grid-cols-4 gap-2">
+                      {guestPresets.map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setSelectedGuests(num)}
+                          className={cn(
+                            'h-12 rounded-xl text-sm font-semibold transition-all flex items-center justify-center',
+                            selectedGuests === num
+                              ? 'bg-brand-500 text-white shadow-sm ring-2 ring-brand-500'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/70',
+                          )}
+                        >
+                          {num} {num === 1 ? 'guest' : 'guests'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="specialRequests"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Special Requests (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="High chair needed, birthday celebration, dietary requirements..."
-                            className="resize-none"
-                            rows={3}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Deposit Notice if applicable */}
+                  {depositRequired && depositAmount > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900 flex items-start gap-2.5">
+                      <ShieldCheck className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">Deposit Policy</p>
+                        <p className="mt-0.5 text-amber-800">
+                          This restaurant requires a refundable booking deposit of
+                          ৳{depositAmount} (৳
+                          {depositAmount / (selectedGuests || 1)} per guest) to hold
+                          the table.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    onClick={() => setStep('time')}
+                    className="w-full h-12 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl text-base shadow-md shadow-brand-500/20"
+                  >
+                    Select Time Slot
+                    <ChevronRight className="ml-1 h-5 w-5" />
+                  </Button>
+                </motion.div>
+              )}
+
+              {/* Step 2: Time Slot Picker */}
+              {step === 'time' && (
+                <motion.div
+                  key="time"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  className="space-y-5"
+                >
+                  <div className="flex items-center justify-between border-b pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">
+                        Available Times
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {format(new Date(selectedDate), 'EEEE, MMMM d')} •{' '}
+                        {selectedGuests} guests
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep('date_party')}
+                      className="text-xs text-brand-600 hover:text-brand-700"
+                    >
+                      Change Date
+                    </Button>
+                  </div>
+
+                  {loadingSlots ? (
+                    <div className="py-12 text-center">
+                      <Loader2 className="mx-auto h-7 w-7 animate-spin text-brand-500" />
+                      <p className="mt-2 text-xs text-gray-500">
+                        Checking restaurant table availability...
+                      </p>
+                    </div>
+                  ) : slots.length === 0 ? (
+                    <div className="py-10 text-center rounded-xl bg-gray-50 border border-dashed border-gray-300 p-6">
+                      <AlertCircle className="mx-auto h-8 w-8 text-amber-500" />
+                      <p className="mt-2 text-sm font-semibold text-gray-800">
+                        {availabilityMessage ||
+                          'No available slots for this date'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Try selecting another date or a different party size.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                      {slots.map((slot) => {
+                        const isSelected = selectedTime === slot.time24;
+                        return (
+                          <button
+                            key={slot.time24}
+                            type="button"
+                            disabled={!slot.available}
+                            onClick={() => {
+                              setSelectedTime(slot.time24);
+                              setStep('details');
+                            }}
+                            className={cn(
+                              'flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all min-h-[56px]',
+                              !slot.available &&
+                                'bg-gray-50/80 border-gray-200 text-gray-400 cursor-not-allowed opacity-60',
+                              slot.available &&
+                                !isSelected &&
+                                'bg-white border-gray-200 hover:border-brand-500 hover:bg-brand-50/40 text-gray-800 shadow-sm',
+                              slot.available &&
+                                isSelected &&
+                                'bg-brand-500 border-brand-500 text-white shadow-md shadow-brand-500/25 ring-2 ring-brand-500',
+                            )}
+                          >
+                            <span className="text-sm font-bold">
+                              {slot.time}
+                            </span>
+                            {slot.available ? (
+                              <span
+                                className={cn(
+                                  'text-[10px] mt-0.5 font-medium',
+                                  isSelected
+                                    ? 'text-white/90'
+                                    : 'text-emerald-600',
+                                )}
+                              >
+                                {slot.seatsLeft <= 4
+                                  ? `${slot.seatsLeft} seats left`
+                                  : 'Available'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-400 mt-0.5 truncate max-w-full">
+                                {slot.reason || 'Booked'}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleBack}
-                      className="flex-1"
+                      onClick={() => setStep('date_party')}
+                      className="flex-1 h-11 rounded-xl"
                     >
                       Back
                     </Button>
                     <Button
-                      type="submit"
-                      className="flex-1 bg-brand-500 hover:bg-brand-600"
+                      type="button"
+                      disabled={!selectedTime}
+                      onClick={() => setStep('details')}
+                      className="flex-1 h-11 bg-brand-500 hover:bg-brand-600 text-white rounded-xl"
                     >
                       Continue
                     </Button>
                   </div>
-                </form>
-              </Form>
-            </motion.div>
-          )}
+                </motion.div>
+              )}
 
-          {/* Step 3: Confirm Booking */}
-          {step === 'confirm' && (
-            <motion.div
-              key="confirm"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
-            >
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <h3 className="font-semibold text-gray-900">Booking Summary</h3>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Restaurant</span>
-                    <span className="font-medium">{restaurant.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Date</span>
-                    <span className="font-medium">
-                      {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Time</span>
-                    <span className="font-medium">{selectedTime}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Party Size</span>
-                    <span className="font-medium">{selectedGuests} guests</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Contact</span>
-                    <span className="font-medium">
-                      {form.getValues('contactName')}
-                    </span>
-                  </div>
-                  {form.getValues('specialRequests') && (
-                    <div className="pt-2 border-t">
-                      <span className="text-gray-500 block mb-1">
-                        Special Requests
+              {/* Step 3: Contact & Special Requests */}
+              {step === 'details' && (
+                <motion.div
+                  key="details"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  className="space-y-4"
+                >
+                  <div className="rounded-xl bg-brand-50 p-3 flex items-center justify-between text-xs text-brand-900 border border-brand-100">
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5 text-brand-600" />
+                        {selectedGuests}
                       </span>
-                      <span className="text-gray-700">
-                        {form.getValues('specialRequests')}
+                      <span>•</span>
+                      <span className="font-semibold flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-brand-600" />
+                        {format(new Date(selectedDate), 'MMM d')}
+                      </span>
+                      <span>•</span>
+                      <span className="font-semibold flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-brand-600" />
+                        {selectedTime}
                       </span>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => setStep('time')}
+                      className="font-bold text-brand-600 hover:underline"
+                    >
+                      Change
+                    </button>
+                  </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-yellow-800">
-                  You'll receive a confirmation email and SMS. Please arrive 10
-                  minutes before your reservation.
-                </p>
-              </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">
+                        Full Name *
+                      </label>
+                      <Input
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                        placeholder="e.g. Tanvir Ahmed"
+                        className="h-11 rounded-xl"
+                      />
+                      {formErrors.contactName && (
+                        <p className="text-[11px] text-red-500 mt-1">
+                          {formErrors.contactName}
+                        </p>
+                      )}
+                    </div>
 
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleBack}
-                  className="flex-1"
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">
+                        Phone Number *
+                      </label>
+                      <Input
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder="+880 1712-345678"
+                        className="h-11 rounded-xl"
+                      />
+                      {formErrors.contactPhone && (
+                        <p className="text-[11px] text-red-500 mt-1">
+                          {formErrors.contactPhone}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">
+                        Email Address (Optional)
+                      </label>
+                      <Input
+                        type="email"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        className="h-11 rounded-xl"
+                      />
+                      {formErrors.contactEmail && (
+                        <p className="text-[11px] text-red-500 mt-1">
+                          {formErrors.contactEmail}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">
+                        Special Requests (Optional)
+                      </label>
+                      <Textarea
+                        value={specialRequests}
+                        onChange={(e) => setSpecialRequests(e.target.value)}
+                        placeholder="Window seat, anniversary, high chair needed, dietary preferences..."
+                        className="resize-none rounded-xl"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep('time')}
+                      className="flex-1 h-11 rounded-xl"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        if (validateDetails()) {
+                          setStep('confirm');
+                        }
+                      }}
+                      className="flex-1 h-11 bg-brand-500 hover:bg-brand-600 text-white rounded-xl"
+                    >
+                      Review Booking
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 4: Summary & Confirm */}
+              {step === 'confirm' && (
+                <motion.div
+                  key="confirm"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  className="space-y-4"
                 >
-                  Back
-                </Button>
-                <Button
-                  onClick={handleConfirmBooking}
-                  disabled={isSubmitting}
-                  className="flex-1 bg-brand-500 hover:bg-brand-600"
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 space-y-2.5 text-xs">
+                    <h4 className="font-bold text-sm text-gray-900 border-b pb-2">
+                      Booking Summary
+                    </h4>
+
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Restaurant</span>
+                      <span className="font-semibold text-gray-900">
+                        {restaurant.name}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Date</span>
+                      <span className="font-semibold text-gray-900">
+                        {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Time</span>
+                      <span className="font-semibold text-gray-900">
+                        {selectedTime}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Guests</span>
+                      <span className="font-semibold text-gray-900">
+                        {selectedGuests} guests
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Guest Name</span>
+                      <span className="font-semibold text-gray-900">
+                        {contactName}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500">Phone</span>
+                      <span className="font-semibold text-gray-900">
+                        {contactPhone}
+                      </span>
+                    </div>
+
+                    {specialRequests && (
+                      <div className="pt-2 border-t">
+                        <span className="text-gray-500 block mb-0.5">
+                          Special Requests:
+                        </span>
+                        <p className="text-gray-800 italic">{specialRequests}</p>
+                      </div>
+                    )}
+
+                    {depositRequired && depositAmount > 0 && (
+                      <div className="pt-2 border-t flex justify-between items-center text-brand-800 font-bold">
+                        <span>Required Deposit:</span>
+                        <span className="text-sm">৳{depositAmount}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900 flex items-start gap-2">
+                    <ShieldCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                    <p>
+                      Please arrive 10 minutes prior to your booking. Your table
+                      will be held for up to 15 minutes past reservation time.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep('details')}
+                      className="flex-1 h-12 rounded-xl"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={handleConfirmBooking}
+                      className="flex-1 h-12 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl text-base shadow-md shadow-brand-500/25"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : depositRequired && depositAmount > 0 ? (
+                        <>
+                          <CreditCard className="mr-1.5 h-4 w-4" />
+                          Pay Deposit (৳{depositAmount})
+                        </>
+                      ) : (
+                        'Confirm Table'
+                      )}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 5: Success */}
+              {step === 'success' && createdReservation && (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-4 space-y-4"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Confirming...
-                    </>
-                  ) : (
-                    'Confirm Booking'
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
+                  <div className="h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+                    <Check className="h-8 w-8 stroke-[3]" />
+                  </div>
 
-          {/* Step 4: Success */}
-          {step === 'success' && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center space-y-4 py-4"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', delay: 0.2 }}
-                className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto"
-              >
-                <Check className="w-8 h-8 text-green-600" />
-              </motion.div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Table Reserved!
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Your reservation at {restaurant.name} is confirmed.
+                    </p>
+                  </div>
 
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
-                  Booking Confirmed!
-                </h3>
-                <p className="text-gray-500">
-                  Your table at {restaurant.name} is reserved
-                </p>
-              </div>
+                  <div className="rounded-2xl bg-gray-50 border border-gray-200/80 p-4 inline-block w-full text-left">
+                    <div className="text-center pb-3 border-b mb-3">
+                      <p className="text-[11px] uppercase tracking-wider text-gray-400 font-bold">
+                        Reservation Code
+                      </p>
+                      <p className="text-2xl font-black tracking-wide text-brand-600 mt-0.5">
+                        {createdReservation.reservationNumber}
+                      </p>
+                    </div>
 
-              <div className="bg-gray-50 rounded-lg p-4 inline-block">
-                <p className="text-sm text-gray-500 mb-1">Confirmation Code</p>
-                <p className="text-2xl font-bold text-gray-900 tracking-wide">
-                  {confirmationCode}
-                </p>
-              </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                          Date
+                        </span>
+                        <span className="font-semibold text-gray-800">
+                          {format(new Date(selectedDate), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                          Time
+                        </span>
+                        <span className="font-semibold text-gray-800">
+                          {selectedTime}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                          Guests
+                        </span>
+                        <span className="font-semibold text-gray-800">
+                          {selectedGuests} guests
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                          Status
+                        </span>
+                        <span className="font-semibold text-emerald-600 capitalize">
+                          {createdReservation.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
-                </p>
-                <p>
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  {selectedTime}
-                </p>
-                <p>
-                  <Users className="w-4 h-4 inline mr-1" />
-                  {selectedGuests} guests
-                </p>
-              </div>
+                  <div className="flex flex-col gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddToCalendar}
+                      className="w-full h-11 rounded-xl text-xs font-semibold"
+                    >
+                      <CalendarPlus className="mr-2 h-4 w-4 text-brand-600" />
+                      Add to Google Calendar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        handleClose();
+                        navigate('/reservations');
+                      }}
+                      className="w-full h-11 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-xs font-semibold"
+                    >
+                      View My Reservations
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex flex-col gap-2 pt-2">
-                <Button
-                  onClick={handleAddToCalendar}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <CalendarPlus className="w-4 h-4 mr-2" />
-                  Add to Calendar
-                </Button>
-                <Button
-                  onClick={handleClose}
-                  className="w-full bg-brand-500 hover:bg-brand-600"
-                >
-                  Done
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </DialogContent>
-    </Dialog>
+      {/* Unified Payment Modal for Deposit */}
+      {paymentModalOpen && pendingReservationResult && (
+        <UnifiedPaymentModal
+          open={paymentModalOpen}
+          onOpenChange={setPaymentModalOpen}
+          amount={pendingReservationResult.depositAmount}
+          purpose="reservation_deposit"
+          reservationId={pendingReservationResult.reservation._id}
+          title="Reservation Deposit"
+          description={`Secure your table booking at ${restaurant.name}`}
+          showCodOption={false}
+          onSuccess={handleDepositSuccess}
+          onCancel={() => setPaymentModalOpen(false)}
+        />
+      )}
+    </>
   );
 };
 

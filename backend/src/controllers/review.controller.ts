@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import Review from "../models/Review";
 import Order, { OrderStatus } from "../models/Order";
+import Reservation from "../models/Reservation";
 import Restaurant from "../models/Restaurant";
 import { successResponse } from "../utils/response.util";
 import { recomputeVendorRating } from "../utils/vendor-stats.util";
@@ -30,47 +31,76 @@ export const createReview = async (
     const authReq = req as AuthRequest;
     if (!authReq.user) throw new AuthenticationError();
 
-    const { orderId, rating, title, comment, images } = req.body;
+    const { orderId, reservationId, rating, title, comment, images } = req.body;
 
-    if (!orderId || !rating || !comment) {
-      throw new ValidationError("orderId, rating, and comment are required");
+    if ((!orderId && !reservationId) || !rating || !comment) {
+      throw new ValidationError("orderId or reservationId, rating, and comment are required");
     }
     if (rating < 1 || rating > 5) {
       throw new ValidationError("Rating must be between 1 and 5");
     }
 
-    const order = await Order.findOne({
-      _id: orderId,
-      customerId: authReq.user._id,
-    });
-    if (!order) throw new NotFoundError("Order not found");
-    if (order.status !== OrderStatus.DELIVERED) {
-      throw new ValidationError("You can only review delivered orders");
-    }
+    let targetRestaurantId: mongoose.Types.ObjectId;
+    let reviewOrderId: mongoose.Types.ObjectId | undefined;
+    let reviewReservationId: mongoose.Types.ObjectId | undefined;
 
-    const existing = await Review.findOne({
-      customerId: authReq.user._id,
-      orderId,
-    });
-    if (existing) throw new ConflictError("You already reviewed this order");
+    if (reservationId) {
+      const resv = await Reservation.findOne({
+        _id: reservationId,
+        customerId: authReq.user._id,
+      });
+      if (!resv) throw new NotFoundError("Reservation not found");
+      if (resv.status !== 'completed') {
+        throw new ValidationError("You can only review completed reservations");
+      }
+      const existing = await Review.findOne({
+        customerId: authReq.user._id,
+        reservationId,
+      });
+      if (existing) throw new ConflictError("You already reviewed this reservation");
+      targetRestaurantId = new mongoose.Types.ObjectId(resv.restaurantId.toString());
+      reviewReservationId = new mongoose.Types.ObjectId(reservationId);
+    } else {
+      const order = await Order.findOne({
+        _id: orderId,
+        customerId: authReq.user._id,
+      });
+      if (!order) throw new NotFoundError("Order not found");
+      if (order.status !== OrderStatus.DELIVERED) {
+        throw new ValidationError("You can only review delivered orders");
+      }
+
+      const existing = await Review.findOne({
+        customerId: authReq.user._id,
+        orderId,
+      });
+      if (existing) throw new ConflictError("You already reviewed this order");
+      targetRestaurantId = new mongoose.Types.ObjectId(order.restaurantId.toString());
+      reviewOrderId = new mongoose.Types.ObjectId(orderId);
+    }
 
     const review = await Review.create({
       customerId: authReq.user._id,
-      restaurantId: order.restaurantId,
-      orderId,
+      restaurantId: targetRestaurantId,
+      orderId: reviewOrderId,
+      reservationId: reviewReservationId,
       rating,
       title,
       comment,
       images: images || [],
     });
 
+    if (reviewReservationId) {
+      await Reservation.findByIdAndUpdate(reviewReservationId, {
+        reviewId: review._id,
+      });
+    }
+
     // Recalculate restaurant rating
     const stats = await Review.aggregate([
       {
         $match: {
-          restaurantId: new mongoose.Types.ObjectId(
-            order.restaurantId.toString(),
-          ),
+          restaurantId: targetRestaurantId,
         },
       },
       {
@@ -83,7 +113,7 @@ export const createReview = async (
     ]);
 
     if (stats.length > 0) {
-      await Restaurant.findByIdAndUpdate(order.restaurantId, {
+      await Restaurant.findByIdAndUpdate(targetRestaurantId, {
         rating: {
           average: Math.round(stats[0].average * 10) / 10,
           count: stats[0].count,
@@ -93,7 +123,7 @@ export const createReview = async (
 
     // Keep the vendor's denormalized averageRating in sync (best-effort).
     try {
-      await recomputeVendorRating(order.restaurantId);
+      await recomputeVendorRating(targetRestaurantId);
     } catch (statErr) {
       console.error("[vendor-stats] recomputeVendorRating failed", statErr);
     }

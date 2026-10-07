@@ -16,6 +16,7 @@ import authService from '@/services/authService';
 import userService from '@/services/userService';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  CalendarDays,
   ChevronDown,
   ClipboardList,
   Heart,
@@ -301,6 +302,13 @@ const Navbar: React.FC = memo(() => {
                         <ClipboardList className="mr-2 h-4 w-4" />
                         <span>Vendor Orders</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate('/vendor/reservations')}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
+                      >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        <span>Vendor Reservations</span>
+                      </DropdownMenuItem>
                     </>
                   ) : (
                     <>
@@ -317,6 +325,13 @@ const Navbar: React.FC = memo(() => {
                       >
                         <Package className="mr-2 h-4 w-4" />
                         <span>Orders</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigate('/reservations')}
+                        className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
+                      >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        <span>My Reservations</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => navigate('/favorites')}
@@ -531,6 +546,16 @@ const Navbar: React.FC = memo(() => {
                           <User className="w-4 h-4" />
                         )}
                         {isVendor ? 'Go to Dashboard' : 'View Profile'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsOpen(false);
+                          navigate(isVendor ? '/vendor/reservations' : '/reservations');
+                        }}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
+                      >
+                        <CalendarDays className="w-4 h-4" />
+                        {isVendor ? 'Reservations' : 'My Reservations'}
                       </button>
                       {!isVendor && (
                         <button

@@ -21,8 +21,8 @@ import {
 import { fadeInUp } from '@/lib/motion';
 import { toast } from '@/lib/toast';
 import apiService from '@/services/apiService';
+import type { Reservation } from '@/types/reservation';
 import type {
-  Booking,
   FilterCategory,
   FilterState,
   Restaurant,
@@ -698,9 +698,9 @@ const RestaurantsPage: React.FC = () => {
     [],
   );
 
-  const handleBookingComplete = useCallback((booking: Booking) => {
+  const handleBookingComplete = useCallback((reservation: Reservation) => {
     toast.success('Booking Confirmed!', {
-      description: `Table booked at ${booking.restaurant.name} for ${booking.date} at ${booking.time}`,
+      description: `Table booked for ${reservation.date} at ${reservation.time}`,
     });
   }, []);
 

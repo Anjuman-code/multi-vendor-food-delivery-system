@@ -33,6 +33,7 @@ export interface CreateSessionParams {
   userId: Types.ObjectId;
   userRole: string;
   orderId?: Types.ObjectId;
+  reservationId?: Types.ObjectId;
   purpose: PaymentPurpose;
   amount: number;
   method: PaymentMethodName;
@@ -167,6 +168,7 @@ export class LocalPaymentProvider implements IPaymentProvider {
       userId,
       userRole,
       orderId,
+      reservationId,
       purpose,
       amount,
       method: initialMethod,
@@ -282,6 +284,7 @@ export class LocalPaymentProvider implements IPaymentProvider {
       userId,
       userRole,
       orderId,
+      reservationId,
       purpose,
       amount,
       currency,

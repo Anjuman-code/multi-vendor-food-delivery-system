@@ -33,6 +33,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Bike,
+  Calendar,
   Clock,
   Loader2,
   MapPin,
@@ -47,6 +48,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
+import { BookingModal } from "@/components/restaurants/BookingModal";
+import type { Restaurant } from "@/types/restaurant";
 
 type ApiRestaurant = {
   _id: string;
@@ -191,6 +194,7 @@ const RestaurantDetailsPage: React.FC = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -512,6 +516,22 @@ const RestaurantDetailsPage: React.FC = () => {
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     return { items, count, subtotal };
   }, [cartItems, restaurant]);
+
+  const bookingRestaurant = useMemo<Restaurant | null>(() => {
+    if (!restaurant) return null;
+    return {
+      id: restaurant._id,
+      name: restaurant.name,
+      type: "restaurant",
+      cuisine: (restaurant.cuisineType?.[0] || "bengali") as any,
+      rating: restaurant.rating?.average || 4.5,
+      reviewCount: restaurant.rating?.count || 0,
+      address: `${restaurant.address?.street || ""}, ${restaurant.address?.city || ""}`,
+      image: restaurant.images?.logo || restaurant.images?.coverPhoto || "",
+      isFavorite: false,
+      amenities: [],
+    };
+  }, [restaurant]);
 
   if (isLoading) {
     return (
@@ -1056,6 +1076,33 @@ const RestaurantDetailsPage: React.FC = () => {
           {/* ── Sidebar: order summary + delivery info ───────────── */}
           <aside className="lg:col-span-1">
             <div className="sticky top-28 space-y-4">
+              {/* Dine-in Table Reservation Card */}
+              <Card className="overflow-hidden border-brand-100 bg-gradient-to-br from-brand-50/70 via-white to-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white shadow-md shadow-brand-500/20">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Reserve a Table
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Dine-in seating available
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                  Book your table online in advance for instant seating and a seamless dining experience.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => setBookingModalOpen(true)}
+                  className="mt-4 w-full h-11 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-xs shadow-md shadow-brand-500/20"
+                >
+                  Book a Table
+                </Button>
+              </Card>
+
               <Card className="overflow-hidden p-0">
                 <div className="border-b border-gray-100 p-5">
                   <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
@@ -1157,6 +1204,15 @@ const RestaurantDetailsPage: React.FC = () => {
             </Link>
           </Button>
         </div>
+      )}
+
+      {/* Table Booking Modal */}
+      {bookingRestaurant && (
+        <BookingModal
+          restaurant={bookingRestaurant}
+          isOpen={bookingModalOpen}
+          onClose={() => setBookingModalOpen(false)}
+        />
       )}
     </div>
   );
