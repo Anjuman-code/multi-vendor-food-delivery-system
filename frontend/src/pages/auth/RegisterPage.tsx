@@ -26,10 +26,12 @@ import { applyServerErrors } from "@/lib/formErrors";
 import { toast } from "@/lib/toast";
 import { registerSchema, type RegisterFormData } from "@/lib/validation";
 import authService from "@/services/authService";
+import { useBlockingLoader } from "@/contexts/LoadingContext";
 
 const RegisterPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { run } = useBlockingLoader();
 
   useRedirectIfAuthenticated();
 
@@ -52,13 +54,17 @@ const RegisterPage: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      const response = await authService.register({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-        password: data.password,
-      });
+      const response = await run(
+        () =>
+          authService.register({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+            password: data.password,
+          }),
+        { message: "Creating your account…" }
+      );
 
       if (response.success) {
         toast.success("Account created", {

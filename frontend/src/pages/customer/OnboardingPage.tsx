@@ -1,6 +1,5 @@
 import {
   OnboardingLayout,
-  OptionCard,
   StepHeader,
   StepNav,
   type OnboardingStep,
@@ -32,11 +31,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import type { z } from "zod";
 import { CardPaymentForm, type CardFormData } from "@/components/payment/CardPaymentForm";
+import { MobileWalletForm, type MobileWalletFormData } from "@/components/payment/MobileWalletForm";
+import { PaymentMethodSelector } from "@/components/payment/PaymentMethodSelector";
 import {
   detectCardBrand,
   validateLuhn,
   validateExpiryDate,
   validateCvv,
+  validateBdPhone,
+  type SupportedPaymentMethod,
 } from "@/utils/paymentUtils";
 import L from "leaflet";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -217,7 +220,7 @@ const AddressStep = ({
       type: "home",
       street: "",
       apartment: "",
-      district: "",
+      district: "Sylhet",
       area: "",
       // Sentinels outside the valid lat/lng range so the schema flags an
       // unset location instead of silently passing (0,0).
@@ -480,21 +483,13 @@ const AddressStep = ({
                 <FormControl>
                   <select
                     id="district"
-                    value={field.value}
+                    value={field.value || "Sylhet"}
                     onBlur={field.onBlur}
                     aria-invalid={!!form.formState.errors.district}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                      form.setValue("area", "", { shouldValidate: true });
-                    }}
-                    className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 aria-[invalid=true]:border-destructive"
+                    disabled
+                    className="h-10 w-full rounded-xl border border-input bg-muted/50 px-3 py-2 text-sm cursor-not-allowed text-foreground focus:outline-none aria-[invalid=true]:border-destructive"
                   >
-                    <option value="">Select district</option>
-                    {DISTRICT_DATA.map((d) => (
-                      <option key={d.district} value={d.district}>
-                        {d.district}
-                      </option>
-                    ))}
+                    <option value="Sylhet">Sylhet</option>
                   </select>
                 </FormControl>
                 <FormMessage />
@@ -581,7 +576,7 @@ const PaymentStep = ({
   onBack: () => void;
   onSkip: () => void;
 }) => {
-  const [paymentType, setPaymentType] = useState<"cod" | "card">("cod");
+  const [selectedMethod, setSelectedMethod] = useState<SupportedPaymentMethod>("cash_on_delivery");
   const [cardData, setCardData] = useState<CardFormData>({
     cardNumber: "",
     cardHolder: "",
@@ -590,70 +585,138 @@ const PaymentStep = ({
     saveCard: true,
   });
   const [cardErrors, setCardErrors] = useState<Partial<Record<keyof CardFormData, string>>>({});
+
+  const [walletData, setWalletData] = useState<MobileWalletFormData>({
+    walletNumber: "",
+    pin: "",
+  });
+  const [walletErrors, setWalletErrors] = useState<Partial<Record<keyof MobileWalletFormData, string>>>({});
+
   const [isLoading, setIsLoading] = useState(false);
+
+  const isWalletMethod =
+    selectedMethod === "bkash" ||
+    selectedMethod === "nagad" ||
+    selectedMethod === "rocket" ||
+    selectedMethod === "upay";
+
+  const isCardMethod =
+    selectedMethod === "card" ||
+    selectedMethod === "credit_card" ||
+    selectedMethod === "debit_card";
+
+  const isCodMethod = selectedMethod === "cash_on_delivery";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCardErrors({});
+    setWalletErrors({});
 
-    if (paymentType === "cod") {
+    if (isCodMethod) {
       onNext();
       return;
     }
 
-    const cleanNum = cardData.cardNumber.replace(/\s/g, "");
-    const brand = detectCardBrand(cardData.cardNumber);
-    const errs: Partial<Record<keyof CardFormData, string>> = {};
+    if (isCardMethod) {
+      const cleanNum = cardData.cardNumber.replace(/\s/g, "");
+      const brand = detectCardBrand(cardData.cardNumber);
+      const errs: Partial<Record<keyof CardFormData, string>> = {};
 
-    if (!cardData.cardHolder.trim()) errs.cardHolder = "Cardholder name is required.";
-    if (!cleanNum || cleanNum.length < 13 || !validateLuhn(cleanNum)) {
-      errs.cardNumber = "Valid card number required (Luhn check failed).";
-    }
-    if (!cardData.expiry || !validateExpiryDate(cardData.expiry)) {
-      errs.expiry = "Enter a valid MM/YY expiry in the future.";
-    }
-    if (!cardData.cvv || !validateCvv(cardData.cvv, brand)) {
-      errs.cvv = brand === "amex" ? "4-digit CVV required." : "3-digit CVV required.";
-    }
+      if (!cardData.cardHolder.trim()) errs.cardHolder = "Cardholder name is required.";
+      if (!cleanNum || cleanNum.length < 13 || !validateLuhn(cleanNum)) {
+        errs.cardNumber = "Valid card number required (Luhn check failed).";
+      }
+      if (!cardData.expiry || !validateExpiryDate(cardData.expiry)) {
+        errs.expiry = "Enter a valid MM/YY expiry in the future.";
+      }
+      if (!cardData.cvv || !validateCvv(cardData.cvv, brand)) {
+        errs.cvv = brand === "amex" ? "4-digit CVV required." : "3-digit CVV required.";
+      }
 
-    if (Object.keys(errs).length > 0) {
-      setCardErrors(errs);
+      if (Object.keys(errs).length > 0) {
+        setCardErrors(errs);
+        return;
+      }
+
+      const [monthStr, yearStr] = cardData.expiry.split("/");
+      const expiryMonth = parseInt(monthStr, 10);
+      const expiryYear = parseInt(`20${yearStr}`, 10);
+      const secureToken = `tok_card_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+
+      setIsLoading(true);
+      try {
+        const res = await userService.addPaymentMethod({
+          type: "card",
+          provider: brand === "unknown" ? "Visa" : brand.toUpperCase(),
+          token: secureToken,
+          last4: cleanNum.slice(-4),
+          isDefault: true,
+          expiryMonth,
+          expiryYear,
+        });
+        if (!res.success) throw new Error(res.message);
+        toast.success("Card saved securely!", {
+          description: "Your card has been encrypted and tokenized.",
+        });
+        onNext();
+      } catch (err) {
+        toast.error("Error", {
+          description:
+            err instanceof Error
+              ? err.message
+              : "Failed to save card. Please try again.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
-    const [monthStr, yearStr] = cardData.expiry.split("/");
-    const expiryMonth = parseInt(monthStr, 10);
-    const expiryYear = parseInt(`20${yearStr}`, 10);
+    if (isWalletMethod) {
+      const wErrors: Partial<Record<keyof MobileWalletFormData, string>> = {};
+      if (!walletData.walletNumber || !validateBdPhone(walletData.walletNumber)) {
+        wErrors.walletNumber = "Enter a valid Bangladeshi mobile number (01XXXXXXXXX).";
+      }
 
-    // Cryptographic token — NEVER send raw card numbers in token field!
-    const secureToken = `tok_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+      if (Object.keys(wErrors).length > 0) {
+        setWalletErrors(wErrors);
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      const res = await userService.addPaymentMethod({
-        type: "card",
-        provider: brand,
-        token: secureToken,
-        last4: cleanNum.slice(-4),
-        isDefault: true,
-        expiryMonth,
-        expiryYear,
-      });
-      if (!res.success) throw new Error(res.message);
-      toast.success("Card saved securely!", {
-        description: "Your payment method has been encrypted and tokenized.",
-      });
-      onNext();
-    } catch (err) {
-      toast.error("Error", {
-        description:
-          err instanceof Error
-            ? err.message
-            : "Failed to save card. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
+      const cleanPhone = walletData.walletNumber.replace(/[\s-]/g, "");
+      const secureToken = `tok_wallet_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      setIsLoading(true);
+      try {
+        const res = await userService.addPaymentMethod({
+          type: "wallet",
+          provider: selectedMethod.toUpperCase(),
+          token: secureToken,
+          last4: cleanPhone.slice(-4),
+          isDefault: true,
+        });
+        if (!res.success) throw new Error(res.message);
+        toast.success(`${selectedMethod.toUpperCase()} wallet saved securely!`, {
+          description: "Your mobile wallet has been configured.",
+        });
+        onNext();
+      } catch (err) {
+        toast.error("Error", {
+          description:
+            err instanceof Error
+              ? err.message
+              : "Failed to save wallet. Please try again.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
+  };
+
+  const getNextLabel = () => {
+    if (isCodMethod) return "Continue with cash";
+    if (isCardMethod) return "Save card & continue";
+    return `Save ${selectedMethod.toUpperCase()} & continue`;
   };
 
   return (
@@ -661,35 +724,30 @@ const PaymentStep = ({
       <StepHeader
         icon={Wallet}
         title="How would you like to pay?"
-        subtitle="Cash on delivery is ready to go. Prefer cards? Add one now — it's encrypted and you can manage it later."
+        subtitle="Choose your preferred payment method. We support all major local and international providers."
       />
 
-      <div className="space-y-3">
-        <OptionCard
-          icon={Wallet}
-          title="Cash on delivery"
-          description="Pay with cash when your order arrives"
-          badge="Default"
-          selected={paymentType === "cod"}
-          onSelect={() => setPaymentType("cod")}
-        />
-        <OptionCard
-          icon={CreditCard}
-          title="Credit / debit card"
-          description="Visa, Mastercard and Amex accepted (PCI-DSS Tokenized)"
-          selected={paymentType === "card"}
-          onSelect={() => setPaymentType("card")}
-        />
-      </div>
+      <PaymentMethodSelector
+        selectedMethod={selectedMethod}
+        onSelectMethod={(method) => {
+          setSelectedMethod(method);
+          setCardErrors({});
+          setWalletErrors({});
+        }}
+        showCod={true}
+        showCards={true}
+        showMobileWallets={true}
+        disabled={isLoading}
+      />
 
-      {paymentType === "card" && (
+      {isCardMethod && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           transition={{ duration: 0.25 }}
-          className="overflow-hidden"
+          className="overflow-hidden mt-4"
         >
-          <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-card p-4">
             <CardPaymentForm
               value={cardData}
               onChange={(next) => {
@@ -704,14 +762,34 @@ const PaymentStep = ({
         </motion.div>
       )}
 
+      {isWalletMethod && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.25 }}
+          className="overflow-hidden mt-4"
+        >
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <MobileWalletForm
+              method={selectedMethod}
+              value={walletData}
+              onChange={(next) => {
+                setWalletData(next);
+                setWalletErrors({});
+              }}
+              errors={walletErrors}
+              disabled={isLoading}
+            />
+          </div>
+        </motion.div>
+      )}
+
       <StepNav
         submit
         onBack={onBack}
         onSkip={onSkip}
         skipLabel="Do this later"
-        nextLabel={
-          paymentType === "cod" ? "Continue with cash" : "Save card & continue"
-        }
+        nextLabel={getNextLabel()}
         isLoading={isLoading}
       />
     </form>

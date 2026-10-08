@@ -1,4 +1,4 @@
-import { DISTRICT_DATA, getAreasByDistrict } from '@/components/locationUtils';
+import { getAreasByDistrict } from '@/components/locationUtils';
 import {
   OnboardingLayout,
   OptionCard,
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBlockingLoader } from '@/contexts/LoadingContext';
 import { toast } from '@/lib/toast';
 import { getErrorMessage, getFieldErrors, extractApiError } from '@/lib/formErrors';
 import {
@@ -117,6 +118,7 @@ type PayoutMethod = 'mobile' | 'bank';
 const VendorOnboardingPage: React.FC = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
+  const { run } = useBlockingLoader();
 
   const [step, setStep] = useState(0);
   const [bootstrapping, setBootstrapping] = useState(true);
@@ -132,7 +134,7 @@ const VendorOnboardingPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [street, setStreet] = useState('');
-  const [district, setDistrict] = useState('');
+  const district = 'Sylhet';
   const [area, setArea] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -431,9 +433,16 @@ const VendorOnboardingPage: React.FC = () => {
         estimatedDeliveryTime: deliveryTime ? Number(deliveryTime) : undefined,
       };
 
-      const restaurantRes = existingRestaurantId
-        ? await vendorService.updateRestaurant(existingRestaurantId, payload)
-        : await vendorService.createRestaurant(payload);
+      const restaurantRes = await run(
+        () =>
+          existingRestaurantId
+            ? vendorService.updateRestaurant(existingRestaurantId, payload)
+            : vendorService.createRestaurant(payload),
+        {
+          message: 'Setting up your restaurant…',
+          slowMessage: 'Saving restaurant details and configuring menu…',
+        },
+      );
 
       if (!restaurantRes.success) {
         // Map any field-level server errors back to the restaurant step so
@@ -659,22 +668,14 @@ const VendorOnboardingPage: React.FC = () => {
               >
                 <select
                   id="r-district"
-                  value={district}
-                  onChange={(e) => {
-                    setDistrict(e.target.value);
-                    setArea('');
-                  }}
+                  value={district || 'Sylhet'}
+                  disabled
                   aria-invalid={errors.district ? true : undefined}
-                  className={`h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                  className={`h-10 w-full rounded-xl border bg-muted/50 px-3 py-2 text-sm cursor-not-allowed text-foreground focus:outline-none ${
                     errors.district ? 'border-red-400' : 'border-input'
                   }`}
                 >
-                  <option value="">Select district</option>
-                  {DISTRICT_DATA.map((d) => (
-                    <option key={d.district} value={d.district}>
-                      {d.district}
-                    </option>
-                  ))}
+                  <option value="Sylhet">Sylhet</option>
                 </select>
               </Field>
               <Field label="Area" error={errors.area} htmlFor="r-area">

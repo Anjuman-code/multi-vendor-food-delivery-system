@@ -28,6 +28,7 @@ import { applyServerErrors } from "@/lib/formErrors";
 import { toast } from "@/lib/toast";
 import { vendorRegisterSchema, type VendorRegisterFormData } from "@/lib/validation";
 import authService from "@/services/authService";
+import { useBlockingLoader } from "@/contexts/LoadingContext";
 
 const STEPS = [{ label: "Account" }, { label: "Business" }];
 
@@ -56,6 +57,7 @@ const VendorRegisterPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { run } = useBlockingLoader();
 
   useRedirectIfAuthenticated();
 
@@ -89,16 +91,20 @@ const VendorRegisterPage: React.FC = () => {
   const onSubmit = async (data: VendorRegisterFormData) => {
     setIsLoading(true);
     try {
-      const response = await authService.registerVendor({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-        password: data.password,
-        businessName: data.businessName,
-        businessLicense: data.businessLicense,
-        taxId: data.taxId,
-      });
+      const response = await run(
+        () =>
+          authService.registerVendor({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+            password: data.password,
+            businessName: data.businessName,
+            businessLicense: data.businessLicense,
+            taxId: data.taxId,
+          }),
+        { message: "Submitting application…" }
+      );
 
       if (response.success) {
         toast.success("Application submitted!", {

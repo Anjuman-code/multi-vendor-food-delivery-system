@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBlockingLoader } from '@/contexts/LoadingContext';
 import { toast } from '@/lib/toast';
 import { applyServerErrors, getErrorMessage } from '@/lib/formErrors';
 import { optionalBdPhoneSchema } from '@/lib/phone';
@@ -116,6 +117,7 @@ const REQUIRED_DOCUMENT_KEYS = DOCUMENT_FIELDS.filter((f) => f.required).map(
 type PayoutMethod = 'mobile' | 'bank';
 
 const RiderOnboardingPage: React.FC = () => {
+  const { run } = useBlockingLoader();
   const [step, setStep] = useState(0);
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>('mobile');
   const [isLoading, setIsLoading] = useState(false);
@@ -287,14 +289,22 @@ const RiderOnboardingPage: React.FC = () => {
     setIsLoading(true);
     try {
       const data = form.getValues();
-      const { default: riderService } = await import('@/services/riderService');
-      await riderService.completeOnboardingWithDetails({
-        bankName: data.bankName || undefined,
-        accountNumber: data.accountNumber || undefined,
-        accountHolderName: data.accountHolderName || undefined,
-        mobileMoneyNumber: data.mobileMoneyNumber || undefined,
-        mobileMoneyProvider: data.mobileMoneyProvider || undefined,
-      });
+      await run(
+        async () => {
+          const { default: riderService } = await import('@/services/riderService');
+          return riderService.completeOnboardingWithDetails({
+            bankName: data.bankName || undefined,
+            accountNumber: data.accountNumber || undefined,
+            accountHolderName: data.accountHolderName || undefined,
+            mobileMoneyNumber: data.mobileMoneyNumber || undefined,
+            mobileMoneyProvider: data.mobileMoneyProvider || undefined,
+          });
+        },
+        {
+          message: 'Submitting application…',
+          slowMessage: 'Uploading verification details…',
+        },
+      );
       updateUser({ onboardingCompleted: true });
       toast.success('Application submitted!', {
         description: "We'll review your details and notify you once approved.",

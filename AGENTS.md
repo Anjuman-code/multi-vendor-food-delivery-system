@@ -310,3 +310,59 @@ Before finishing:
 - Pass `allowedRoles={['vendor']}`, `allowedRoles={['admin']}`, or `allowedRoles={['driver']}` to protect role subtrees.
 - Mismatched authenticated users are bounced back to their designated role portal via `getPostAuthPath()`.
 
+### 8. Global Menu & Food Explorer Standard
+- **Route & Page**: `/menu` rendered via `@/pages/public/MenuPage`.
+- **State Synchronization**: All search, category, filter, and sort state is synced bi-directionally to URL query parameters via `@/hooks/useMenuExplorer`. Refresh, back, and forward navigation restore the view without loss.
+- **Card Hierarchy**: Built on `InteractiveCard` with stretched title link to `/menu/:restaurantId/:itemId`. Secondary actions (`InteractiveCardAction`) house restaurant link (`/restaurants/:id`), favorite toggles, and `- / qty / +` steppers in place.
+- **Customizable Items**: Dishes with required options/variants open `@/components/menu/QuickViewSheet` instead of blind add.
+- **Mobile First**: Fixed tap targets >= 44x44px, bottom filter sheet, floating cart summary bar (`@/components/menu/StickyCartBar`), and categorized section grouping when no filter is selected.
+
+### 9. Food Images & Canonical Fallback System
+- **Unified Component**: Always render food items using `FoodImage` from `@/components/ui/FoodImage`. It accepts `src`, `name`, `alt`, and `aspectRatio` (defaults to `4/3`), smoothly falls back on load error or missing image, and provides smooth skeleton loading with zero layout shift.
+- **Runtime Resolution**: Backed by `resolveFoodImage(name: string)` in `@/utils/foodImage.ts`. Matches dish names against canonical food items using:
+  1. Exact alias / transliteration matches (including Bangla script).
+  2. Keyword sets with mandatory exclusion tokens (e.g. `chicken-fry` excludes `curry`, `roll`, `biryani`).
+  3. Bounded Levenshtein fuzzy matching on normalized tokens with conservative thresholds (precision over recall).
+  4. High-performance synchronous memoization (67k+ lookups/sec).
+  5. Fallback to a neutral on-brand vector placeholder if no canonical dish matches.
+- **Asset Standards**: Canonical dish images reside in `frontend/src/assets/foods/`, center-cropped to 4:3 (800x600 px), converted to WebP, and strictly budgeted at **<= 80 KB** per image. Eagerly bundled via Vite's `import.meta.glob`.
+- **Adding a New Canonical Dish**:
+  1. Process and save an openly licensed photo as `frontend/src/assets/foods/<slug>.webp` (4:3 aspect ratio, <= 80 KB).
+  2. Record author, source URL, and license in `frontend/src/assets/foods/ATTRIBUTION.md`.
+  3. Register dish definition in `frontend/src/assets/foods/food-manifest.ts` with `slug`, `displayName`, `image`, `variants`, `keywords`, `excludeKeywords`, and `priority`.
+  4. Run validation and regression tests:
+     ```bash
+     node scripts/test-food-resolver.ts
+     node scripts/dry-run-resolver.ts
+     ```
+
+### 10. Loading Indicators & Navigation Progress Standard
+
+#### Decision Rule (Non-Negotiable)
+- **Navigation Progress Bar (`RouteProgressBar`)**: Use for route changes, lazy chunk downloads, page-level transitions, and background refreshes where the user can safely keep interacting or navigate away.
+- **Content Skeletons (`Skeleton`) / Button Loading (`Button loading`)**: Use for in-page tabular loads, list filters, search boxes, tab switching, and inline asynchronous actions.
+- **Blocking Rider Loader (`RiderLoader` via `useBlockingLoader`)**: Use **ONLY** for critical, one-shot operations where interaction or leaving during processing could cause duplicate, inconsistent, or lost work (e.g. placing orders, verifying payment OTP, final auth/registration submission, app boot session restore). Blocking loaders must remain rare.
+
+#### Timing Constants (`LOADING_TIMING` in `@/contexts/LoadingContext`)
+- `NAV_SHOW_DELAY_MS` = 120ms (prevents bar flashing on instant navigations).
+- `NAV_MIN_DURATION_MS` = 300ms (ensures visual continuity once bar appears).
+- `BLOCKING_SHOW_DELAY_MS` = 220ms (fast actions <220ms never flash the overlay).
+- `BLOCKING_MIN_DURATION_MS` = 600ms (keeps overlay visible long enough to read smoothly).
+- `BLOCKING_DEFAULT_TIMEOUT_MS` = 30000ms (stuck guard timeout to reveal retry/cancel options).
+
+#### API Usage
+```tsx
+import { useBlockingLoader } from '@/contexts/LoadingContext';
+
+const { run } = useBlockingLoader();
+
+// Wrap critical async actions:
+await run(
+  () => orderService.createOrderFromCart(payload),
+  {
+    message: 'Placing your order…',
+    slowMessage: 'Confirming order details with the kitchen…',
+    allowCancel: false, // Never auto-cancel or allow duplicate order submit!
+  }
+);
+```

@@ -74,6 +74,7 @@ const Navbar: React.FC = memo(() => {
 
   const navLinks: NavItem[] = [
     { name: 'Home', path: '/' },
+    { name: 'Menu', path: '/menu' },
     { name: 'Restaurants', path: '/restaurants' },
     { name: 'About', path: '/about' },
     { name: 'Contact Us', path: '/contact' },

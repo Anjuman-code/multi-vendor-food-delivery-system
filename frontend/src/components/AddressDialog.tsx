@@ -131,7 +131,7 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
         type: "home",
         street: "",
         apartment: "",
-        district: "",
+        district: "Sylhet",
         area: "",
         latitude: 0,
         longitude: 0,
@@ -410,9 +410,10 @@ export const AddressDialog: React.FC<AddressDialogProps> = ({
                         value: d.district,
                         label: d.district,
                       }))}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Select district"
+                      value={field.value || "Sylhet"}
+                      onValueChange={() => {}}
+                      placeholder="Sylhet"
+                      disabled={true}
                     />
                     <FormMessage />
                   </FormItem>

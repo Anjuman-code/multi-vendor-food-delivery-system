@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useBlockingLoader } from '@/contexts/LoadingContext';
 import { getPostAuthPath } from '@/hooks/useAuthRedirect';
 import { toast } from '@/lib/toast';
 import authService from '@/services/authService';
@@ -10,6 +11,7 @@ const GoogleAuthCallbackPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { run } = useBlockingLoader();
   const [message, setMessage] = useState('Completing Google sign-in...');
 
   useEffect(() => {
@@ -31,7 +33,13 @@ const GoogleAuthCallbackPage: React.FC = () => {
       }
 
       setMessage('Verifying your account...');
-      const response = await authService.completeGoogleAuth();
+      const response = await run(
+        () => authService.completeGoogleAuth(),
+        {
+          message: 'Signing you in with Google…',
+          slowMessage: 'Verifying Google credentials…',
+        },
+      );
 
       if (!response.success || !response.data?.user) {
         toast.error('Session error', {
@@ -54,7 +62,7 @@ const GoogleAuthCallbackPage: React.FC = () => {
     };
 
     void completeLogin();
-  }, [location.search, login, navigate]);
+  }, [location.search, login, navigate, run]);
 
   return (
     <div className="text-center">

@@ -23,6 +23,7 @@ import userService, { type PaymentMethod } from '@/services/userService';
 import { cn } from '@/utils/cn';
 import { Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { useBlockingLoader } from '@/contexts/LoadingContext';
 
 export interface UnifiedPaymentModalProps {
   open: boolean;
@@ -67,6 +68,7 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const { run } = useBlockingLoader();
   const [step, setStep] = useState<ModalStep>('select');
   const [method, setMethod] = useState<SupportedPaymentMethod>(defaultMethod);
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -308,7 +310,14 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
     setOtpError(null);
 
     try {
-      const res = await paymentService.verifyOtp(session.sessionId, otpCode);
+      const res = await run(
+        () => paymentService.verifyOtp(session.sessionId, otpCode),
+        {
+          message: 'Confirming payment…',
+          slowMessage: 'Waiting for payment gateway authorization…',
+          allowCancel: false,
+        },
+      );
       if (!res.success || !res.data) {
         setOtpError(res.message || 'Incorrect verification code. Please try again.');
         return;
@@ -319,8 +328,9 @@ export const UnifiedPaymentModal: React.FC<UnifiedPaymentModalProps> = ({
       setStep('result');
       toast.success('Payment completed successfully!');
       onSuccess(res.data.transactionId || session.sessionId, res.data);
-    } catch (err: any) {
-      setOtpError(err.message || 'Failed to verify OTP');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to verify OTP';
+      setOtpError(msg);
     }
   };
 

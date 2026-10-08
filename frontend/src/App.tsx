@@ -1,7 +1,9 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/PageLoader';
 import { RouteProgressBar } from '@/components/RouteProgressBar';
+import { RiderLoader } from '@/components/loading/RiderLoader';
 import { Toaster } from '@/components/ui/sonner';
+import { LoadingProvider } from '@/contexts/LoadingContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { ConfirmProvider } from '@/contexts/ConfirmContext';
@@ -17,6 +19,7 @@ const NewHomePage = lazy(() => import('@/pages/public/NewHomePage'));
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
 const CareersPage = lazy(() => import('@/pages/public/CareersPage'));
 const CategoriesPage = lazy(() => import('@/pages/public/CategoriesPage'));
+const MenuPage = lazy(() => import('@/pages/public/MenuPage'));
 const MenuItemDetailPage = lazy(
   () => import('@/pages/public/MenuItemDetailPage'),
 );
@@ -225,15 +228,17 @@ const AdminPlatformSettingsPage = lazy(
 function App(): React.ReactElement {
   return (
     <Router>
-      <RouteProgressBar />
-      <AuthProvider>
-        <CartProvider>
-          <ConfirmProvider>
-            <SocketProvider>
-              <NotificationProvider>
-                <Toaster />
-                <ErrorBoundary>
-                  <Suspense fallback={<PageLoader />}>
+      <LoadingProvider>
+        <RouteProgressBar />
+        <RiderLoader />
+        <AuthProvider>
+          <CartProvider>
+            <ConfirmProvider>
+              <SocketProvider>
+                <NotificationProvider>
+                  <Toaster />
+                  <ErrorBoundary>
+                    <Suspense fallback={<PageLoader />}>
                     <Routes>
                       {/* ── Main layout: public + customer pages ── */}
                       <Route element={<RootLayout />}>
@@ -266,6 +271,7 @@ function App(): React.ReactElement {
                             path="/categories"
                             element={<CategoriesPage />}
                           />
+                          <Route path="/menu" element={<MenuPage />} />
                           <Route
                             path="/menu/:restaurantId/:itemId"
                             element={<MenuItemDetailPage />}
@@ -593,7 +599,8 @@ function App(): React.ReactElement {
           </ConfirmProvider>
         </CartProvider>
       </AuthProvider>
-    </Router>
+    </LoadingProvider>
+  </Router>
   );
 }
 

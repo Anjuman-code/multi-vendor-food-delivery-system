@@ -24,6 +24,7 @@ import {
 import { applyServerErrors } from "@/lib/formErrors";
 import { toast } from "@/lib/toast";
 import authService from "@/services/authService";
+import { useBlockingLoader } from "@/contexts/LoadingContext";
 
 const resetPasswordSchema = z
   .object({
@@ -56,6 +57,7 @@ const ResetPassword: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isInvalidToken, setIsInvalidToken] = useState(false);
+  const { run } = useBlockingLoader();
 
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
@@ -72,7 +74,10 @@ const ResetPassword: React.FC = () => {
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsSubmitting(true);
     try {
-      const response = await authService.resetPassword(token, data.newPassword);
+      const response = await run(
+        () => authService.resetPassword(token, data.newPassword),
+        { message: "Updating your password…" }
+      );
       if (response.success) {
         setIsSuccess(true);
         toast.success("Password reset", {

@@ -16,7 +16,7 @@ import { toast } from "@/lib/toast";
 import { extractApiError, getErrorMessage, getFieldErrors } from "@/lib/formErrors";
 import vendorService from "@/services/vendorService";
 import type { MenuCategory, MenuItem, StockStatus } from "@/types/menu";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
+import { FoodImage } from "@/components/ui/FoodImage";
 import { formatCurrency } from "@/utils/format";
 import {
     ArrowLeft,
@@ -63,11 +63,13 @@ const MenuCardPreview: React.FC<{
     return (
         <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm max-w-xs">
             <div className="relative h-36 bg-muted">
-                <img
-                    src={image || foodFallbackSVG}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).src = foodFallbackSVG; }}
+                <FoodImage
+                    name={displayName}
+                    src={image}
+                    aspectRatio="auto"
+                    className="w-full h-full"
+                    imgClassName="w-full h-full object-cover"
+                    showFallbackBadge={!image}
                 />
             </div>
             <div className="p-3">
@@ -120,11 +122,12 @@ const CartRowPreview: React.FC<{
     return (
         <div className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
             <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
-                <img
-                    src={image || foodFallbackSVG}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).src = foodFallbackSVG; }}
+                <FoodImage
+                    name={displayName}
+                    src={image}
+                    aspectRatio="1/1"
+                    className="w-full h-full"
+                    imgClassName="w-full h-full object-cover"
                 />
             </div>
             <div className="flex-1 min-w-0">

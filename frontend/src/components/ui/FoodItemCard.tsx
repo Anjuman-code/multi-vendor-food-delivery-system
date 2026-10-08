@@ -12,7 +12,7 @@
 
 import type { SpiceLevel, StockStatus } from "@/types/menu";
 import { cn } from "@/utils/cn";
-import { foodFallbackSVG } from "@/utils/fallbackImages";
+import { FoodImage } from "@/components/ui/FoodImage";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     Clock,
@@ -135,40 +135,31 @@ const VENDOR_STATUS_CFG = {
   hidden: { label: "Hidden", bg: "bg-gray-100", text: "text-gray-500", dot: "bg-gray-400" },
 };
 
-/** Reusable image element with object-cover and fallback */
+/** Reusable image element with object-cover and canonical food fallback */
 function ItemImage({
   src,
   alt,
   className,
-  gradient,
-  initial,
+  aspectRatio = 'auto',
+  showFallbackBadge = false,
 }: {
   src?: string;
   alt: string;
   className?: string;
-  gradient: { from: string; to: string };
-  initial: string;
+  gradient?: { from: string; to: string };
+  initial?: string;
+  aspectRatio?: '4/3' | '1/1' | '16/9' | 'auto';
+  showFallbackBadge?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-  const showGradient = !src || failed;
-
-  if (showGradient) {
-    return (
-      <div
-        className={cn("w-full h-full flex items-center justify-center", className)}
-        style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
-      >
-        <span className="text-3xl font-bold text-white/80 select-none">{initial}</span>
-      </div>
-    );
-  }
-
   return (
-    <img
-      src={src || foodFallbackSVG}
+    <FoodImage
+      name={alt}
+      src={src}
       alt={alt}
-      className={cn("w-full h-full object-cover", className)}
-      onError={() => setFailed(true)}
+      aspectRatio={aspectRatio}
+      className={cn("w-full h-full", className)}
+      imgClassName={className}
+      showFallbackBadge={showFallbackBadge}
     />
   );
 }
@@ -707,24 +698,24 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
           className,
         )}
       >
-        {/* Optional thumbnail */}
-        {item.image && (
-          <div className="relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden">
-            <ItemImage
-              src={item.image}
-              alt={item.name}
-              gradient={gradient}
-              initial={initial}
-            />
-            {isOutOfStock && (
-              <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center rounded-xl">
-                <span className="bg-white/90 text-gray-700 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">
-                  OOS
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Thumbnail */}
+        <div className="relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden">
+          <ItemImage
+            src={item.image}
+            alt={item.name}
+            gradient={gradient}
+            initial={initial}
+            aspectRatio="1/1"
+            showFallbackBadge={!item.image}
+          />
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center rounded-xl z-20">
+              <span className="bg-white/90 text-gray-700 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">
+                OOS
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Content */}
         <div className="flex-1 flex flex-col justify-between min-w-0">

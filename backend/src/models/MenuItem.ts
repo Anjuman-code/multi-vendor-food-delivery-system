@@ -167,6 +167,7 @@ menuItemSchema.index({ restaurantId: 1, displayOrder: 1 });
 menuItemSchema.index({ restaurantId: 1, isPopular: 1 });
 menuItemSchema.index({ categoryId: 1, displayOrder: 1 });
 menuItemSchema.index({ deletedAt: 1 });
+menuItemSchema.index({ isAvailable: 1, price: 1 });
 
 menuItemSchema.pre(
   /^find/,

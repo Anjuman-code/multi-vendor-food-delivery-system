@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import type { AuthUser } from '@/services/authService';
 import authService from '@/services/authService';
+import { useLoading } from '@/contexts/LoadingContext';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -35,35 +36,41 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { run } = useLoading();
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedUser = localStorage.getItem('user');
+      try {
+        const storedUser = localStorage.getItem('user');
 
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch {
-          localStorage.removeItem('user');
+        if (storedUser) {
+          try {
+            setUser(JSON.parse(storedUser));
+          } catch {
+            localStorage.removeItem('user');
+          }
         }
-      }
 
-      const session = await authService.getSession();
-      if (session.success && session.data?.user) {
-        setUser(session.data.user);
-        localStorage.setItem('user', JSON.stringify(session.data.user));
-      } else {
-        setUser(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        const session = await authService.getSession();
+        if (session.success && session.data?.user) {
+          setUser(session.data.user);
+          localStorage.setItem('user', JSON.stringify(session.data.user));
+        } else {
+          setUser(null);
+          localStorage.removeItem('user');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
+      } finally {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     };
 
-    void initAuth();
-  }, []);
+    void run(initAuth(), {
+      message: 'Restoring session…',
+      slowMessage: 'Connecting to server…',
+    });
+  }, [run]);
 
   const login = useCallback((userData: AuthUser) => {
     setUser(userData);

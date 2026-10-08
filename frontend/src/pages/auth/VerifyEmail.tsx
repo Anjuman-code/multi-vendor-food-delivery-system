@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { AuthHeading, OTPInput, SubmitButton } from "@/components/auth";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBlockingLoader } from "@/contexts/LoadingContext";
 import { getPostAuthPath } from "@/hooks/useAuthRedirect";
 import { toast } from "@/lib/toast";
 import authService from "@/services/authService";
@@ -16,6 +17,7 @@ const VerifyEmail: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { run } = useBlockingLoader();
   const [searchParams] = useSearchParams();
 
   const email = (location.state as { email?: string } | null)?.email;
@@ -53,7 +55,10 @@ const VerifyEmail: React.FC = () => {
     async (token: string) => {
       setStatus("verifying-token");
       setErrorMessage("");
-      const response = await authService.verifyEmail(token);
+      const response = await run(
+        () => authService.verifyEmail(token),
+        { message: "Verifying your email…" },
+      );
       if (!response.success) {
         setStatus("error");
         setErrorMessage(response.message || "Invalid or expired verification link.");
@@ -61,7 +66,7 @@ const VerifyEmail: React.FC = () => {
       }
       completeVerification(response);
     },
-    [completeVerification],
+    [completeVerification, run],
   );
 
   useEffect(() => {
@@ -86,7 +91,10 @@ const VerifyEmail: React.FC = () => {
 
     setStatus("verifying-otp");
     setErrorMessage("");
-    const response = await authService.verifyOTP(email, otp);
+    const response = await run(
+      () => authService.verifyOTP(email, otp),
+      { message: "Verifying code…" },
+    );
     if (!response.success) {
       setStatus("error");
       setErrorMessage(response.message || "Invalid or expired code.");
@@ -94,7 +102,7 @@ const VerifyEmail: React.FC = () => {
       return;
     }
     completeVerification(response);
-  }, [email, otp, completeVerification]);
+  }, [email, otp, completeVerification, run]);
 
   // ── Auto-submit once 6 digits are entered ────────────────────
   useEffect(() => {

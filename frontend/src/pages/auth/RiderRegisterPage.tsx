@@ -35,6 +35,7 @@ import { applyServerErrors } from "@/lib/formErrors";
 import { toast } from "@/lib/toast";
 import { riderRegisterSchema, type RiderRegisterFormData } from "@/lib/validation";
 import authService from "@/services/authService";
+import { useBlockingLoader } from "@/contexts/LoadingContext";
 
 const STEPS = [{ label: "Account" }, { label: "Vehicle" }];
 
@@ -71,6 +72,7 @@ const RiderRegisterPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { run } = useBlockingLoader();
 
   useRedirectIfAuthenticated();
 
@@ -104,16 +106,20 @@ const RiderRegisterPage: React.FC = () => {
   const onSubmit = async (data: RiderRegisterFormData) => {
     setIsLoading(true);
     try {
-      const response = await authService.registerDriver({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-        password: data.password,
-        licenseNumber: data.licenseNumber,
-        vehicleType: data.vehicleType,
-        vehicleNumber: data.vehicleNumber,
-      });
+      const response = await run(
+        () =>
+          authService.registerDriver({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+            password: data.password,
+            licenseNumber: data.licenseNumber,
+            vehicleType: data.vehicleType,
+            vehicleNumber: data.vehicleNumber,
+          }),
+        { message: "Submitting rider application…" }
+      );
 
       if (response.success) {
         toast.success("Application submitted!", {

@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useBlockingLoader } from '@/contexts/LoadingContext';
 import { extractApiError, getErrorMessage, getFieldErrors } from '@/lib/formErrors';
 import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
@@ -66,6 +67,7 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const { run: runBlocking } = useBlockingLoader();
   const {
     items,
     subtotal,
@@ -361,18 +363,26 @@ const CheckoutPage: React.FC = () => {
     isOrderSubmitted.current = true;
     let res;
     try {
-      res = await orderService.createOrderFromCart({
-        deliveryAddress: {
-          street: selectedAddr.street,
-          apartment: selectedAddr.apartment,
-          area: selectedAddr.area,
-          district: selectedAddr.district,
-          coordinates: selectedAddr.coordinates,
+      res = await runBlocking(
+        () =>
+          orderService.createOrderFromCart({
+            deliveryAddress: {
+              street: selectedAddr.street,
+              apartment: selectedAddr.apartment,
+              area: selectedAddr.area,
+              district: selectedAddr.district,
+              coordinates: selectedAddr.coordinates,
+            },
+            paymentMethod: paymentMethodValue,
+            couponCode: promoCode || undefined,
+            tipAmount: tipAmount > 0 ? tipAmount : undefined,
+          }),
+        {
+          message: 'Placing your order…',
+          slowMessage: 'Connecting with the kitchen… please do not close or refresh.',
+          allowCancel: false,
         },
-        paymentMethod: paymentMethodValue,
-        couponCode: promoCode || undefined,
-        tipAmount: tipAmount > 0 ? tipAmount : undefined,
-      });
+      );
     } catch (err) {
       isOrderSubmitted.current = false;
       setPlacing(false);
@@ -438,6 +448,7 @@ const CheckoutPage: React.FC = () => {
     tipAmount,
     clearCart,
     navigate,
+    runBlocking,
   ]);
 
   if (loading) {

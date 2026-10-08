@@ -6,6 +6,7 @@ import apiService from "@/services/apiService";
 import menuService from "@/services/menuService";
 import type { MenuItem, MenuItemAddon, MenuItemVariant } from "@/types/menu";
 import { cn } from "@/utils/cn";
+import { FoodImage } from "@/components/ui/FoodImage";
 import {
   ArrowLeft,
   Check,
@@ -24,20 +25,6 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-const ITEM_GRADIENTS = [
-  { from: "#f97316", to: "#ea580c" },
-  { from: "#e11d48", to: "#be123c" },
-  { from: "#7c3aed", to: "#6d28d9" },
-  { from: "#0891b2", to: "#0e7490" },
-  { from: "#16a34a", to: "#15803d" },
-  { from: "#d97706", to: "#b45309" },
-  { from: "#db2777", to: "#be185d" },
-  { from: "#2563eb", to: "#1d4ed8" },
-];
-
-function itemGradient(name: string) {
-  return ITEM_GRADIENTS[(name.charCodeAt(0) || 0) % ITEM_GRADIENTS.length];
-}
 
 const DIETARY_COLORS: Record<string, string> = {
   halal: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -271,7 +258,6 @@ const MenuItemDetailPage: React.FC = () => {
     );
   }
 
-  const gradient = itemGradient(item.name);
   const hasDiscount = !!item.originalPrice && item.originalPrice > item.price;
   const discountPct = hasDiscount
     ? Math.round(((item.originalPrice! - item.price) / item.originalPrice!) * 100)
@@ -327,24 +313,13 @@ const MenuItemDetailPage: React.FC = () => {
             {/* Image */}
             <div className="md:sticky md:top-36 md:self-start">
               <div className="relative aspect-square overflow-hidden rounded-3xl bg-gray-100 shadow-sm">
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="flex h-full w-full items-center justify-center"
-                    style={{
-                      background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`,
-                    }}
-                  >
-                    <span className="select-none text-7xl font-bold text-white/80">
-                      {item.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+                <FoodImage
+                  name={item.name}
+                  src={item.image}
+                  aspectRatio="1/1"
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover"
+                />
 
                 <div className="absolute left-3 top-3 flex gap-2">
                   {item.isPopular && (
@@ -704,22 +679,13 @@ const MenuItemDetailPage: React.FC = () => {
                       className="flex items-center gap-3 rounded-2xl p-2 transition-colors hover:bg-gray-50"
                     >
                       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                        {s.image ? (
-                          <img
-                            src={s.image}
-                            alt={s.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="flex h-full w-full items-center justify-center text-lg font-bold text-white/80"
-                            style={{
-                              background: `linear-gradient(135deg, ${itemGradient(s.name).from}, ${itemGradient(s.name).to})`,
-                            }}
-                          >
-                            {s.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        <FoodImage
+                          name={s.name}
+                          src={s.image}
+                          aspectRatio="1/1"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover"
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-gray-900">

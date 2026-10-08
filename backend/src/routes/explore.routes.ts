@@ -7,6 +7,8 @@ import {
   getTrendingItems,
   getPopularRestaurants,
   getMenuItemsByCategory,
+  getExploreMenuItems,
+  getExploreCategories,
 } from "../controllers/explore.controller";
 
 const router: Router = Router();
@@ -14,6 +16,8 @@ const router: Router = Router();
 router.get("/top-categories", getTopCategories);
 router.get("/trending-items", getTrendingItems);
 router.get("/popular-restaurants", getPopularRestaurants);
+router.get("/categories", getExploreCategories);
+router.get("/menu-items", getExploreMenuItems);
 router.get("/menu-items/:category", getMenuItemsByCategory);
 
 export default router;

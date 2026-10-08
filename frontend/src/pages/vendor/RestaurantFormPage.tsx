@@ -84,7 +84,7 @@ const RestaurantFormPage: React.FC = () => {
       address: {
         street: '',
         area: '',
-        district: '',
+        district: 'Sylhet',
       },
       openingHours: DAYS.map((day) => ({
         day,
@@ -130,7 +130,7 @@ const RestaurantFormPage: React.FC = () => {
           address: {
             street: r.address?.street || '',
             area: r.address?.area || '',
-            district: r.address?.district || '',
+            district: r.address?.district || 'Sylhet',
           },
           openingHours:
             r.operatingHours?.map((h) => ({
@@ -512,14 +512,10 @@ const RestaurantFormPage: React.FC = () => {
                         value: d.district,
                         label: d.district,
                       }))}
-                      value={watch('address.district') || ''}
-                      onValueChange={(val) => {
-                        setValue('address.district', val, {
-                          shouldValidate: true,
-                        });
-                        setValue('address.area', '', { shouldValidate: false });
-                      }}
-                      placeholder="Select district"
+                      value="Sylhet"
+                      onValueChange={() => {}}
+                      placeholder="Sylhet"
+                      disabled={true}
                     />
                   </div>
                   {errors.address?.district && (

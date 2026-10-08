@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBlockingLoader } from "@/contexts/LoadingContext";
 import { getPostAuthPath, useRedirectIfAuthenticated } from "@/hooks/useAuthRedirect";
 import { applyServerErrors } from "@/lib/formErrors";
 import { toast } from "@/lib/toast";
@@ -31,6 +32,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const { run } = useBlockingLoader();
 
   useRedirectIfAuthenticated();
 
@@ -43,7 +45,10 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      const response = await authService.login(data);
+      const response = await run(
+        () => authService.login(data),
+        { message: "Signing you in…" }
+      );
 
       if (response.success && response.data) {
         const { accessToken, refreshToken, user } = response.data;

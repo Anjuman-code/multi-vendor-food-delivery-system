@@ -21,7 +21,7 @@ import type {
   OrderStatus,
   StatusHistoryEntry,
 } from '@/types/order';
-import { foodFallbackSVG } from '@/utils/fallbackImages';
+import { FoodImage } from '@/components/ui/FoodImage';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -636,10 +636,12 @@ const OrderDetailsPage: React.FC = () => {
                   className="flex justify-between items-center text-sm"
                 >
                   <div className="flex items-center gap-3">
-                    <img
-                      src={item.image || foodFallbackSVG}
-                      alt={item.name}
-                      className="h-10 w-10 rounded object-cover"
+                    <FoodImage
+                      name={item.name}
+                      src={item.image}
+                      aspectRatio="1/1"
+                      className="h-10 w-10 rounded-lg shrink-0"
+                      imgClassName="h-10 w-10 rounded-lg object-cover"
                     />
                     <div>
                       <p className="text-gray-800 font-medium">
