@@ -438,15 +438,13 @@ const VendorReviewsPage: React.FC = () => {
                                 variant="brand"
                                 size="sm"
                                 disabled={!replyText.trim() || sending}
+                                loading={sending}
+                                loadingText="Sending..."
                                 onClick={() => handleReply(review._id)}
                                 className="gap-1"
                               >
-                                {sending ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Send className="h-3.5 w-3.5" />
-                                )}
-                                {sending ? "Sending..." : "Reply"}
+                                <Send className="h-3.5 w-3.5" />
+                                Reply
                               </Button>
                             </div>
                           </div>

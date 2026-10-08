@@ -371,7 +371,22 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
   // ── HIGHLIGHT variant ──────────────────────────────────────────────────
   if (variant === "highlight") {
     return (
-      <div className={cn("relative w-full h-full overflow-hidden rounded-3xl", className)}>
+      <div
+        onClick={() => onClick?.(item)}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && onClick) {
+            e.preventDefault();
+            onClick(item);
+          }
+        }}
+        tabIndex={onClick ? 0 : undefined}
+        role={onClick ? "button" : undefined}
+        className={cn(
+          "relative w-full h-full overflow-hidden rounded-3xl",
+          onClick && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+          className
+        )}
+      >
         <ItemImage
           src={item.image}
           alt={item.name}
@@ -381,10 +396,10 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
         />
 
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
 
         {/* Top badges */}
-        <div className="absolute top-3 left-3 flex gap-1.5">
+        <div className="absolute top-3 left-3 flex gap-1.5 z-10 pointer-events-none">
           {item.isFeatured && (
             <span className="flex items-center gap-0.5 text-[10px] font-semibold px-2 py-1 rounded-full bg-yellow-400 text-yellow-900 shadow">
               <Zap className="w-2.5 h-2.5" /> Featured
@@ -399,14 +414,14 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
 
         {/* Rating badge */}
         {item.rating != null && (
-          <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1">
+          <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 z-10 pointer-events-none">
             <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
             <span className="text-white text-xs font-bold">{item.rating.toFixed(1)}</span>
           </div>
         )}
 
         {/* Bottom overlay content */}
-        <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-10">
+        <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-10 z-10">
           {item.category && (
             <p className="text-brand-400 font-medium tracking-widest text-[10px] uppercase mb-1">
               {item.category}
@@ -423,7 +438,10 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
             {onAddToCart && (
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => onAddToCart(item)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToCart(item);
+                }}
                 className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white px-4 py-2.5 rounded-full font-bold text-sm transition-all shadow min-h-[44px]"
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -675,9 +693,17 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
         onClick={onClick ? () => onClick(item) : undefined}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && onClick) {
+            e.preventDefault();
+            onClick(item);
+          }
+        }}
+        tabIndex={onClick ? 0 : undefined}
+        role={onClick ? "button" : undefined}
         className={cn(
           "flex gap-4 p-3 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-300 group",
-          onClick && "cursor-pointer",
+          onClick && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
           className,
         )}
       >
@@ -796,12 +822,20 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       onClick={onClick ? () => onClick(item) : undefined}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onClick) {
+          e.preventDefault();
+          onClick(item);
+        }
+      }}
+      tabIndex={onClick ? 0 : undefined}
+      role={onClick ? "button" : undefined}
       className={cn(
         // On xs/mobile → horizontal list layout; on sm+ → vertical card
         "bg-white border border-gray-100 hover:shadow-xl transition-all duration-300 group overflow-hidden",
         "flex flex-row sm:flex-col", // mobile: horizontal; desktop: vertical
         "rounded-2xl",
-        onClick && "cursor-pointer",
+        onClick && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
         className,
       )}
     >

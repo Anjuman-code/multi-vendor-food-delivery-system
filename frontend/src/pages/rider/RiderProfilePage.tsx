@@ -442,14 +442,13 @@ const RiderProfilePage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <Button type="submit" disabled={saving} className="w-full sm:w-auto">
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
-              </>
-            ) : (
-              "Save changes"
-            )}
+          <Button
+            type="submit"
+            loading={saving}
+            loadingText="Saving…"
+            className="w-full sm:w-auto"
+          >
+            Save changes
           </Button>
         </form>
       </Form>

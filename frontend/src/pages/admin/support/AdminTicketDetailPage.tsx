@@ -33,7 +33,6 @@ import {
   CheckCircle2,
   Clock,
   LifeBuoy,
-  Loader2,
   Send,
   UserCheck,
 } from "lucide-react";
@@ -341,12 +340,14 @@ export default function AdminTicketDetailPage() {
                 className="mb-3"
               />
               <div className="flex justify-end">
-                <Button variant="brand" onClick={handleReply} disabled={!replyText.trim() || sending}>
-                  {sending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
+                <Button
+                  variant="brand"
+                  onClick={handleReply}
+                  disabled={!replyText.trim() || sending}
+                  loading={sending}
+                  loadingText="Sending…"
+                >
+                  <Send className="mr-2 h-4 w-4" />
                   Send Reply
                 </Button>
               </div>

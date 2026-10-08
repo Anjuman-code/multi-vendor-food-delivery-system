@@ -720,9 +720,11 @@ const MenuItemEditorPage: React.FC = () => {
                         variant="brand"
                         onClick={handleSave}
                         disabled={saving}
+                        loading={saving}
+                        loadingText={isEdit ? "Updating..." : "Creating..."}
                         className="rounded-lg gap-2"
                     >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        <Save className="w-4 h-4" />
                         {isEdit ? "Update Item" : "Create Item"}
                     </Button>
                 </div>

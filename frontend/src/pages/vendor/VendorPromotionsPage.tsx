@@ -214,7 +214,12 @@ const VendorPromotionsPage: React.FC = () => {
   // ── Delete ──
 
   const handleDelete = async (id: string) => {
-    const ok = await confirm({ title: "Delete coupon", description: "Delete this coupon? This action cannot be undone.", confirmLabel: "Delete" });
+    const ok = await confirm({
+      title: "Delete coupon",
+      description: "Delete this coupon? This action cannot be undone.",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
     if (!ok) return;
     const res = await vendorService.deleteCoupon(id);
     if (res.success) {
@@ -735,12 +740,15 @@ const CouponWizardModal: React.FC<{
       </Button>
 
       {isLastStep ? (
-        <Button onClick={onSubmit} disabled={saving} variant="brand" className="gap-2">
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
+        <Button
+          onClick={onSubmit}
+          disabled={saving}
+          loading={saving}
+          loadingText={isEdit ? "Updating..." : "Creating..."}
+          variant="brand"
+          className="gap-2"
+        >
+          <Sparkles className="h-4 w-4" />
           {isEdit ? "Update Coupon" : "Create Coupon"}
         </Button>
       ) : (

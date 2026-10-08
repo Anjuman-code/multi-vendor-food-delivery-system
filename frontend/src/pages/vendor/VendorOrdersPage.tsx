@@ -139,7 +139,9 @@ const OrderCard: React.FC<{
   onStatusUpdate: (orderId: string, status: string) => void;
   expanded: boolean;
   onToggleExpand: () => void;
-}> = ({ order, onStatusUpdate, expanded, onToggleExpand }) => {
+  updating?: boolean;
+  disabled?: boolean;
+}> = ({ order, onStatusUpdate, expanded, onToggleExpand, updating = false, disabled = false }) => {
   const customerName = customerNameOf(order);
   const action = NEXT_ACTION[order.status];
 
@@ -179,6 +181,8 @@ const OrderCard: React.FC<{
             <Button
               size="sm"
               variant="brand"
+              disabled={disabled || updating}
+              loading={updating}
               onClick={(e) => {
                 e.stopPropagation();
                 onStatusUpdate(order._id, action.status);
@@ -259,6 +263,7 @@ const VendorOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<VendorOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 30,
@@ -306,21 +311,26 @@ const VendorOrdersPage: React.FC = () => {
   }, [activeTab, loadOrders, pagination.page]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
-    const res = await vendorService.updateOrderStatus(orderId, newStatus);
-    if (res.success) {
-      // Remove from current list if status changed away from current tab's filter
-      setOrders((prev) =>
-        activeStatuses.includes(newStatus as VendorOrderStatus)
-          ? prev.map((o) =>
-              o._id === orderId
-                ? { ...o, status: newStatus as VendorOrderStatus }
-                : o,
-            )
-          : prev.filter((o) => o._id !== orderId),
-      );
-      toast.success("Success", { description: `Order status updated` });
-    } else {
-      toast.error("Error", { description: res.message });
+    setUpdatingOrderId(orderId);
+    try {
+      const res = await vendorService.updateOrderStatus(orderId, newStatus);
+      if (res.success) {
+        // Remove from current list if status changed away from current tab's filter
+        setOrders((prev) =>
+          activeStatuses.includes(newStatus as VendorOrderStatus)
+            ? prev.map((o) =>
+                o._id === orderId
+                  ? { ...o, status: newStatus as VendorOrderStatus }
+                  : o,
+              )
+            : prev.filter((o) => o._id !== orderId),
+        );
+        toast.success("Success", { description: `Order status updated` });
+      } else {
+        toast.error("Error", { description: res.message });
+      }
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -449,6 +459,8 @@ const VendorOrdersPage: React.FC = () => {
               onStatusUpdate={handleStatusUpdate}
               expanded={expandedOrders.has(order._id)}
               onToggleExpand={() => toggleExpand(order._id)}
+              updating={updatingOrderId === order._id}
+              disabled={!!updatingOrderId}
             />
           ))}
 

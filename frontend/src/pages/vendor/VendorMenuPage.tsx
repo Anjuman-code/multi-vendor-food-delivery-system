@@ -121,6 +121,7 @@ const VendorMenuPage: React.FC = () => {
       title: "Delete item",
       description: "Delete this menu item? This cannot be undone.",
       confirmLabel: "Delete",
+      variant: "destructive",
     });
     if (!ok) return;
     const res = await vendorService.deleteMenuItem(selectedRestaurantId, itemId);
@@ -138,6 +139,7 @@ const VendorMenuPage: React.FC = () => {
       title: "Delete category",
       description: "Delete this category? Items will be moved to uncategorized.",
       confirmLabel: "Delete",
+      variant: "destructive",
     });
     if (!ok) return;
     const res = await vendorService.deleteCategory(selectedRestaurantId, catId);
@@ -516,14 +518,12 @@ const CategoryModal: React.FC<{
             variant="brand"
             size="sm"
             disabled={saving}
+            loading={saving}
+            loadingText="Saving..."
             onClick={handleSave}
             className="min-w-20 gap-2"
           >
-            {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
+            <Save className="h-3.5 w-3.5" />
             Save
           </Button>
         </>

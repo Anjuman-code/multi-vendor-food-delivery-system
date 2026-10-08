@@ -2,8 +2,8 @@ import { EmptyState, PageHeader, SectionCard, StatusBadge } from "@/components/r
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus } from "@/types/support";
-import { TICKET_STATUS_LABELS, TICKET_TYPE_LABELS } from "@/types/support";
+import type { SupportTicket } from "@/types/support";
+import { TICKET_TYPE_LABELS } from "@/types/support";
 import { formatDateTime } from "@/utils/format";
 import {
   Bike,
@@ -25,14 +25,6 @@ const QUICK_ACTIONS = [
   { type: "general", label: "Platform bug", description: "Report a technical issue", icon: Package, tint: "bg-purple-50 text-purple-600" },
   { type: "general", label: "General inquiry", description: "Anything else", icon: HelpCircle, tint: "bg-muted text-muted-foreground" },
 ] as const;
-
-const STATUS_TONE: Record<TicketStatus, "warning" | "info" | "brand" | "success" | "neutral"> = {
-  open: "warning",
-  in_progress: "info",
-  waiting_on_user: "brand",
-  resolved: "success",
-  closed: "neutral",
-};
 
 export default function RiderSupportPage() {
   const navigate = useNavigate();
@@ -135,9 +127,8 @@ export default function RiderSupportPage() {
                     </p>
                   </div>
                   <StatusBadge
-                    label={TICKET_STATUS_LABELS[ticket.status]}
-                    tone={STATUS_TONE[ticket.status]}
-                    icon={false}
+                    status={ticket.status}
+                    className="flex-shrink-0"
                   />
                 </Link>
               </li>

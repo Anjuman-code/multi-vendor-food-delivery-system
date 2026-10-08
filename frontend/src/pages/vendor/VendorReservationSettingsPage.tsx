@@ -248,19 +248,12 @@ export const VendorReservationSettingsPage: React.FC = () => {
           type="button"
           onClick={handleSave}
           disabled={saving}
+          loading={saving}
+          loadingText="Saving..."
           className="h-11 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-md shadow-brand-500/20"
         >
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-1.5 h-4 w-4" />
-              Save Settings
-            </>
-          )}
+          <Save className="mr-1.5 h-4 w-4" />
+          Save Settings
         </Button>
       </div>
 
@@ -765,16 +758,11 @@ export const VendorReservationSettingsPage: React.FC = () => {
           <Button
             type="submit"
             disabled={saving}
+            loading={saving}
+            loadingText="Saving Changes..."
             className="h-12 px-8 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-md shadow-brand-500/25"
           >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving Changes...
-              </>
-            ) : (
-              'Save Reservation Settings'
-            )}
+            Save Reservation Settings
           </Button>
         </div>
       </form>

@@ -108,6 +108,7 @@ const VendorOrderDetailPage: React.FC = () => {
       title: 'Cancel order',
       description: 'Are you sure you want to cancel this order?',
       confirmLabel: 'Cancel order',
+      variant: 'destructive',
     });
     if (!ok) return;
     setUpdating(true);
@@ -192,10 +193,8 @@ const VendorOrderDetailPage: React.FC = () => {
                 variant="brand"
                 onClick={() => handleStatusUpdate(NEXT_STATUS[order.status])}
                 disabled={updating}
+                loading={updating}
               >
-                {updating ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : null}
                 Mark as {nextLabel}
               </Button>
             )}
@@ -204,6 +203,7 @@ const VendorOrderDetailPage: React.FC = () => {
                 variant="outline"
                 onClick={handleCancel}
                 disabled={updating}
+                loading={updating}
                 className="text-destructive hover:bg-destructive/10"
               >
                 Cancel Order

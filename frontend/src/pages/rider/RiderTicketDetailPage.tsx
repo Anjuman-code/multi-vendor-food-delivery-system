@@ -3,10 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus } from "@/types/support";
+import type { SupportTicket } from "@/types/support";
 import {
   TICKET_PRIORITY_LABELS,
-  TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
 } from "@/types/support";
 import { formatDateTime } from "@/utils/format";
@@ -21,14 +20,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-const STATUS_TONE: Record<TicketStatus, "warning" | "info" | "brand" | "success" | "neutral"> = {
-  open: "warning",
-  in_progress: "info",
-  waiting_on_user: "brand",
-  resolved: "success",
-  closed: "neutral",
-};
 
 const fmtTime = (d: string) =>
   new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(
@@ -121,11 +112,7 @@ export default function RiderTicketDetailPage() {
               {ticket.ticketNumber}
             </span>
           )}
-          <StatusBadge
-            label={TICKET_STATUS_LABELS[ticket.status]}
-            tone={STATUS_TONE[ticket.status]}
-            icon={false}
-          />
+          <StatusBadge status={ticket.status} />
           <StatusBadge
             label={TICKET_PRIORITY_LABELS[ticket.priority]}
             tone="neutral"
@@ -212,12 +199,13 @@ export default function RiderTicketDetailPage() {
             className="mb-3"
           />
           <div className="flex justify-end">
-            <Button onClick={handleReply} disabled={!replyText.trim() || sending}>
-              {sending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
+            <Button
+              onClick={handleReply}
+              disabled={!replyText.trim() || sending}
+              loading={sending}
+              loadingText="Sending…"
+            >
+              <Send className="mr-2 h-4 w-4" />
               Send reply
             </Button>
           </div>

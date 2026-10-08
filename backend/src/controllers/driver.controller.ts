@@ -480,16 +480,14 @@ export const advanceDeliveryStage = async (
       io.to(`order:${order._id.toString()}`).emit('order:stageUpdate', base);
       io.to('admin:room').emit('order:stageUpdate', base);
       if (justPickedUp) {
-        io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', {
+        const payload = {
           ...base,
           newStatus: OrderStatus.PICKED_UP,
           previousStatus: OrderStatus.READY,
-        });
-        io.to(`vendor:${order.restaurantId.toString()}`).emit('orderStatusUpdate', {
-          ...base,
-          newStatus: OrderStatus.PICKED_UP,
-          previousStatus: OrderStatus.READY,
-        });
+        };
+        io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', payload);
+        io.to(`order:${order._id.toString()}`).emit('orderStatusUpdate', payload);
+        io.to(`vendor:${order.restaurantId.toString()}`).emit('orderStatusUpdate', payload);
       }
     } catch {
       /* non-blocking */
@@ -701,22 +699,18 @@ export const updateDeliveryStatus = async (
 
     try {
       const io = getIO();
-      io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', {
+      const payload = {
         _id: order._id.toString(),
         orderNumber: order.orderNumber,
         newStatus: status,
         previousStatus,
         updatedAt: order.updatedAt,
-      });
+      };
+      io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', payload);
+      io.to(`order:${order._id.toString()}`).emit('orderStatusUpdate', payload);
       io.to(`vendor:${order.restaurantId.toString()}`).emit(
         'orderStatusUpdate',
-        {
-          _id: order._id.toString(),
-          orderNumber: order.orderNumber,
-          newStatus: status,
-          previousStatus,
-          updatedAt: order.updatedAt,
-        },
+        payload,
       );
     } catch {
       /* non-blocking */

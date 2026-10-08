@@ -1,9 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus } from "@/types/support";
-import { TICKET_STATUS_LABELS, TICKET_TYPE_LABELS } from "@/types/support";
+import type { SupportTicket } from "@/types/support";
+import { TICKET_TYPE_LABELS } from "@/types/support";
+import { formatDateTime } from "@/utils/format";
 import { motion } from "framer-motion";
 import {
   Bike,
@@ -17,7 +21,7 @@ import {
   User,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const QUICK_ACTIONS = [
   {
@@ -64,23 +68,6 @@ const QUICK_ACTIONS = [
   },
 ];
 
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: "bg-amber-100 text-amber-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  waiting_on_user: "bg-orange-100 text-orange-700",
-  resolved: "bg-emerald-100 text-emerald-700",
-  closed: "bg-gray-100 text-gray-500",
-};
-
-const fmtDate = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
-
 export default function SupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,23 +89,23 @@ export default function SupportPage() {
     fetchTickets();
   }, [fetchTickets]);
 
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Help & Support</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              We're here to help. Choose a topic or view your existing tickets.
-            </p>
-          </div>
-          <Button asChild className="bg-orange-500 hover:bg-orange-600">
-            <Link to="/support/new">
-              <Plus className="h-4 w-4 mr-2" />
-              New Ticket
-            </Link>
-          </Button>
-        </div>
+        <PageHeader
+          title="Help & Support"
+          description="We're here to help. Choose a topic or view your existing tickets."
+          actions={
+            <Button asChild className="bg-orange-500 hover:bg-orange-600">
+              <Link to="/support/new">
+                <Plus className="h-4 w-4 mr-2" />
+                New Ticket
+              </Link>
+            </Button>
+          }
+        />
 
         {/* Quick Actions */}
         <div className="mb-10">
@@ -163,18 +150,15 @@ export default function SupportPage() {
               <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
             </div>
           ) : tickets.length === 0 ? (
-            <Card className="p-10 text-center">
-              <MessageSquare className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-1">
-                No tickets yet
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                When you contact support, your tickets will appear here.
-              </p>
-              <Button asChild className="bg-orange-500 hover:bg-orange-600">
-                <Link to="/support/new">Create your first ticket</Link>
-              </Button>
-            </Card>
+            <EmptyState
+              icon={MessageSquare}
+              title="No tickets yet"
+              description="When you contact support, your tickets will appear here."
+              action={{
+                label: "Create your first ticket",
+                onClick: () => navigate("/support/new"),
+              }}
+            />
           ) : (
             <div className="space-y-2">
               {tickets.map((ticket, idx) => (
@@ -205,14 +189,10 @@ export default function SupportPage() {
                           <p className="text-xs text-gray-500 mt-1">
                             {ticket.messages.length} message
                             {ticket.messages.length !== 1 ? "s" : ""} ·{" "}
-                            {fmtDate(ticket.updatedAt)}
+                            {formatDateTime(ticket.updatedAt)}
                           </p>
                         </div>
-                        <span
-                          className={`text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_COLORS[ticket.status]}`}
-                        >
-                          {TICKET_STATUS_LABELS[ticket.status]}
-                        </span>
+                        <StatusBadge status={ticket.status} size="sm" />
                       </div>
                     </Card>
                   </Link>

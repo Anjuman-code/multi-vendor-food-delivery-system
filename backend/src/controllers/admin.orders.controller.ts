@@ -7,6 +7,7 @@ import { Types } from 'mongoose';
 import DriverProfile from '../models/DriverProfile';
 import Order, { OrderStatus, PaymentStatus } from '../models/Order';
 import User from '../models/User';
+import { getIO } from '../socket';
 import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
 import { AuthenticationError, NotFoundError, ValidationError } from '../utils/errors';
@@ -194,6 +195,21 @@ export const overrideOrderStatus = async (
       metadata: { reason },
     });
 
+    try {
+      const io = getIO();
+      const payload = {
+        _id: order._id.toString(),
+        orderNumber: order.orderNumber,
+        newStatus: status,
+        previousStatus: oldStatus,
+        updatedAt: order.updatedAt,
+      };
+      io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', payload);
+      io.to(`order:${order._id.toString()}`).emit('orderStatusUpdate', payload);
+    } catch {
+      /* non-blocking */
+    }
+
     successResponse(res, { order }, 'Order status updated');
   } catch (error) {
     next(error);
@@ -238,6 +254,21 @@ export const cancelOrder = async (
       changes: [{ field: 'status', oldValue: oldStatus, newValue: 'cancelled' }],
       metadata: { reason },
     });
+
+    try {
+      const io = getIO();
+      const payload = {
+        _id: order._id.toString(),
+        orderNumber: order.orderNumber,
+        newStatus: OrderStatus.CANCELLED,
+        previousStatus: oldStatus,
+        updatedAt: order.updatedAt,
+      };
+      io.to(`user:${order.customerId.toString()}`).emit('orderStatusUpdate', payload);
+      io.to(`order:${order._id.toString()}`).emit('orderStatusUpdate', payload);
+    } catch {
+      /* non-blocking */
+    }
 
     successResponse(res, { order }, 'Order cancelled');
   } catch (error) {

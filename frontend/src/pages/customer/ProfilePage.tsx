@@ -1384,16 +1384,17 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
           <p className="text-sm text-gray-400 mb-4">
             Explore restaurants nearby and place your first order!
           </p>
-          <Link to="/restaurants">
-            <Button
-              variant="outline"
-              className="rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
-            >
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+          >
+            <Link to="/restaurants">
               <UtensilsCrossed className="w-4 h-4 mr-2" />
               Explore Restaurants
               <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       )}
     </div>

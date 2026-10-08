@@ -72,6 +72,7 @@ export default function ReviewModerationPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Review | null>(null);
   const [dialog, setDialog] = useState<"remove" | "hide" | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const fetchReviews = useCallback(
     async (p = 1) => {
@@ -109,12 +110,15 @@ export default function ReviewModerationPage() {
   }, [status, rating]);
 
   const handleApprove = async (r: Review) => {
+    setApprovingId(r._id);
     try {
       await adminService.approveReview(r._id);
       toast.success(r.status === "hidden" ? "Review restored" : "Review published");
       fetchReviews(page);
     } catch {
       toast.error("Action failed");
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -205,12 +209,22 @@ export default function ReviewModerationPage() {
       render: (r) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           {r.status === "pending" && (
-            <IconBtn title="Publish" tone="emerald" onClick={() => handleApprove(r)}>
+            <IconBtn
+              title="Publish"
+              tone="emerald"
+              disabled={approvingId === r._id}
+              onClick={() => handleApprove(r)}
+            >
               <CheckCircle2 className="h-4 w-4" />
             </IconBtn>
           )}
           {r.status === "hidden" && (
-            <IconBtn title="Restore" tone="emerald" onClick={() => handleApprove(r)}>
+            <IconBtn
+              title="Restore"
+              tone="emerald"
+              disabled={approvingId === r._id}
+              onClick={() => handleApprove(r)}
+            >
               <RotateCcw className="h-4 w-4" />
             </IconBtn>
           )}
@@ -322,14 +336,16 @@ const toneClass = {
 const IconBtn: React.FC<{
   title: string;
   tone: keyof typeof toneClass;
+  disabled?: boolean;
   onClick: () => void;
   children: React.ReactNode;
-}> = ({ title, tone, onClick, children }) => (
+}> = ({ title, tone, disabled, onClick, children }) => (
   <button
     onClick={onClick}
+    disabled={disabled}
     title={title}
     aria-label={title}
-    className={`rounded-lg p-1.5 text-muted-foreground transition-colors ${toneClass[tone]}`}
+    className={`rounded-lg p-1.5 text-muted-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none ${toneClass[tone]}`}
   >
     {children}
   </button>

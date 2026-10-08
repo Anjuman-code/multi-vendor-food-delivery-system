@@ -40,7 +40,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = memo(
     placeholder = "#f3f4f6",
     blur = true,
     fadeIn = true,
-    quality = 85,
+    quality: _quality = 85,
     className,
     onLoad,
     onError,

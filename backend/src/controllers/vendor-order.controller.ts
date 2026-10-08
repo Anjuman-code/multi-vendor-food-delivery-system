@@ -252,17 +252,21 @@ export const updateVendorOrderStatus = async (
       data: { orderId: order._id, status: newStatus },
     });
 
-    // Emit real-time orderStatusUpdate event to the customer
+    // Emit real-time orderStatusUpdate event to the customer and order room
     try {
+      const payload = {
+        _id: order._id.toString(),
+        orderNumber: order.orderNumber,
+        newStatus,
+        previousStatus,
+        updatedAt: order.updatedAt,
+      };
       getIO()
         .to(`user:${order.customerId.toString()}`)
-        .emit("orderStatusUpdate", {
-          _id: order._id.toString(),
-          orderNumber: order.orderNumber,
-          newStatus,
-          previousStatus,
-          updatedAt: order.updatedAt,
-        });
+        .emit("orderStatusUpdate", payload);
+      getIO()
+        .to(`order:${order._id.toString()}`)
+        .emit("orderStatusUpdate", payload);
     } catch {
       // Non-blocking – socket emission failure must not affect the HTTP response
     }

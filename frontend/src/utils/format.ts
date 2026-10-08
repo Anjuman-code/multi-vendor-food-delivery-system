@@ -97,3 +97,52 @@ export const formatRelativeTime = (
   if (days < 7) return `${days}d ago`;
   return formatDate(d);
 };
+
+/**
+ * Format distance in meters or km, e.g. "450 m" or "2.3 km".
+ */
+export const formatDistance = (
+  distance: number | string | undefined | null,
+  isMeters = true,
+): string => {
+  const n = toNumber(distance);
+  if (n <= 0) return "—";
+  if (isMeters) {
+    if (n >= 1000) {
+      return `${(n / 1000).toFixed(1)} km`;
+    }
+    return `${Math.round(n)} m`;
+  }
+  return `${n.toFixed(1)} km`;
+};
+
+/**
+ * Format estimated delivery time into a consistent human-readable string.
+ * Handles strings ("20-30", "30 mins"), numbers (25 -> "25 mins"),
+ * or range objects ({ min: 20, max: 30 } -> "20-30 mins").
+ */
+export const formatDeliveryTime = (
+  time:
+    | number
+    | string
+    | { min?: number; max?: number; estimatedMinutes?: number }
+    | undefined
+    | null,
+): string => {
+  if (time == null || time === "") return "20-35 mins";
+  if (typeof time === "number") return `${time} mins`;
+  if (typeof time === "string") {
+    const trimmed = time.trim();
+    if (trimmed.toLowerCase().includes("min")) return trimmed;
+    return `${trimmed} mins`;
+  }
+  if (typeof time === "object") {
+    if (time.min != null && time.max != null) {
+      return `${time.min}-${time.max} mins`;
+    }
+    if (time.estimatedMinutes != null) {
+      return `${time.estimatedMinutes} mins`;
+    }
+  }
+  return "20-35 mins";
+};

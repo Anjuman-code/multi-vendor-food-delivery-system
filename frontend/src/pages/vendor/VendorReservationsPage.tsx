@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  StatusBadge,
+  VendorEmptyState,
+} from '@/components/vendor';
 import { useVendor } from '@/contexts/VendorContext';
 import { toast } from '@/lib/toast';
 import reservationService from '@/services/reservationService';
@@ -46,55 +51,6 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-const getStatusBadge = (status: ReservationStatus) => {
-  switch (status) {
-    case 'confirmed':
-      return (
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-          Confirmed
-        </span>
-      );
-    case 'seated':
-      return (
-        <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
-          Seated
-        </span>
-      );
-    case 'completed':
-      return (
-        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-600/20">
-          Completed
-        </span>
-      );
-    case 'pending':
-      return (
-        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-          Pending
-        </span>
-      );
-    case 'cancelled':
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-          Cancelled
-        </span>
-      );
-    case 'rejected':
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-          Rejected
-        </span>
-      );
-    case 'no_show':
-      return (
-        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-600/20">
-          No Show
-        </span>
-      );
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
-};
 
 export const VendorReservationsPage: React.FC = () => {
   const { restaurants, selectedRestaurantId, setSelectedRestaurantId } =
@@ -136,6 +92,25 @@ export const VendorReservationsPage: React.FC = () => {
   const [manualTable, setManualTable] = useState<string>('');
   const [manualSubmitting, setManualSubmitting] = useState<boolean>(false);
 
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    res: Reservation | null;
+    status: ReservationStatus | null;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    requireReason: boolean;
+  }>({
+    open: false,
+    res: null,
+    status: null,
+    title: '',
+    description: '',
+    confirmLabel: 'Confirm',
+    requireReason: false,
+  });
+
   const activeRestaurant =
     restaurants.find((r) => r._id === selectedRestaurantId) || restaurants[0];
 
@@ -174,29 +149,35 @@ export const VendorReservationsPage: React.FC = () => {
   const handleStatusChange = async (
     res: Reservation,
     newStatus: ReservationStatus,
+    reason?: string,
   ) => {
-    let reason: string | undefined;
-
-    if (newStatus === 'rejected' || newStatus === 'cancelled') {
-      const promptReason = window.prompt(
-        `Please enter a reason for marking this reservation as ${newStatus}:`,
-        'Due to capacity constraints',
-      );
-      if (promptReason === null) return;
-      reason = promptReason;
+    if ((newStatus === 'rejected' || newStatus === 'cancelled') && reason === undefined) {
+      setConfirmDialog({
+        open: true,
+        res,
+        status: newStatus,
+        title: newStatus === 'rejected' ? 'Reject Reservation' : 'Cancel Reservation',
+        description: `Are you sure you want to mark reservation #${res.reservationNumber} for ${res.guestInfo.name} as ${newStatus}?`,
+        confirmLabel: newStatus === 'rejected' ? 'Reject Reservation' : 'Cancel Reservation',
+        requireReason: true,
+      });
+      return;
     }
 
+    setActionLoadingId(`${res._id}-${newStatus}`);
     try {
       await reservationService.updateReservationStatus(res._id, {
         status: newStatus,
         reason,
       });
-      toast.success(`Reservation marked as ${newStatus}`);
+      toast.success(`Reservation marked as ${newStatus.replace('_', ' ')}`);
       void fetchReservations();
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Could not update status.';
       toast.error('Update Failed', { description: msg });
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -498,22 +479,16 @@ export const VendorReservationsPage: React.FC = () => {
           <p className="mt-2 text-xs text-gray-500">Loading reservations...</p>
         </div>
       ) : reservations.length === 0 ? (
-        <Card className="py-16 text-center rounded-2xl border-dashed">
-          <Calendar className="mx-auto h-12 w-12 text-gray-300" />
-          <p className="mt-3 text-base font-bold text-gray-900">
-            No Reservations Found
-          </p>
-          <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
-            No table bookings match your selected date or status filter.
-          </p>
-          <Button
-            onClick={() => setManualModalOpen(true)}
-            className="mt-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold"
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Walk-in Reservation
-          </Button>
-        </Card>
+        <VendorEmptyState
+          icon={Calendar}
+          title="No Reservations Found"
+          description="No table bookings match your selected date or status filter."
+          action={{
+            label: 'Add Walk-in Reservation',
+            onClick: () => setManualModalOpen(true),
+            icon: Plus,
+          }}
+        />
       ) : viewMode === 'list' ? (
         /* List View */
         <div className="space-y-3">
@@ -529,7 +504,7 @@ export const VendorReservationsPage: React.FC = () => {
                     <span className="font-mono text-xs font-bold text-gray-900 bg-gray-100 px-2.5 py-0.5 rounded-md">
                       #{res.reservationNumber}
                     </span>
-                    {getStatusBadge(res.status)}
+                    <StatusBadge status={res.status} />
                     <span className="text-xs font-semibold text-gray-800">
                       {res.guestInfo.name}
                     </span>
@@ -578,6 +553,8 @@ export const VendorReservationsPage: React.FC = () => {
                     <>
                       <Button
                         size="sm"
+                        disabled={Boolean(actionLoadingId)}
+                        loading={actionLoadingId === `${res._id}-confirmed`}
                         onClick={() => handleStatusChange(res, 'confirmed')}
                         className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
                       >
@@ -587,6 +564,7 @@ export const VendorReservationsPage: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={Boolean(actionLoadingId)}
                         onClick={() => handleStatusChange(res, 'rejected')}
                         className="h-8 rounded-lg text-rose-600 hover:bg-rose-50 text-xs"
                       >
@@ -600,6 +578,8 @@ export const VendorReservationsPage: React.FC = () => {
                     <>
                       <Button
                         size="sm"
+                        disabled={Boolean(actionLoadingId)}
+                        loading={actionLoadingId === `${res._id}-seated`}
                         onClick={() => handleStatusChange(res, 'seated')}
                         className="h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
                       >
@@ -609,6 +589,8 @@ export const VendorReservationsPage: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={Boolean(actionLoadingId)}
+                        loading={actionLoadingId === `${res._id}-no_show`}
                         onClick={() => handleStatusChange(res, 'no_show')}
                         className="h-8 rounded-lg text-orange-600 hover:bg-orange-50 text-xs"
                       >
@@ -617,6 +599,7 @@ export const VendorReservationsPage: React.FC = () => {
                       <Button
                         size="sm"
                         variant="ghost"
+                        disabled={Boolean(actionLoadingId)}
                         onClick={() => handleStatusChange(res, 'cancelled')}
                         className="h-8 rounded-lg text-rose-600 text-xs"
                       >
@@ -628,6 +611,8 @@ export const VendorReservationsPage: React.FC = () => {
                   {res.status === 'seated' && (
                     <Button
                       size="sm"
+                      disabled={Boolean(actionLoadingId)}
+                      loading={actionLoadingId === `${res._id}-completed`}
                       onClick={() => handleStatusChange(res, 'completed')}
                       className="h-8 rounded-lg bg-gray-900 hover:bg-black text-white text-xs font-semibold"
                     >
@@ -657,7 +642,7 @@ export const VendorReservationsPage: React.FC = () => {
                 <span className="font-bold text-sm text-gray-900">
                   {res.time}
                 </span>
-                {getStatusBadge(res.status)}
+                <StatusBadge status={res.status} />
               </div>
 
               <div className="mt-3 space-y-1.5 text-xs">
@@ -681,6 +666,8 @@ export const VendorReservationsPage: React.FC = () => {
                 {res.status === 'confirmed' && (
                   <Button
                     size="sm"
+                    disabled={Boolean(actionLoadingId)}
+                    loading={actionLoadingId === `${res._id}-seated`}
                     onClick={() => handleStatusChange(res, 'seated')}
                     className="h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs"
                   >
@@ -690,6 +677,8 @@ export const VendorReservationsPage: React.FC = () => {
                 {res.status === 'seated' && (
                   <Button
                     size="sm"
+                    disabled={Boolean(actionLoadingId)}
+                    loading={actionLoadingId === `${res._id}-completed`}
                     onClick={() => handleStatusChange(res, 'completed')}
                     className="h-8 rounded-lg bg-gray-900 hover:bg-black text-white text-xs"
                   >
@@ -868,15 +857,34 @@ export const VendorReservationsPage: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={manualSubmitting}
+                  loading={manualSubmitting}
+                  loadingText="Recording..."
                   className="flex-1 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold h-11"
                 >
-                  {manualSubmitting ? 'Recording...' : 'Save Reservation'}
+                  Save Reservation
                 </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Rejection / Cancellation ConfirmDialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={(reason) => {
+          if (confirmDialog.res && confirmDialog.status) {
+            void handleStatusChange(confirmDialog.res, confirmDialog.status, reason);
+          }
+        }}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel={confirmDialog.confirmLabel}
+        requireReason={confirmDialog.requireReason}
+        reasonPlaceholder="Please enter a reason (e.g. capacity constraints, customer request)..."
+        destructive={true}
+      />
     </div>
   );
 };

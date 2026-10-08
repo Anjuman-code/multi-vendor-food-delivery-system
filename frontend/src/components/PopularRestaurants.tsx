@@ -1,3 +1,4 @@
+import { InteractiveCardLink } from "@/components/ui/InteractiveCard";
 import homeService from "@/services/homeService";
 import type { PopularRestaurant } from "@/types/home";
 import { restaurantFallbackSVG } from "@/utils/fallbackImages";
@@ -142,7 +143,7 @@ const PopularRestaurants: React.FC = () => {
 const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
   return (
     <motion.div
-      className="group relative h-[460px] w-full rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500"
+      className="group relative h-[460px] w-full rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500 focus-within:ring-2 focus-within:ring-brand-500 focus-within:ring-offset-2"
       initial="rest"
       whileHover="hover"
       animate="rest"
@@ -165,7 +166,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
 
       {/* Gradient Overlay - animates darker on hover */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"
+        className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none"
         variants={{
           rest: { opacity: 0.7 },
           hover: { opacity: 1 },
@@ -174,7 +175,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
       />
 
       {/* Floating Badge (Top Right) */}
-      <div className="absolute top-6 right-6 bg-white/20 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10">
+      <div className="absolute top-6 right-6 bg-white/20 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10 pointer-events-none">
         <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
         <span className="text-white font-bold text-sm">{data.rating}</span>
       </div>
@@ -182,7 +183,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
       {/* Content Container */}
       <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
         {/* Always Visible Content */}
-        <div className="mb-2">
+        <div className="mb-2 z-10">
           {/* Tags Row */}
           <div className="flex gap-2 mb-3">
             <span className="text-xs font-medium text-brand-300 bg-brand-500/20 px-2 py-1 rounded backdrop-blur-sm border border-brand-500/20">
@@ -198,7 +199,9 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
             ))}
           </div>
           <h3 className="text-3xl font-bold text-white mb-2 leading-tight">
-            {data.name}
+            <InteractiveCardLink to={`/restaurants/${data.id}`}>
+              {data.name}
+            </InteractiveCardLink>
           </h3>
 
           {/* Meta Info Row */}
@@ -221,7 +224,7 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
             hover: { height: "auto", opacity: 1, marginTop: 16 },
           }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="overflow-hidden"
+          className="overflow-hidden z-10"
         >
           <div className="pt-4 border-t border-white/20">
             <p className="text-gray-300 text-sm mb-4 line-clamp-2">
@@ -246,13 +249,10 @@ const RestaurantCard = ({ data }: { data: PopularRestaurantCard }) => {
               </div>
             )}
 
-            <Link
-              to={`/restaurants/${data.id}`}
-              className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn"
-            >
+            <div className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group/btn">
               View Menu{" "}
               <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-            </Link>
+            </div>
           </div>
         </motion.div>
       </div>

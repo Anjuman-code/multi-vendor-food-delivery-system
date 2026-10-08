@@ -246,23 +246,16 @@ const AvailableDeliveriesPage: React.FC = () => {
                   <Button
                     onClick={() => void handleAccept(order._id)}
                     disabled={
-                      accepting === order._id ||
+                      accepting !== null ||
                       (profile && !profile.isAvailable) ||
                       !!activeOrder
                     }
+                    loading={accepting === order._id}
+                    loadingText="Accepting…"
                     className="mt-1 w-full"
                   >
-                    {accepting === order._id ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Accepting…
-                      </>
-                    ) : (
-                      <>
-                        <Truck className="mr-2 h-4 w-4" />
-                        Accept delivery
-                      </>
-                    )}
+                    <Truck className="mr-2 h-4 w-4" />
+                    Accept delivery
                   </Button>
                 </div>
               </motion.div>

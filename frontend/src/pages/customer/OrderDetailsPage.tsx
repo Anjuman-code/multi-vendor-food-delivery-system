@@ -4,6 +4,8 @@
  */
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/contexts/CartContext';
 import { useSocketContext } from '@/contexts/SocketContext';
@@ -20,6 +22,7 @@ import type {
   StatusHistoryEntry,
 } from '@/types/order';
 import { foodFallbackSVG } from '@/utils/fallbackImages';
+import { formatCurrency, formatDateTime } from '@/utils/format';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -63,14 +66,6 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
-
-const fmtDate = (d: string) =>
-  new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(d));
 
 const buildReceiptFileName = (orderNumber: string): string => {
   const safeOrderNumber = orderNumber.replace(/[^a-zA-Z0-9-_]+/g, '_');
@@ -475,14 +470,16 @@ const OrderDetailsPage: React.FC = () => {
 
   if (!order) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12 text-center">
-        <Package className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-        <h2 className="text-lg font-semibold text-gray-700 mb-2">
-          Order not found
-        </h2>
-        <Button variant="outline" onClick={() => navigate('/orders')}>
-          Back to Orders
-        </Button>
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <EmptyState
+          icon={Package}
+          title="Order not found"
+          description="We couldn't find the order you are looking for."
+          action={{
+            label: "Back to Orders",
+            onClick: () => navigate('/orders'),
+          }}
+        />
       </div>
     );
   }
@@ -506,27 +503,27 @@ const OrderDetailsPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {order.orderNumber}
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold text-gray-900">
+                {order.orderNumber}
+              </h1>
+              <StatusBadge status={order.status} size="sm" />
+            </div>
             <p className="text-sm text-gray-500">
-              Placed on {fmtDate(order.createdAt)}
+              Placed on {formatDateTime(order.createdAt)}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {canCancel && (
               <Button
                 variant="outline"
                 size="sm"
-                disabled={cancelling}
+                loading={cancelling}
+                loadingText="Cancelling..."
                 onClick={handleCancel}
                 className="text-red-600 border-red-200 hover:bg-red-50"
               >
-                {cancelling ? (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                ) : (
-                  <XCircle className="mr-1 h-4 w-4" />
-                )}
+                <XCircle className="mr-1 h-4 w-4" />
                 Cancel
               </Button>
             )}
@@ -534,14 +531,11 @@ const OrderDetailsPage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={reordering}
+                loading={reordering}
+                loadingText="Reordering..."
                 onClick={handleReorder}
               >
-                {reordering ? (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1 h-4 w-4" />
-                )}
+                <RefreshCw className="mr-1 h-4 w-4" />
                 Reorder
               </Button>
             )}
@@ -659,7 +653,7 @@ const OrderDetailsPage: React.FC = () => {
                     </div>
                   </div>
                   <span className="font-medium text-gray-900">
-                    ৳{(item.price * item.quantity).toFixed(2)}
+                    {formatCurrency(item.price * item.quantity)}
                   </span>
                 </div>
               ))}
@@ -668,25 +662,25 @@ const OrderDetailsPage: React.FC = () => {
             <div className="border-t mt-4 pt-3 text-sm space-y-1">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span>৳{order.subtotal.toFixed(2)}</span>
+                <span>{formatCurrency(order.subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Tax</span>
-                <span>৳{order.tax.toFixed(2)}</span>
+                <span>{formatCurrency(order.tax)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Delivery</span>
-                <span>৳{order.deliveryFee.toFixed(2)}</span>
+                <span>{formatCurrency(order.deliveryFee)}</span>
               </div>
               {order.discount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Discount</span>
-                  <span>-৳{order.discount.toFixed(2)}</span>
+                  <span>-{formatCurrency(order.discount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-gray-900 pt-1 border-t">
                 <span>Total</span>
-                <span>৳{order.total.toFixed(2)}</span>
+                <span>{formatCurrency(order.total)}</span>
               </div>
             </div>
           </Card>
@@ -770,7 +764,7 @@ const OrderDetailsPage: React.FC = () => {
                   (entry: StatusHistoryEntry, idx: number) => (
                     <div key={idx} className="flex items-center gap-3 text-sm">
                       <span className="text-gray-400 text-xs w-28 flex-shrink-0">
-                        {fmtDate(entry.timestamp)}
+                        {formatDateTime(entry.timestamp)}
                       </span>
                       <span className="font-medium text-gray-700 capitalize">
                         {entry.status.replace('_', ' ')}
@@ -922,13 +916,12 @@ const OrderDetailsPage: React.FC = () => {
 
               <Button
                 size="sm"
-                disabled={reviewStars === 0 || !reviewComment.trim() || reviewSubmitting}
+                loading={reviewSubmitting}
+                loadingText="Submitting..."
+                disabled={reviewStars === 0 || !reviewComment.trim()}
                 onClick={handleReviewSubmit}
                 className="bg-orange-500 hover:bg-orange-600 w-full sm:w-auto"
               >
-                {reviewSubmitting && (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                )}
                 Submit Review
               </Button>
             </Card>
@@ -991,13 +984,12 @@ const OrderDetailsPage: React.FC = () => {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  disabled={ratingStars === 0 || ratingSubmitting}
+                  loading={ratingSubmitting}
+                  loadingText="Submitting..."
+                  disabled={ratingStars === 0}
                   onClick={handleRatingSubmit}
                   className="bg-orange-500 hover:bg-orange-600"
                 >
-                  {ratingSubmitting && (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  )}
                   Submit Rating
                 </Button>
                 <Button

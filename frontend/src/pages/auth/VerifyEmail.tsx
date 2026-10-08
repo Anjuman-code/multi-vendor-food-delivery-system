@@ -170,11 +170,9 @@ const VerifyEmail: React.FC = () => {
               </div>
               <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Verification failed</h1>
               <p className="mb-8 text-sm leading-relaxed text-muted-foreground">{errorMessage}</p>
-              <Link to="/register">
-                <Button variant="outline" size="lg" className="w-full">
-                  Register again
-                </Button>
-              </Link>
+              <Button asChild variant="outline" size="lg" className="w-full">
+                <Link to="/register">Register again</Link>
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>

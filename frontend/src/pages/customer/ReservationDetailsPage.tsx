@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import reservationService from '@/services/reservationService';
 import type { Reservation } from '@/types/reservation';
 import { cn } from '@/utils/cn';
 import { restaurantFallbackSVG } from '@/utils/fallbackImages';
+import { formatCurrency } from '@/utils/format';
 import { format } from 'date-fns';
 import {
   ArrowLeft,
@@ -232,20 +233,7 @@ export const ReservationDetailsPage: React.FC = () => {
                     </span>
                   </p>
                 </div>
-                <Badge
-                  className={cn(
-                    'capitalize text-xs font-semibold px-3 py-1',
-                    reservation.status === 'confirmed' && 'bg-emerald-500 text-white',
-                    reservation.status === 'seated' && 'bg-blue-500 text-white',
-                    reservation.status === 'completed' && 'bg-gray-600 text-white',
-                    reservation.status === 'pending' && 'bg-amber-500 text-white',
-                    (reservation.status === 'cancelled' ||
-                      reservation.status === 'rejected') &&
-                      'bg-rose-500 text-white',
-                  )}
-                >
-                  {reservation.status}
-                </Badge>
+                <StatusBadge status={reservation.status} size="md" />
               </div>
             </div>
           </div>
@@ -347,12 +335,10 @@ export const ReservationDetailsPage: React.FC = () => {
                   <span className="font-bold text-blue-900">
                     Booking Deposit
                   </span>
-                  <Badge variant="outline" className="capitalize">
-                    Status: {reservation.deposit.status}
-                  </Badge>
+                  <StatusBadge status={reservation.deposit.status} size="sm" />
                 </div>
                 <p className="text-blue-800">
-                  Amount: ৳{reservation.deposit.amount}
+                  Amount: {formatCurrency(reservation.deposit.amount)}
                   {reservation.deposit.transactionId && (
                     <span className="block mt-0.5 text-blue-600 font-mono">
                       Tx ID: {reservation.deposit.transactionId}
@@ -513,10 +499,11 @@ export const ReservationDetailsPage: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={submittingReview}
-                  className="flex-1 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold"
+                  loading={submittingReview}
+                  loadingText="Submitting..."
+                  className="flex-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold"
                 >
-                  {submittingReview ? 'Submitting...' : 'Submit Review'}
+                  Submit Review
                 </Button>
               </div>
             </form>

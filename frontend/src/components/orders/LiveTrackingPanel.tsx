@@ -20,8 +20,8 @@ import type {
 import { Bike, Phone, Star } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DeliveryMap } from '@/components/rider/DeliveryMap';
-import { LiveStageStrip } from './LiveStageStrip';
-import { OrderChat } from './OrderChat';
+import { LiveStageStrip } from '@/components/orders/LiveStageStrip';
+import { OrderChat } from '@/components/orders/OrderChat';
 
 interface LiveTrackingPanelProps {
   order: Order;

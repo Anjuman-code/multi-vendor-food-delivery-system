@@ -16,7 +16,7 @@ import supportService from "@/services/supportService";
 import type { TicketType, TicketPriority } from "@/types/support";
 import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -230,20 +230,15 @@ export default function VendorCreateTicketPage() {
             <Button
               type="submit"
               disabled={submitting}
+              loading={submitting}
+              loadingText="Submitting..."
               variant="brand"
               className="w-full py-6"
             >
-              {submitting ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Send className="h-4 w-4" />
-                  Submit Ticket
-                </span>
-              )}
+              <span className="flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                Submit Ticket
+              </span>
             </Button>
           </form>
         </SectionCard>

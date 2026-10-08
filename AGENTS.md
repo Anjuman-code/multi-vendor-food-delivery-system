@@ -273,3 +273,40 @@ Before finishing:
 - React Router: https://reactrouter.com/
 - Vite: https://vite.dev/
 - AGENTS.md standard: https://agents.md/
+
+## UI & Interaction Standards (Authoritative)
+
+### 1. InteractiveCard & Stretched Link Standard
+- **Primary Navigation**: Never make the card an outer `<a>` or `<button>` if it contains child actions. Instead, use `InteractiveCard` with an inner `InteractiveCardLink` on the card's title/heading (`after:absolute after:inset-0 after:z-0`) to stretch the click area.
+- **Child Actions**: All secondary controls (favorites, quantity steppers, add-to-cart, edit/delete, menus) must be wrapped in `InteractiveCardAction` or styled with `relative z-10`.
+- **Event Isolation**: Secondary actions must stop propagation (`e.stopPropagation()`) so clicking them never triggers card navigation.
+- **No Invalid DOM Nesting**: Absolute ban on `<button>` inside `<a>` or `<a>` inside `<button>`. For link buttons, use `<Button asChild><Link to="...">...</Link></Button>`.
+- **Touch & Mobile**: Tap targets for interactive actions must be at least 44x44px. Never rely on `opacity-0 group-hover:opacity-100` to expose critical buttons on mobile.
+
+### 2. Button Loading & Double-Submit Protection
+- Always use the shared `Button` primitive from `@/components/ui/button`.
+- Use the `loading` and optional `loadingText` props for any asynchronous action (form submission, payment, order placement, status transition).
+- When `loading={true}`, `Button` automatically sets `disabled={true}`, displays `<Loader2 className="animate-spin" />`, and prevents double submissions.
+
+### 3. Canonical Status Badges
+- Import `StatusBadge` from `@/components/ui/StatusBadge`.
+- Do NOT declare ad-hoc inline badge spans with custom background/text colors.
+- All statuses across Orders, Reservations, Support Tickets, Payouts, Drivers, and Users are mapped in `STATUS_REGISTRY` with accessible color tones, labels, and icons.
+
+### 4. Cohesive Empty & Error States
+- Use `EmptyState` and `ErrorState` from `@/components/ui/EmptyState`.
+- Provides consistent border dashes, rounded corners, icons, and action CTA slots across all roles.
+
+### 5. Dialogs & Confirmations
+- For destructive or high-impact actions (deleting items, cancelling orders, suspending users), use `ConfirmDialog` from `@/components/ui/ConfirmDialog`.
+- It includes focus trapping, Esc-to-close, built-in loading states, and optional reason inputs for audit logging.
+
+### 6. Tabular Data & Headers
+- Use `DataTable` from `@/components/ui/DataTable` for tabular lists, supporting sorting, pagination, and skeleton loading states.
+- Use `PageHeader` from `@/components/ui/PageHeader` for consistent page titles, breadcrumbs, and right-aligned action bars across Customer, Vendor, Rider, and Admin views.
+
+### 7. Route Protection & Redirects
+- Use `ProtectedRoute` from `@/components/auth/ProtectedRoute` to wrap private route groups in `App.tsx`.
+- Pass `allowedRoles={['vendor']}`, `allowedRoles={['admin']}`, or `allowedRoles={['driver']}` to protect role subtrees.
+- Mismatched authenticated users are bounced back to their designated role portal via `getPostAuthPath()`.
+

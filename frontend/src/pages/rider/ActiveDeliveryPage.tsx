@@ -31,7 +31,6 @@ import {
   Banknote,
   Camera,
   CheckCircle,
-  Loader2,
   MapPin,
   Navigation,
   Package,
@@ -42,7 +41,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const storePoint = (order: RiderOrder): LatLng | null => {
   const loc =
@@ -57,6 +56,7 @@ const customerPoint = (order: RiderOrder): LatLng | null => {
 };
 
 const ActiveDeliveryPage: React.FC = () => {
+  const navigate = useNavigate();
   const { activeOrder, setActiveOrder, refresh } = useRider();
   const { joinOrderRoom, leaveOrderRoom } = useSocketContext();
   const [order, setOrder] = useState<RiderOrder | null>(activeOrder);
@@ -244,7 +244,7 @@ const ActiveDeliveryPage: React.FC = () => {
           description="You don't have a delivery in progress. Pick one up to get going."
           action={{
             label: "Find deliveries",
-            onClick: () => (window.location.href = "/rider/available"),
+            onClick: () => navigate("/rider/available"),
           }}
         />
       </div>
@@ -306,15 +306,11 @@ const ActiveDeliveryPage: React.FC = () => {
         {!delivered && action && (
           <Button
             onClick={() => void handleAdvance()}
-            disabled={advancing}
+            loading={advancing}
             size="lg"
             className="mt-2 h-12 w-full text-base font-semibold"
           >
-            {advancing ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              <CheckCircle className="mr-2 h-5 w-5" />
-            )}
+            {!advancing && <CheckCircle className="mr-2 h-5 w-5" />}
             {action.label}
           </Button>
         )}
@@ -522,14 +518,11 @@ const ActiveDeliveryPage: React.FC = () => {
           <DialogFooter>
             <Button
               onClick={() => void handleComplete()}
-              disabled={submitting}
+              loading={submitting}
+              loadingText="Completing delivery..."
               className="w-full"
             >
-              {submitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Navigation className="mr-2 h-4 w-4" />
-              )}
+              {!submitting && <Navigation className="mr-2 h-4 w-4" />}
               Complete delivery
             </Button>
           </DialogFooter>

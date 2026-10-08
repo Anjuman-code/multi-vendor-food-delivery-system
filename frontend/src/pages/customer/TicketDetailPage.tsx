@@ -1,14 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus } from "@/types/support";
+import type { SupportTicket } from "@/types/support";
 import {
   TICKET_PRIORITY_LABELS,
-  TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
 } from "@/types/support";
+import { formatDateTime } from "@/utils/format";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -21,29 +22,12 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: "bg-amber-100 text-amber-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  waiting_on_user: "bg-orange-100 text-orange-700",
-  resolved: "bg-emerald-100 text-emerald-700",
-  closed: "bg-gray-100 text-gray-500",
-};
-
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: "bg-red-100 text-red-700",
   high: "bg-orange-100 text-orange-700",
   medium: "bg-amber-100 text-amber-700",
   low: "bg-gray-100 text-gray-500",
 };
-
-const fmtDateTime = (d: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(d));
 
 const fmtTime = (d: string) =>
   new Intl.DateTimeFormat("en-US", {
@@ -136,11 +120,7 @@ export default function TicketDetailPage() {
                 {ticket.ticketNumber}
               </span>
             )}
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[ticket.status]}`}
-            >
-              {TICKET_STATUS_LABELS[ticket.status]}
-            </span>
+            <StatusBadge status={ticket.status} size="sm" />
             <span
               className={`text-xs font-medium px-2.5 py-1 rounded-full ${PRIORITY_COLORS[ticket.priority]}`}
             >
@@ -150,7 +130,7 @@ export default function TicketDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">{ticket.subject}</h1>
           <p className="text-sm text-gray-500 mt-1">
             {TICKET_TYPE_LABELS[ticket.type]} · Created{" "}
-            {fmtDateTime(ticket.createdAt)}
+            {formatDateTime(ticket.createdAt)}
           </p>
         </div>
 
@@ -277,14 +257,12 @@ export default function TicketDetailPage() {
             <div className="flex justify-end">
               <Button
                 onClick={handleReply}
-                disabled={!replyText.trim() || sending}
+                loading={sending}
+                loadingText="Sending..."
+                disabled={!replyText.trim()}
                 className="bg-orange-500 hover:bg-orange-600"
               >
-                {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
+                <Send className="h-4 w-4 mr-2" />
                 Send Reply
               </Button>
             </div>

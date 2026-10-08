@@ -8,7 +8,7 @@ import { applyServerErrors } from "@/lib/formErrors";
 import supportService from "@/services/supportService";
 import type { TicketType, TicketPriority } from "@/types/support";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -218,20 +218,12 @@ export default function CreateTicketPage() {
             {/* Submit */}
             <Button
               type="submit"
-              disabled={submitting}
+              loading={submitting}
+              loadingText="Submitting..."
               className="w-full bg-orange-500 hover:bg-orange-600 py-6"
             >
-              {submitting ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Send className="h-4 w-4" />
-                  Submit Ticket
-                </span>
-              )}
+              <Send className="h-4 w-4 mr-2" />
+              Submit Ticket
             </Button>
           </form>
         </Card>

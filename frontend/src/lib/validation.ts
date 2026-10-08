@@ -15,43 +15,12 @@ const nameSchema = z
     message: 'Must contain at least one letter',
   });
 
-const allowedDomains = [
-  'gmail.com',
-  'yahoo.com',
-  'outlook.com',
-  'live.com',
-  'hotmail.com',
-  'proton.me',
-  'protonmail.com',
-  'duck.com',
-  'office.com',
-  'icloud.com',
-  'aol.com',
-  'zoho.com',
-  'yandex.com',
-  'gmx.com',
-  'fastmail.com',
-  'tutanota.com',
-];
-
 const emailSchema = z
   .string()
   .trim()
   .min(1, 'Email is required')
   .max(254, 'Email is too long')
   .email('Please enter a valid email address')
-  .refine(
-    (v) => {
-      const [local, domain] = v.split('@');
-      if (!local || !domain) return false;
-      if (!/[a-zA-Z]/.test(local)) return false;
-      return allowedDomains.includes(domain.toLowerCase());
-    },
-    {
-      message:
-        'Only emails from major providers (Gmail, Yahoo, Outlook, etc.) are allowed',
-    },
-  )
   .transform((v) => v.toLowerCase());
 
 const passwordSchema = z

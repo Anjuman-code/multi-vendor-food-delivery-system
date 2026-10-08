@@ -223,7 +223,7 @@ export default function OrdersPage() {
               <Download className="mr-1.5 h-4 w-4" /> Export CSV
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/orders/disputes">Dispute Queue</Link>
+              <Link to="/admin/disputes">Dispute Queue</Link>
             </Button>
           </>
         }

@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   typeConfig,
   formatRelativeTime,
@@ -50,6 +52,8 @@ const NotificationsPage: React.FC = () => {
   } = useNotifications();
 
   const [filter, setFilter] = useState<Filter>("all");
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const visible = useMemo(
     () =>
@@ -99,7 +103,7 @@ const NotificationsPage: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 className="text-gray-500 hover:text-red-600"
-                onClick={() => void clearAll()}
+                onClick={() => setConfirmClearOpen(true)}
               >
                 <Trash2 className="mr-1 h-4 w-4" />
                 Clear all
@@ -132,15 +136,11 @@ const NotificationsPage: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
           </div>
         ) : visible.length === 0 ? (
-          <Card className="p-10 text-center">
-            <BellOff className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <h2 className="text-lg font-semibold text-gray-700 mb-1">
-              {filter === "unread" ? "No unread notifications" : "No notifications"}
-            </h2>
-            <p className="text-sm text-gray-500">
-              You're all caught up! Check back later.
-            </p>
-          </Card>
+          <EmptyState
+            icon={BellOff}
+            title={filter === "unread" ? "No unread notifications" : "No notifications"}
+            description="You're all caught up! Check back later."
+          />
         ) : (
           <div className="space-y-6">
             {GROUP_ORDER.filter((g) => grouped[g]?.length).map((group) => (
@@ -244,17 +244,34 @@ const NotificationsPage: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              disabled={loadingMore}
+              loading={loadingMore}
+              loadingText="Loading more..."
               onClick={() => void loadMore()}
             >
-              {loadingMore ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
               Load more
             </Button>
           </div>
         )}
       </motion.div>
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onClose={() => setConfirmClearOpen(false)}
+        title="Clear all notifications?"
+        description="This will permanently delete all notifications from your inbox. This action cannot be undone."
+        confirmLabel="Clear All"
+        destructive
+        loading={clearing}
+        onConfirm={async () => {
+          setClearing(true);
+          try {
+            await clearAll();
+            setConfirmClearOpen(false);
+          } finally {
+            setClearing(false);
+          }
+        }}
+      />
     </div>
   );
 };

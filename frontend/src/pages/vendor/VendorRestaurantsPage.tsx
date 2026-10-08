@@ -42,7 +42,12 @@ const VendorRestaurantsPage: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string) => {
-    const ok = await confirm({ title: "Delete restaurant", description: "Are you sure you want to delete this restaurant? This cannot be undone.", confirmLabel: "Delete" });
+    const ok = await confirm({
+      title: "Delete restaurant",
+      description: "Are you sure you want to delete this restaurant? This cannot be undone.",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
     if (!ok) return;
     const res = await vendorService.deleteRestaurant(id);
     if (res.success) {
@@ -181,8 +186,8 @@ const VendorRestaurantsPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* Hover actions */}
-                  <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  {/* Actions (visible on mobile, hover-revealed on desktop) */}
+                  <div className="absolute right-3 top-3 z-10 flex gap-2 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                     <Button
                       type="button"
                       variant="secondary"

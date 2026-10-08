@@ -695,19 +695,16 @@ const RestaurantFormPage: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" variant="brand" disabled={submitting} className="gap-2">
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {submitting
-                ? isEdit
-                  ? 'Updating...'
-                  : 'Creating...'
-                : isEdit
-                  ? 'Update Restaurant'
-                  : 'Create Restaurant'}
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={submitting}
+              loading={submitting}
+              loadingText={isEdit ? 'Updating...' : 'Creating...'}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isEdit ? 'Update Restaurant' : 'Create Restaurant'}
             </Button>
           </div>
         </div>

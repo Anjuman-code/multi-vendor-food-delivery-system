@@ -3,10 +3,14 @@
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/lib/toast";
 import { useSocket } from "@/hooks/useSocket";
 import orderService from "@/services/orderService";
 import type { Order, OrderStatus } from "@/types/order";
+import { formatCurrency, formatDateTime } from "@/utils/format";
 import { motion } from "framer-motion";
 import {
     ChevronRight,
@@ -17,27 +21,7 @@ import {
     WifiOff,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-
-const STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  confirmed: "bg-blue-100 text-blue-800",
-  preparing: "bg-indigo-100 text-indigo-800",
-  ready: "bg-purple-100 text-purple-800",
-  picked_up: "bg-cyan-100 text-cyan-800",
-  delivered: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-};
-
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  preparing: "Preparing",
-  ready: "Ready",
-  picked_up: "Picked Up",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 const FILTERS: { label: string; value: string }[] = [
   { label: "All", value: "" },
@@ -121,14 +105,7 @@ const OrdersPage: React.FC = () => {
     setSearchParams(params);
   };
 
-  const fmtDate = (d: string) =>
-    new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(new Date(d));
+  const navigate = useNavigate();
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -136,20 +113,25 @@ const OrdersPage: React.FC = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center gap-2 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
-          {connectionFailed && (
-            <span
-              className="flex items-center gap-1 text-xs text-gray-400"
-              title="Real-time updates unavailable"
-            >
-              <WifiOff className="h-4 w-4" />
-            </span>
-          )}
-        </div>
+        <PageHeader
+          title="My Orders"
+          description="View and track your previous and active orders"
+          actions={
+            connectionFailed ? (
+              <span
+                className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200"
+                title="Real-time updates unavailable"
+              >
+                <WifiOff className="h-3.5 w-3.5" />
+                Live Sync Offline
+              </span>
+            ) : undefined
+          }
+        />
 
         {/* Filters */}
-        <div className="flex gap-2 mb-6 flex-wrap">          {FILTERS.map((f) => (
+        <div className="flex gap-2 my-6 flex-wrap">
+          {FILTERS.map((f) => (
             <Button
               key={f.value}
               variant={currentFilter === f.value ? "default" : "outline"}
@@ -171,20 +153,19 @@ const OrdersPage: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
           </div>
         ) : orders.length === 0 ? (
-          <Card className="p-10 text-center">
-            <ShoppingBag className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <h2 className="text-lg font-semibold text-gray-700 mb-1">
-              No orders found
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {currentFilter
-                ? "Try changing the filter."
-                : "You haven't placed any orders yet."}
-            </p>
-            <Button asChild className="bg-orange-500 hover:bg-orange-600">
-              <Link to="/">Browse Restaurants</Link>
-            </Button>
-          </Card>
+          <EmptyState
+            icon={ShoppingBag}
+            title="No orders found"
+            description={
+              currentFilter
+                ? "Try changing your filter to view other orders."
+                : "You haven't placed any orders yet. Browse our restaurants and find something delicious!"
+            }
+            action={{
+              label: "Browse Restaurants",
+              onClick: () => navigate("/restaurants"),
+            }}
+          />
         ) : (
           <div className="space-y-3">
             {orders.map((order, idx) => (
@@ -207,34 +188,26 @@ const OrdersPage: React.FC = () => {
                           </p>
                           <p className="text-xs text-gray-500 flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {fmtDate(order.createdAt)}
+                            {formatDateTime(order.createdAt)}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2.5 flex-shrink-0">
-                        <span
-                          className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[order.status]}`}
-                        >
-                          {STATUS_LABEL[order.status]}
-                        </span>
-                        <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
+                        <StatusBadge status={order.status} size="sm" />
+                        <StatusBadge
+                          status={order.paymentStatus === 'paid' ? 'paid' : 'unpaid'}
+                          label={
                             order.paymentStatus === 'paid'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                              ? 'Paid'
                               : order.paymentMethod === 'cash_on_delivery'
-                              ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                          }`}
-                        >
-                          {order.paymentStatus === 'paid'
-                            ? 'Paid'
-                            : order.paymentMethod === 'cash_on_delivery'
-                            ? 'Cash'
-                            : 'Unpaid'}
-                        </span>
+                              ? 'Cash'
+                              : 'Unpaid'
+                          }
+                          size="sm"
+                        />
                         <span className="font-bold text-gray-900 text-sm">
-                          ৳{order.total.toFixed(2)}
+                          {formatCurrency(order.total)}
                         </span>
                         <ChevronRight className="h-4 w-4 text-gray-400" />
                       </div>

@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -9,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   Select,
   SelectContent,
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { toast } from '@/lib/toast';
 import reservationService from '@/services/reservationService';
 import type { Reservation, ReservationStatus } from '@/types/reservation';
@@ -29,55 +30,6 @@ import {
   Search,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-
-const getStatusBadge = (status: ReservationStatus) => {
-  switch (status) {
-    case 'confirmed':
-      return (
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-          Confirmed
-        </span>
-      );
-    case 'seated':
-      return (
-        <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
-          Seated
-        </span>
-      );
-    case 'completed':
-      return (
-        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-600/20">
-          Completed
-        </span>
-      );
-    case 'pending':
-      return (
-        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-          Pending
-        </span>
-      );
-    case 'cancelled':
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-          Cancelled
-        </span>
-      );
-    case 'rejected':
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-          Rejected
-        </span>
-      );
-    case 'no_show':
-      return (
-        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-600/20">
-          No Show
-        </span>
-      );
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
-};
 
 export const AdminReservationsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -123,10 +75,13 @@ export const AdminReservationsPage: React.FC = () => {
     void fetchReservations();
   }, [fetchReservations]);
 
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
   const handleAdminStatusChange = async (
     resId: string,
     newStatus: ReservationStatus,
   ) => {
+    setUpdatingStatus(true);
     try {
       await reservationService.updateReservationStatus(resId, {
         status: newStatus,
@@ -139,21 +94,18 @@ export const AdminReservationsPage: React.FC = () => {
       const msg =
         err instanceof Error ? err.message : 'Failed to update reservation.';
       toast.error('Update Failed', { description: msg });
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">
-          Reservations Oversight
-        </h1>
-        <p className="mt-1 text-xs sm:text-sm text-gray-500">
-          Platform-wide table reservations, floor occupancy, and dispute
-          moderation
-        </p>
-      </div>
+      <PageHeader
+        title="Reservations Oversight"
+        subtitle="Platform-wide table reservations, floor occupancy, and dispute moderation"
+      />
 
       {/* Filters Card */}
       <Card className="p-4 rounded-2xl border-gray-200/80 shadow-sm space-y-3">
@@ -265,7 +217,9 @@ export const AdminReservationsPage: React.FC = () => {
                       <td className="px-3 py-3 font-semibold text-gray-900">
                         {res.partySize}
                       </td>
-                      <td className="px-3 py-3">{getStatusBadge(res.status)}</td>
+                      <td className="px-3 py-3">
+                        <StatusBadge status={res.status} size="sm" />
+                      </td>
                       <td className="px-3 py-3">
                         {res.deposit?.required ? (
                           <span
@@ -358,9 +312,9 @@ export const AdminReservationsPage: React.FC = () => {
                   <span className="text-gray-400 block text-[10px] uppercase font-bold">
                     Status
                   </span>
-                  <span className="font-semibold text-gray-900 capitalize">
-                    {selectedRes.status}
-                  </span>
+                  <div className="mt-0.5">
+                    <StatusBadge status={selectedRes.status} size="sm" />
+                  </div>
                 </div>
                 <div>
                   <span className="text-gray-400 block text-[10px] uppercase font-bold">
@@ -421,6 +375,7 @@ export const AdminReservationsPage: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={updatingStatus}
                     onClick={() =>
                       handleAdminStatusChange(selectedRes._id, 'confirmed')
                     }
@@ -431,6 +386,7 @@ export const AdminReservationsPage: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={updatingStatus}
                     onClick={() =>
                       handleAdminStatusChange(selectedRes._id, 'seated')
                     }
@@ -441,6 +397,7 @@ export const AdminReservationsPage: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={updatingStatus}
                     onClick={() =>
                       handleAdminStatusChange(selectedRes._id, 'completed')
                     }
@@ -451,6 +408,7 @@ export const AdminReservationsPage: React.FC = () => {
                   <Button
                     size="sm"
                     variant="destructive"
+                    disabled={updatingStatus}
                     onClick={() =>
                       handleAdminStatusChange(selectedRes._id, 'cancelled')
                     }

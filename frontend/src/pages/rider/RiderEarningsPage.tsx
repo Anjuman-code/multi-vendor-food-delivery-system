@@ -1,4 +1,4 @@
-import { PageHeader, SectionCard, StatCard } from "@/components/rider";
+import { PageHeader, SectionCard, StatCard, StatusBadge } from "@/components/rider";
 import { Button } from "@/components/ui/button";
 import { WithdrawalRequestModal } from "@/components/payment/WithdrawalRequestModal";
 import { UnifiedPaymentModal } from "@/components/payment/UnifiedPaymentModal";
@@ -267,15 +267,6 @@ const RiderEarningsPage: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {payouts.map((p) => {
-              const statusClass =
-                p.status === "completed"
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : p.status === "processing"
-                  ? "bg-blue-500/10 text-blue-600"
-                  : p.status === "failed"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-amber-500/10 text-amber-600";
-
               return (
                 <div
                   key={p._id}
@@ -295,15 +286,11 @@ const RiderEarningsPage: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center gap-3 text-right">
                     <p className="font-bold text-foreground">
                       ৳{p.amount.toFixed(2)}
                     </p>
-                    <span
-                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${statusClass}`}
-                    >
-                      {p.status}
-                    </span>
+                    <StatusBadge status={p.status} size="sm" />
                   </div>
                 </div>
               );

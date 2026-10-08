@@ -383,11 +383,9 @@ const Navbar: React.FC = memo(() => {
                 >
                   Log in
                 </Link>
-                <Link to="/register">
-                  <Button className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-6 py-2 rounded-full font-medium shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-300 hover:-translate-y-0.5">
-                    Sign up
-                  </Button>
-                </Link>
+                <Button asChild className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-6 py-2 rounded-full font-medium shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-300 hover:-translate-y-0.5">
+                  <Link to="/register">Sign up</Link>
+                </Button>
               </>
             )}
           </div>
@@ -590,11 +588,11 @@ const Navbar: React.FC = memo(() => {
                         <User className="w-4 h-4" />
                         Log in
                       </Link>
-                      <Link to="/register" onClick={() => setIsOpen(false)}>
-                        <Button className="w-full bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-brand-500/25">
+                      <Button asChild className="w-full bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-brand-500/25">
+                        <Link to="/register" onClick={() => setIsOpen(false)}>
                           Create Account
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                       {!isAuthenticated && (
                         <Link
                           to="/vendor/register"

@@ -48,12 +48,6 @@ import React, {
   useState,
 } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface ApiRestaurant {
   _id: string;
@@ -357,7 +351,7 @@ const RestaurantsPage: React.FC = () => {
   const [filterState, setFilterState] =
     useState<FilterState>(defaultFilterState);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
-  const [showReservation] = useState(false);
+  const [showReservation, setShowReservation] = useState(false);
 
   // UI states
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
@@ -781,26 +775,16 @@ const RestaurantsPage: React.FC = () => {
                   </button>
                 )}
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button
-                        variant="outline"
-                        size="xl"
-                        disabled
-                        className="gap-2 rounded-2xl"
-                      >
-                        <CalendarRange className="h-5 w-5" />
-                        Book a table
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Table booking is under construction</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Button
+                variant={showReservation ? "brand" : "outline"}
+                size="xl"
+                onClick={() => setShowReservation((prev) => !prev)}
+                className="gap-2 rounded-2xl"
+                aria-expanded={showReservation}
+              >
+                <CalendarRange className="h-5 w-5" />
+                {showReservation ? "Hide table booking" : "Book a table"}
+              </Button>
             </div>
 
             <AnimatePresence initial={false}>

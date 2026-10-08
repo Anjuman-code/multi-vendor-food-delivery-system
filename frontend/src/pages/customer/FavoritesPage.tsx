@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Heart,
   MapPin,
   Star,
   Clock,
-  Trash2,
-  UtensilsCrossed,
   Search,
   ArrowLeft,
   Loader2,
@@ -16,18 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { InteractiveCardAction, InteractiveCardLink } from "@/components/ui/InteractiveCard";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import userService from "@/services/userService";
 import { restaurantFallbackSVG } from "@/utils/fallbackImages";
+import { formatCurrency } from "@/utils/format";
 
 // ── Types for populated restaurant from backend ────────────────
 
@@ -163,57 +157,6 @@ const FavoritesPage: React.FC = () => {
 
   const restaurantToRemove = favorites.find((r) => r._id === confirmRemoveId);
 
-  // ── Empty state (no favorites at all) ────────────────────────
-  const EmptyFavorites: React.FC = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="flex flex-col items-center justify-center py-20 px-4"
-    >
-      <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mb-6">
-        <Heart className="w-12 h-12 text-orange-400" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-        No favorites yet
-      </h3>
-      <p className="text-gray-500 text-center max-w-md mb-8">
-        Start exploring restaurants and save your favorites here for quick
-        access. Tap the heart icon on any restaurant to add it.
-      </p>
-      <Button
-        onClick={() => navigate("/restaurants")}
-        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-3 rounded-full font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300"
-      >
-        <UtensilsCrossed className="w-5 h-5 mr-2" />
-        Explore Restaurants
-      </Button>
-    </motion.div>
-  );
-
-  // ── No search results ────────────────────────────────────────
-  const NoSearchResults: React.FC = () => (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex flex-col items-center justify-center py-16 px-4"
-    >
-      <Search className="w-12 h-12 text-gray-300 mb-4" />
-      <h3 className="text-lg font-semibold text-gray-700 mb-1">
-        No matches found
-      </h3>
-      <p className="text-gray-500 text-sm">
-        Try a different search term or{" "}
-        <button
-          onClick={() => setSearchQuery("")}
-          className="text-orange-500 hover:text-orange-600 font-medium"
-        >
-          clear your search
-        </button>
-      </p>
-    </motion.div>
-  );
-
   return (
     <div className="min-h-[60vh] pb-16">
       {/* Header */}
@@ -276,12 +219,32 @@ const FavoritesPage: React.FC = () => {
         )}
 
         {/* Empty state */}
-        {!isLoading && favorites.length === 0 && <EmptyFavorites />}
+        {!isLoading && favorites.length === 0 && (
+          <EmptyState
+            icon={Heart}
+            title="No favorites yet"
+            description="Start exploring restaurants and save your favorites here for quick access. Tap the heart icon on any restaurant to add it."
+            action={{
+              label: "Explore Restaurants",
+              onClick: () => navigate("/restaurants"),
+            }}
+          />
+        )}
 
         {/* No search results */}
         {!isLoading &&
           favorites.length > 0 &&
-          filteredFavorites.length === 0 && <NoSearchResults />}
+          filteredFavorites.length === 0 && (
+            <EmptyState
+              icon={Search}
+              title="No matches found"
+              description="Try a different search term or clear your search to see all your favorites."
+              action={{
+                label: "Clear Search",
+                onClick: () => setSearchQuery(""),
+              }}
+            />
+          )}
 
         {/* Favorites grid */}
         {!isLoading && filteredFavorites.length > 0 && (
@@ -303,7 +266,7 @@ const FavoritesPage: React.FC = () => {
                     duration: 0.3,
                     delay: index * 0.05,
                   }}
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-orange-100 transition-all duration-300 overflow-hidden"
+                  className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-orange-100 transition-all duration-300 overflow-hidden"
                 >
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
@@ -315,21 +278,23 @@ const FavoritesPage: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
                     {/* Remove button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmRemoveId(restaurant._id);
-                      }}
-                      disabled={removingId === restaurant._id}
-                      className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-red-50 hover:text-red-500 transition-all duration-200 group/btn"
-                      aria-label={`Remove ${restaurant.name} from favorites`}
-                    >
-                      {removingId === restaurant._id ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                      ) : (
-                        <Heart className="w-4 h-4 text-red-500 fill-red-500 group-hover/btn:scale-110 transition-transform" />
-                      )}
-                    </button>
+                    <InteractiveCardAction className="absolute top-3 right-3 z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmRemoveId(restaurant._id);
+                        }}
+                        disabled={removingId === restaurant._id}
+                        className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-red-50 hover:text-red-500 transition-all duration-200 group/btn"
+                        aria-label={`Remove ${restaurant.name} from favorites`}
+                      >
+                        {removingId === restaurant._id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                        ) : (
+                          <Heart className="w-4 h-4 text-red-500 fill-red-500 group-hover/btn:scale-110 transition-transform" />
+                        )}
+                      </button>
+                    </InteractiveCardAction>
 
                     {/* Rating badge */}
                     {restaurant.rating && restaurant.rating.average > 0 && (
@@ -348,12 +313,11 @@ const FavoritesPage: React.FC = () => {
                   </div>
 
                   {/* Content */}
-                  <Link
-                    to={`/restaurants/${restaurant._id}`}
-                    className="block p-5"
-                  >
+                  <div className="p-5">
                     <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors line-clamp-1">
-                      {restaurant.name}
+                      <InteractiveCardLink to={`/restaurants/${restaurant._id}`}>
+                        {restaurant.name}
+                      </InteractiveCardLink>
                     </h3>
 
                     {restaurant.description && (
@@ -412,18 +376,18 @@ const FavoritesPage: React.FC = () => {
                             Delivery:{" "}
                             {restaurant.deliveryFee === 0
                               ? "Free"
-                              : `$${restaurant.deliveryFee.toFixed(2)}`}
+                              : formatCurrency(restaurant.deliveryFee)}
                           </span>
                         )}
                         {restaurant.minimumOrder !== undefined &&
                           restaurant.minimumOrder > 0 && (
                             <span>
-                              Min: ${restaurant.minimumOrder.toFixed(2)}
+                              Min: {formatCurrency(restaurant.minimumOrder)}
                             </span>
                           )}
                       </div>
                     )}
-                  </Link>
+                  </div>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -432,49 +396,22 @@ const FavoritesPage: React.FC = () => {
       </div>
 
       {/* Confirm removal dialog */}
-      <Dialog
+      <ConfirmDialog
         open={!!confirmRemoveId}
-        onOpenChange={(open) => !open && setConfirmRemoveId(null)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-500" />
-              Remove from favorites?
-            </DialogTitle>
-            <DialogDescription>
-              {restaurantToRemove
-                ? `Are you sure you want to remove "${restaurantToRemove.name}" from your favorites? You can always add it back later.`
-                : "This restaurant will be removed from your favorites."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setConfirmRemoveId(null)}
-              disabled={!!removingId}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (confirmRemoveId) handleRemoveFavorite(confirmRemoveId);
-              }}
-              disabled={!!removingId}
-            >
-              {removingId ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Removing…
-                </>
-              ) : (
-                "Remove"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onClose={() => setConfirmRemoveId(null)}
+        title="Remove from favorites?"
+        description={
+          restaurantToRemove
+            ? `Are you sure you want to remove "${restaurantToRemove.name}" from your favorites? You can always add it back later.`
+            : "This restaurant will be removed from your favorites."
+        }
+        confirmLabel="Remove"
+        destructive
+        loading={!!removingId}
+        onConfirm={() => {
+          if (confirmRemoveId) handleRemoveFavorite(confirmRemoveId);
+        }}
+      />
     </div>
   );
 };

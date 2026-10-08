@@ -1,6 +1,11 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  InteractiveCard,
+  InteractiveCardAction,
+  InteractiveCardLink,
+} from '@/components/ui/InteractiveCard';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -17,8 +22,8 @@ interface RestaurantCardProps {
   onFavoriteToggle: (id: string | number) => void;
   onBookClick: (restaurant: Restaurant) => void;
   onViewMapClick: (restaurant: Restaurant) => void;
-  onCardClick: (restaurant: Restaurant) => void;
-  onImageClick: (restaurant: Restaurant) => void;
+  onCardClick?: (restaurant: Restaurant) => void;
+  onImageClick?: (restaurant: Restaurant) => void;
   isSelected?: boolean;
   isLoading?: boolean;
 }
@@ -27,9 +32,8 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
   ({
     restaurant,
     onFavoriteToggle,
+    onBookClick,
     onViewMapClick,
-    onCardClick,
-    onImageClick,
     isSelected = false,
   }) => {
     const [imageLoaded, setImageLoaded] = useState(false);
@@ -80,17 +84,13 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
       [restaurant.id, onFavoriteToggle],
     );
 
-    const handleImageClick = useCallback(
+    const handleBookClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        onImageClick(restaurant);
+        onBookClick(restaurant);
       },
-      [restaurant, onImageClick],
+      [restaurant, onBookClick],
     );
-
-    const handleCardClick = useCallback(() => {
-      onCardClick(restaurant);
-    }, [restaurant, onCardClick]);
 
     const handleViewMapClick = useCallback(
       (e: React.MouseEvent) => {
@@ -100,44 +100,16 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
       [restaurant, onViewMapClick],
     );
 
-    const handleKeyDown = useCallback(
-      (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onCardClick(restaurant);
-        }
-      },
-      [restaurant, onCardClick],
-    );
-
     return (
       <TooltipProvider>
-        <motion.article
-          layout
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          whileHover={{ y: -3, boxShadow: '0 14px 32px rgba(15,23,42,0.12)' }}
-          onClick={handleCardClick}
-          onKeyDown={handleKeyDown}
-          tabIndex={0}
-          role="article"
-          aria-label={`${restaurant.name} - ${typeLabel}, ${cuisineLabel}. Rating: ${restaurant.rating} out of 5 with ${restaurant.reviewCount} reviews. Located at ${restaurant.address}`}
+        <InteractiveCard
           className={cn(
-            'bg-white rounded-2xl overflow-hidden shadow-sm border flex flex-col w-full max-w-[430px] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
-            isSelected
-              ? 'border-brand-400 ring-2 ring-brand-100'
-              : 'border-gray-200/80',
+            'flex flex-col w-full max-w-[430px] rounded-2xl overflow-hidden shadow-sm border border-gray-200/80 bg-white transition-all duration-300 hover:shadow-lg',
+            isSelected && 'border-brand-400 ring-2 ring-brand-100',
           )}
         >
           {/* Image Section */}
-          <button
-            onClick={handleImageClick}
-            className="relative w-full h-44 flex-shrink-0 overflow-hidden bg-gray-100 group focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500"
-            aria-label={`View photos of ${restaurant.name}`}
-            type="button"
-          >
-            {/* Blur placeholder */}
+          <div className="relative w-full h-44 flex-shrink-0 overflow-hidden bg-gray-100">
             {!imageLoaded && (
               <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
             )}
@@ -145,13 +117,12 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             <img
               ref={imgRef}
               src={imageSrc}
-              alt={`${restaurant.name} restaurant interior`}
+              alt={`${restaurant.name} restaurant`}
               className={cn(
-                'w-full h-full object-cover transition-all duration-500',
+                'w-full h-full object-cover transition-all duration-500 group-hover:scale-105',
                 imageLoaded || imageSrc === '/table.png'
                   ? 'opacity-100'
                   : 'opacity-0',
-                'group-hover:scale-105',
               )}
               loading="lazy"
               decoding="async"
@@ -159,7 +130,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
               onError={handleImageError}
             />
 
-            <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-2">
+            <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-2 z-10 pointer-events-none">
               <div className="bg-white/95 backdrop-blur rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm border border-white/80">
                 <Star
                   className="w-3.5 h-3.5 text-brand-500 fill-brand-500"
@@ -184,22 +155,22 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
             </div>
 
             {restaurant.isRecommended && (
-              <div className="absolute left-2 bottom-2 bg-gradient-to-r from-brand-500 to-amber-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+              <div className="absolute left-2 bottom-2 bg-gradient-to-r from-brand-500 to-amber-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 z-10 pointer-events-none">
                 <Star className="w-3 h-3 fill-current" />
                 Recommended
               </div>
             )}
-
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-          </button>
+          </div>
 
           {/* Content Section */}
           <div className="flex-1 px-4 py-3 flex flex-col justify-between min-w-0 gap-3">
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-gray-900 hover:text-brand-600 transition-colors truncate">
-                    {restaurant.name}
+                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-brand-600 transition-colors truncate">
+                    <InteractiveCardLink to={`/restaurants/${restaurant.id}`}>
+                      {restaurant.name}
+                    </InteractiveCardLink>
                   </h3>
                   <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
                     <span>{typeLabel}</span>
@@ -218,41 +189,43 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
                     </Badge>
                   )}
 
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <motion.button
-                        onClick={handleFavoriteClick}
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.94 }}
-                        type="button"
-                        aria-label={
-                          restaurant.isFavorite
-                            ? `Remove ${restaurant.name} from favorites`
-                            : `Add ${restaurant.name} to favorites`
-                        }
-                        aria-pressed={restaurant.isFavorite}
-                        className={cn(
-                          'p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
-                          restaurant.isFavorite
-                            ? 'text-red-500 bg-red-50'
-                            : 'text-gray-400 hover:text-red-500 hover:bg-red-50',
-                        )}
-                      >
-                        <Heart
+                  <InteractiveCardAction>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <motion.button
+                          onClick={handleFavoriteClick}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.94 }}
+                          type="button"
+                          aria-label={
+                            restaurant.isFavorite
+                              ? `Remove ${restaurant.name} from favorites`
+                              : `Add ${restaurant.name} to favorites`
+                          }
+                          aria-pressed={restaurant.isFavorite}
                           className={cn(
-                            'w-4.5 h-4.5',
-                            restaurant.isFavorite && 'fill-current',
+                            'p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
+                            restaurant.isFavorite
+                              ? 'text-red-500 bg-red-50'
+                              : 'text-gray-400 hover:text-red-500 hover:bg-red-50',
                           )}
-                          aria-hidden="true"
-                        />
-                      </motion.button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {restaurant.isFavorite
-                        ? 'Remove from favorites'
-                        : 'Add to favorites'}
-                    </TooltipContent>
-                  </Tooltip>
+                        >
+                          <Heart
+                            className={cn(
+                              'w-4.5 h-4.5',
+                              restaurant.isFavorite && 'fill-current',
+                            )}
+                            aria-hidden="true"
+                          />
+                        </motion.button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {restaurant.isFavorite
+                          ? 'Remove from favorites'
+                          : 'Add to favorites'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </InteractiveCardAction>
                 </div>
               </div>
 
@@ -293,42 +266,38 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
               )}
             </div>
 
+            {/* Action Bar */}
             <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button
-                      disabled
-                      className="bg-brand-500/60 text-white font-medium px-5 rounded-lg transition-colors h-9 cursor-not-allowed"
-                      size="sm"
-                      aria-label={`Book a table at ${restaurant.name}`}
-                    >
-                      Book a table
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Table booking is under construction</p>
-                </TooltipContent>
-              </Tooltip>
-              <Button
-                onClick={handleViewMapClick}
-                variant="outline"
-                size="sm"
-                className="h-9 px-3 border-gray-300 hover:border-brand-300 hover:text-brand-600"
-                aria-label={`View ${restaurant.name} on map`}
-              >
-                <Map className="w-4 h-4 mr-1" />
-                View in map
-              </Button>
+              <InteractiveCardAction>
+                <Button
+                  onClick={handleBookClick}
+                  className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white font-medium px-4 rounded-lg transition-colors h-9"
+                  size="sm"
+                  aria-label={`Book a table at ${restaurant.name}`}
+                >
+                  Book a table
+                </Button>
+              </InteractiveCardAction>
+
+              <InteractiveCardAction>
+                <Button
+                  onClick={handleViewMapClick}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 border-gray-300 hover:border-brand-300 hover:text-brand-600"
+                  aria-label={`View ${restaurant.name} on map`}
+                >
+                  <Map className="w-4 h-4 mr-1" />
+                  View in map
+                </Button>
+              </InteractiveCardAction>
             </div>
           </div>
-        </motion.article>
+        </InteractiveCard>
       </TooltipProvider>
     );
   },
   (prevProps, nextProps) => {
-    // Custom comparison for memoization
     return (
       prevProps.restaurant.id === nextProps.restaurant.id &&
       prevProps.restaurant.isFavorite === nextProps.restaurant.isFavorite &&
@@ -337,5 +306,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = memo(
     );
   },
 );
+
+RestaurantCard.displayName = 'RestaurantCard';
 
 export default RestaurantCard;

@@ -1,9 +1,12 @@
 import FoodItemCard from '@/components/ui/FoodItemCard';
 import homeService from '@/services/homeService';
 import type { TrendingItem } from '@/types/home';
+import { useCart } from '@/contexts/CartContext';
+import { toast } from '@/lib/toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const colorPalette = [
   'from-brand-900 to-amber-900',
@@ -13,6 +16,8 @@ const colorPalette = [
   'from-emerald-900 to-teal-900',
 ];
 const TrendingFoodItems: React.FC = () => {
+  const navigate = useNavigate();
+  const { addItem } = useCart();
   const [activeIndex, setActiveIndex] = useState(0);
   const [items, setItems] = useState<TrendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -193,6 +198,33 @@ const TrendingFoodItems: React.FC = () => {
                         category: item.category,
                         rating: item.rating,
                         isAvailable: true,
+                      }}
+                      onClick={() => {
+                        if (item.restaurantId) {
+                          navigate(`/menu/${item.restaurantId}/${item._id}`);
+                        } else {
+                          navigate('/restaurants');
+                        }
+                      }}
+                      onAddToCart={async () => {
+                        try {
+                          await addItem(
+                            item.restaurantId || 'unknown',
+                            item.restaurantName || 'Restaurant',
+                            {
+                              menuItemId: item._id,
+                              name: item.name,
+                              price: item.price,
+                              image: item.image,
+                              quantity: 1,
+                              variants: [],
+                              addons: [],
+                            }
+                          );
+                          toast.success(`Added ${item.name} to cart!`);
+                        } catch {
+                          toast.error(`Failed to add ${item.name} to cart.`);
+                        }
                       }}
                       className="w-full h-full"
                     />

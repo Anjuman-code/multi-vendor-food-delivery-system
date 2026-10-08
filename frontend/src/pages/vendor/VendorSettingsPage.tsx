@@ -88,13 +88,11 @@ const SaveButton: React.FC<{
         variant="brand"
         onClick={onClick}
         disabled={loading || disabled}
+        loading={loading}
+        loadingText="Saving..."
         className="gap-2"
     >
-        {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-            <Save className="h-4 w-4" />
-        )}
+        <Save className="h-4 w-4" />
         {label}
     </Button>
 );

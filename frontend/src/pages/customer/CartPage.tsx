@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import FoodItemCard from "@/components/ui/FoodItemCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "@/lib/toast";
+import { formatCurrency } from "@/utils/format";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   ChevronLeft,
   Plus,
-  ShoppingBag,
   ShoppingCart,
   Store,
   Tag,
@@ -85,48 +86,24 @@ const CartPage: React.FC = () => {
   /* ── Empty State ────────────────────────────────────────────── */
   if (items.length === 0) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 bg-gradient-to-b from-orange-50/40 to-transparent">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="text-center max-w-sm"
-        >
-          <div className="relative inline-flex items-center justify-center mb-6">
-            <div className="absolute inset-0 bg-orange-100 rounded-full scale-150 opacity-40" />
-            <div className="relative bg-white rounded-full p-6 shadow-md border border-orange-100">
-              <ShoppingCart className="h-12 w-12 text-orange-400" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Your cart is empty
-          </h2>
-          <p className="text-gray-500 mb-8 leading-relaxed">
-            Looks like you haven't added anything yet. Explore our restaurants
-            and find something delicious!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/restaurants">
-              <Button className="bg-orange-500 hover:bg-orange-600 px-6 w-full sm:w-auto">
-                <ShoppingBag className="mr-2 h-4 w-4" />
-                Browse Restaurants
-              </Button>
-            </Link>
-            {isAuthenticated && (
-              <Link to="/orders">
-                <Button variant="outline" className="px-6 w-full sm:w-auto">
-                  View Order History &rarr;
-                </Button>
-              </Link>
-            )}
-          </div>
-          <Link
-            to="/"
-            className="inline-block mt-4 text-sm text-gray-500 hover:text-gray-700 font-medium hover:underline transition-colors"
-          >
-            Go Home
-          </Link>
-        </motion.div>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4">
+        <EmptyState
+          icon={ShoppingCart}
+          title="Your cart is empty"
+          description="Looks like you haven't added anything yet. Explore our restaurants and find something delicious!"
+          action={{
+            label: "Browse Restaurants",
+            onClick: () => navigate("/restaurants"),
+          }}
+          secondaryAction={
+            isAuthenticated
+              ? {
+                  label: "View Order History",
+                  onClick: () => navigate("/orders"),
+                }
+              : undefined
+          }
+        />
       </div>
     );
   }
@@ -378,7 +355,7 @@ const CartPage: React.FC = () => {
                           <span className="truncate mr-2">
                             {group.restaurantName}
                           </span>
-                          <span>৳{group.deliveryFee.toFixed(2)}</span>
+                          <span>{formatCurrency(group.deliveryFee)}</span>
                         </div>
                       ))}
                     </div>
@@ -398,19 +375,19 @@ const CartPage: React.FC = () => {
                         {itemCount === 1 ? "item" : "items"})
                       </span>
                       <span className="font-medium text-gray-800">
-                        ৳{subtotal.toFixed(2)}
+                        {formatCurrency(subtotal)}
                       </span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Tax (5%)</span>
                       <span className="font-medium text-gray-800">
-                        ৳{tax.toFixed(2)}
+                        {formatCurrency(tax)}
                       </span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Delivery Fee</span>
                       <span className="font-medium text-gray-800">
-                        ৳{deliveryFee.toFixed(2)}
+                        {formatCurrency(deliveryFee)}
                         {isMultiRestaurant && (
                           <span className="text-xs text-gray-400 ml-1">
                             ({itemsByRestaurant.length}×)
@@ -422,7 +399,7 @@ const CartPage: React.FC = () => {
                     <div className="border-t border-dashed border-gray-200 pt-3 mt-1 flex justify-between">
                       <span className="font-bold text-gray-900">Total</span>
                       <span className="font-bold text-lg text-orange-600">
-                        ৳{total.toFixed(2)}
+                        {formatCurrency(total)}
                       </span>
                     </div>
                   </div>

@@ -4,5 +4,5 @@
  */
 export { DeliveryMap } from '@/components/rider/DeliveryMap';
 export type { DeliveryMapProps, LatLng } from '@/components/rider/DeliveryMap';
-export { OrderChat } from './OrderChat';
-export { LiveStageStrip, STAGE_STEPS } from './LiveStageStrip';
+export { OrderChat } from '@/components/orders/OrderChat';
+export { LiveStageStrip, STAGE_STEPS } from '@/components/orders/LiveStageStrip';

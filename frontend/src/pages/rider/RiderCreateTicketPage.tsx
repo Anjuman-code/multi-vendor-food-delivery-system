@@ -15,7 +15,7 @@ import { applyServerErrors } from "@/lib/formErrors";
 import type { TicketPriority, TicketType } from "@/types/support";
 import supportService from "@/services/supportService";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -198,16 +198,13 @@ export default function RiderCreateTicketPage() {
             </div>
           </div>
 
-          <Button type="submit" disabled={submitting} className="w-full">
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" /> Submit ticket
-              </>
-            )}
+          <Button
+            type="submit"
+            loading={submitting}
+            loadingText="Submitting…"
+            className="w-full"
+          >
+            <Send className="mr-2 h-4 w-4" /> Submit ticket
           </Button>
         </form>
       </SectionCard>

@@ -256,9 +256,16 @@ export default function PlatformSettingsPage() {
         title="Platform Settings"
         description="System-wide configuration and payment controls."
         actions={
-          <Button variant="brand" size="sm" onClick={handleSave} disabled={!dirty || hasErrors || saving}>
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={handleSave}
+            disabled={!dirty || hasErrors || saving}
+            loading={saving}
+            loadingText="Saving…"
+          >
             <Save className="mr-1.5 h-4 w-4" />
-            {saving ? "Saving…" : "Save Changes"}
+            Save Changes
           </Button>
         }
       />

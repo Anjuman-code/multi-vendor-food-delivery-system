@@ -5,18 +5,18 @@
  * (cards, tables, badges) are re-exported from the shared dashboard set so
  * rider pages have a single, consistent import surface.
  */
-export { AvailabilityToggle } from "./AvailabilityToggle";
-export type { AvailabilityToggleProps } from "./AvailabilityToggle";
+export { AvailabilityToggle } from "@/components/rider/AvailabilityToggle";
+export type { AvailabilityToggleProps } from "@/components/rider/AvailabilityToggle";
 
-export { DeliveryMap } from "./DeliveryMap";
-export type { DeliveryMapProps, LatLng } from "./DeliveryMap";
+export { DeliveryMap } from "@/components/rider/DeliveryMap";
+export type { DeliveryMapProps, LatLng } from "@/components/rider/DeliveryMap";
 
 export {
   DeliveryStageStepper,
   STAGE_META,
   nextStageAction,
-} from "./DeliveryStageStepper";
-export type { DeliveryStageStepperProps } from "./DeliveryStageStepper";
+} from "@/components/rider/DeliveryStageStepper";
+export type { DeliveryStageStepperProps } from "@/components/rider/DeliveryStageStepper";
 
 // Re-exported shared dashboard primitives (token-driven, role-agnostic).
 export {

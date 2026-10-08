@@ -451,11 +451,9 @@ const ReviewsAndRatings: React.FC = () => {
           <p className="text-gray-600 mb-6">
             Ready to join our community of food lovers?
           </p>
-          <Link to="/restaurants">
-            <Button className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-8 py-6 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              Start Ordering Now
-            </Button>
-          </Link>
+          <Button asChild className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-8 py-6 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Link to="/restaurants">Start Ordering Now</Link>
+          </Button>
         </motion.div>
       </div>
     </section>

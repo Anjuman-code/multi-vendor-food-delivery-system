@@ -9,10 +9,9 @@ import {
 } from "@/components/vendor";
 import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus, TicketPriority } from "@/types/support";
+import type { SupportTicket, TicketPriority } from "@/types/support";
 import {
   TICKET_PRIORITY_LABELS,
-  TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
 } from "@/types/support";
 import { cn } from "@/utils/cn";
@@ -29,15 +28,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-// Status semantics preserved from STATUS_COLORS, rendered via StatusBadge tones.
-const STATUS_TONES: Record<TicketStatus, StatusTone> = {
-  open: "warning",
-  in_progress: "info",
-  waiting_on_user: "warning",
-  resolved: "success",
-  closed: "neutral",
-};
-
+// Priority semantics rendered via StatusBadge tones.
 const PRIORITY_TONES: Record<TicketPriority, StatusTone> = {
   urgent: "danger",
   high: "warning",
@@ -145,10 +136,7 @@ export default function VendorTicketDetailPage() {
                   {ticket.ticketNumber}
                 </span>
               )}
-              <StatusBadge
-                label={TICKET_STATUS_LABELS[ticket.status]}
-                tone={STATUS_TONES[ticket.status]}
-              />
+              <StatusBadge status={ticket.status} />
               <StatusBadge
                 label={TICKET_PRIORITY_LABELS[ticket.priority]}
                 tone={PRIORITY_TONES[ticket.priority]}
@@ -260,13 +248,11 @@ export default function VendorTicketDetailPage() {
               <Button
                 onClick={handleReply}
                 disabled={!replyText.trim() || sending}
+                loading={sending}
+                loadingText="Sending..."
                 variant="brand"
               >
-                {sending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="mr-2 h-4 w-4" />
-                )}
+                <Send className="mr-2 h-4 w-4" />
                 Send Reply
               </Button>
             </div>

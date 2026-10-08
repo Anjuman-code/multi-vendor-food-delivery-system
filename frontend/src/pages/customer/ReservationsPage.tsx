@@ -1,10 +1,12 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirm } from '@/contexts/ConfirmContext';
 import { toast } from '@/lib/toast';
 import reservationService from '@/services/reservationService';
-import type { Reservation, ReservationStatus } from '@/types/reservation';
+import type { Reservation } from '@/types/reservation';
 import { cn } from '@/utils/cn';
 import { restaurantFallbackSVG } from '@/utils/fallbackImages';
 import { format } from 'date-fns';
@@ -22,55 +24,6 @@ import {
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-const getStatusBadge = (status: ReservationStatus) => {
-  switch (status) {
-    case 'confirmed':
-      return (
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-          Confirmed
-        </span>
-      );
-    case 'seated':
-      return (
-        <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
-          Seated
-        </span>
-      );
-    case 'completed':
-      return (
-        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-600/20">
-          Completed
-        </span>
-      );
-    case 'pending':
-      return (
-        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-          Pending Approval
-        </span>
-      );
-    case 'cancelled':
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-          Cancelled
-        </span>
-      );
-    case 'rejected':
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-          Declined
-        </span>
-      );
-    case 'no_show':
-      return (
-        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-600/20">
-          No Show
-        </span>
-      );
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
-};
-
 export const ReservationsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -78,6 +31,7 @@ export const ReservationsPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
 
   const fetchReservations = useCallback(async () => {
@@ -120,6 +74,7 @@ export const ReservationsPage: React.FC = () => {
 
     if (!isConfirmed) return;
 
+    setCancellingId(res._id);
     try {
       await reservationService.cancelMyReservation(
         res._id,
@@ -135,6 +90,8 @@ export const ReservationsPage: React.FC = () => {
           ? err.message
           : 'Could not cancel reservation. Please check cancellation policy.';
       toast.error('Cancellation Failed', { description: msg });
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -142,25 +99,21 @@ export const ReservationsPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50/50 pb-16 pt-6">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">
-              My Table Reservations
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage your upcoming bookings and dining history
-            </p>
-          </div>
-          <Button
-            asChild
-            className="h-11 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold shadow-sm"
-          >
-            <Link to="/restaurants">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Book a New Table
-            </Link>
-          </Button>
-        </div>
+        <PageHeader
+          title="My Table Reservations"
+          description="Manage your upcoming bookings and dining history"
+          actions={
+            <Button
+              asChild
+              className="h-11 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-sm"
+            >
+              <Link to="/restaurants">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Book a New Table
+              </Link>
+            </Button>
+          }
+        />
 
         {/* Mobile Tabs */}
         <div className="mt-6 flex rounded-xl bg-gray-100 p-1">
@@ -194,33 +147,29 @@ export const ReservationsPage: React.FC = () => {
         <div className="mt-6 space-y-4">
           {loading ? (
             <div className="py-20 text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-500" />
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
               <p className="mt-2 text-sm text-gray-500">
                 Loading your reservations...
               </p>
             </div>
           ) : reservations.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center px-4">
-              <CalendarDays className="mx-auto h-12 w-12 text-gray-300" />
-              <h3 className="mt-3 text-base font-bold text-gray-900">
-                {activeTab === 'upcoming'
+            <EmptyState
+              icon={CalendarDays}
+              title={
+                activeTab === 'upcoming'
                   ? 'No Upcoming Reservations'
-                  : 'No Past Reservations'}
-              </h3>
-              <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
-                {activeTab === 'upcoming'
-                  ? 'You don’t have any tables booked right now. Explore popular dine-in spots and reserve in seconds.'
-                  : 'Your past and completed reservations will show up here.'}
-              </p>
-              <div className="mt-5">
-                <Button
-                  asChild
-                  className="rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium"
-                >
-                  <Link to="/restaurants">Browse Restaurants</Link>
-                </Button>
-              </div>
-            </div>
+                  : 'No Past Reservations'
+              }
+              description={
+                activeTab === 'upcoming'
+                  ? "You don’t have any tables booked right now. Explore popular dine-in spots and reserve in seconds."
+                  : "Your past and completed reservations will show up here."
+              }
+              action={{
+                label: "Browse Restaurants",
+                onClick: () => navigate("/restaurants"),
+              }}
+            />
           ) : (
             reservations.map((res) => {
               const restaurant =
@@ -254,7 +203,7 @@ export const ReservationsPage: React.FC = () => {
                             <h3 className="text-base font-bold text-gray-900">
                               {restaurant?.name || 'Restaurant'}
                             </h3>
-                            {getStatusBadge(res.status)}
+                            <StatusBadge status={res.status} size="sm" />
                           </div>
 
                           <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
@@ -271,15 +220,15 @@ export const ReservationsPage: React.FC = () => {
                               #{res.reservationNumber}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5 text-brand-500" />
+                              <Calendar className="h-3.5 w-3.5 text-orange-500" />
                               {format(new Date(res.date), 'EEE, MMM d, yyyy')}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5 text-brand-500" />
+                              <Clock className="h-3.5 w-3.5 text-orange-500" />
                               {res.time}
                             </span>
                             <span className="flex items-center gap-1 font-medium">
-                              <Users className="h-3.5 w-3.5 text-brand-500" />
+                              <Users className="h-3.5 w-3.5 text-orange-500" />
                               {res.partySize} {res.partySize === 1 ? 'Guest' : 'Guests'}
                             </span>
                           </div>
@@ -292,6 +241,8 @@ export const ReservationsPage: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            loading={cancellingId === res._id}
+                            disabled={!!cancellingId}
                             onClick={() => handleCancel(res)}
                             className="rounded-xl text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-9"
                           >

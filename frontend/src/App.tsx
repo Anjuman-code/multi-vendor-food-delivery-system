@@ -8,6 +8,7 @@ import { ConfirmProvider } from '@/contexts/ConfirmContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { AuthLayout, MainLayout, RootLayout, VendorLayout } from '@/layouts';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import React, { lazy, Suspense } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
@@ -270,49 +271,55 @@ function App(): React.ReactElement {
                             element={<MenuItemDetailPage />}
                           />
 
-                          {/* Customer (authenticated) */}
-                          <Route path="/profile" element={<ProfilePage />} />
-                          <Route
-                            path="/favorites"
-                            element={<FavoritesPage />}
-                          />
+                          {/* Cart is accessible to guests and customers */}
                           <Route path="/cart" element={<CartPage />} />
-                          <Route path="/checkout" element={<CheckoutPage />} />
-                          <Route path="/orders" element={<OrdersPage />} />
-                          <Route
-                            path="/orders/:id"
-                            element={<OrderDetailsPage />}
-                          />
-                          <Route
-                            path="/reservations"
-                            element={<ReservationsPage />}
-                          />
-                          <Route
-                            path="/reservations/:id"
-                            element={<ReservationDetailsPage />}
-                          />
-                          <Route
-                            path="/notifications"
-                            element={<NotificationsPage />}
-                          />
-                          <Route path="/support" element={<SupportPage />} />
-                          <Route
-                            path="/support/new"
-                            element={<CreateTicketPage />}
-                          />
-                          <Route
-                            path="/support/:id"
-                            element={<TicketDetailPage />}
-                          />
+
+                          {/* Customer (authenticated) */}
+                          <Route element={<ProtectedRoute />}>
+                            <Route path="/profile" element={<ProfilePage />} />
+                            <Route
+                              path="/favorites"
+                              element={<FavoritesPage />}
+                            />
+                            <Route path="/checkout" element={<CheckoutPage />} />
+                            <Route path="/orders" element={<OrdersPage />} />
+                            <Route
+                              path="/orders/:id"
+                              element={<OrderDetailsPage />}
+                            />
+                            <Route
+                              path="/reservations"
+                              element={<ReservationsPage />}
+                            />
+                            <Route
+                              path="/reservations/:id"
+                              element={<ReservationDetailsPage />}
+                            />
+                            <Route
+                              path="/notifications"
+                              element={<NotificationsPage />}
+                            />
+                            <Route path="/support" element={<SupportPage />} />
+                            <Route
+                              path="/support/new"
+                              element={<CreateTicketPage />}
+                            />
+                            <Route
+                              path="/support/:id"
+                              element={<TicketDetailPage />}
+                            />
+                          </Route>
 
                           <Route path="*" element={<NotFoundPage />} />
                         </Route>
 
                         {/* Onboarding: uses RootLayout directly (no navbar/footer) */}
-                        <Route
-                          path="/onboarding"
-                          element={<OnboardingPage />}
-                        />
+                        <Route element={<ProtectedRoute />}>
+                          <Route
+                            path="/onboarding"
+                            element={<OnboardingPage />}
+                          />
+                        </Route>
 
                         {/* Auth */}
                         <Route element={<AuthLayout />}>
@@ -345,230 +352,238 @@ function App(): React.ReactElement {
                         </Route>
                       </Route>
 
-                      {/* Vendor onboarding (no sidebar) */}
-                      <Route
-                        path="/vendor/onboarding"
-                        element={<VendorOnboardingPage />}
-                      />
+                      {/* ── Vendor routes (guarded) ──── */}
+                      <Route element={<ProtectedRoute allowedRoles={['vendor']} />}>
+                        {/* Vendor onboarding (no sidebar) */}
+                        <Route
+                          path="/vendor/onboarding"
+                          element={<VendorOnboardingPage />}
+                        />
 
-                      {/* ── Vendor routes (own sidebar layout) ──── */}
-                      <Route element={<VendorLayout />}>
-                        <Route
-                          path="/vendor"
-                          element={<VendorDashboardPage />}
-                        />
-                        <Route
-                          path="/vendor/restaurants"
-                          element={<VendorRestaurantsPage />}
-                        />
-                        <Route
-                          path="/vendor/restaurants/new"
-                          element={<RestaurantFormPage />}
-                        />
-                        <Route
-                          path="/vendor/restaurants/:id/edit"
-                          element={<RestaurantFormPage />}
-                        />
-                        <Route
-                          path="/vendor/menu"
-                          element={<VendorMenuPage />}
-                        />
-                        <Route
-                          path="/vendor/menu/items/new"
-                          element={<MenuItemEditorPage />}
-                        />
-                        <Route
-                          path="/vendor/menu/items/:itemId/edit"
-                          element={<MenuItemEditorPage />}
-                        />
-                        <Route
-                          path="/vendor/orders"
-                          element={<VendorOrdersPage />}
-                        />
-                        <Route
-                          path="/vendor/orders/:id"
-                          element={<VendorOrderDetailPage />}
-                        />
-                        <Route
-                          path="/vendor/reservations"
-                          element={<VendorReservationsPage />}
-                        />
-                        <Route
-                          path="/vendor/reservations/settings"
-                          element={<VendorReservationSettingsPage />}
-                        />
-                        <Route
-                          path="/vendor/restaurants/:id/reservations/settings"
-                          element={<VendorReservationSettingsPage />}
-                        />
-                        <Route
-                          path="/vendor/reviews"
-                          element={<VendorReviewsPage />}
-                        />
-                        <Route
-                          path="/vendor/promotions"
-                          element={<VendorPromotionsPage />}
-                        />
-                        <Route
-                          path="/vendor/analytics"
-                          element={<VendorAnalyticsPage />}
-                        />
-                        <Route
-                          path="/vendor/earnings"
-                          element={<VendorEarningsPage />}
-                        />
-                        <Route
-                          path="/vendor/customers"
-                          element={<VendorCustomersPage />}
-                        />
-                        <Route
-                          path="/vendor/settings"
-                          element={<VendorSettingsPage />}
-                        />
-                        <Route
-                          path="/vendor/support"
-                          element={<VendorSupportPage />}
-                        />
-                        <Route
-                          path="/vendor/support/new"
-                          element={<VendorCreateTicketPage />}
-                        />
-                        <Route
-                          path="/vendor/support/:id"
-                          element={<VendorTicketDetailPage />}
-                        />
+                        {/* Vendor sidebar layout */}
+                        <Route element={<VendorLayout />}>
+                          <Route
+                            path="/vendor"
+                            element={<VendorDashboardPage />}
+                          />
+                          <Route
+                            path="/vendor/restaurants"
+                            element={<VendorRestaurantsPage />}
+                          />
+                          <Route
+                            path="/vendor/restaurants/new"
+                            element={<RestaurantFormPage />}
+                          />
+                          <Route
+                            path="/vendor/restaurants/:id/edit"
+                            element={<RestaurantFormPage />}
+                          />
+                          <Route
+                            path="/vendor/menu"
+                            element={<VendorMenuPage />}
+                          />
+                          <Route
+                            path="/vendor/menu/items/new"
+                            element={<MenuItemEditorPage />}
+                          />
+                          <Route
+                            path="/vendor/menu/items/:itemId/edit"
+                            element={<MenuItemEditorPage />}
+                          />
+                          <Route
+                            path="/vendor/orders"
+                            element={<VendorOrdersPage />}
+                          />
+                          <Route
+                            path="/vendor/orders/:id"
+                            element={<VendorOrderDetailPage />}
+                          />
+                          <Route
+                            path="/vendor/reservations"
+                            element={<VendorReservationsPage />}
+                          />
+                          <Route
+                            path="/vendor/reservations/settings"
+                            element={<VendorReservationSettingsPage />}
+                          />
+                          <Route
+                            path="/vendor/restaurants/:id/reservations/settings"
+                            element={<VendorReservationSettingsPage />}
+                          />
+                          <Route
+                            path="/vendor/reviews"
+                            element={<VendorReviewsPage />}
+                          />
+                          <Route
+                            path="/vendor/promotions"
+                            element={<VendorPromotionsPage />}
+                          />
+                          <Route
+                            path="/vendor/analytics"
+                            element={<VendorAnalyticsPage />}
+                          />
+                          <Route
+                            path="/vendor/earnings"
+                            element={<VendorEarningsPage />}
+                          />
+                          <Route
+                            path="/vendor/customers"
+                            element={<VendorCustomersPage />}
+                          />
+                          <Route
+                            path="/vendor/settings"
+                            element={<VendorSettingsPage />}
+                          />
+                          <Route
+                            path="/vendor/support"
+                            element={<VendorSupportPage />}
+                          />
+                          <Route
+                            path="/vendor/support/new"
+                            element={<VendorCreateTicketPage />}
+                          />
+                          <Route
+                            path="/vendor/support/:id"
+                            element={<VendorTicketDetailPage />}
+                          />
+                        </Route>
                       </Route>
 
-                      {/* ── Rider routes (own sidebar layout) ───── */}
-                      <Route element={<RiderLayout />}>
-                        <Route path="/rider" element={<RiderDashboardPage />} />
+                      {/* ── Rider routes (guarded) ───── */}
+                      <Route element={<ProtectedRoute allowedRoles={['driver']} />}>
+                        {/* Rider onboarding (no sidebar) */}
                         <Route
-                          path="/rider/available"
-                          element={<AvailableDeliveriesPage />}
+                          path="/rider/onboarding"
+                          element={<RiderOnboardingPage />}
                         />
-                        <Route
-                          path="/rider/active"
-                          element={<ActiveDeliveryPage />}
-                        />
-                        <Route
-                          path="/rider/earnings"
-                          element={<RiderEarningsPage />}
-                        />
-                        <Route
-                          path="/rider/history"
-                          element={<RiderHistoryPage />}
-                        />
-                        <Route
-                          path="/rider/profile"
-                          element={<RiderProfilePage />}
-                        />
-                        <Route
-                          path="/rider/support"
-                          element={<RiderSupportPage />}
-                        />
-                        <Route
-                          path="/rider/support/new"
-                          element={<RiderCreateTicketPage />}
-                        />
-                        <Route
-                          path="/rider/support/:id"
-                          element={<RiderTicketDetailPage />}
-                        />
+
+                        {/* Rider sidebar layout */}
+                        <Route element={<RiderLayout />}>
+                          <Route path="/rider" element={<RiderDashboardPage />} />
+                          <Route
+                            path="/rider/available"
+                            element={<AvailableDeliveriesPage />}
+                          />
+                          <Route
+                            path="/rider/active"
+                            element={<ActiveDeliveryPage />}
+                          />
+                          <Route
+                            path="/rider/earnings"
+                            element={<RiderEarningsPage />}
+                          />
+                          <Route
+                            path="/rider/history"
+                            element={<RiderHistoryPage />}
+                          />
+                          <Route
+                            path="/rider/profile"
+                            element={<RiderProfilePage />}
+                          />
+                          <Route
+                            path="/rider/support"
+                            element={<RiderSupportPage />}
+                          />
+                          <Route
+                            path="/rider/support/new"
+                            element={<RiderCreateTicketPage />}
+                          />
+                          <Route
+                            path="/rider/support/:id"
+                            element={<RiderTicketDetailPage />}
+                          />
+                        </Route>
                       </Route>
 
-                      {/* Rider onboarding (no sidebar) */}
-                      <Route
-                        path="/rider/onboarding"
-                        element={<RiderOnboardingPage />}
-                      />
-
-                      {/* ── Admin routes (own sidebar layout) ───── */}
-                      <Route path="/admin" element={<AdminLayout />}>
-                        <Route index element={<AdminDashboard />} />
-                        <Route
-                          path="users/customers"
-                          element={<AdminCustomersPage />}
-                        />
-                        <Route
-                          path="users/customers/:id"
-                          element={<AdminCustomerDetailPage />}
-                        />
-                        <Route
-                          path="users/vendors"
-                          element={<AdminVendorsPage />}
-                        />
-                        <Route
-                          path="users/vendors/:id"
-                          element={<AdminVendorDetailPage />}
-                        />
-                        <Route
-                          path="users/drivers"
-                          element={<AdminDriversPage />}
-                        />
-                        <Route
-                          path="users/drivers/:id"
-                          element={<AdminDriverDetailPage />}
-                        />
-                        <Route
-                          path="restaurants"
-                          element={<AdminRestaurantsPage />}
-                        />
-                        <Route
-                          path="restaurants/approval-queue"
-                          element={<AdminApprovalQueuePage />}
-                        />
-                        <Route
-                          path="restaurants/:id"
-                          element={<AdminRestaurantDetailPage />}
-                        />
-                        <Route path="orders" element={<AdminOrdersPage />} />
-                        <Route
-                          path="orders/live"
-                          element={<AdminFleetMapPage />}
-                        />
-                        <Route
-                          path="orders/:id"
-                          element={<AdminOrderDetailPage />}
-                        />
-                        <Route
-                          path="reservations"
-                          element={<AdminReservationsPage />}
-                        />
-                        <Route
-                          path="finance/payouts"
-                          element={<AdminPayoutsPage />}
-                        />
-                        <Route
-                          path="finance/revenue"
-                          element={<AdminRevenueReportsPage />}
-                        />
-                        <Route path="support" element={<AdminSupportPage />} />
-                        <Route
-                          path="support/:id"
-                          element={<AdminTicketDetailPage />}
-                        />
-                        <Route path="disputes" element={<AdminDisputePage />} />
-                        <Route
-                          path="reviews"
-                          element={<AdminReviewModerationPage />}
-                        />
-                        <Route
-                          path="content/taxonomy"
-                          element={<AdminTaxonomyPage />}
-                        />
-                        <Route
-                          path="content/blocks"
-                          element={<AdminContentBlocksPage />}
-                        />
-                        <Route
-                          path="audit-log"
-                          element={<AdminAuditLogPage />}
-                        />
-                        <Route path="team" element={<AdminTeamPage />} />
-                        <Route
-                          path="settings"
-                          element={<AdminPlatformSettingsPage />}
-                        />
+                      {/* ── Admin routes (guarded) ───── */}
+                      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                        <Route path="/admin" element={<AdminLayout />}>
+                          <Route index element={<AdminDashboard />} />
+                          <Route
+                            path="users/customers"
+                            element={<AdminCustomersPage />}
+                          />
+                          <Route
+                            path="users/customers/:id"
+                            element={<AdminCustomerDetailPage />}
+                          />
+                          <Route
+                            path="users/vendors"
+                            element={<AdminVendorsPage />}
+                          />
+                          <Route
+                            path="users/vendors/:id"
+                            element={<AdminVendorDetailPage />}
+                          />
+                          <Route
+                            path="users/drivers"
+                            element={<AdminDriversPage />}
+                          />
+                          <Route
+                            path="users/drivers/:id"
+                            element={<AdminDriverDetailPage />}
+                          />
+                          <Route
+                            path="restaurants"
+                            element={<AdminRestaurantsPage />}
+                          />
+                          <Route
+                            path="restaurants/approval-queue"
+                            element={<AdminApprovalQueuePage />}
+                          />
+                          <Route
+                            path="restaurants/:id"
+                            element={<AdminRestaurantDetailPage />}
+                          />
+                          <Route path="orders" element={<AdminOrdersPage />} />
+                          <Route
+                            path="orders/live"
+                            element={<AdminFleetMapPage />}
+                          />
+                          <Route
+                            path="orders/:id"
+                            element={<AdminOrderDetailPage />}
+                          />
+                          <Route
+                            path="reservations"
+                            element={<AdminReservationsPage />}
+                          />
+                          <Route
+                            path="finance/payouts"
+                            element={<AdminPayoutsPage />}
+                          />
+                          <Route
+                            path="finance/revenue"
+                            element={<AdminRevenueReportsPage />}
+                          />
+                          <Route path="support" element={<AdminSupportPage />} />
+                          <Route
+                            path="support/:id"
+                            element={<AdminTicketDetailPage />}
+                          />
+                          <Route path="disputes" element={<AdminDisputePage />} />
+                          <Route
+                            path="reviews"
+                            element={<AdminReviewModerationPage />}
+                          />
+                          <Route
+                            path="content/taxonomy"
+                            element={<AdminTaxonomyPage />}
+                          />
+                          <Route
+                            path="content/blocks"
+                            element={<AdminContentBlocksPage />}
+                          />
+                          <Route
+                            path="audit-log"
+                            element={<AdminAuditLogPage />}
+                          />
+                          <Route path="team" element={<AdminTeamPage />} />
+                          <Route
+                            path="settings"
+                            element={<AdminPlatformSettingsPage />}
+                          />
+                        </Route>
                       </Route>
                     </Routes>
                   </Suspense>

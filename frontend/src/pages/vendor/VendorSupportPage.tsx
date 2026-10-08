@@ -4,12 +4,11 @@ import {
   SectionCard,
   StatusBadge,
   VendorEmptyState,
-  type StatusTone,
 } from "@/components/vendor";
 import { toast } from "@/lib/toast";
 import supportService from "@/services/supportService";
-import type { SupportTicket, TicketStatus } from "@/types/support";
-import { TICKET_STATUS_LABELS, TICKET_TYPE_LABELS } from "@/types/support";
+import type { SupportTicket } from "@/types/support";
+import { TICKET_TYPE_LABELS } from "@/types/support";
 import { formatDateTime } from "@/utils/format";
 import { motion } from "framer-motion";
 import {
@@ -63,15 +62,6 @@ const QUICK_ACTIONS = [
     icon: MessageSquare,
   },
 ];
-
-// Status semantics preserved from STATUS_COLORS, rendered via StatusBadge tones.
-const STATUS_TONES: Record<TicketStatus, StatusTone> = {
-  open: "warning",
-  in_progress: "info",
-  waiting_on_user: "warning",
-  resolved: "success",
-  closed: "neutral",
-};
 
 export default function VendorSupportPage() {
   const navigate = useNavigate();
@@ -188,8 +178,7 @@ export default function VendorSupportPage() {
                         </p>
                       </div>
                       <StatusBadge
-                        label={TICKET_STATUS_LABELS[ticket.status]}
-                        tone={STATUS_TONES[ticket.status]}
+                        status={ticket.status}
                         className="flex-shrink-0"
                       />
                     </div>
