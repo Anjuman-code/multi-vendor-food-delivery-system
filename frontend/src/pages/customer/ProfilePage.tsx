@@ -21,6 +21,7 @@ import type {
   UserProfile,
 } from "@/services/userService";
 import userService from "@/services/userService";
+import { emailService, EmailPreferences } from "@/services/emailService";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -1427,6 +1428,42 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   );
   const [newPref, setNewPref] = useState("");
 
+  const [emailPrefs, setEmailPrefs] = useState<EmailPreferences>({
+    orderUpdates: true,
+    accountAlerts: true,
+    reviewRequests: false,
+    promotions: false,
+    newsletter: false,
+  });
+  const [isSavingEmailPrefs, setIsSavingEmailPrefs] = useState(false);
+
+  useEffect(() => {
+    async function loadEmailPrefs() {
+      try {
+        const res = await emailService.getPreferences();
+        if (res.preferences) setEmailPrefs(res.preferences);
+      } catch {
+        // non-blocking
+      }
+    }
+    loadEmailPrefs();
+  }, []);
+
+  const handleToggleEmailPref = async (key: keyof EmailPreferences, val: boolean) => {
+    if (key === 'orderUpdates' || key === 'accountAlerts') return;
+    const updated = { ...emailPrefs, [key]: val };
+    setEmailPrefs(updated);
+    try {
+      setIsSavingEmailPrefs(true);
+      await emailService.updatePreferences(updated);
+      toast.success("Success", { description: "Email preference saved" });
+    } catch (err: any) {
+      toast.error("Error", { description: err.message || "Failed to update email preferences" });
+    } finally {
+      setIsSavingEmailPrefs(false);
+    }
+  };
+
   useEffect(() => {
     if (customerProfile) {
       setNotifications(customerProfile.notifications);
@@ -1602,6 +1639,65 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
             ))}
           </div>
         )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 lg:col-span-2">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
+          <Mail className="w-5 h-5 text-orange-500" />
+          Transactional & Marketing Email Preferences
+        </h2>
+        <p className="text-xs text-gray-500 mb-6">
+          Manage transactional milestones, order notifications, and optional promotional subscriptions (RFC 8058 compliant).
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 border border-gray-100">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Order & Delivery Updates</p>
+              <p className="text-xs text-gray-500">Receipts, courier tracking, and milestone notices (Required)</p>
+            </div>
+            <Switch checked={true} disabled aria-label="Order updates required" />
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 border border-gray-100">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Account & Security Alerts</p>
+              <p className="text-xs text-gray-500">Password changes, security notices, and verification (Required)</p>
+            </div>
+            <Switch checked={true} disabled aria-label="Security alerts required" />
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-100 hover:bg-gray-50/50 transition-colors">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Review & Feedback Requests</p>
+              <p className="text-xs text-gray-500">Invitations to rate completed dishes and restaurants</p>
+            </div>
+            <Switch
+              checked={emailPrefs.reviewRequests}
+              onCheckedChange={(val: boolean) => handleToggleEmailPref('reviewRequests', val)}
+              disabled={isSavingEmailPrefs}
+            />
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-100 hover:bg-gray-50/50 transition-colors">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Special Offers & Deals</p>
+              <p className="text-xs text-gray-500">Flash sales, seasonal promotions, and discount vouchers</p>
+            </div>
+            <Switch
+              checked={emailPrefs.promotions}
+              onCheckedChange={(val: boolean) => handleToggleEmailPref('promotions', val)}
+              disabled={isSavingEmailPrefs}
+            />
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-100 hover:bg-gray-50/50 transition-colors md:col-span-2">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Weekly Foodie Digest</p>
+              <p className="text-xs text-gray-500">Curated trending spots and culinary highlights around your city</p>
+            </div>
+            <Switch
+              checked={emailPrefs.newsletter}
+              onCheckedChange={(val: boolean) => handleToggleEmailPref('newsletter', val)}
+              disabled={isSavingEmailPrefs}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

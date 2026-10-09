@@ -12,6 +12,7 @@ import type { AuthRequest } from '../types';
 import { createAuditLog } from '../utils/audit.util';
 import { AuthenticationError, NotFoundError, ValidationError } from '../utils/errors';
 import { successResponse } from '../utils/response.util';
+import { domainEvents } from '../services/domain-events/domain-events';
 
 const buildPagination = (page: number, limit: number, total: number) => ({
   page,
@@ -158,6 +159,10 @@ export const approveRestaurant = async (
       metadata: { welcomeMessage },
     });
 
+    domainEvents.onRestaurantApproved(restaurant._id).catch((err) => {
+      // Non-blocking
+    });
+
     successResponse(res, { restaurant }, 'Restaurant approved');
   } catch (error) {
     next(error);
@@ -195,6 +200,10 @@ export const rejectRestaurant = async (
         { field: 'rejectionReason', newValue: reason },
       ],
       metadata: { reason },
+    });
+
+    domainEvents.onRestaurantRejected(restaurant._id, reason).catch((err) => {
+      // Non-blocking
     });
 
     successResponse(res, { restaurant }, 'Restaurant rejected');

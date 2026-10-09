@@ -16,10 +16,7 @@ import {
     verifyGoogleAuthorizationCode,
 } from "../services/google-oauth.service";
 import { clearAuthCookies, setAuthCookies } from "../utils/auth-cookie.util";
-import {
-    sendPasswordResetEmail,
-    sendVerificationEmail,
-} from "../utils/email.util";
+import { domainEvents } from "../services/domain-events";
 import {
     AuthenticationError,
     ConflictError,
@@ -174,21 +171,16 @@ export const register = async (
     // Create linked customer profile
     await CustomerProfile.create({ userId: user._id });
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(email, otp, verificationToken);
-    } catch (emailError) {
-      console.error("[EMAIL] Failed to send verification email:", emailError);
-    }
+    // Send verification email (async, non-blocking)
+    void domainEvents.onEmailVerificationRequested({
+      userId: user._id,
+      email,
+      firstName: user.firstName,
+      otp,
+      verificationToken,
+    });
 
-    // Log verification token (dev fallback)
-    console.log("\n========================================");
-    console.log("[EMAIL VERIFICATION]");
-    console.log(`  User:  ${email}`);
-    console.log(`  OTP:   ${otp}`);
-    console.log(`  Token: ${verificationToken}`);
-    console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
-    console.log("========================================\n");
+
 
     successResponse(
       res,
@@ -262,21 +254,22 @@ export const registerVendor = async (
       taxId,
     });
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(email, otp, verificationToken);
-    } catch (emailError) {
-      console.error("[EMAIL] Failed to send verification email:", emailError);
-    }
+    // Send verification email (async, non-blocking)
+    void domainEvents.onEmailVerificationRequested({
+      userId: user._id,
+      email,
+      firstName: user.firstName,
+      otp,
+      verificationToken,
+    });
 
-    // Log verification token (dev fallback)
-    console.log("\n========================================");
-    console.log("[EMAIL VERIFICATION - VENDOR]");
-    console.log(`  User:  ${email}`);
-    console.log(`  OTP:   ${otp}`);
-    console.log(`  Token: ${verificationToken}`);
-    console.log(`  Link:  /api/auth/verify-email/${verificationToken}`);
-    console.log("========================================\n");
+    void domainEvents.onVendorApplicationReceived({
+      userId: user._id,
+      email,
+      contactName: `${user.firstName} ${user.lastName}`.trim(),
+      businessName,
+      phone: phoneNumber,
+    });
 
     successResponse(
       res,
@@ -355,18 +348,23 @@ export const registerDriver = async (
       },
     });
 
-    try {
-      await sendVerificationEmail(email, otp, verificationToken);
-    } catch (emailError) {
-      console.error("[EMAIL] Failed to send verification email:", emailError);
-    }
+    // Send verification email (async, non-blocking)
+    void domainEvents.onEmailVerificationRequested({
+      userId: user._id,
+      email,
+      firstName: user.firstName,
+      otp,
+      verificationToken,
+    });
 
-    console.log("\n========================================");
-    console.log("[EMAIL VERIFICATION - DRIVER]");
-    console.log(`  User:  ${email}`);
-    console.log(`  OTP:   ${otp}`);
-    console.log(`  Token: ${verificationToken}`);
-    console.log("========================================\n");
+    void domainEvents.onDriverApplicationReceived({
+      userId: user._id,
+      email,
+      driverName: `${user.firstName} ${user.lastName}`.trim(),
+      vehicleType,
+      licenseNumber,
+      phone: phoneNumber,
+    });
 
     successResponse(
       res,
@@ -780,6 +778,13 @@ export const verifyEmail = async (
     await user.save({ validateBeforeSave: false });
     setAuthCookies(res, { accessToken, refreshToken });
 
+    void domainEvents.onEmailVerified({
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      role: user.role,
+    });
+
     const safeUser = sanitiseUser(toRecord(user.toObject()));
 
     successResponse(
@@ -821,23 +826,16 @@ export const resendVerification = async (
     const { token: rawToken, otp } = verificationToken;
     await user.save({ validateBeforeSave: false });
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(email, otp, rawToken);
-    } catch (emailError) {
-      console.error(
-        "[EMAIL] Failed to send verification email (resend):",
-        emailError,
-      );
-    }
+    // Send verification email (async, non-blocking)
+    void domainEvents.onEmailVerificationRequested({
+      userId: user._id,
+      email,
+      firstName: user.firstName,
+      otp,
+      verificationToken: rawToken,
+    });
 
-    console.log("\n========================================");
-    console.log("[EMAIL VERIFICATION - RESEND]");
-    console.log(`  User:  ${email}`);
-    console.log(`  OTP:   ${otp}`);
-    console.log(`  Token: ${rawToken}`);
-    console.log(`  Link:  /api/auth/verify-email/${rawToken}`);
-    console.log("========================================\n");
+
 
     successResponse(res, null, "Verification email sent");
   } catch (error) {
@@ -872,18 +870,16 @@ export const forgotPassword = async (
     const resetToken = user.generatePasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    // Send password reset email
-    try {
-      await sendPasswordResetEmail(email, resetToken);
-    } catch (emailError) {
-      console.error("[EMAIL] Failed to send password reset email:", emailError);
-    }
+    // Send password reset email (async, non-blocking)
+    void domainEvents.onPasswordResetRequested({
+      userId: user._id,
+      email,
+      firstName: user.firstName,
+      resetToken,
+      requestIp: req.ip,
+    });
 
-    console.log("\n========================================");
-    console.log("[PASSWORD RESET]");
-    console.log(`  User:  ${email}`);
-    console.log(`  Token: ${resetToken}`);
-    console.log("========================================\n");
+
 
     successResponse(
       res,
@@ -931,6 +927,14 @@ export const resetPassword = async (
     user.refreshToken = [];
     await user.save();
 
+    void domainEvents.onPasswordChanged({
+      userId: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      clientIp: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     successResponse(res, null, "Password reset successful");
   } catch (error) {
     next(error);
@@ -975,6 +979,14 @@ export const changePassword = async (
     // Invalidate all other sessions
     user.refreshToken = [];
     await user.save();
+
+    void domainEvents.onPasswordChanged({
+      userId: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      clientIp: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     successResponse(res, null, "Password changed successfully");
   } catch (error) {
@@ -1031,6 +1043,13 @@ export const verifyOTP = async (
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
     setAuthCookies(res, { accessToken, refreshToken });
+
+    void domainEvents.onEmailVerified({
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      role: user.role,
+    });
 
     const safeUser = sanitiseUser(toRecord(user.toObject()));
 

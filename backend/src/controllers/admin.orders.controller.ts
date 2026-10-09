@@ -13,6 +13,7 @@ import { createAuditLog } from '../utils/audit.util';
 import { AuthenticationError, NotFoundError, ValidationError } from '../utils/errors';
 import { successResponse } from '../utils/response.util';
 import { reverseOrderEarnings } from '../utils/vendor-stats.util';
+import { domainEvents } from '../services/domain-events/domain-events';
 
 const buildPagination = (page: number, limit: number, total: number) => ({
   page,
@@ -270,6 +271,10 @@ export const cancelOrder = async (
       /* non-blocking */
     }
 
+    domainEvents.onOrderCancelled(order, 'admin', reason).catch((err) => {
+      // Non-blocking
+    });
+
     successResponse(res, { order }, 'Order cancelled');
   } catch (error) {
     next(error);
@@ -333,6 +338,10 @@ export const issueRefund = async (
       resourceId: order._id,
       changes: [{ field: 'refundAmount', newValue: amount }],
       metadata: { reason, lineItems },
+    });
+
+    domainEvents.onOrderRefundIssued(order, amount, reason).catch((err) => {
+      // Non-blocking
     });
 
     successResponse(res, { order }, `Refund of ${amount} issued`);

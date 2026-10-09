@@ -8,6 +8,7 @@ import { UserRole } from "../config/constants";
 import SupportTicket, { TicketPriority, TicketStatus } from "../models/SupportTicket";
 import { NotificationType } from "../models/Notification";
 import { createNotification } from "../services/notification.service";
+import { domainEvents } from "../services/domain-events/domain-events";
 import type { AuthRequest } from "../types";
 import { createAuditLog } from "../utils/audit.util";
 import {
@@ -57,6 +58,16 @@ export const createTicket = async (
     });
 
     successResponse(res, { ticket }, "Ticket created", 201);
+
+    domainEvents
+      .onSupportTicketCreated(
+        ticket,
+        authReq.user.email,
+        `${authReq.user.firstName} ${authReq.user.lastName}`.trim(),
+      )
+      .catch((err) => {
+        // Non-blocking
+      });
 
     // Notify admin/support agents
     try {
@@ -307,6 +318,12 @@ export const updateTicket = async (
             status: updates.status,
           });
         }
+
+        if (updates.status === 'resolved') {
+          domainEvents.onSupportTicketResolved(ticket).catch((err) => {
+            // Non-blocking
+          });
+        }
       } catch { /* notification not critical */ }
     }
   } catch (error) {
@@ -375,6 +392,16 @@ export const adminAddMessage = async (
         subject: ticket.subject,
         message,
       });
+
+      domainEvents
+        .onSupportAgentReplied(
+          ticket,
+          message,
+          `${authReq.user.firstName} ${authReq.user.lastName}`.trim(),
+        )
+        .catch((err) => {
+          // Non-blocking
+        });
     } catch { /* notification not critical */ }
   } catch (error) {
     next(error);

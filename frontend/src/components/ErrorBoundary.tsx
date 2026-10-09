@@ -1,4 +1,6 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, RotateCcw } from 'lucide-react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -7,7 +9,18 @@ interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
-  fallback?: React.ComponentType<{ error?: Error }>;
+  fallback?: React.ComponentType<{ error?: Error; onReset?: () => void }>;
+}
+
+function isChunkLoadError(error?: Error): boolean {
+  if (!error?.message) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('loading chunk') ||
+    msg.includes('dynamically imported module') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('error loading dynamically imported module')
+  );
 }
 
 class ErrorBoundary extends React.Component<
@@ -23,33 +36,65 @@ class ErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error('Error caught by boundary:', error, errorInfo);
+  componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo): void {
+    // Reset any pending navigation indicator so it does not stay frozen
+    const navBar = document.querySelector('[role="status"][aria-label="Loading page"]');
+    if (navBar) {
+      navBar.remove();
+    }
   }
+
+  handleReset = (): void => {
+    this.setState({ hasError: false, error: undefined });
+    window.location.reload();
+  };
 
   render(): React.ReactNode {
     if (this.state.hasError) {
       const FallbackComponent = this.props.fallback || DefaultFallback;
-      return <FallbackComponent error={this.state.error} />;
+      return (
+        <FallbackComponent
+          error={this.state.error}
+          onReset={this.handleReset}
+        />
+      );
     }
 
     return this.props.children;
   }
 }
 
-const DefaultFallback: React.FC<{ error?: Error }> = ({ error }) => (
-  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-    <h2 className="text-2xl font-bold text-red-600 mb-4">
-      Something went wrong
-    </h2>
-    {error && <p className="text-gray-600 mb-4">{error.message}</p>}
-    <button
-      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      onClick={() => window.location.reload()}
+const DefaultFallback: React.FC<{
+  error?: Error;
+  onReset?: () => void;
+}> = ({ error, onReset }) => {
+  const isChunkError = isChunkLoadError(error);
+
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center"
     >
-      Reload Page
-    </button>
-  </div>
-);
+      <div className="w-14 h-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-4">
+        <AlertCircle className="w-7 h-7" />
+      </div>
+      <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+        {isChunkError ? 'Update Available' : 'Something went wrong'}
+      </h2>
+      <p className="text-sm text-muted-foreground max-w-md mb-6">
+        {isChunkError
+          ? 'A newer version of the application is available. Please reload the page to continue.'
+          : error?.message || 'An unexpected error occurred while loading this view.'}
+      </p>
+      <Button
+        onClick={onReset || (() => window.location.reload())}
+        className="min-h-[44px] gap-2 px-6"
+      >
+        <RotateCcw className="w-4 h-4" />
+        <span>Reload Page</span>
+      </Button>
+    </div>
+  );
+};
 
 export { ErrorBoundary };

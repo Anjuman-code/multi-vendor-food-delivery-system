@@ -41,7 +41,8 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "@/components/ui/Link";
 
 // ── Navigation definition ────────────────────────────────────────
 

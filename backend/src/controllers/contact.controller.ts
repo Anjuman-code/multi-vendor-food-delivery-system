@@ -8,6 +8,7 @@ import SupportTicket, { TicketStatus, TicketPriority } from "../models/SupportTi
 import type { AuthRequest } from "../types";
 import { successResponse } from "../utils/response.util";
 import { ValidationError } from "../utils/errors";
+import { domainEvents } from "../services/domain-events/domain-events";
 
 export const submitContactForm = async (
   req: Request,
@@ -48,6 +49,12 @@ export const submitContactForm = async (
         },
       ],
     });
+
+    domainEvents
+      .onSupportTicketCreated(ticket, email, name)
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(
       res,

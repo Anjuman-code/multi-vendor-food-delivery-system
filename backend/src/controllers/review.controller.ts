@@ -9,6 +9,7 @@ import Reservation from "../models/Reservation";
 import Restaurant from "../models/Restaurant";
 import { successResponse } from "../utils/response.util";
 import { recomputeVendorRating } from "../utils/vendor-stats.util";
+import { domainEvents } from "../services/domain-events/domain-events";
 import ReviewVote from "../models/ReviewVote";
 import {
   AuthenticationError,
@@ -127,6 +128,18 @@ export const createReview = async (
     } catch (statErr) {
       console.error("[vendor-stats] recomputeVendorRating failed", statErr);
     }
+
+    domainEvents
+      .onVendorReviewReceived({
+        restaurantId: targetRestaurantId,
+        reviewerName: `${authReq.user.firstName} ${authReq.user.lastName}`.trim(),
+        rating,
+        reviewTitle: title,
+        comment,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, { review }, "Review submitted", 201);
   } catch (error) {

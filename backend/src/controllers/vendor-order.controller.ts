@@ -5,6 +5,7 @@ import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { NotificationType } from "../models/Notification";
 import { createNotification } from "../services/notification.service";
+import { domainEvents } from "../services/domain-events/domain-events";
 import Order, { OrderStatus } from "../models/Order";
 import VendorProfile from "../models/VendorProfile";
 import { getIO } from "../socket";
@@ -269,6 +270,21 @@ export const updateVendorOrderStatus = async (
         .emit("orderStatusUpdate", payload);
     } catch {
       // Non-blocking – socket emission failure must not affect the HTTP response
+    }
+
+    // Trigger transactional email milestones
+    if (newStatus === OrderStatus.CANCELLED) {
+      domainEvents
+        .onOrderCancelled(order, "vendor", note || "Cancelled by restaurant")
+        .catch((err) => {
+          // Non-blocking
+        });
+    } else if (newStatus === OrderStatus.DELIVERED) {
+      domainEvents
+        .onOrderDelivered(order)
+        .catch((err) => {
+          // Non-blocking
+        });
     }
 
     successResponse(res, { order }, `Order status updated to ${newStatus}`);

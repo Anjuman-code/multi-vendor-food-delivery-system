@@ -78,11 +78,22 @@ export interface IUser {
   lastLogin?: Date;
   failedLoginAttempts: number;
   accountLockedUntil?: Date;
+  // Email preferences & compliance
+  emailPreferences?: IUserEmailPreferences;
+  unsubscribeToken?: string;
 
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
+}
+
+export interface IUserEmailPreferences {
+  orderUpdates: boolean;
+  accountAlerts: boolean;
+  reviewRequests: boolean;
+  promotions: boolean;
+  newsletter: boolean;
 }
 
 /** Instance methods on User documents */

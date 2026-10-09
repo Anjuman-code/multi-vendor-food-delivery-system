@@ -43,7 +43,8 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from '@/components/ui/Link';
 
 // ── Sidebar definitions ──────────────────────────────────────────
 

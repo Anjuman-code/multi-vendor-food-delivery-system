@@ -346,9 +346,30 @@ Before finishing:
 #### Timing Constants (`LOADING_TIMING` in `@/contexts/LoadingContext`)
 - `NAV_SHOW_DELAY_MS` = 120ms (prevents bar flashing on instant navigations).
 - `NAV_MIN_DURATION_MS` = 300ms (ensures visual continuity once bar appears).
+- `NAV_SLOW_CUE_DELAY_MS` = 400ms (triggers pending cue with subtle opacity reduction and aria-busy on slow navigations).
 - `BLOCKING_SHOW_DELAY_MS` = 220ms (fast actions <220ms never flash the overlay).
 - `BLOCKING_MIN_DURATION_MS` = 600ms (keeps overlay visible long enough to read smoothly).
 - `BLOCKING_DEFAULT_TIMEOUT_MS` = 30000ms (stuck guard timeout to reveal retry/cancel options).
+
+#### Navigation Pending Detection & Lifecycle Standard
+- **Intent Detection**: Navigation begins at true user intent via global history interception (`window.history.pushState`, `window.history.replaceState`, and `popstate`) in `LoadingContext`.
+- **Commit Completion**: Navigation completes only when the destination route's elements commit to the DOM, observed in `RootLayout.tsx` upon location change.
+- **Pending-Content Cue**: If route transition exceeds `400ms`, `isNavigatingSlow` activates, gently dimming the active outlet container to `opacity-60` with `aria-busy="true"` across all layouts without layout shift or interaction lock.
+- **Route Chunk Prefetching**: Primary links utilize `Link` / `NavLink` from `@/components/ui/Link`, which pre-warms destination route chunks on hover/focus (desktop) and touchstart/pointerdown (mobile) through `@/utils/routePrefetch.ts`.
+- **Chunk Splitting**: Heavy single-use libraries (e.g. `html2canvas`, `jspdf`) must never be imported statically at route level; load dynamically on user interaction (`await import(...)`).
+- **Resilience**: `ErrorBoundary` catches dynamic chunk-load errors (e.g. stale deployment hashes), calls `resetNavigation()`, and renders a user-friendly page reload prompt.
+
+#### Blocking Loader Architecture (`DeliveryRiderScene` & `RiderLoader`)
+- **Illustration**: Powered by `DeliveryRiderScene.tsx`, an inlined conversion of `frontend/src/assets/illustrations/delivery.svg` with zero external image requests.
+- **Translucent Scrim**: Uses `bg-background/75` without heavy backdrop blur filters, allowing the underlying page to remain faintly visible while preserving maximum text legibility and 60fps performance on low-end devices.
+- **Wheel Spinning**: Concentric front and rear wheels rotate continuously around mathematically exact SVG centers (`579.261px 294.868px` for front, `305.196px 286.666px` for rear) with subtle spoke accents so rotation is clearly visible with zero wobble.
+- **Layered Animations**:
+  - Main chassis/rider gentle vertical bob (`translateY(0)` to `translateY(-2.5px)`).
+  - Ponytail wind flutter secondary oscillation (`-5deg` rotate loop).
+  - Thermal delivery box subtle independent bounce.
+  - Seamless horizontal road scroll with animated dashes.
+  - Backward-streaming exhaust cloud puffs and speed dust lines.
+- **Reduced Motion**: Full `@media (prefers-reduced-motion: reduce)` support halts all transforms/rotations/scrolls and substitutes a calm opacity pulse.
 
 #### API Usage
 ```tsx
@@ -366,3 +387,30 @@ await run(
   }
 );
 ```
+
+### 11. Transactional Email & Messaging Pipeline Standard
+
+#### Hard Rule (Non-Negotiable)
+- **DO NOT TOUCH PAYMENT OTP LOGGING**: The custom mock payment service intentionally logs OTPs to stdout/console so checkout can be tested without a real gateway. Never remove, redact, mask, or route payment OTPs through email modules.
+
+#### Architecture & Outbox Pattern
+- **Domain Event Seam**: Controllers dispatch events through `domainEvents` (`backend/src/services/domain-events/domain-events.ts`), synchronizing DB notifications, real-time socket broadcasts, and transactional emails in one place.
+- **Non-Blocking Enqueue**: Controllers call `emailService.send(...)` which validates idempotency, checks user notification preferences, and writes to `EmailOutbox` in MongoDB. Endpoints return immediately (< 5ms overhead).
+- **Lease-Based Worker**: `email-worker.ts` polls `EmailOutbox` using atomic `findOneAndUpdate` leases (`leaseExpiresAt`). Safe across multiple horizontal cluster instances without requiring Redis or BullMQ.
+- **Secret Encryption**: Sensitive authentication credentials (OTPs, password reset tokens) are encrypted at rest with AES-256-GCM in `EmailOutbox` and purged immediately upon delivery.
+
+#### Email Design & Client Compatibility
+- **Template System**: Templates in `backend/src/services/email/templates/` use a single master layout (`layout.ts`) adhering to Food Rush design tokens (brand primary `#ea580c`, typography, spacing, and mobile 375px viewports).
+- **Size Budget**: Strictly budgeted **<= 102 KB** per email (actual sizes range from 7.1 KB to 14 KB) to avoid Gmail clipping.
+- **Button Standards**: Bulletproof buttons use Microsoft Office VML markup for desktop Outlook and standard HTML/CSS for modern web/mobile clients.
+- **Currency & Formatting**: All amounts are formatted in Bangladeshi Taka (`৳`) with Bengali/international comma grouping (`৳1,017`).
+- **RFC 8058 Compliance**: Marketing and review emails automatically attach `List-Unsubscribe: <url>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers, pointing to the `/unsubscribe` frontend portal.
+
+#### Tooling & Commands
+```bash
+# Inside backend/
+npm run email:preview  # Render all 34 email fixtures to backend/.email-previews/index.html
+npm run test:email    # Run unit/integration test suite for email crypto, templates, and limits
+npm run email:test     # Send single test email via configured provider or sandbox
+```
+

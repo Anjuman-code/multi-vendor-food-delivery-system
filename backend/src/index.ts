@@ -125,8 +125,18 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 2002;
 const server = http.createServer(app);
 initSocket(server);
+
+import { validateEmailConfig } from './services/email/email-config';
+import { emailWorker } from './services/email/email-worker';
+import { emailScheduler } from './services/email/email-scheduler';
+
+validateEmailConfig();
+emailWorker.start(10000);
+emailScheduler.start(15 * 60 * 1000);
+
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
 export default app;
+

@@ -32,7 +32,8 @@ import {
   X,
 } from 'lucide-react';
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Link } from '@/components/ui/Link';
 
 interface NavItem {
   name: string;

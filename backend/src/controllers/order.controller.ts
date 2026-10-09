@@ -18,6 +18,7 @@ import { applyCampaigns } from "./campaign.controller";
 import { processReferralReward } from "./referral.controller";
 import { NotificationType } from "../models/Notification";
 import { createNotification } from "../services/notification.service";
+import { domainEvents } from "../services/domain-events/domain-events";
 import Order, { OrderStatus, PaymentStatus } from "../models/Order";
 import VendorProfile from "../models/VendorProfile";
 import { getIO } from "../socket";
@@ -422,6 +423,16 @@ export const createOrder = async (
     } catch {
       // Non-blocking – socket emission failure must not affect the HTTP response
     }
+
+    // Trigger transactional email pipeline
+    domainEvents
+      .onOrderPlaced({
+        orders: [order],
+        customer: authReq.user,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, { order }, "Order placed successfully", 201);
   } catch (error) {
@@ -890,6 +901,17 @@ export const createOrderFromCart = async (
       }
     }
 
+    // Trigger transactional email pipeline (1 consolidated email for the customer, vendor alerts per sub-order)
+    domainEvents
+      .onOrderPlaced({
+        orders: createdOrders,
+        customer: currentUser,
+        groupOrderId,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
+
     successResponse(
       res,
       { orders: createdOrders, groupOrderId },
@@ -1045,6 +1067,12 @@ export const cancelOrder = async (
       message: `Your order ${order.orderNumber} has been cancelled.`,
       data: { orderId: order._id },
     });
+
+    domainEvents
+      .onOrderCancelled(order, "customer", reason || "Cancelled by customer")
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, { order }, "Order cancelled");
   } catch (error) {

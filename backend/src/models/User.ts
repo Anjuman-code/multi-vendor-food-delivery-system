@@ -148,6 +148,16 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     failedLoginAttempts: { type: Number, default: 0 },
     accountLockedUntil: { type: Date },
 
+    // Email preferences & compliance (RFC 8058)
+    emailPreferences: {
+      orderUpdates: { type: Boolean, default: true },
+      accountAlerts: { type: Boolean, default: true },
+      reviewRequests: { type: Boolean, default: true },
+      promotions: { type: Boolean, default: false },
+      newsletter: { type: Boolean, default: false },
+    },
+    unsubscribeToken: { type: String, sparse: true, index: true },
+
     // Soft delete
     deletedAt: { type: Date },
   },

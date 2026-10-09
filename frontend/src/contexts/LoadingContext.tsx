@@ -34,8 +34,10 @@ export interface ActiveBlockingOperation {
 export interface LoadingContextValue {
   // Navigation progress bar API
   isNavigating: boolean;
+  isNavigatingSlow: boolean;
   startNavigation: () => void;
   finishNavigation: () => void;
+  resetNavigation: () => void;
 
   // Blocking rider loader API
   run: <T>(
@@ -57,6 +59,7 @@ export const LOADING_TIMING = {
   // Navigation Progress Bar
   NAV_SHOW_DELAY_MS: 120,    // Only show bar if navigation takes > 120ms
   NAV_MIN_DURATION_MS: 300,  // Keep bar visible at least 300ms if shown
+  NAV_SLOW_CUE_DELAY_MS: 400, // Show pending cue (dimming) if navigation > 400ms
 
   // Blocking Rider Loader
   BLOCKING_SHOW_DELAY_MS: 220,   // Fast actions (<220ms) never flash the overlay
@@ -75,8 +78,25 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
   // ── 1. Navigation Progress Bar State ────────────────────────────────
   const navCountRef = useRef(0);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isNavigatingSlow, setIsNavigatingSlow] = useState(false);
   const navDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navShownAtRef = useRef<number | null>(null);
+
+  const resetNavigation = useCallback(() => {
+    navCountRef.current = 0;
+    if (navDelayTimerRef.current) {
+      clearTimeout(navDelayTimerRef.current);
+      navDelayTimerRef.current = null;
+    }
+    if (navSlowTimerRef.current) {
+      clearTimeout(navSlowTimerRef.current);
+      navSlowTimerRef.current = null;
+    }
+    navShownAtRef.current = null;
+    setIsNavigating(false);
+    setIsNavigatingSlow(false);
+  }, []);
 
   const startNavigation = useCallback(() => {
     navCountRef.current += 1;
@@ -86,6 +106,11 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsNavigating(true);
         navShownAtRef.current = Date.now();
       }, LOADING_TIMING.NAV_SHOW_DELAY_MS);
+
+      if (navSlowTimerRef.current) clearTimeout(navSlowTimerRef.current);
+      navSlowTimerRef.current = setTimeout(() => {
+        setIsNavigatingSlow(true);
+      }, LOADING_TIMING.NAV_SLOW_CUE_DELAY_MS);
     }
   }, []);
 
@@ -96,6 +121,11 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(navDelayTimerRef.current);
         navDelayTimerRef.current = null;
       }
+      if (navSlowTimerRef.current) {
+        clearTimeout(navSlowTimerRef.current);
+        navSlowTimerRef.current = null;
+      }
+      setIsNavigatingSlow(false);
 
       if (navShownAtRef.current !== null) {
         const elapsed = Date.now() - navShownAtRef.current;
@@ -109,6 +139,50 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
   }, []);
+
+  // Listen to browser navigation intent (pushState, replaceState, popstate)
+  useEffect(() => {
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    const handleNavigationIntent = (targetUrl?: string | URL | null) => {
+      if (!targetUrl) return;
+      try {
+        const currentPath = window.location.pathname + window.location.search;
+        const urlObj = new URL(targetUrl.toString(), window.location.origin);
+        if (urlObj.origin === window.location.origin) {
+          const newPath = urlObj.pathname + urlObj.search;
+          if (newPath !== currentPath) {
+            startNavigation();
+          }
+        }
+      } catch {
+        // Fallback: don't block navigation on URL parsing errors
+      }
+    };
+
+    window.history.pushState = function (data: unknown, unused: string, url?: string | URL | null) {
+      handleNavigationIntent(url);
+      return originalPushState.apply(this, [data, unused, url]);
+    };
+
+    window.history.replaceState = function (data: unknown, unused: string, url?: string | URL | null) {
+      handleNavigationIntent(url);
+      return originalReplaceState.apply(this, [data, unused, url]);
+    };
+
+    const handlePopState = () => {
+      startNavigation();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [startNavigation]);
 
   // ── 2. Blocking Rider Loader State ─────────────────────────────────
   const [operations, setOperations] = useState<ActiveBlockingOperation[]>([]);
@@ -226,8 +300,10 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
   const value = useMemo<LoadingContextValue>(
     () => ({
       isNavigating,
+      isNavigatingSlow,
       startNavigation,
       finishNavigation,
+      resetNavigation,
       run,
       show,
       hide,
@@ -238,8 +314,10 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       isNavigating,
+      isNavigatingSlow,
       startNavigation,
       finishNavigation,
+      resetNavigation,
       run,
       show,
       hide,

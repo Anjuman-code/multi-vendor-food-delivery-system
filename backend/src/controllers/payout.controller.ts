@@ -9,6 +9,7 @@ import VendorProfile from "../models/VendorProfile";
 import DriverProfile from "../models/DriverProfile";
 import { createAuditLog } from "../utils/audit.util";
 import { successResponse } from "../utils/response.util";
+import { domainEvents } from "../services/domain-events/domain-events";
 import {
   AuthenticationError,
   AuthorizationError,
@@ -228,6 +229,46 @@ export const processPayout = async (
         { field: "status", oldValue: previousStatus, newValue: status },
       ],
     });
+
+    const recipientUserId = (payout.driverId || payout.vendorId);
+    if (recipientUserId) {
+      if (status === "completed") {
+        domainEvents
+          .onPayoutProcessed({
+            recipientUserId,
+            amount: payout.amount,
+            method: payout.method,
+            bankName: payout.bankSnapshot?.bankName,
+            accountNumberMasked: payout.bankSnapshot?.accountNumber
+              ? `••••${payout.bankSnapshot.accountNumber.slice(-4)}`
+              : undefined,
+            transactionRef: payout.transactionRef || payout._id.toString(),
+            periodStart: payout.periodStart
+              ? new Date(payout.periodStart).toLocaleDateString()
+              : new Date().toLocaleDateString(),
+            periodEnd: payout.periodEnd
+              ? new Date(payout.periodEnd).toLocaleDateString()
+              : new Date().toLocaleDateString(),
+            payoutId: payout._id.toString(),
+          })
+          .catch((err) => {
+            // Non-blocking
+          });
+      } else if (status === "failed") {
+        domainEvents
+          .onPayoutFailed({
+            recipientUserId,
+            amount: payout.amount,
+            failureReason:
+              notes ||
+              "Payment processing error with bank or settlement gateway",
+            payoutId: payout._id.toString(),
+          })
+          .catch((err) => {
+            // Non-blocking
+          });
+      }
+    }
 
     successResponse(res, { payout }, `Payout ${status}`);
   } catch (error) {

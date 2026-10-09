@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import React from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { Link } from "@/components/ui/Link";
 
 /**
  * AuthLayout — split-screen shell for every authentication page.

@@ -22,11 +22,13 @@ import reservationRoutes from "./reservation.routes";
 import reviewRoutes from "./review.routes";
 import supportRoutes from "./support.routes";
 import contactRoutes from "./contact.routes";
+import emailRoutes from "./email.routes";
 import userRoutes from "./user.routes";
 import vendorRoutes from "./vendor.routes";
 
 const router: Router = Router();
 
+router.use("/email", emailRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/reservations", reservationRoutes);
 

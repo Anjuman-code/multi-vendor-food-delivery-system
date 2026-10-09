@@ -25,6 +25,7 @@ import {
 import { successResponse } from '../utils/response.util';
 import type { AuthRequest } from '../types';
 import { UserRole } from '../config/constants';
+import { domainEvents } from '../services/domain-events/domain-events';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -100,6 +101,10 @@ export const createCustomerReservation = async (
     const populated = await Reservation.findById(reservation._id)
       .populate('restaurantId', 'name address contactInfo images')
       .lean();
+
+    domainEvents.onReservationCreated(reservation).catch((err) => {
+      // Non-blocking
+    });
 
     successResponse(
       res,
@@ -253,6 +258,12 @@ export const cancelCustomerReservation = async (
     }
 
     await reservation.save();
+
+    domainEvents
+      .onReservationStatusChanged(reservation, reason || 'Cancelled by guest')
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, reservation, 'Reservation cancelled successfully');
   } catch (error) {
@@ -421,6 +432,12 @@ export const updateReservationStatus = async (
     });
 
     await reservation.save();
+
+    domainEvents
+      .onReservationStatusChanged(reservation, reason)
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(
       res,

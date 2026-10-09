@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/lib/toast";
 import { useSocket } from "@/hooks/useSocket";
@@ -15,13 +16,13 @@ import { motion } from "framer-motion";
 import {
     ChevronRight,
     Clock,
-    Loader2,
     Package,
     ShoppingBag,
     WifiOff,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link } from "@/components/ui/Link";
 
 const FILTERS: { label: string; value: string }[] = [
   { label: "All", value: "" },
@@ -149,8 +150,24 @@ const OrdersPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+          <div className="space-y-3" role="status" aria-label="Loading orders">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="p-4 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-44" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
         ) : orders.length === 0 ? (
           <EmptyState

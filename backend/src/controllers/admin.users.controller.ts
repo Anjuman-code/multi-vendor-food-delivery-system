@@ -24,6 +24,7 @@ import {
     ValidationError
 } from '../utils/errors';
 import { successResponse } from '../utils/response.util';
+import { domainEvents } from '../services/domain-events/domain-events';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -201,6 +202,19 @@ export const suspendCustomer = async (
       metadata: { reason, durationDays },
     });
 
+    domainEvents
+      .onAccountSuspended({
+        userId: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        reason,
+        suspendedUntil: user.suspendedUntil,
+        isBanned: false,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
+
     successResponse(res, { user }, 'Customer suspended');
   } catch (error) {
     next(error);
@@ -242,6 +256,16 @@ export const unsuspendCustomer = async (
       changes: [{ field: 'isSuspended', newValue: false }],
       metadata: { reason },
     });
+
+    domainEvents
+      .onAccountReactivated({
+        userId: user._id,
+        email: user.email,
+        firstName: user.firstName,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, { user }, 'Customer unsuspended');
   } catch (error) {
@@ -596,6 +620,19 @@ export const suspendVendor = async (
       metadata: { reason, durationDays },
     });
 
+    domainEvents
+      .onAccountSuspended({
+        userId: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        reason,
+        suspendedUntil: user.suspendedUntil,
+        isBanned: false,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
+
     successResponse(res, { user }, 'Vendor suspended');
   } catch (error) {
     next(error);
@@ -637,6 +674,16 @@ export const unsuspendVendor = async (
       changes: [{ field: 'isSuspended', newValue: false }],
       metadata: { reason },
     });
+
+    domainEvents
+      .onAccountReactivated({
+        userId: user._id,
+        email: user.email,
+        firstName: user.firstName,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, { user }, 'Vendor unsuspended');
   } catch (error) {
@@ -757,6 +804,19 @@ export const suspendDriver = async (
       metadata: { reason, durationDays },
     });
 
+    domainEvents
+      .onAccountSuspended({
+        userId: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        reason,
+        suspendedUntil: user.suspendedUntil,
+        isBanned: false,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
+
     successResponse(res, { user }, 'Driver suspended');
   } catch (error) {
     next(error);
@@ -792,6 +852,16 @@ export const unsuspendDriver = async (
       changes: [{ field: 'isSuspended', newValue: false }],
       metadata: { reason },
     });
+
+    domainEvents
+      .onAccountReactivated({
+        userId: user._id,
+        email: user.email,
+        firstName: user.firstName,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
 
     successResponse(res, { user }, 'Driver unsuspended');
   } catch (error) {
@@ -875,6 +945,10 @@ export const approveDriver = async (
       changes: [{ field: 'applicationStatus', newValue: 'approved' }],
     });
 
+    domainEvents.onDriverApproved(String(req.params.id)).catch((err) => {
+      // Non-blocking
+    });
+
     successResponse(res, { profile }, 'Driver application approved');
   } catch (error) {
     next(error);
@@ -918,6 +992,10 @@ export const rejectDriver = async (
       resourceId: profile._id,
       changes: [{ field: 'applicationStatus', newValue: 'rejected' }, { field: 'rejectionReason', newValue: reason }],
       metadata: { reason },
+    });
+
+    domainEvents.onDriverRejected(String(req.params.id), reason).catch((err) => {
+      // Non-blocking
     });
 
     successResponse(res, { profile }, 'Driver application rejected');

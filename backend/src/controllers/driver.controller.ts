@@ -9,6 +9,7 @@ import DriverProfile from '../models/DriverProfile';
 import DriverRating from '../models/DriverRating';
 import { NotificationType } from '../models/Notification';
 import { createNotification } from '../services/notification.service';
+import { domainEvents } from '../services/domain-events/domain-events';
 import Order, { DeliveryStage, OrderStatus, PaymentStatus } from '../models/Order';
 import { getIO } from '../socket';
 import type { AuthRequest } from '../types';
@@ -373,6 +374,15 @@ export const acceptOrder = async (
       changes: [{ field: 'driverId', newValue: user._id.toString() }],
     });
 
+    domainEvents
+      .onDriverOrderAssigned({
+        driverUserId: user._id,
+        order,
+      })
+      .catch((err) => {
+        // Non-blocking
+      });
+
     successResponse(res, { order }, 'Order accepted');
   } catch (error) {
     next(error);
@@ -500,6 +510,10 @@ export const advanceDeliveryStage = async (
         title: 'Order picked up',
         message: `Your order ${order.orderNumber} is on the way!`,
         data: { orderId: order._id.toString() },
+      });
+
+      domainEvents.onOrderOutForDelivery(order).catch((err) => {
+        // Non-blocking
       });
     }
 
@@ -692,6 +706,10 @@ export const updateDeliveryStatus = async (
         title: 'Order delivered!',
         message: `Your order ${order.orderNumber} has been delivered. Enjoy your meal!`,
         data: { orderId: order._id.toString() },
+      });
+
+      domainEvents.onOrderDelivered(order).catch((err) => {
+        // Non-blocking
       });
     }
 

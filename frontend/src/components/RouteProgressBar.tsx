@@ -13,7 +13,7 @@ import { useLoading } from '@/contexts/LoadingContext';
  * - Anti-flickered: only shows when navigation takes > 120ms.
  */
 export const RouteProgressBar: React.FC = () => {
-  const { isNavigating, startNavigation, finishNavigation } = useLoading();
+  const { isNavigating, finishNavigation } = useLoading();
   const location = useLocation();
 
   const [progress, setProgress] = useState(0);
@@ -23,22 +23,13 @@ export const RouteProgressBar: React.FC = () => {
   const trickleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevKeyRef = useRef(location.key);
 
-  // Trigger navigation progress on router location change
+  // When location.key changes, the new route transition has committed to the DOM
   useEffect(() => {
     if (prevKeyRef.current !== location.key) {
       prevKeyRef.current = location.key;
-      startNavigation();
-      // Navigation completion is triggered once the route transition / lazy chunk resolves
-      // We schedule a safety cleanup in case the destination component mounts immediately
-      const immediateCheck = setTimeout(() => {
-        finishNavigation();
-      }, 50);
-      return () => {
-        clearTimeout(immediateCheck);
-        finishNavigation();
-      };
+      finishNavigation();
     }
-  }, [location.key, startNavigation, finishNavigation]);
+  }, [location.key, finishNavigation]);
 
   // Synchronize visual bar with isNavigating state from LoadingContext
   useEffect(() => {

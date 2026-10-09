@@ -30,6 +30,7 @@ const PrivacyPolicyPage = lazy(
 );
 const TermsPage = lazy(() => import('./pages/public/TermsPage'));
 const RefundPolicyPage = lazy(() => import('./pages/public/RefundPolicyPage'));
+const UnsubscribePage = lazy(() => import('./pages/public/UnsubscribePage'));
 const RestaurantsPage = lazy(() => import('./pages/public/RestaurantsPage'));
 const RestaurantDetailsPage = lazy(
   () => import('./pages/public/RestaurantDetailsPage'),
@@ -255,6 +256,10 @@ function App(): React.ReactElement {
                           <Route
                             path="/refund"
                             element={<RefundPolicyPage />}
+                          />
+                          <Route
+                            path="/unsubscribe"
+                            element={<UnsubscribePage />}
                           />
                           <Route path="/contact" element={<ContactPage />} />
                           <Route path="/faq" element={<FAQPage />} />

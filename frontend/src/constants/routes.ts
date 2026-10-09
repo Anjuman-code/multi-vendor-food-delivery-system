@@ -19,6 +19,7 @@ export const ROUTES = {
     CATEGORIES: "/categories",
     MENU_ITEM: (restaurantId: string, itemId: string) =>
       `/menu/${restaurantId}/${itemId}`,
+    UNSUBSCRIBE: "/unsubscribe",
   },
   AUTH: {
     LOGIN: "/login",

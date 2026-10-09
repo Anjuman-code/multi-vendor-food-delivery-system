@@ -24,8 +24,6 @@ import type {
 import { FoodImage } from '@/components/ui/FoodImage';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { motion } from 'framer-motion';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import {
   ArrowLeft,
   Banknote,
@@ -346,6 +344,11 @@ const OrderDetailsPage: React.FC = () => {
       toast.info('Preparing receipt', {
         description: 'Generating your PDF receipt. Please wait...',
       });
+
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
 
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,

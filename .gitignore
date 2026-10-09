@@ -10,3 +10,7 @@ __pycache__/
 
 # Uploads (seeded at runtime)
 backend/uploads/
+
+# Email Sandbox Previews
+backend/.email-previews/
+
