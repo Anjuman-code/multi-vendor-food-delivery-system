@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import LocationPicker from '@/components/location/LocationPicker';
 
 const CUISINE_OPTIONS = [
   'Bengali',
@@ -136,6 +137,7 @@ const VendorOnboardingPage: React.FC = () => {
   const [street, setStreet] = useState('');
   const district = 'Sylhet';
   const [area, setArea] = useState('');
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Hours & delivery
@@ -186,6 +188,13 @@ const VendorOnboardingPage: React.FC = () => {
           setExistingRestaurantId(restaurant._id);
           setName((prev) => prev || restaurant.name || '');
           setDescription((prev) => prev || restaurant.description || '');
+          if (restaurant.address?.street) setStreet((prev) => prev || restaurant.address.street);
+          if (restaurant.address?.area) setArea((prev) => prev || restaurant.address.area);
+          if (restaurant.address?.coordinates) {
+            setCoords(restaurant.address.coordinates);
+          } else if (restaurant.location?.coordinates && restaurant.location.coordinates.length === 2) {
+            setCoords({ lat: restaurant.location.coordinates[1], lng: restaurant.location.coordinates[0] });
+          }
         }
       } catch {
         // Non-blocking — vendor can fill everything from scratch
@@ -426,6 +435,7 @@ const VendorOnboardingPage: React.FC = () => {
           street: street.trim(),
           area,
           district,
+          ...(coords ? { coordinates: coords } : {}),
         },
         openingHours: hours,
         minimumOrder: minimumOrder ? Number(minimumOrder) : undefined,
@@ -698,6 +708,25 @@ const VendorOnboardingPage: React.FC = () => {
                 </select>
               </Field>
             </div>
+
+            <div className="pt-2 border-t border-dashed">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Map Pin & Road Coordinates (OpenStreetMap)
+              </label>
+              <LocationPicker
+                value={
+                  coords
+                    ? { latitude: coords.lat, longitude: coords.lng }
+                    : null
+                }
+                onChange={(val) => {
+                  setCoords({ lat: val.latitude, lng: val.longitude });
+                  if (val.street && !street) setStreet(val.street);
+                  if (val.area && !area) setArea(val.area);
+                }}
+                helperText="Pin your kitchen entrance so road routing and delivery fees calculate accurately for your customers."
+              />
+            </div>
           </div>
 
           <StepNav
@@ -939,7 +968,7 @@ const VendorOnboardingPage: React.FC = () => {
               {openDaysCount} day{openDaysCount === 1 ? '' : 's'} a week
             </SummaryRow>
             <SummaryRow icon={Bike} title="Delivery">
-              {deliveryFee ? `৳${deliveryFee} fee` : 'Free delivery'}
+              {deliveryFee ? `৳${deliveryFee} base fee` : 'Dynamic distance pricing (from ৳10)'}
               {deliveryTime ? ` · ~${deliveryTime} min` : ''}
             </SummaryRow>
             <SummaryRow icon={Wallet} title="Payout">

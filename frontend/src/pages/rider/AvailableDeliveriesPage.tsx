@@ -37,6 +37,9 @@ const distanceKm = (
 };
 
 const tripDistance = (order: RiderOrder): number | null => {
+  if (order.deliveryDistanceKm != null) {
+    return order.deliveryDistanceKm;
+  }
   const r =
     typeof order.restaurantId === "object"
       ? order.restaurantId.location?.coordinates
@@ -173,7 +176,7 @@ const AvailableDeliveriesPage: React.FC = () => {
               typeof order.restaurantId === "object"
                 ? order.restaurantId
                 : null;
-            const payout = (order.deliveryFee ?? 0) + (order.tipAmount ?? 0);
+            const payout = (order.deliveryFeeOriginal ?? order.deliveryFee ?? 0) + (order.tipAmount ?? 0);
             const dist = tripDistance(order);
             const isCod = order.paymentMethod === "cash_on_delivery";
 

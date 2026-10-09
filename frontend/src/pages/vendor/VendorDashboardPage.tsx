@@ -135,6 +135,15 @@ const VendorDashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const selectedRestaurant = restaurants.find((r) => r._id === selectedRestaurantId);
+  const hasValidLocation = Boolean(
+    selectedRestaurant?.locationVerified ||
+    (selectedRestaurant?.address?.coordinates &&
+     selectedRestaurant.address.coordinates.lat !== 0 &&
+     selectedRestaurant.address.coordinates.lng !== 0) ||
+    (selectedRestaurant?.location?.coordinates &&
+     (selectedRestaurant.location.coordinates[0] !== 0 ||
+      selectedRestaurant.location.coordinates[1] !== 0))
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -280,6 +289,27 @@ const VendorDashboardPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {header}
+
+      {selectedRestaurant && !hasValidLocation && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Location Verification Required</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Your restaurant is missing exact map coordinates. Customers cannot place orders until you confirm your location on the map for delivery distance & routing.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-medium shrink-0"
+            onClick={() => navigate(`/vendor/restaurants/${selectedRestaurant._id}/edit`)}
+          >
+            Set Map Location
+          </Button>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

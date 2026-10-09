@@ -2,6 +2,14 @@ import { AddressDialog } from '@/components/AddressDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useBlockingLoader } from '@/contexts/LoadingContext';
@@ -10,6 +18,12 @@ import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
 import type { PaymentMethod, UserAddress } from '@/services/userService';
 import userService from '@/services/userService';
+import deliveryService, {
+  type DeliveryQuoteResult,
+} from '@/services/deliveryService';
+import LocationPicker, {
+  type LocationPickerValue,
+} from '@/components/location/LocationPicker';
 import { PaymentMethodSelector } from '@/components/payment/PaymentMethodSelector';
 import { CardPaymentForm, type CardFormData } from '@/components/payment/CardPaymentForm';
 import { MobileWalletForm, type MobileWalletFormData } from '@/components/payment/MobileWalletForm';
@@ -72,7 +86,6 @@ const CheckoutPage: React.FC = () => {
     items,
     subtotal,
     tax,
-    deliveryFee,
     total,
     promoCode,
     setPromoCode,
@@ -121,6 +134,16 @@ const CheckoutPage: React.FC = () => {
   });
   const [cardErrors, setCardErrors] = useState<Partial<Record<keyof CardFormData, string>>>({});
   const [walletErrors, setWalletErrors] = useState<Partial<Record<keyof MobileWalletFormData, string>>>({});
+
+  // Dynamic delivery fee & routing state
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteResult | null>(null);
+  const [isQuoting, setIsQuoting] = useState<boolean>(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoteChangedAlert, setQuoteChangedAlert] = useState<{ oldFee: number; newFee: number } | null>(null);
+  const [pinningAddress, setPinningAddress] = useState<UserAddress | null>(null);
+  const [pinAddressModalOpen, setPinAddressModalOpen] = useState(false);
+  const [tempCoords, setTempCoords] = useState<LocationPickerValue | null>(null);
+  const [isSavingCoords, setIsSavingCoords] = useState(false);
 
   // Payment gateway modal state for online payments
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -182,6 +205,103 @@ const CheckoutPage: React.FC = () => {
   }, [isAuthenticated]);
 
   const selectedAddr = addresses.find((a) => a._id === selectedAddress);
+  const addressHasCoordinates = Boolean(
+    selectedAddr?.coordinates &&
+    typeof selectedAddr.coordinates.latitude === 'number' &&
+    typeof selectedAddr.coordinates.longitude === 'number' &&
+    Number.isFinite(selectedAddr.coordinates.latitude) &&
+    Number.isFinite(selectedAddr.coordinates.longitude) &&
+    (selectedAddr.coordinates.latitude !== 0 || selectedAddr.coordinates.longitude !== 0),
+  );
+
+  // Re-quote delivery dynamically when address or items change
+  useEffect(() => {
+    if (!selectedAddr || !addressHasCoordinates || itemsByRestaurant.length === 0) {
+      setDeliveryQuote(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchQuote = async () => {
+      setIsQuoting(true);
+      setQuoteError(null);
+      try {
+        const res = await deliveryService.quoteDelivery(
+          {
+            latitude: selectedAddr.coordinates.latitude,
+            longitude: selectedAddr.coordinates.longitude,
+          },
+          itemsByRestaurant.map((g) => ({
+            restaurantId: g.restaurantId,
+            itemsSubtotal: g.subtotal,
+          })),
+        );
+        if (isMounted) {
+          if (res.success && res.data) {
+            setDeliveryQuote(res.data);
+            const undeliverable = res.data.quotes.find((q) => !q.deliverable);
+            if (undeliverable) {
+              setQuoteError(
+                undeliverable.reason === 'OUT_OF_RANGE'
+                  ? `Restaurant "${undeliverable.restaurantName}" is too far for delivery (${undeliverable.distanceKm.toFixed(1)} km). Max allowed is 15 km.`
+                  : `Restaurant "${undeliverable.restaurantName}" cannot deliver to this address (${undeliverable.reason || 'unavailable'}).`,
+              );
+            }
+          } else {
+            setQuoteError(res.message || 'Unable to calculate delivery distance.');
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setQuoteError(err?.message || 'Unable to calculate delivery distance.');
+        }
+      } finally {
+        if (isMounted) setIsQuoting(false);
+      }
+    };
+
+    fetchQuote();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedAddr, addressHasCoordinates, itemsByRestaurant]);
+
+  const handleSavePinnedCoordinates = async () => {
+    if (!pinningAddress || !tempCoords) return;
+    setIsSavingCoords(true);
+    try {
+      const res = await userService.updateAddress(pinningAddress._id, {
+        type: pinningAddress.type,
+        street: tempCoords.street || pinningAddress.street,
+        apartment: pinningAddress.apartment,
+        district: tempCoords.district || pinningAddress.district,
+        area: tempCoords.area || pinningAddress.area,
+        coordinates: {
+          latitude: tempCoords.latitude,
+          longitude: tempCoords.longitude,
+        },
+        isDefault: pinningAddress.isDefault,
+      });
+      if (res.success) {
+        toast.success("Location pinned", {
+          description: "Delivery address coordinates updated successfully.",
+        });
+        setPinAddressModalOpen(false);
+        setPinningAddress(null);
+        setTempCoords(null);
+        await loadAddresses();
+      } else {
+        toast.error("Failed to update location", {
+          description: res.message,
+        });
+      }
+    } catch {
+      toast.error("Failed to update location");
+    } finally {
+      setIsSavingCoords(false);
+    }
+  };
+
   const isCOD =
     selectedPayment === COD_PAYMENT_ID ||
     activePaymentMethod === 'cash_on_delivery';
@@ -216,10 +336,10 @@ const CheckoutPage: React.FC = () => {
   }, [isCOD, selectedPm, activePaymentMethod, cardData, walletData]);
 
   const maxAllowedStep: Step = useMemo(() => {
-    if (!selectedAddress) return 'delivery-address';
+    if (!selectedAddress || !addressHasCoordinates || !!quoteError) return 'delivery-address';
     if (!isPaymentValid) return 'payment';
     return 'review';
-  }, [selectedAddress, isPaymentValid]);
+  }, [selectedAddress, addressHasCoordinates, quoteError, isPaymentValid]);
 
   // The earliest step the user still needs to complete (== maxAllowedStep here,
   // since each step gates the next), used as the redirect target.
@@ -227,16 +347,16 @@ const CheckoutPage: React.FC = () => {
   const maxAllowedIndex = VALID_STEPS.indexOf(maxAllowedStep);
   const stepExceedsAllowed = requestedIndex > maxAllowedIndex;
 
-  // Hard guard: runs on EVERY render (incl. direct URL access / reload). If the
-  // URL asks for a step the selections don't permit, snap back to the earliest
-  // incomplete step (replacing history) and explain what's missing.
+  // Hard guard: runs on EVERY render (incl. direct URL access / reload).
   useEffect(() => {
     if (!isAuthenticated || loading) return;
     if (stepExceedsAllowed) {
       setSearchParams({ step: maxAllowedStep }, { replace: true });
       toast.info(
         maxAllowedStep === 'delivery-address'
-          ? 'Please select a delivery address to continue.'
+          ? (!addressHasCoordinates
+              ? 'Please pin your address on the map to continue.'
+              : quoteError || 'Please select a delivery address to continue.')
           : 'Please enter your payment details to continue.',
       );
     }
@@ -245,6 +365,8 @@ const CheckoutPage: React.FC = () => {
     loading,
     stepExceedsAllowed,
     maxAllowedStep,
+    addressHasCoordinates,
+    quoteError,
     setSearchParams,
   ]);
 
@@ -252,7 +374,10 @@ const CheckoutPage: React.FC = () => {
   // we never momentarily show a step the user hasn't earned.
   const effectiveStep: Step = stepExceedsAllowed ? maxAllowedStep : step;
 
-  const finalTotal = Math.round((total + tipAmount) * 100) / 100;
+  const effectiveDeliveryFee = deliveryQuote ? deliveryQuote.totals.deliveryFeeCharged : 0;
+  const deliveryFeeOriginal = deliveryQuote ? deliveryQuote.totals.deliveryFeeOriginal : 0;
+  const deliveryFeeDiscount = deliveryQuote ? deliveryQuote.totals.deliveryFeeDiscount : 0;
+  const finalTotal = Math.round((subtotal + tax + effectiveDeliveryFee + tipAmount) * 100) / 100;
 
   const stepIndex = STEPS.findIndex((s) => s.key === effectiveStep);
 
@@ -262,6 +387,17 @@ const CheckoutPage: React.FC = () => {
         const msg = 'Please select a delivery address to continue.';
         setAdvanceError(msg);
         toast.error('Select Address', { description: msg });
+        return;
+      }
+      if (!addressHasCoordinates) {
+        const msg = 'Please pin this address on the map to calculate real delivery distance and fees.';
+        setAdvanceError(msg);
+        toast.error('Pin Location', { description: msg });
+        return;
+      }
+      if (quoteError) {
+        setAdvanceError(quoteError);
+        toast.error('Delivery Unavailable', { description: quoteError });
         return;
       }
       setAdvanceError(null);
@@ -359,6 +495,7 @@ const CheckoutPage: React.FC = () => {
 
     setOrderError(null);
     setOrderFieldErrors([]);
+    setQuoteChangedAlert(null);
     setPlacing(true);
     isOrderSubmitted.current = true;
     let res;
@@ -376,6 +513,8 @@ const CheckoutPage: React.FC = () => {
             paymentMethod: paymentMethodValue,
             couponCode: promoCode || undefined,
             tipAmount: tipAmount > 0 ? tipAmount : undefined,
+            quoteSignature: deliveryQuote?.quoteId,
+            expectedChargedFee: deliveryQuote?.totals.deliveryFeeCharged,
           }),
         {
           message: 'Placing your order…',
@@ -383,9 +522,22 @@ const CheckoutPage: React.FC = () => {
           allowCancel: false,
         },
       );
-    } catch (err) {
+    } catch (err: any) {
       isOrderSubmitted.current = false;
       setPlacing(false);
+      const code = err?.response?.data?.code || (err as any)?.code;
+      const freshQuote = err?.response?.data?.quote || (err as any)?.quote;
+      if (code === 'DELIVERY_QUOTE_CHANGED' && freshQuote) {
+        setDeliveryQuote(freshQuote);
+        setQuoteChangedAlert({
+          oldFee: deliveryQuote?.totals.deliveryFeeCharged ?? 0,
+          newFee: freshQuote.totals.deliveryFeeCharged,
+        });
+        toast.warning('Delivery Fee Updated', {
+          description: `Delivery fee has changed to ৳${freshQuote.totals.deliveryFeeCharged}. Please review the updated fee and click Place Order to confirm.`,
+        });
+        return;
+      }
       const fieldErrors = getFieldErrors(extractApiError(err)).map(
         (e) => e.message,
       );
@@ -424,6 +576,19 @@ const CheckoutPage: React.FC = () => {
       }
     } else {
       isOrderSubmitted.current = false;
+      const code = (res as any)?.code;
+      const freshQuote = (res as any)?.quote;
+      if (code === 'DELIVERY_QUOTE_CHANGED' && freshQuote) {
+        setDeliveryQuote(freshQuote);
+        setQuoteChangedAlert({
+          oldFee: deliveryQuote?.totals.deliveryFeeCharged ?? 0,
+          newFee: freshQuote.totals.deliveryFeeCharged,
+        });
+        toast.warning('Delivery Fee Updated', {
+          description: `Delivery fee has changed to ৳${freshQuote.totals.deliveryFeeCharged}. Please review the updated fee and click Place Order to confirm.`,
+        });
+        return;
+      }
       const fieldErrors = getFieldErrors(extractApiError(res)).map(
         (e) => e.message,
       );
@@ -549,39 +714,103 @@ const CheckoutPage: React.FC = () => {
                     </Button>
                   </Card>
                 ) : (
-                  addresses.map((addr) => (
-                    <Card
-                      key={addr._id}
-                      className={`p-4 cursor-pointer border-2 transition-colors ${
-                        selectedAddress === addr._id
-                          ? 'border-orange-500 bg-orange-50'
-                          : 'border-transparent hover:border-gray-200'
-                      }`}
-                      onClick={() => {
-                        setSelectedAddress(addr._id);
-                        setAdvanceError(null);
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium capitalize">
-                            {addr.type}
-                            {addr.isDefault && (
-                              <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                                Default
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {addr.street}
-                            {addr.apartment && `, ${addr.apartment}`},{' '}
-                            {addr.area}, {addr.district}
-                          </p>
+                  addresses.map((addr) => {
+                    const hasCoords = Boolean(
+                      addr.coordinates &&
+                      typeof addr.coordinates.latitude === 'number' &&
+                      typeof addr.coordinates.longitude === 'number' &&
+                      Number.isFinite(addr.coordinates.latitude) &&
+                      Number.isFinite(addr.coordinates.longitude) &&
+                      (addr.coordinates.latitude !== 0 || addr.coordinates.longitude !== 0),
+                    );
+                    const isSelected = selectedAddress === addr._id;
+
+                    return (
+                      <Card
+                        key={addr._id}
+                        className={`p-4 cursor-pointer border-2 transition-colors ${
+                          isSelected
+                            ? 'border-orange-500 bg-orange-50'
+                            : 'border-transparent hover:border-gray-200'
+                        }`}
+                        onClick={() => {
+                          setSelectedAddress(addr._id);
+                          setAdvanceError(null);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <MapPin className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-medium capitalize flex items-center gap-1.5">
+                                {addr.type}
+                                {addr.isDefault && (
+                                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-normal">
+                                    Default
+                                  </span>
+                                )}
+                                {!hasCoords && (
+                                  <span className="text-[11px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-normal">
+                                    No GPS Pin
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {addr.street}
+                                {addr.apartment && `, ${addr.apartment}`},{' '}
+                                {addr.area}, {addr.district}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-100/50 h-8 px-2 shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPinningAddress(addr);
+                              setTempCoords(null);
+                              setPinAddressModalOpen(true);
+                            }}
+                          >
+                            <MapPin className="w-3.5 h-3.5 mr-1" />
+                            {hasCoords ? "Edit Pin" : "Pin Location"}
+                          </Button>
                         </div>
-                      </div>
-                    </Card>
-                  ))
+
+                        {isSelected && !hasCoords && (
+                          <div className="mt-3 p-2.5 bg-amber-100/70 border border-amber-300 rounded-md text-xs text-amber-900 flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5">
+                              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                              Exact location required to calculate road distance and fee.
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-amber-700 hover:bg-amber-800 text-white text-xs h-7 px-2.5"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPinningAddress(addr);
+                                setTempCoords(null);
+                                setPinAddressModalOpen(true);
+                              }}
+                            >
+                              Pin on Map
+                            </Button>
+                          </div>
+                        )}
+
+                        {isSelected && hasCoords && quoteError && (
+                          <div className="mt-3 p-2.5 bg-red-100 border border-red-300 rounded-md text-xs text-red-900 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                            <span>{quoteError}</span>
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })
                 )}
 
                 <AddressDialog
@@ -593,6 +822,62 @@ const CheckoutPage: React.FC = () => {
                     await loadAddresses();
                   }}
                 />
+
+                {/* Dialog to Pin Location on Map for Existing Address */}
+                <Dialog open={pinAddressModalOpen} onOpenChange={setPinAddressModalOpen}>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+                        <MapPin className="w-5 h-5 text-primary" />
+                        Pin Delivery Location
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground">
+                        Drag the pin or click on the map to mark the exact location for{" "}
+                        <strong className="text-foreground">
+                          {pinningAddress?.street}, {pinningAddress?.area}
+                        </strong>
+                        . This calculates accurate road distance with OpenStreetMap.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-2">
+                      <LocationPicker
+                        value={
+                          tempCoords || (pinningAddress?.coordinates?.latitude ? {
+                            latitude: pinningAddress.coordinates.latitude,
+                            longitude: pinningAddress.coordinates.longitude,
+                          } : undefined)
+                        }
+                        onChange={(val) => setTempCoords(val)}
+                        mapHeight="260px"
+                      />
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isSavingCoords}
+                        onClick={() => {
+                          setPinAddressModalOpen(false);
+                          setPinningAddress(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isSavingCoords || !tempCoords}
+                        onClick={handleSavePinnedCoordinates}
+                      >
+                        {isSavingCoords && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Save Pinned Location
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </motion.div>
             )}
 
@@ -998,41 +1283,78 @@ const CheckoutPage: React.FC = () => {
                 </Card>
 
                 {/* Items grouped by restaurant */}
-                {itemsByRestaurant.map((group) => (
-                  <Card key={group.restaurantId} className="p-4">
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
-                      <Store className="h-4 w-4 text-orange-500" />
-                      <p className="font-semibold text-sm text-gray-800">
-                        {group.restaurantName}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      {group.items.map((item) => (
-                        <div
-                          key={item.itemKey || item.menuItemId}
-                          className="flex justify-between text-sm"
-                        >
-                          <span className="text-gray-700">
-                            {item.quantity}× {item.name}
-                          </span>
-                          <span className="font-medium">
-                            ৳
-                            {(
-                              (item.price +
-                                item.variants.reduce((s, v) => s + v.price, 0) +
-                                item.addons.reduce((s, a) => s + a.price, 0)) *
-                              item.quantity
-                            ).toFixed(2)}
+                {itemsByRestaurant.map((group) => {
+                  const quoteMatch = deliveryQuote?.quotes.find((q) => q.restaurantId === group.restaurantId);
+                  return (
+                    <Card key={group.restaurantId} className="p-4">
+                      <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <Store className="h-4 w-4 text-orange-500" />
+                          <p className="font-semibold text-sm text-gray-800">
+                            {group.restaurantName}
+                          </p>
+                        </div>
+                        {quoteMatch && (
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{quoteMatch.distanceKm.toFixed(1)} km</span>
+                            <span>•</span>
+                            <span>~{quoteMatch.durationMin} min</span>
+                            {quoteMatch.isEstimate && (
+                              <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded">
+                                est.
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {group.items.map((item) => (
+                          <div
+                            key={item.itemKey || item.menuItemId}
+                            className="flex justify-between text-sm"
+                          >
+                            <span className="text-gray-700">
+                              {item.quantity}× {item.name}
+                            </span>
+                            <span className="font-medium">
+                              ৳
+                              {(
+                                (item.price +
+                                  item.variants.reduce((s, v) => s + v.price, 0) +
+                                  item.addons.reduce((s, a) => s + a.price, 0)) *
+                                item.quantity
+                              ).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-dashed border-gray-100 text-xs text-gray-500 flex justify-between items-center">
+                        <div className="flex items-center gap-1.5">
+                          <span>Delivery fee</span>
+                          {quoteMatch?.campaign && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">
+                              {quoteMatch.campaign.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 font-medium">
+                          {quoteMatch && quoteMatch.feeDiscount > 0 && (
+                            <span className="line-through text-gray-400">
+                              ৳{quoteMatch.feeOriginal.toFixed(2)}
+                            </span>
+                          )}
+                          <span className={quoteMatch && quoteMatch.feeCharged === 0 ? "text-emerald-600 font-semibold" : "text-gray-800"}>
+                            {quoteMatch
+                              ? quoteMatch.feeCharged === 0
+                                ? 'FREE'
+                                : `৳${quoteMatch.feeCharged.toFixed(2)}`
+                              : `৳${group.deliveryFee.toFixed(2)}`}
                           </span>
                         </div>
-                      ))}
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-dashed border-gray-100 text-xs text-gray-500 flex justify-between">
-                      <span>Delivery fee</span>
-                      <span>৳{group.deliveryFee.toFixed(2)}</span>
-                    </div>
-                  </Card>
-                ))}
+                      </div>
+                    </Card>
+                  );
+                })}
 
                 {/* Multi-restaurant disclaimers */}
                 {isMultiRestaurant && (
@@ -1041,9 +1363,9 @@ const CheckoutPage: React.FC = () => {
                       <Truck className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-amber-800">
                         <strong>Multiple delivery fees:</strong> Each restaurant
-                        has its own delivery fee (৳50 each). You will pay{' '}
-                        <strong>৳{deliveryFee.toFixed(2)}</strong> in delivery
-                        fees total.
+                        has its own delivery fee based on road distance. You will pay{' '}
+                        <strong>৳{effectiveDeliveryFee.toFixed(2)}</strong> in delivery
+                        fees total across {itemsByRestaurant.length} orders.
                       </p>
                     </div>
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
@@ -1097,6 +1419,18 @@ const CheckoutPage: React.FC = () => {
                     <Tag className="h-3 w-3" /> Coupon applied:{' '}
                     <span className="font-medium">{promoCode}</span>
                   </p>
+                )}
+
+                {quoteChangedAlert && (
+                  <div className="flex items-start gap-2 p-3.5 rounded-lg bg-amber-50 border border-amber-300">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-900">
+                      <p className="font-semibold">Delivery Fee Updated</p>
+                      <p className="mt-0.5">
+                        The delivery fee updated from ৳{quoteChangedAlert.oldFee.toFixed(2)} to <strong>৳{quoteChangedAlert.newFee.toFixed(2)}</strong> due to fresh road routing calculation. Please review your total and click Place Order to confirm.
+                      </p>
+                    </div>
+                  </div>
                 )}
 
                 {orderError && (
@@ -1185,11 +1519,21 @@ const CheckoutPage: React.FC = () => {
                   <span>৳{tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Delivery</span>
-                  <span>
-                    ৳{deliveryFee.toFixed(2)}
+                  <span className="flex items-center gap-1.5">
+                    Delivery
+                    {isQuoting && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    {deliveryFeeDiscount > 0 && (
+                      <span className="line-through text-xs text-gray-400">
+                        ৳{deliveryFeeOriginal.toFixed(2)}
+                      </span>
+                    )}
+                    <span className={effectiveDeliveryFee === 0 && deliveryQuote ? "text-emerald-600 font-semibold" : "text-gray-900"}>
+                      {effectiveDeliveryFee === 0 && deliveryQuote ? 'FREE' : `৳${effectiveDeliveryFee.toFixed(2)}`}
+                    </span>
                     {isMultiRestaurant && (
-                      <span className="text-xs text-gray-400 ml-1">
+                      <span className="text-xs text-gray-400">
                         ({itemsByRestaurant.length}×)
                       </span>
                     )}

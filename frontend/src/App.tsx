@@ -225,6 +225,12 @@ const AdminTeamPage = lazy(() => import('./pages/admin/system/AdminTeamPage'));
 const AdminPlatformSettingsPage = lazy(
   () => import('./pages/admin/settings/PlatformSettingsPage'),
 );
+const AdminDeliverySettingsPage = lazy(
+  () => import('./pages/admin/settings/DeliverySettingsPage'),
+);
+const AdminDeliveryCampaignsPage = lazy(
+  () => import('./pages/admin/campaigns/DeliveryCampaignsPage'),
+);
 
 function App(): React.ReactElement {
   return (
@@ -593,6 +599,14 @@ function App(): React.ReactElement {
                           <Route
                             path="settings"
                             element={<AdminPlatformSettingsPage />}
+                          />
+                          <Route
+                            path="delivery/settings"
+                            element={<AdminDeliverySettingsPage />}
+                          />
+                          <Route
+                            path="delivery/campaigns"
+                            element={<AdminDeliveryCampaignsPage />}
                           />
                         </Route>
                       </Route>

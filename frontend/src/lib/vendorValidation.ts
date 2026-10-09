@@ -65,6 +65,12 @@ export const createRestaurantSchema = z.object({
     street: z.string().min(1, 'Street is required'),
     area: z.string().min(1, 'Area is required'),
     district: z.string().min(1, 'District is required'),
+    coordinates: z
+      .object({
+        lat: z.number(),
+        lng: z.number(),
+      })
+      .optional(),
   }),
   openingHours: z
     .array(

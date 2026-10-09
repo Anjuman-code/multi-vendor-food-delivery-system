@@ -673,9 +673,30 @@ const OrderDetailsPage: React.FC = () => {
                 <span>Tax</span>
                 <span>{formatCurrency(order.tax)}</span>
               </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Delivery</span>
-                <span>{formatCurrency(order.deliveryFee)}</span>
+              <div className="flex justify-between items-center text-gray-600">
+                <span className="flex items-center gap-1.5">
+                  <span>Delivery</span>
+                  {order.deliveryDistanceKm != null && (
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({order.deliveryDistanceKm.toFixed(1)} km)
+                    </span>
+                  )}
+                  {order.deliveryCampaignSnapshot?.name && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">
+                      {order.deliveryCampaignSnapshot.name}
+                    </span>
+                  )}
+                </span>
+                <span className="flex items-center gap-1.5 font-medium">
+                  {order.deliveryFeeDiscount != null && order.deliveryFeeDiscount > 0 && (
+                    <span className="line-through text-xs text-gray-400">
+                      {formatCurrency(order.deliveryFeeOriginal ?? (order.deliveryFee + order.deliveryFeeDiscount))}
+                    </span>
+                  )}
+                  <span className={order.deliveryFee === 0 ? "text-emerald-600 font-semibold" : ""}>
+                    {order.deliveryFee === 0 ? "FREE" : formatCurrency(order.deliveryFee)}
+                  </span>
+                </span>
               </div>
               {order.discount > 0 && (
                 <div className="flex justify-between text-green-600">

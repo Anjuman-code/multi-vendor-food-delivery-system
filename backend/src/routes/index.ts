@@ -25,9 +25,11 @@ import contactRoutes from "./contact.routes";
 import emailRoutes from "./email.routes";
 import userRoutes from "./user.routes";
 import vendorRoutes from "./vendor.routes";
+import deliveryRoutes from "./delivery.routes";
 
 const router: Router = Router();
 
+router.use("/delivery", deliveryRoutes);
 router.use("/email", emailRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/reservations", reservationRoutes);

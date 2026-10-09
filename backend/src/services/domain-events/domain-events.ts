@@ -807,7 +807,8 @@ class DomainEventsService {
       : 'Restaurant Location';
 
     const delAddr = `${params.order.deliveryAddress.street}, ${params.order.deliveryAddress.area}`;
-    const estimatedEarnings = Math.round(params.order.deliveryFee * 0.8) || 50;
+    const baseFee = params.order.deliveryFeeOriginal ?? params.order.deliveryFee;
+    const estimatedEarnings = Math.round(baseFee * 0.8) || 50;
 
     await emailService.send(EmailEventKey.DRIVER_ORDER_ASSIGNED, {
       to: driver.email,

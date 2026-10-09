@@ -56,6 +56,14 @@ interface OrderDetail {
   total: number;
   subtotal: number;
   deliveryFee: number;
+  deliveryFeeOriginal?: number;
+  deliveryFeeDiscount?: number;
+  deliveryFeeCharged?: number;
+  deliveryCampaignSnapshot?: { campaignId?: string; name: string; label?: string; waivedAmount?: number };
+  deliveryDistanceKm?: number;
+  deliveryDurationMin?: number;
+  deliveryRouteProvider?: string;
+  deliveryIsEstimate?: boolean;
   discount?: number;
   tipAmount?: number;
   createdAt: string;
@@ -129,6 +137,14 @@ export default function OrderDetailPage() {
         total: o.total as number,
         subtotal: o.subtotal as number,
         deliveryFee: o.deliveryFee as number,
+        deliveryFeeOriginal: o.deliveryFeeOriginal as number | undefined,
+        deliveryFeeDiscount: o.deliveryFeeDiscount as number | undefined,
+        deliveryFeeCharged: o.deliveryFeeCharged as number | undefined,
+        deliveryCampaignSnapshot: o.deliveryCampaignSnapshot as any,
+        deliveryDistanceKm: o.deliveryDistanceKm as number | undefined,
+        deliveryDurationMin: o.deliveryDurationMin as number | undefined,
+        deliveryRouteProvider: o.deliveryRouteProvider as string | undefined,
+        deliveryIsEstimate: o.deliveryIsEstimate as boolean | undefined,
         discount: o.discount as number | undefined,
         tipAmount: o.tipAmount as number | undefined,
         createdAt: o.createdAt as string,
@@ -500,7 +516,32 @@ export default function OrderDetailPage() {
         </div>
         <div className="space-y-1 border-t border-border px-5 py-4">
           <Row label="Subtotal" value={formatCurrency(order.subtotal)} />
-          <Row label="Delivery Fee" value={formatCurrency(order.deliveryFee)} />
+          <div className="flex justify-between text-sm py-1">
+            <span className="text-muted-foreground flex items-center gap-1.5 flex-wrap">
+              <span>Delivery Fee</span>
+              {order.deliveryDistanceKm != null && (
+                <span className="text-xs text-muted-foreground">
+                  ({order.deliveryDistanceKm.toFixed(1)} km · {order.deliveryRouteProvider?.toUpperCase() || 'OSRM'}
+                  {order.deliveryIsEstimate ? ' est.' : ''})
+                </span>
+              )}
+              {order.deliveryCampaignSnapshot?.name && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">
+                  {order.deliveryCampaignSnapshot.name}
+                </span>
+              )}
+            </span>
+            <div className="flex items-center gap-1.5 font-medium">
+              {order.deliveryFeeDiscount != null && order.deliveryFeeDiscount > 0 && (
+                <span className="line-through text-xs text-muted-foreground">
+                  {formatCurrency(order.deliveryFeeOriginal ?? order.deliveryFee)}
+                </span>
+              )}
+              <span className={order.deliveryFee === 0 ? "text-emerald-600 font-semibold" : ""}>
+                {order.deliveryFee === 0 ? "FREE" : formatCurrency(order.deliveryFee)}
+              </span>
+            </div>
+          </div>
           {order.tipAmount ? <Row label="Tip" value={formatCurrency(order.tipAmount)} /> : null}
           {order.discount ? <Row label="Discount" value={`−${formatCurrency(order.discount)}`} accent /> : null}
           <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">

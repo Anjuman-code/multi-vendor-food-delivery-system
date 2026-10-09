@@ -423,6 +423,19 @@ const ActiveDeliveryPage: React.FC = () => {
             {formatCurrency(order.total)}
           </span>
         </div>
+        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground border-t border-dashed border-border pt-2">
+          <span>Your Delivery Earning</span>
+          <span className="font-semibold text-emerald-600">
+            {formatCurrency((order.deliveryFeeOriginal ?? order.deliveryFee ?? 0) + (order.tipAmount ?? 0))}
+            {order.tipAmount ? ` (incl. ৳${order.tipAmount} tip)` : ''}
+          </span>
+        </div>
+        {order.deliveryDistanceKm != null && (
+          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Road Trip Distance</span>
+            <span>{order.deliveryDistanceKm.toFixed(1)} km</span>
+          </div>
+        )}
       </SectionCard>
 
       {/* Complete-delivery dialog */}

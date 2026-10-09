@@ -1,4 +1,8 @@
 import { cartService } from "@/services/cartService";
+import deliveryService, {
+  type DeliveryQuoteResult,
+  type LatLngPoint,
+} from "@/services/deliveryService";
 import React, {
   createContext,
   useCallback,
@@ -44,6 +48,17 @@ export interface RestaurantCartGroup {
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
+  deliveryFeeOriginal?: number;
+  deliveryFeeDiscount?: number;
+  distanceKm?: number;
+  durationMin?: number;
+  campaign?: {
+    campaignId?: string;
+    name?: string;
+    label?: string;
+    waivedAmount?: number;
+  } | null;
+  isEstimate?: boolean;
 }
 
 interface CartState {
@@ -58,6 +73,12 @@ interface CartContextType {
   subtotal: number;
   tax: number;
   deliveryFee: number;
+  deliveryFeeOriginal: number;
+  deliveryFeeDiscount: number;
+  deliveryQuote: DeliveryQuoteResult | null;
+  deliveryLocation: LatLngPoint | null;
+  setDeliveryLocation: (loc: LatLngPoint | null) => void;
+  refreshDeliveryQuote: () => Promise<void>;
   total: number;
   isLoading: boolean;
   isMutating: boolean;
@@ -75,7 +96,6 @@ interface CartContextType {
 }
 
 const TAX_RATE = 0.05;
-const DEFAULT_DELIVERY_FEE = 50;
 
 const buildCartItemKey = (item: CartItem): string => {
   const variantKey = (item.variants || [])
@@ -169,6 +189,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [cart, setCart] = useState<CartState>(() => loadGuestCart());
+  const [deliveryLocation, setDeliveryLocation] = useState<LatLngPoint | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const { isAuthenticated } = useAuth();
@@ -432,6 +454,39 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
 
+  const refreshDeliveryQuote = useCallback(async () => {
+    if (!deliveryLocation || cart.items.length === 0) {
+      setDeliveryQuote(null);
+      return;
+    }
+
+    const groups: Record<string, number> = {};
+    for (const item of cart.items) {
+      const variantExtra = item.variants.reduce((s, v) => s + v.price, 0);
+      const addonExtra = item.addons.reduce((s, a) => s + a.price, 0);
+      const lineTotal = (item.price + variantExtra + addonExtra) * item.quantity;
+      groups[item.restaurantId] = (groups[item.restaurantId] || 0) + lineTotal;
+    }
+
+    const subOrders = Object.entries(groups).map(([restaurantId, itemsSubtotal]) => ({
+      restaurantId,
+      itemsSubtotal,
+    }));
+
+    try {
+      const res = await deliveryService.quoteDelivery(deliveryLocation, subOrders);
+      if (res.success && res.data) {
+        setDeliveryQuote(res.data);
+      }
+    } catch {
+      // Non-blocking quote fetch
+    }
+  }, [deliveryLocation, cart.items]);
+
+  useEffect(() => {
+    refreshDeliveryQuote();
+  }, [refreshDeliveryQuote]);
+
   const itemsByRestaurant = useMemo(() => {
     const groups: Record<string, { restaurantId: string; restaurantName: string; items: CartItem[] }> = {};
     for (const item of cart.items) {
@@ -447,17 +502,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         const addonExtra = item.addons.reduce((s, a) => s + a.price, 0);
         return sum + (item.price + variantExtra + addonExtra) * item.quantity;
       }, 0);
+
+      const quoteMatch = deliveryQuote?.quotes.find((q) => q.restaurantId === group.restaurantId);
+
       return {
         ...group,
         subtotal: groupSubtotal,
-        deliveryFee: DEFAULT_DELIVERY_FEE,
+        deliveryFee: quoteMatch ? quoteMatch.feeCharged : 0,
+        deliveryFeeOriginal: quoteMatch?.feeOriginal,
+        deliveryFeeDiscount: quoteMatch?.feeDiscount,
+        distanceKm: quoteMatch?.distanceKm,
+        durationMin: quoteMatch?.durationMin,
+        campaign: quoteMatch?.campaign,
+        isEstimate: quoteMatch?.isEstimate,
       };
     });
-  }, [cart.items]);
+  }, [cart.items, deliveryQuote]);
 
-  const deliveryFee = cart.items.length > 0
-    ? itemsByRestaurant.length * DEFAULT_DELIVERY_FEE
-    : 0;
+  const deliveryFee = deliveryQuote?.totals.deliveryFeeCharged ?? 0;
+  const deliveryFeeOriginal = deliveryQuote?.totals.deliveryFeeOriginal ?? 0;
+  const deliveryFeeDiscount = deliveryQuote?.totals.deliveryFeeDiscount ?? 0;
 
   const total = subtotal + tax + deliveryFee;
 
@@ -469,6 +533,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       subtotal,
       tax,
       deliveryFee,
+      deliveryFeeOriginal,
+      deliveryFeeDiscount,
+      deliveryQuote,
+      deliveryLocation,
+      setDeliveryLocation,
+      refreshDeliveryQuote,
       total,
       isLoading,
       isMutating,
@@ -485,6 +555,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       subtotal,
       tax,
       deliveryFee,
+      deliveryFeeOriginal,
+      deliveryFeeDiscount,
+      deliveryQuote,
+      deliveryLocation,
+      setDeliveryLocation,
+      refreshDeliveryQuote,
       total,
       isLoading,
       isMutating,

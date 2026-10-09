@@ -414,3 +414,45 @@ npm run test:email    # Run unit/integration test suite for email crypto, templa
 npm run email:test     # Send single test email via configured provider or sandbox
 ```
 
+### 12. Dynamic Delivery Distance, Fees & Free Delivery Standard
+
+#### Hard Rules & Guarantees (Non-Negotiable)
+- **Server Authoritative**: The client NEVER sends or dictates a delivery fee. The server quotes and signs fees using HMAC-SHA256 (`quoteSignature`). At checkout submission, the server re-evaluates quotes and rejects stale or tampered requests with HTTP 409 (`DELIVERY_QUOTE_CHANGED`) and fresh quotes.
+- **Fixed Minimum Fee Floor (≥ ৳10)**: Under no circumstances can a delivery fee drop below ৳10 (unless waived 100% by an active admin campaign). The ৳10 floor is enforced in Mongoose schemas, Zod schemas, backend calculators, and admin forms.
+- **No Hardcoded Free Delivery**: Zero hardcoded thresholds (`FREE_DELIVERY_THRESHOLD`), constants, or marketing guarantees in code. Free delivery is granted EXCLUSIVELY through database-backed `DeliveryCampaign` models managed by administrators.
+- **Rider Earnings Protected**: Driver payout and platform earnings derive strictly from `deliveryFeeOriginal + tipAmount`, NEVER the discounted amount (`deliveryFeeCharged`). Platform campaigns never penalize rider compensation.
+- **OpenStreetMap / FOSS Tooling Only**: Proprietary mapping APIs (Google Maps, Mapbox, HERE) are strictly prohibited. Browser maps use Leaflet with OSM tiles and mandatory "© OpenStreetMap contributors" (ODbL) attribution.
+
+#### Routing Engine & Fallback Architecture
+- **Primary Provider**: Self-hosted OSRM (`osrm-backend`) containerized via `docker-compose.delivery.yml` using Geofabrik Bangladesh OSM extracts (`bangladesh-latest.osm.pbf`) preprocessed with the MLD pipeline.
+- **Circuit Breaker**: When OSRM fails or times out (3 consecutive failures), `RoutingCircuitBreaker` trips to open state for 30s cooldown and switches to `HaversineFallbackProvider` (straight-line distance × admin-configurable `detourFactor`, marked as `deliveryIsEstimate: true`).
+- **Geocoding & Autocomplete**: Rate-limited server-side proxy (`/api/delivery/geocode/search` and `/api/delivery/geocode/reverse`) compliant with Nominatim usage policy (identifying User-Agent, cached in MongoDB `GeocodeCache`, max 1 req/sec server-side, 300ms client debounce). Fee calculations depend strictly on coordinates, ensuring geocoder outages never block order placement.
+- **Coordinate Caching**: Route distance and duration results are cached in MongoDB (`RouteCache`) using 5-decimal precision coordinate keys (~1.1 meter accuracy) with a 24-hour TTL.
+
+#### Multi-Vendor Fee & Campaign Formula
+- **Formula**:
+  $$\text{fee} = \left\lceil \max\left(\text{minFee}, \text{includedDistanceFee} + \max(0, \text{distanceKm} - \text{includedKm}) \times \text{perKmRate}\right) \right\rceil$$
+  capped at `maxFee` if configured.
+- **Multi-Vendor Cart Split**: In multi-vendor checkouts, each restaurant sub-order receives its own independent road distance, ETA, and fee. The customer sees per-restaurant fees and a grand total.
+- **Campaign Matching**: Evaluated per sub-order on that restaurant's items subtotal (post item-discounts, pre-tax/tip/delivery). The highest-waiver campaign wins. Stacking is strictly prohibited.
+- **Immutable Order Snapshot**: Every placed order permanently records:
+  - `deliveryFeeOriginal`: Calculated road fee before campaign discount
+  - `deliveryFeeDiscount`: Taka amount waived by platform campaign
+  - `deliveryFeeCharged`: Actual fee paid by customer (`deliveryFee`)
+  - `deliveryCampaignSnapshot`: Snapshot of campaign name, label, and waived amount
+  - `deliveryDistanceKm`, `deliveryDurationMin`, `deliveryRouteProvider`, `deliveryIsEstimate`, `deliveryCoordinates`
+
+#### Tooling & Commands
+```bash
+# Infrastructure
+./scripts/setup-osrm.sh                          # Download Geofabrik extract & prepare OSRM
+docker compose -f docker-compose.delivery.yml up -d # Launch self-hosted OSRM routing container
+
+# Verification & Backfill
+npm run test:delivery                            # Run delivery & fee calculator test suite (backend)
+node -r ts-node/register --test tests/free-delivery-guard.test.ts # Architectural guard test
+npx ts-node scripts/backfill-restaurant-locations.ts        # Dry-run restaurant coordinates audit
+npx ts-node scripts/backfill-restaurant-locations.ts --commit # Apply coordinates to MongoDB
+```
+
+

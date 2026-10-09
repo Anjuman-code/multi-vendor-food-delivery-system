@@ -367,9 +367,30 @@ const VendorOrderDetailPage: React.FC = () => {
                 <span>{formatCurrency(order.subtotal || order.total)}</span>
               </div>
               {order.deliveryFee != null && (
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Delivery Fee</span>
-                  <span>{formatCurrency(order.deliveryFee)}</span>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span className="flex items-center gap-1.5 flex-wrap">
+                    <span>Delivery Fee</span>
+                    {order.deliveryDistanceKm != null && (
+                      <span className="text-xs text-muted-foreground font-normal">
+                        ({order.deliveryDistanceKm.toFixed(1)} km)
+                      </span>
+                    )}
+                    {order.deliveryCampaignSnapshot?.name && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">
+                        {order.deliveryCampaignSnapshot.name}
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-1.5 font-medium">
+                    {order.deliveryFeeDiscount != null && order.deliveryFeeDiscount > 0 && (
+                      <span className="line-through text-xs text-muted-foreground">
+                        {formatCurrency(order.deliveryFeeOriginal ?? order.deliveryFee)}
+                      </span>
+                    )}
+                    <span className={order.deliveryFee === 0 ? "text-emerald-600 font-semibold" : ""}>
+                      {order.deliveryFee === 0 ? "FREE" : formatCurrency(order.deliveryFee)}
+                    </span>
+                  </div>
                 </div>
               )}
               {order.discount != null && order.discount > 0 && (

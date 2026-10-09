@@ -103,6 +103,23 @@ export interface IOrder {
   subtotal: number;
   tax: number;
   deliveryFee: number;
+  deliveryFeeOriginal?: number;
+  deliveryFeeDiscount?: number;
+  deliveryFeeCharged?: number;
+  deliveryCampaignSnapshot?: {
+    campaignId?: Types.ObjectId;
+    name?: string;
+    label?: string;
+    waivedAmount?: number;
+  };
+  deliveryDistanceKm?: number;
+  deliveryDurationMin?: number;
+  deliveryRouteProvider?: string;
+  deliveryIsEstimate?: boolean;
+  deliveryCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   discount: number;
   tipAmount: number;
   total: number;
@@ -274,6 +291,23 @@ const orderSchema = new Schema<IOrder>(
     subtotal: { type: Number, required: true, min: 0 },
     tax: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, required: true, min: 0 },
+    deliveryFeeOriginal: { type: Number, min: 0 },
+    deliveryFeeDiscount: { type: Number, default: 0, min: 0 },
+    deliveryFeeCharged: { type: Number, min: 0 },
+    deliveryCampaignSnapshot: {
+      campaignId: { type: Schema.Types.ObjectId, ref: 'DeliveryCampaign' },
+      name: { type: String, trim: true },
+      label: { type: String, trim: true },
+      waivedAmount: { type: Number, min: 0 },
+    },
+    deliveryDistanceKm: { type: Number, min: 0 },
+    deliveryDurationMin: { type: Number, min: 0 },
+    deliveryRouteProvider: { type: String, trim: true },
+    deliveryIsEstimate: { type: Boolean, default: false },
+    deliveryCoordinates: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
     discount: { type: Number, default: 0, min: 0 },
     tipAmount: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },

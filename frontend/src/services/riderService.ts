@@ -80,6 +80,12 @@ export interface RiderOrder {
   };
   items: { name: string; quantity: number }[];
   deliveryFee: number;
+  deliveryFeeOriginal?: number;
+  deliveryFeeDiscount?: number;
+  deliveryDistanceKm?: number;
+  deliveryDurationMin?: number;
+  deliveryRouteProvider?: string;
+  deliveryIsEstimate?: boolean;
   tipAmount?: number;
   subtotal?: number;
   total: number;

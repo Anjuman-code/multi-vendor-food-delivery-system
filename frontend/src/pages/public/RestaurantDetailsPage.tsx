@@ -629,7 +629,7 @@ const RestaurantDetailsPage: React.FC = () => {
                     <Bike className="h-4 w-4" />
                     {restaurant.deliveryFee
                       ? `${formatTaka(restaurant.deliveryFee)} delivery`
-                      : "Free delivery"}
+                      : "From ৳10 delivery"}
                   </span>
                 </div>
               </div>

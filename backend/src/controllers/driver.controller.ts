@@ -685,8 +685,8 @@ export const updateDeliveryStatus = async (
         order.paymentStatus = PaymentStatus.PAID;
       }
 
-      // Update driver stats
-      const deliveryEarnings = order.deliveryFee + (order.tipAmount ?? 0);
+      // Update driver stats — base earnings on pre-waiver deliveryFeeOriginal so platform campaigns don't penalize riders
+      const deliveryEarnings = (order.deliveryFeeOriginal ?? order.deliveryFee) + (order.tipAmount ?? 0);
       await DriverProfile.updateOne(
         { userId: user._id },
         {
@@ -779,15 +779,18 @@ export const getEarnings = async (
       allDeliveries
         .filter((o) => o.actualDeliveryTime && o.actualDeliveryTime >= from)
         .reduce(
-          (acc, o) => ({
-            earnings: acc.earnings + (o.deliveryFee ?? 0) + (o.tipAmount ?? 0),
-            deliveries: acc.deliveries + 1,
-            fees: acc.fees + (o.deliveryFee ?? 0),
-            tips: acc.tips + (o.tipAmount ?? 0),
-            // Cash the rider physically collected on COD orders (owed to the
-            // platform, net of their own earnings).
-            cashCollected: acc.cashCollected + (isCodCash(o) ? o.total ?? 0 : 0),
-          }),
+          (acc, o) => {
+            const originalFee = o.deliveryFeeOriginal ?? o.deliveryFee ?? 0;
+            return {
+              earnings: acc.earnings + originalFee + (o.tipAmount ?? 0),
+              deliveries: acc.deliveries + 1,
+              fees: acc.fees + originalFee,
+              tips: acc.tips + (o.tipAmount ?? 0),
+              // Cash the rider physically collected on COD orders (owed to the
+              // platform, net of their own earnings).
+              cashCollected: acc.cashCollected + (isCodCash(o) ? o.total ?? 0 : 0),
+            };
+          },
           { earnings: 0, deliveries: 0, fees: 0, tips: 0, cashCollected: 0 },
         );
 
@@ -806,7 +809,8 @@ export const getEarnings = async (
       .forEach((o) => {
         const key = o.actualDeliveryTime!.toISOString().slice(0, 10);
         if (dailyMap[key]) {
-          dailyMap[key].earnings += (o.deliveryFee ?? 0) + (o.tipAmount ?? 0);
+          const originalFee = o.deliveryFeeOriginal ?? o.deliveryFee ?? 0;
+          dailyMap[key].earnings += originalFee + (o.tipAmount ?? 0);
           dailyMap[key].deliveries += 1;
         }
       });

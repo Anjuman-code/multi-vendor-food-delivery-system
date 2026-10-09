@@ -114,6 +114,17 @@ const updateRestaurant = async (
   res: Response,
 ): Promise<void> => {
   try {
+    if (req.body.address?.coordinates) {
+      const { lat, lng } = req.body.address.coordinates;
+      if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
+        req.body.location = {
+          type: "Point",
+          coordinates: [lng, lat],
+        };
+        req.body.locationVerified = true;
+      }
+    }
+
     const restaurant = await Restaurant.findByIdAndUpdate(
       req.params.id,
       req.body,

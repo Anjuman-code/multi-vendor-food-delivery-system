@@ -3,6 +3,7 @@
  */
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
+import { ZodError } from "zod";
 import { AppError } from "../utils/errors";
 
 /**
@@ -24,6 +25,16 @@ export const errorHandler = (
   if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+  }
+
+  // ── Zod validation error ─────────────────────────────────────
+  if (err instanceof ZodError || (err as { name?: string }).name === "ZodError") {
+    statusCode = 400;
+    message = "Validation error";
+    const zodIssues = (err as unknown as { issues?: Array<{ message: string; path?: Array<string | number> }> }).issues;
+    errors = Array.isArray(zodIssues)
+      ? zodIssues.map((issue) => (issue.path && issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message))
+      : [err.message];
   }
 
   // ── Mongoose validation error ────────────────────────────────
@@ -78,9 +89,14 @@ export const errorHandler = (
     console.error("Unhandled error:", err);
   }
 
+  const errWithMeta = err as Error & { code?: string; quote?: unknown; data?: unknown };
+
   res.status(statusCode).json({
     success: false,
     message,
+    ...(errWithMeta.code ? { code: errWithMeta.code } : {}),
+    ...(errWithMeta.quote ? { quote: errWithMeta.quote } : {}),
+    ...(errWithMeta.data ? { data: errWithMeta.data } : {}),
     ...(errors ? { errors } : {}),
     ...(process.env.NODE_ENV === "development" ? { stack: err.stack } : {}),
   });

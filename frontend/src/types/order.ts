@@ -117,6 +117,24 @@ export interface Order {
   subtotal: number;
   tax: number;
   deliveryFee: number;
+  deliveryFeeOriginal?: number;
+  deliveryFeeDiscount?: number;
+  deliveryFeeCharged?: number;
+  deliveryCampaignSnapshot?: {
+    campaignId?: string;
+    name?: string;
+    label?: string;
+    waivedAmount?: number;
+  };
+  deliveryDistanceKm?: number;
+  deliveryDurationMin?: number;
+  deliveryRouteProvider?: string;
+  deliveryIsEstimate?: boolean;
+  deliveryCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  tipAmount?: number;
   discount: number;
   total: number;
   couponCode?: string;
@@ -175,4 +193,7 @@ export interface CreateOrderPayload {
   paymentMethod: string;
   couponCode?: string;
   specialInstructions?: string;
+  tipAmount?: number;
+  quoteSignature?: string;
+  expectedChargedFee?: number;
 }

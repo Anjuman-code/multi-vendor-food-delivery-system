@@ -1,0 +1,16 @@
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    container_name: foodrush-osrm
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data/osrm:/data:ro
+    command: osrm-routed --algorithm mld /data/bangladesh-latest.osrm
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/route/v1/driving/91.8687,24.8994;91.8700,24.9000?overview=false"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

@@ -31,6 +31,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import LocationPicker from '@/components/location/LocationPicker';
 
 const CUISINE_OPTIONS = [
   'Bengali',
@@ -131,6 +132,12 @@ const RestaurantFormPage: React.FC = () => {
             street: r.address?.street || '',
             area: r.address?.area || '',
             district: r.address?.district || 'Sylhet',
+            coordinates:
+              r.address?.coordinates && r.address.coordinates.lat && r.address.coordinates.lng
+                ? r.address.coordinates
+                : r.location?.coordinates && r.location.coordinates.length === 2
+                  ? { lat: r.location.coordinates[1], lng: r.location.coordinates[0] }
+                  : undefined,
           },
           openingHours:
             r.operatingHours?.map((h) => ({
@@ -545,6 +552,39 @@ const RestaurantFormPage: React.FC = () => {
                     </p>
                   )}
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-dashed">
+                <Label className="block mb-2 font-medium text-gray-700">
+                  Map Pin & Road Coordinates{' '}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Required for delivery distance & fee calculations)
+                  </span>
+                </Label>
+                <LocationPicker
+                  value={
+                    watch('address.coordinates')?.lat && watch('address.coordinates')?.lng
+                      ? {
+                          latitude: watch('address.coordinates')!.lat,
+                          longitude: watch('address.coordinates')!.lng,
+                        }
+                      : null
+                  }
+                  onChange={(val) => {
+                    setValue(
+                      'address.coordinates',
+                      { lat: val.latitude, lng: val.longitude },
+                      { shouldValidate: true },
+                    );
+                    if (val.street && !watch('address.street')) {
+                      setValue('address.street', val.street, { shouldValidate: true });
+                    }
+                    if (val.area && !watch('address.area')) {
+                      setValue('address.area', val.area, { shouldValidate: true });
+                    }
+                  }}
+                  helperText="Search or drag the pin to set your exact kitchen entrance location on OpenStreetMap."
+                />
               </div>
             </div>
           </SectionCard>

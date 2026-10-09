@@ -25,56 +25,19 @@ export const reverseGeocodeCoordinates = async (
   latitude: number,
   longitude: number,
 ): Promise<ResolvedAddress> => {
-  const url = new URL("https://nominatim.openstreetmap.org/reverse");
-  url.searchParams.set("format", "jsonv2");
-  url.searchParams.set("lat", String(latitude));
-  url.searchParams.set("lon", String(longitude));
-  url.searchParams.set("addressdetails", "1");
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": "en",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Reverse geocoding failed");
-  }
-
-  const data = (await response.json()) as {
-    address?: {
-      house_number?: string;
-      road?: string;
-      pedestrian?: string;
-      neighbourhood?: string;
-      suburb?: string;
-      city?: string;
-      town?: string;
-      village?: string;
-      municipality?: string;
-      county?: string;
-      state?: string;
-      country?: string;
-      postcode?: string;
+  try {
+    const { deliveryService } = await import("@/services/deliveryService");
+    const res = await deliveryService.geocodeReverse(latitude, longitude);
+    if (!res.success || !res.data?.address) {
+      return {};
+    }
+    const addr = res.data.address;
+    return {
+      street: addr.street || undefined,
+      district: addr.district || undefined,
+      area: addr.area || undefined,
     };
-  };
-
-  const address = data.address ?? {};
-  const street = [
-    address.house_number,
-    address.road ||
-      address.pedestrian ||
-      address.neighbourhood ||
-      address.suburb,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  return {
-    street: street || undefined,
-    district: address.county || address.state || undefined,
-    area: address.city || address.town || address.village || address.municipality || undefined,
-  };
+  } catch {
+    return {};
+  }
 };

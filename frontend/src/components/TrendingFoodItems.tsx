@@ -255,7 +255,7 @@ const TrendingFoodItems: React.FC = () => {
         {/* Feature Icons Grid (Bottom) */}
         <div className="mt-12 grid grid-cols-3 gap-8 md:gap-16 text-center">
           {[
-            { label: 'Free Delivery', icon: '🚀' },
+            { label: 'Fast Delivery', icon: '🚀' },
             { label: '20-30 Mins', icon: '⏱️' },
             { label: 'Top Rated', icon: '🏆' },
           ].map((feature, i) => (

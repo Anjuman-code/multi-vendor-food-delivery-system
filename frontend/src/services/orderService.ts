@@ -42,6 +42,8 @@ export interface CreateOrderFromCartPayload {
   couponCode?: string;
   specialInstructions?: string;
   tipAmount?: number;
+  quoteSignature?: string;
+  expectedChargedFee?: number;
 }
 
 const orderService = {

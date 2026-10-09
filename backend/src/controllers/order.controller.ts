@@ -13,7 +13,7 @@ import MenuItem from "../models/MenuItem";
 import Restaurant from "../models/Restaurant";
 import DriverRating from "../models/DriverRating";
 import Review from "../models/Review";
-import { computeDeliveryFee } from "./delivery-zone.controller";
+import { deliveryService } from "../services/delivery/delivery.service";
 import { applyCampaigns } from "./campaign.controller";
 import { processReferralReward } from "./referral.controller";
 import { NotificationType } from "../models/Notification";
@@ -291,46 +291,95 @@ export const createOrder = async (
     }
     discount += campaignDiscount;
 
-    const TAX_RATE = 0.05;
+    const lat =
+      deliveryAddress?.coordinates?.latitude ??
+      deliveryAddress?.coordinates?.lat ??
+      deliveryAddress?.lat;
+    const lng =
+      deliveryAddress?.coordinates?.longitude ??
+      deliveryAddress?.coordinates?.lng ??
+      deliveryAddress?.lng;
 
-    // Compute delivery fee from zone, falling back to restaurant default
-    const restaurant = await Restaurant.findById(restaurantObjectId).select("deliveryFee");
-    let deliveryFee = restaurant?.deliveryFee || 50;
-
-    if (deliveryAddress?.coordinates) {
-      try {
-        const zoneFee = await computeDeliveryFee(
-          restaurantId,
-          deliveryAddress.coordinates.latitude,
-          deliveryAddress.coordinates.longitude,
-          subtotal,
-        );
-        if (zoneFee.fee >= 0) {
-          deliveryFee = zoneFee.fee;
-        }
-      } catch {
-        // Zone validation failures are non-blocking for order creation;
-        // they will be re-thrown above if critical (minimum order not met)
-      }
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new ValidationError(
+        "Delivery address requires valid coordinates to calculate delivery route and fee",
+      );
     }
 
+    const destination = { latitude: Number(lat), longitude: Number(lng) };
+    const itemsSubtotalAfterDiscount = Math.max(0, subtotal - discount);
+
+    const quoteResult = await deliveryService.verifyQuoteIntegrity({
+      destination,
+      subOrders: [
+        {
+          restaurantId: restaurantId.toString(),
+          itemsSubtotal: itemsSubtotalAfterDiscount,
+        },
+      ],
+      quoteSignature: req.body.quoteSignature,
+      expectedChargedFee:
+        typeof req.body.expectedChargedFee === "number"
+          ? req.body.expectedChargedFee
+          : undefined,
+    });
+
+    const quote = quoteResult.quotes[0];
+    if (!quote || !quote.deliverable) {
+      throw new ValidationError(
+        quote?.reason === "OUT_OF_RANGE"
+          ? `Restaurant is outside delivery range (${quote.distanceKm.toFixed(1)} km). Max allowed is 15 km.`
+          : `Restaurant cannot deliver to this address (${quote?.reason || "unavailable"})`,
+      );
+    }
+
+    const deliveryFeeOriginal = quote.feeOriginal;
+    const deliveryFeeDiscount = quote.feeDiscount;
+    const deliveryFeeCharged = quote.feeCharged;
+    const deliveryFee = deliveryFeeCharged;
+
+    const TAX_RATE = 0.05;
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-    const total = subtotal + tax + deliveryFee - discount;
+    const total = Math.max(0, subtotal + tax + deliveryFeeCharged - discount + tipAmount);
 
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
       customerId: authReq.user._id,
       restaurantId: restaurantObjectId,
       items: orderItems,
-      deliveryAddress,
+      deliveryAddress: {
+        ...deliveryAddress,
+        coordinates: {
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+        },
+      },
       paymentMethod,
       paymentStatus: PaymentStatus.PENDING,
       subtotal,
       tax,
       deliveryFee,
+      deliveryFeeOriginal,
+      deliveryFeeDiscount,
+      deliveryFeeCharged,
+      deliveryCampaignSnapshot: quote.campaign
+        ? {
+            campaignId: quote.campaign.campaignId
+              ? new Types.ObjectId(quote.campaign.campaignId)
+              : undefined,
+            name: quote.campaign.name,
+            label: quote.campaign.label,
+            waivedAmount: quote.campaign.waivedAmount,
+          }
+        : undefined,
+      deliveryDistanceKm: quote.distanceKm,
+      deliveryDurationMin: quote.durationMin,
+      deliveryRouteProvider: quote.provider,
+      deliveryIsEstimate: quote.isEstimate,
+      deliveryCoordinates: destination,
       discount,
       tipAmount,
-      total: Math.max(total + tipAmount, 0),
+      total,
       couponCode: couponCode?.toUpperCase(),
       specialInstructions,
       estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000),
@@ -441,136 +490,9 @@ export const createOrder = async (
 };
 
 /**
- * Build a single sub-order from a restaurant's items in the cart.
- */
-const buildSubOrder = async (
-  params: {
-    restaurantId: Types.ObjectId;
-    items: Array<{
-      key: string;
-      restaurantId: Types.ObjectId;
-      restaurantName: string;
-      menuItemId: Types.ObjectId;
-      name: string;
-      price: number;
-      image?: string;
-      quantity: number;
-      variants: Array<{ variantId?: Types.ObjectId; name: string; price: number }>;
-      addons: Array<{ addonId?: Types.ObjectId; name: string; price: number }>;
-      specialInstructions?: string;
-    }>;
-    customerId: Types.ObjectId;
-    deliveryAddress: any;
-    paymentMethod: string;
-  },
-): Promise<{
-  order: any;
-  subtotal: number;
-  deliveryFee: number;
-  tax: number;
-  discount: number;
-  total: number;
-}> => {
-  let subtotal = 0;
-  const orderItems: Array<{
-    menuItemId: Types.ObjectId;
-    name: string;
-    price: number;
-    quantity: number;
-    variants: TrustedItemOption[];
-    addons: TrustedItemOption[];
-    specialInstructions?: string;
-    itemTotal: number;
-  }> = [];
-
-  for (const item of params.items) {
-    const menuItem = await MenuItem.findOne({
-      _id: item.menuItemId,
-      restaurantId: params.restaurantId,
-    });
-    if (!menuItem) {
-      throw new ValidationError(
-        `Menu item ${item.menuItemId} is not available for ${params.restaurantId}`,
-      );
-    }
-    if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
-      throw new ValidationError(`${menuItem.name} is currently unavailable`);
-    }
-    if (menuItem.stockStatus === "out_of_stock") {
-      throw new ValidationError(`${menuItem.name} is currently out of stock`);
-    }
-
-    const quantity = item.quantity;
-
-    const variants = resolveRequestedOptions(
-      item.variants || [],
-      menuItem.variants,
-      "variant",
-      menuItem.name,
-    );
-    const addons = resolveRequestedOptions(
-      item.addons || [],
-      menuItem.addons,
-      "addon",
-      menuItem.name,
-    );
-
-    const itemPrice =
-      menuItem.price +
-      variants.reduce((sum, opt) => sum + opt.price, 0) +
-      addons.reduce((sum, opt) => sum + opt.price, 0);
-
-    const itemTotal = itemPrice * quantity;
-    subtotal += itemTotal;
-
-    orderItems.push({
-      menuItemId: menuItem._id,
-      name: menuItem.name,
-      price: menuItem.price,
-      quantity,
-      variants,
-      addons,
-      specialInstructions: item.specialInstructions,
-      itemTotal,
-    });
-  }
-
-  const restaurant = await Restaurant.findById(params.restaurantId).select("deliveryFee");
-  let deliveryFee = restaurant?.deliveryFee || 50;
-
-  if (params.deliveryAddress?.coordinates) {
-    try {
-      const zoneFee = await computeDeliveryFee(
-        params.restaurantId.toString(),
-        params.deliveryAddress.coordinates.latitude,
-        params.deliveryAddress.coordinates.longitude,
-        subtotal,
-      );
-      if (zoneFee.fee >= 0) {
-        deliveryFee = zoneFee.fee;
-      }
-    } catch {
-      // Non-blocking
-    }
-  }
-
-  const TAX_RATE = 0.05;
-  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-
-  return {
-    order: null,
-    subtotal,
-    deliveryFee,
-    tax,
-    discount: 0,
-    total: subtotal + tax + deliveryFee,
-  };
-};
-
-/**
  * POST /api/orders/from-cart
  * Create orders from the authenticated user's server-side cart.
- * Supports multi-restaurant carts – one sub-order per restaurant.
+ * Supports multi-restaurant carts – one sub-order per restaurant with individual dynamic delivery fees.
  */
 export const createOrderFromCart = async (
   req: Request,
@@ -590,6 +512,23 @@ export const createOrderFromCart = async (
       tipAmount = 0,
       scheduledFor,
     } = req.body;
+
+    // Validate delivery coordinates
+    const lat =
+      deliveryAddress?.coordinates?.latitude ??
+      deliveryAddress?.coordinates?.lat ??
+      deliveryAddress?.lat;
+    const lng =
+      deliveryAddress?.coordinates?.longitude ??
+      deliveryAddress?.coordinates?.lng ??
+      deliveryAddress?.lng;
+
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new ValidationError(
+        "Delivery address requires valid coordinates to calculate delivery route and fee",
+      );
+    }
+    const destination = { latitude: Number(lat), longitude: Number(lng) };
 
     // Fetch server cart
     const Cart = (await import("../models/Cart")).default;
@@ -621,36 +560,108 @@ export const createOrderFromCart = async (
       throw new ValidationError("Orders can include items from up to 2 restaurants only");
     }
 
-    // Calculate combined subtotal for coupon validation
+    const TAX_RATE = 0.05;
     let combinedSubtotal = 0;
     const groupData: Array<{
       restaurantId: Types.ObjectId;
+      restaurantName: string;
       items: typeof cart.items;
+      orderItems: Array<{
+        menuItemId: Types.ObjectId;
+        name: string;
+        price: number;
+        quantity: number;
+        variants: TrustedItemOption[];
+        addons: TrustedItemOption[];
+        specialInstructions?: string;
+        itemTotal: number;
+      }>;
       subtotal: number;
-      deliveryFee: number;
       tax: number;
     }> = [];
 
+    // Validate menu items once and compute subtotal per restaurant
     for (const [restIdStr, items] of restaurantGroups) {
       const restId = new Types.ObjectId(restIdStr);
-      const result = await buildSubOrder({
-        restaurantId: restId,
-        items,
-        customerId: currentUser._id,
-        deliveryAddress,
-        paymentMethod,
-      });
-      combinedSubtotal += result.subtotal;
+      const restaurant = await Restaurant.findById(restId).select("name");
+      const restaurantName = restaurant?.name || "Restaurant";
+
+      let groupSubtotal = 0;
+      const orderItems: Array<{
+        menuItemId: Types.ObjectId;
+        name: string;
+        price: number;
+        quantity: number;
+        variants: TrustedItemOption[];
+        addons: TrustedItemOption[];
+        specialInstructions?: string;
+        itemTotal: number;
+      }> = [];
+
+      for (const item of items) {
+        const menuItem = await MenuItem.findOne({
+          _id: item.menuItemId,
+          restaurantId: restId,
+        });
+        if (!menuItem) {
+          throw new ValidationError(
+            `Menu item ${item.menuItemId} is not available for ${restaurantName}`,
+          );
+        }
+        if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
+          throw new ValidationError(`${menuItem.name} is currently unavailable`);
+        }
+        if (menuItem.stockStatus === "out_of_stock") {
+          throw new ValidationError(`${menuItem.name} is currently out of stock`);
+        }
+
+        const quantity = item.quantity;
+        const variants = resolveRequestedOptions(
+          item.variants || [],
+          menuItem.variants,
+          "variant",
+          menuItem.name,
+        );
+        const addons = resolveRequestedOptions(
+          item.addons || [],
+          menuItem.addons,
+          "addon",
+          menuItem.name,
+        );
+
+        const itemPrice =
+          menuItem.price +
+          variants.reduce((sum, opt) => sum + opt.price, 0) +
+          addons.reduce((sum, opt) => sum + opt.price, 0);
+
+        const itemTotal = itemPrice * quantity;
+        groupSubtotal += itemTotal;
+
+        orderItems.push({
+          menuItemId: menuItem._id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity,
+          variants,
+          addons,
+          specialInstructions: item.specialInstructions,
+          itemTotal,
+        });
+      }
+
+      const groupTax = Math.round(groupSubtotal * TAX_RATE * 100) / 100;
+      combinedSubtotal += groupSubtotal;
       groupData.push({
         restaurantId: restId,
+        restaurantName,
         items,
-        subtotal: result.subtotal,
-        deliveryFee: result.deliveryFee,
-        tax: result.tax,
+        orderItems,
+        subtotal: groupSubtotal,
+        tax: groupTax,
       });
     }
 
-    // Coupon validation
+    // Coupon validation across combined subtotal
     let totalDiscount = 0;
     let appliedCoupon: Awaited<ReturnType<typeof Coupon.findOne>> = null;
 
@@ -690,13 +701,13 @@ export const createOrderFromCart = async (
       appliedCoupon = coupon;
     }
 
-    // Auto-apply active campaigns
+    // Auto-apply active item campaigns
     let campaignDiscount = 0;
     try {
       const profile = await CustomerProfile.findOne({ userId: currentUser._id });
       const campaignResult = await applyCampaigns(
         currentUser._id.toString(),
-        "", // campaigns applied at group level, discount distributed proportionally
+        "",
         combinedSubtotal,
         !profile || profile.totalOrders === 0,
         profile?.tier || "bronze",
@@ -707,112 +718,106 @@ export const createOrderFromCart = async (
     }
     totalDiscount += campaignDiscount;
 
-    // Distribute discount proportionally across restaurant groups
+    // Distribute item discount proportionally across restaurant groups
     const groupDiscounts = groupData.map((g) =>
       combinedSubtotal > 0
         ? Math.round((g.subtotal / combinedSubtotal) * totalDiscount * 100) / 100
         : 0,
     );
 
+    // Dynamic delivery fee calculation and quote verification
+    const subOrdersQuoteInput = groupData.map((g, idx) => ({
+      restaurantId: g.restaurantId.toString(),
+      itemsSubtotal: Math.max(0, g.subtotal - groupDiscounts[idx]),
+    }));
+
+    const quoteResult = await deliveryService.verifyQuoteIntegrity({
+      destination,
+      subOrders: subOrdersQuoteInput,
+      quoteSignature: req.body.quoteSignature,
+      expectedChargedFee:
+        typeof req.body.expectedChargedFee === "number"
+          ? req.body.expectedChargedFee
+          : undefined,
+    });
+
     // Generate a common group order ID so sub-orders are linked
     const groupOrderId = new Types.ObjectId();
-
     const createdOrders: Array<any> = [];
 
     for (let i = 0; i < groupData.length; i++) {
       const g = groupData[i];
       const discount = groupDiscounts[i];
-      const total = g.subtotal + g.tax + g.deliveryFee - discount;
+      const quote =
+        quoteResult.quotes.find((q) => q.restaurantId === g.restaurantId.toString()) ||
+        quoteResult.quotes[i];
 
-      // Re-validate items and create the order document
-      let subSubtotal = 0;
-      const orderItems: Array<{
-        menuItemId: Types.ObjectId;
-        name: string;
-        price: number;
-        quantity: number;
-        variants: TrustedItemOption[];
-        addons: TrustedItemOption[];
-        specialInstructions?: string;
-        itemTotal: number;
-      }> = [];
-
-      for (const item of g.items) {
-        const menuItem = await MenuItem.findOne({
-          _id: item.menuItemId,
-          restaurantId: g.restaurantId,
-        });
-        if (!menuItem) {
-          throw new ValidationError(
-            `Menu item ${item.menuItemId} is not available`,
-          );
-        }
-        if (!menuItem.isAvailable || menuItem.stockStatus === "hidden") {
-          throw new ValidationError(`${menuItem.name} is currently unavailable`);
-        }
-        if (menuItem.stockStatus === "out_of_stock") {
-          throw new ValidationError(`${menuItem.name} is currently out of stock`);
-        }
-
-        const quantity = item.quantity;
-        const variants = resolveRequestedOptions(
-          item.variants || [],
-          menuItem.variants,
-          "variant",
-          menuItem.name,
+      if (!quote || !quote.deliverable) {
+        throw new ValidationError(
+          quote?.reason === "OUT_OF_RANGE"
+            ? `Restaurant "${quote?.restaurantName || g.restaurantName}" is too far for delivery (${quote?.distanceKm.toFixed(1)} km). Max allowed is 15 km.`
+            : `Restaurant "${g.restaurantName}" cannot deliver to this address`,
         );
-        const addons = resolveRequestedOptions(
-          item.addons || [],
-          menuItem.addons,
-          "addon",
-          menuItem.name,
-        );
-
-        const itemPrice =
-          menuItem.price +
-          variants.reduce((sum, opt) => sum + opt.price, 0) +
-          addons.reduce((sum, opt) => sum + opt.price, 0);
-
-        const itemTotal = itemPrice * quantity;
-        subSubtotal += itemTotal;
-
-        orderItems.push({
-          menuItemId: menuItem._id,
-          name: menuItem.name,
-          price: menuItem.price,
-          quantity,
-          variants,
-          addons,
-          specialInstructions: item.specialInstructions,
-          itemTotal,
-        });
       }
+
+      // Attach tip only to the first sub-order to prevent duplicate billing
+      const subOrderTip = i === 0 ? tipAmount : 0;
+      const subOrderTotal = Math.max(
+        0,
+        g.subtotal + g.tax + quote.feeCharged - discount + subOrderTip,
+      );
 
       const order = await Order.create({
         orderNumber: generateOrderNumber(),
         customerId: currentUser._id,
         restaurantId: g.restaurantId,
         groupOrderId,
-        items: orderItems,
-        deliveryAddress,
+        items: g.orderItems,
+        deliveryAddress: {
+          ...deliveryAddress,
+          coordinates: {
+            latitude: destination.latitude,
+            longitude: destination.longitude,
+          },
+        },
         paymentMethod,
         paymentStatus: PaymentStatus.PENDING,
-        subtotal: subSubtotal,
+        subtotal: g.subtotal,
         tax: g.tax,
-        deliveryFee: g.deliveryFee,
+        deliveryFee: quote.feeCharged,
+        deliveryFeeOriginal: quote.feeOriginal,
+        deliveryFeeDiscount: quote.feeDiscount,
+        deliveryFeeCharged: quote.feeCharged,
+        deliveryCampaignSnapshot: quote.campaign
+          ? {
+              campaignId: quote.campaign.campaignId
+                ? new Types.ObjectId(quote.campaign.campaignId)
+                : undefined,
+              name: quote.campaign.name,
+              label: quote.campaign.label,
+              waivedAmount: quote.campaign.waivedAmount,
+            }
+          : undefined,
+        deliveryDistanceKm: quote.distanceKm,
+        deliveryDurationMin: quote.durationMin,
+        deliveryRouteProvider: quote.provider,
+        deliveryIsEstimate: quote.isEstimate,
+        deliveryCoordinates: destination,
         discount,
-        tipAmount,
-        total: Math.max(total + tipAmount, 0),
+        tipAmount: subOrderTip,
+        total: subOrderTotal,
         couponCode: couponCode?.toUpperCase(),
         specialInstructions,
         estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000),
         scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
-        statusHistory: [{
-          status: OrderStatus.PENDING,
-          timestamp: new Date(),
-          actorId: currentUser._id,
-          actorRole: currentUser.role,
-        }],
+        statusHistory: [
+          {
+            status: OrderStatus.PENDING,
+            timestamp: new Date(),
+            actorId: currentUser._id,
+            actorRole: currentUser.role,
+          },
+        ],
       });
 
       createdOrders.push(order);

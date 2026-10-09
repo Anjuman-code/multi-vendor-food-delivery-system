@@ -114,7 +114,7 @@ const FAQPage: React.FC = () => {
         {
           question: "What are the delivery charges?",
           answer:
-            "Delivery fees vary based on distance and are clearly shown before checkout. Fees typically range from ৳20-60 within Sylhet City. Many restaurants offer free delivery for orders above a certain amount, and Food Rush Premium members enjoy reduced or free delivery.",
+            "Delivery fees are calculated dynamically based on real road distance between the restaurant and your delivery address, with a fixed platform minimum of ৳10. Free delivery promotions apply automatically when your order subtotal meets active promotional campaign thresholds.",
         },
       ],
     },

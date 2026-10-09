@@ -14,3 +14,8 @@ backend/uploads/
 # Email Sandbox Previews
 backend/.email-previews/
 
+# OpenStreetMap OSRM Data & Preprocessed Graphs
+data/
+*.osrm*
+*.pbf
+

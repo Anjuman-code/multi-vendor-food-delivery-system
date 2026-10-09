@@ -114,6 +114,7 @@ const restaurantSchema = new Schema<IRestaurant>(
       },
       coordinates: { type: [Number] }, // [longitude, latitude]
     },
+    locationVerified: { type: Boolean, default: false },
     contactInfo: {
       phone: {
         type: String,
@@ -190,6 +191,36 @@ restaurantSchema.pre('validate', async function () {
     if (!isCanonicalBdPhoneNumber(this.contactInfo.phone)) {
       this.invalidate('contactInfo.phone', BD_PHONE_ERROR_MESSAGE);
     }
+  }
+
+  // Synchronize address.coordinates and GeoJSON location Point
+  if (this.address?.coordinates?.lat != null && this.address?.coordinates?.lng != null) {
+    const lat = Number(this.address.coordinates.lat);
+    const lng = Number(this.address.coordinates.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
+      this.location = {
+        type: 'Point',
+        coordinates: [lng, lat],
+      };
+      this.locationVerified = true;
+    }
+  } else if (
+    this.location?.coordinates &&
+    this.location.coordinates.length === 2 &&
+    Number.isFinite(this.location.coordinates[0]) &&
+    Number.isFinite(this.location.coordinates[1]) &&
+    (this.location.coordinates[0] !== 0 || this.location.coordinates[1] !== 0)
+  ) {
+    if (!this.address) {
+      this.address = { street: '', area: '', district: 'Sylhet' };
+    }
+    if (!this.address.coordinates) {
+      this.address.coordinates = {
+        lat: this.location.coordinates[1],
+        lng: this.location.coordinates[0],
+      };
+    }
+    this.locationVerified = true;
   }
 
   if (this.isModified('name') || this.isNew || !this.slug) {

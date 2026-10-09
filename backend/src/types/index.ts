@@ -78,6 +78,7 @@ export interface IRestaurant {
   descriptionI18n?: Map<string, string>;
   address: IRestaurantAddress;
   location?: IGeoLocation;
+  locationVerified?: boolean;
   contactInfo: IContactInfo;
   cuisineType: string[];
   tags: string[];

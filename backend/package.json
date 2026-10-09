@@ -11,7 +11,9 @@
     "db:reset": "ts-node-dev --transpile-only ../scripts/seed.ts",
     "email:preview": "ts-node scripts/preview-emails.ts",
     "email:test": "ts-node scripts/test-send-email.ts",
-    "test:email": "node -r ts-node/register --test tests/email.test.ts"
+    "test:email": "node -r ts-node/register --test tests/email.test.ts",
+    "test:delivery": "node -r ts-node/register --test tests/delivery.test.ts",
+    "test": "node -r ts-node/register --test tests/*.test.ts"
   },
   "keywords": [],
   "author": "Anjuman",

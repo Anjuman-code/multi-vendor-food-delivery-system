@@ -17,10 +17,11 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-const FREE_DELIVERY_THRESHOLD = 500;
+import deliveryService, {
+  type ActiveDeliveryCampaign,
+} from "@/services/deliveryService";
 
 const CartPage: React.FC = () => {
   const {
@@ -29,6 +30,9 @@ const CartPage: React.FC = () => {
     subtotal,
     tax,
     deliveryFee,
+    deliveryFeeOriginal,
+    deliveryFeeDiscount,
+    deliveryQuote,
     total,
     promoCode,
     setPromoCode,
@@ -42,6 +46,19 @@ const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [promoDraft, setPromoDraft] = useState(promoCode);
+  const [activeCampaigns, setActiveCampaigns] = useState<ActiveDeliveryCampaign[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    deliveryService.getActiveCampaigns().then((res) => {
+      if (isMounted && res.success && res.data?.campaigns) {
+        setActiveCampaigns(res.data.campaigns);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setPromoDraft(promoCode);
@@ -74,12 +91,30 @@ const CartPage: React.FC = () => {
     }, 250);
   };
 
-  const amountToFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
-  const freeDeliveryProgress = Math.min(
-    100,
-    (subtotal / FREE_DELIVERY_THRESHOLD) * 100,
-  );
-  const qualifiesForFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
+  // Find relevant active campaigns for the restaurants in the cart
+  const relevantCampaigns = useMemo(() => {
+    const cartRestIds = itemsByRestaurant.map((g) => g.restaurantId);
+    return activeCampaigns.filter((c) => {
+      if (!c.restaurantIds || c.restaurantIds.length === 0) return true;
+      return cartRestIds.some((id) => c.restaurantIds.includes(id));
+    });
+  }, [activeCampaigns, itemsByRestaurant]);
+
+  // Pick best campaign with the lowest qualification threshold
+  const bestCampaign = useMemo(() => {
+    if (relevantCampaigns.length === 0) return null;
+    return [...relevantCampaigns].sort((a, b) => a.minSubtotal - b.minSubtotal)[0];
+  }, [relevantCampaigns]);
+
+  const amountToFreeDelivery = bestCampaign
+    ? Math.max(0, bestCampaign.minSubtotal - subtotal)
+    : 0;
+  const freeDeliveryProgress = bestCampaign && bestCampaign.minSubtotal > 0
+    ? Math.min(100, (subtotal / bestCampaign.minSubtotal) * 100)
+    : 0;
+  const qualifiesForFreeDelivery = bestCampaign
+    ? subtotal >= bestCampaign.minSubtotal
+    : false;
 
   const isMultiRestaurant = itemsByRestaurant.length > 1;
 
@@ -254,35 +289,37 @@ const CartPage: React.FC = () => {
             {/* ── Summary Column ───────────────────────────────── */}
             <div className="lg:col-span-2">
               <div className="sticky top-24 space-y-4">
-                {/* Free Delivery Progress */}
-                <Card className="p-4 bg-white border-gray-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Truck
-                      className={`h-4 w-4 ${qualifiesForFreeDelivery ? "text-green-500" : "text-orange-500"}`}
-                    />
-                    {qualifiesForFreeDelivery ? (
-                      <p className="text-sm font-medium text-green-700">
-                        You've unlocked free delivery!
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-600">
-                        Add{" "}
-                        <span className="font-semibold text-orange-600">
-                          ৳{amountToFreeDelivery.toFixed(0)}
-                        </span>{" "}
-                        more for free delivery
-                      </p>
-                    )}
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                      className={`h-full rounded-full ${qualifiesForFreeDelivery ? "bg-green-500" : "bg-orange-400"}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${freeDeliveryProgress}%` }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
-                    />
-                  </div>
-                </Card>
+                {/* Dynamic Admin-Managed Free Delivery Campaign Banner */}
+                {bestCampaign && (
+                  <Card className="p-4 bg-white border-gray-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Truck
+                        className={`h-4 w-4 ${qualifiesForFreeDelivery ? "text-green-500" : "text-orange-500"}`}
+                      />
+                      {qualifiesForFreeDelivery ? (
+                        <p className="text-sm font-medium text-green-700">
+                          You've unlocked free delivery! ({bestCampaign.label})
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-600">
+                          Add{" "}
+                          <span className="font-semibold text-orange-600">
+                            ৳{amountToFreeDelivery.toFixed(0)}
+                          </span>{" "}
+                          more for free delivery ({bestCampaign.label})
+                        </p>
+                      )}
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <motion.div
+                        className={`h-full rounded-full ${qualifiesForFreeDelivery ? "bg-green-500" : "bg-orange-400"}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${freeDeliveryProgress}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </Card>
+                )}
 
                 {/* Promo Code */}
                 <Card className="p-4 bg-white border-gray-100">
@@ -387,8 +424,25 @@ const CartPage: React.FC = () => {
                     <div className="flex justify-between text-gray-500">
                       <span>Delivery Fee</span>
                       <span className="font-medium text-gray-800">
-                        {formatCurrency(deliveryFee)}
-                        {isMultiRestaurant && (
+                        {deliveryQuote ? (
+                          deliveryFeeDiscount > 0 ? (
+                            <span className="flex items-center gap-1.5">
+                              <span className="line-through text-gray-400 text-xs">
+                                {formatCurrency(deliveryFeeOriginal)}
+                              </span>
+                              <span className="text-green-600 font-semibold">
+                                {deliveryFee === 0 ? "FREE" : formatCurrency(deliveryFee)}
+                              </span>
+                            </span>
+                          ) : (
+                            formatCurrency(deliveryFee)
+                          )
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-normal">
+                            Calculated at checkout
+                          </span>
+                        )}
+                        {isMultiRestaurant && deliveryQuote && (
                           <span className="text-xs text-gray-400 ml-1">
                             ({itemsByRestaurant.length}×)
                           </span>

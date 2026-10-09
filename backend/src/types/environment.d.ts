@@ -30,5 +30,11 @@ declare namespace NodeJS {
     CLOUDINARY_API_KEY?: string;
     CLOUDINARY_API_SECRET?: string;
     CLOUDINARY_FOLDER?: string;
+
+    OSRM_BASE_URL?: string;
+    ROUTING_TIMEOUT_MS?: string;
+    NOMINATIM_BASE_URL?: string;
+    NOMINATIM_USER_AGENT?: string;
+    DELIVERY_QUOTE_SECRET?: string;
   }
 }
