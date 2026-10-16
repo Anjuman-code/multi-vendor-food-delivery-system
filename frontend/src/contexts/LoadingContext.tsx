@@ -115,28 +115,26 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const finishNavigation = useCallback(() => {
-    navCountRef.current = Math.max(0, navCountRef.current - 1);
-    if (navCountRef.current === 0) {
-      if (navDelayTimerRef.current) {
-        clearTimeout(navDelayTimerRef.current);
-        navDelayTimerRef.current = null;
-      }
-      if (navSlowTimerRef.current) {
-        clearTimeout(navSlowTimerRef.current);
-        navSlowTimerRef.current = null;
-      }
-      setIsNavigatingSlow(false);
+    navCountRef.current = 0;
+    if (navDelayTimerRef.current) {
+      clearTimeout(navDelayTimerRef.current);
+      navDelayTimerRef.current = null;
+    }
+    if (navSlowTimerRef.current) {
+      clearTimeout(navSlowTimerRef.current);
+      navSlowTimerRef.current = null;
+    }
+    setIsNavigatingSlow(false);
 
-      if (navShownAtRef.current !== null) {
-        const elapsed = Date.now() - navShownAtRef.current;
-        const remaining = Math.max(0, LOADING_TIMING.NAV_MIN_DURATION_MS - elapsed);
-        setTimeout(() => {
-          setIsNavigating(false);
-          navShownAtRef.current = null;
-        }, remaining);
-      } else {
+    if (navShownAtRef.current !== null) {
+      const elapsed = Date.now() - navShownAtRef.current;
+      const remaining = Math.max(0, LOADING_TIMING.NAV_MIN_DURATION_MS - elapsed);
+      setTimeout(() => {
         setIsNavigating(false);
-      }
+        navShownAtRef.current = null;
+      }, remaining);
+    } else {
+      setIsNavigating(false);
     }
   }, []);
 

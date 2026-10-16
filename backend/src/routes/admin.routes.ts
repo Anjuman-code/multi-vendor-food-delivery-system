@@ -107,6 +107,18 @@ import {
 // Legacy vendor commission (kept for backward compatibility)
 import { updateCommissionRate } from "../controllers/vendor.controller";
 
+// Delivery Settings & Campaigns
+import {
+    createDeliveryCampaign,
+    deleteDeliveryCampaign,
+    getDeliveryCampaign,
+    getDeliverySettings,
+    listDeliveryCampaigns,
+    simulateDelivery,
+    updateDeliveryCampaign,
+    updateDeliverySettings,
+} from "../controllers/delivery.controller";
+
 const router = Router();
 
 // All admin routes require authentication + admin/support role
@@ -159,8 +171,8 @@ router.post("/users/drivers/:id/reject", ...adminOnly, rejectDriver);
 router.post("/users/drivers/:id/suspend", ...adminOnly, suspendDriver);
 router.post("/users/drivers/:id/unsuspend", ...adminOnly, unsuspendDriver);
 
-// ── Admin Team (super_admin only) ────────────────────────────────
-router.get("/team", ...superAdminOnly, listAdmins);
+// ── Admin Team (read: adminAuth, write: super_admin only) ────────
+router.get("/team", ...adminAuth, listAdmins);
 router.post("/team", ...superAdminOnly, createAdminUser);
 router.patch("/team/:id", ...superAdminOnly, updateAdminUser);
 router.post("/team/:id/deactivate", ...superAdminOnly, deactivateAdminUser);
@@ -227,5 +239,15 @@ router.post("/reviews/:id/hide", ...adminOnly, hideReview);
 // ── Platform Settings (super_admin only) ─────────────────────────
 router.get("/settings", ...adminAuth, getSettings);
 router.patch("/settings", ...superAdminOnly, updateSettings);
+
+// ── Delivery Settings & Campaigns ────────────────────────────────
+router.get("/delivery/settings", ...adminAuth, getDeliverySettings);
+router.put("/delivery/settings", ...adminOnly, updateDeliverySettings);
+router.post("/delivery/simulate", ...adminAuth, simulateDelivery);
+router.get("/delivery/campaigns", ...adminAuth, listDeliveryCampaigns);
+router.post("/delivery/campaigns", ...adminOnly, createDeliveryCampaign);
+router.get("/delivery/campaigns/:id", ...adminAuth, getDeliveryCampaign);
+router.put("/delivery/campaigns/:id", ...adminOnly, updateDeliveryCampaign);
+router.delete("/delivery/campaigns/:id", ...adminOnly, deleteDeliveryCampaign);
 
 export default router;

@@ -135,7 +135,7 @@ export const geocodeReverse = async (
   try {
     const { lat, lng } = geocodeReverseSchema.parse(req.query);
     const result = await deliveryService.geocodeReverse(lat, lng);
-    successResponse(res, { result }, "Reverse geocoding completed");
+    successResponse(res, { address: result, result }, "Reverse geocoding completed");
   } catch (error) {
     next(error);
   }
@@ -259,17 +259,29 @@ export const simulateDelivery = async (
       distanceKm = 0;
     }
 
-    const { itemsSubtotal, restaurantId } = parsed;
+    const { itemsSubtotal, restaurantId, overrideSettings } = parsed;
 
     const settings = await DeliverySettings.getSettings();
+    const minFee = overrideSettings?.minFee ?? settings.minFee;
+    const includedKm = overrideSettings?.includedKm ?? settings.includedKm;
+    const includedDistanceFee =
+      overrideSettings?.includedDistanceFee ?? settings.includedDistanceFee;
+    const perKmRate = overrideSettings?.perKmRate ?? settings.perKmRate;
+    const maxFee =
+      overrideSettings?.maxFee !== undefined
+        ? (overrideSettings.maxFee ?? undefined)
+        : settings.maxFee;
+    const maxDeliveryDistanceKm =
+      overrideSettings?.maxDeliveryDistanceKm ?? settings.maxDeliveryDistanceKm;
+
     const feeResult = calculateDeliveryFee({
       distanceKm,
-      minFee: settings.minFee,
-      includedKm: settings.includedKm,
-      includedDistanceFee: settings.includedDistanceFee,
-      perKmRate: settings.perKmRate,
-      maxFee: settings.maxFee,
-      maxDeliveryDistanceKm: settings.maxDeliveryDistanceKm,
+      minFee,
+      includedKm,
+      includedDistanceFee,
+      perKmRate,
+      maxFee,
+      maxDeliveryDistanceKm: Math.max(distanceKm, maxDeliveryDistanceKm),
     });
 
     const activeCampaigns = await DeliveryCampaign.find({
@@ -285,21 +297,27 @@ export const simulateDelivery = async (
       campaigns: activeCampaigns,
     });
 
+    const simulation = {
+      distanceKm,
+      itemsSubtotal,
+      feeOriginal: campaignResult.deliveryFeeOriginal,
+      feeDiscount: campaignResult.deliveryFeeDiscount,
+      feeCharged: campaignResult.deliveryFeeCharged,
+      campaignApplied: campaignResult.snapshot ?? null,
+      withinMaxDistance: distanceKm <= maxDeliveryDistanceKm,
+      settingsUsed: {
+        minFee,
+        includedKm,
+        perKmRate,
+        maxFee,
+      },
+    };
+
     successResponse(
       res,
       {
-        distanceKm,
-        itemsSubtotal,
-        feeOriginal: campaignResult.deliveryFeeOriginal,
-        feeDiscount: campaignResult.deliveryFeeDiscount,
-        feeCharged: campaignResult.deliveryFeeCharged,
-        campaignApplied: campaignResult.snapshot,
-        settingsUsed: {
-          minFee: settings.minFee,
-          includedKm: settings.includedKm,
-          perKmRate: settings.perKmRate,
-          maxFee: settings.maxFee,
-        },
+        ...simulation,
+        simulation,
       },
       "Simulation completed",
     );
@@ -437,7 +455,7 @@ export const updateDeliveryCampaign = async (
     const oldName = campaign.name;
     Object.assign(campaign, parsed);
     if (parsed.restaurantIds) {
-      campaign.restaurantIds = parsed.restaurantIds.map((rid) => new Types.ObjectId(rid)) as any;
+      campaign.restaurantIds = parsed.restaurantIds.map((rid) => new Types.ObjectId(rid));
     }
     campaign.updatedBy = authReq.user._id;
     await campaign.save();

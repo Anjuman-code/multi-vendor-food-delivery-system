@@ -147,8 +147,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       setIsReverseGeocoding(true);
       try {
         const res = await deliveryService.geocodeReverse(lat, lng);
-        if (res.success && res.data?.address) {
-          const addr = res.data.address;
+        const addr = res.data?.address ?? res.data?.result;
+        if (res.success && addr) {
           const display = addr.displayName || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
           setResolvedLabel(display);
           onChange({

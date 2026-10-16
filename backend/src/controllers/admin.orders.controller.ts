@@ -315,6 +315,14 @@ export const issueRefund = async (
           reason,
         })),
       );
+    } else {
+      order.refundLineItems.push({
+        menuItemId: order.items[0]?.menuItemId ?? order._id,
+        itemName: amount >= order.total ? 'Full Order Refund' : 'Order Refund',
+        quantity: 1,
+        refundAmount: amount,
+        reason,
+      });
     }
 
     order.paymentStatus = amount >= order.total ? PaymentStatus.REFUNDED : order.paymentStatus;

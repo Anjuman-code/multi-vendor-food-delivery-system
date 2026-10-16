@@ -707,8 +707,14 @@ export const getAvailablePaymentMethods = async (
       { id: 'cash_on_delivery', name: 'Cash on Delivery', enabled: config.codEnabled },
     ];
 
+    const fullSettings = {
+      ...config,
+      currency: settings?.currency || 'BDT',
+    };
+
     successResponse(res, {
       methods,
+      settings: fullSettings,
       config: {
         currency: settings?.currency || 'BDT',
         otpExpiryMinutes: config.otpExpiryMinutes,

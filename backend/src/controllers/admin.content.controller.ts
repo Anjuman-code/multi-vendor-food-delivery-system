@@ -187,18 +187,35 @@ export const listReviewsForModeration = async (req: Request, res: Response, next
     const skip = (page - 1) * limit;
 
     const filter: Record<string, unknown> = {};
-    if (req.query.status) filter.status = req.query.status;
+    if (req.query.status === 'published') {
+      filter.$or = [{ status: 'published' }, { status: { $exists: false } }];
+    } else if (req.query.status) {
+      filter.status = req.query.status;
+    }
     if (req.query.restaurantId) filter.restaurantId = req.query.restaurantId;
+    if (req.query.rating) {
+      const parsedRating = Number(req.query.rating);
+      if (!Number.isNaN(parsedRating)) filter.rating = parsedRating;
+    }
 
-    const [reviews, total] = await Promise.all([
+    const [rawReviews, total] = await Promise.all([
       Review.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('userId', 'firstName lastName email')
+        .populate('customerId', 'firstName lastName email')
         .populate('restaurantId', 'name'),
       Review.countDocuments(filter),
     ]);
+
+    const reviews = rawReviews.map((r) => {
+      const obj = r.toObject();
+      return {
+        ...obj,
+        status: obj.status || 'published',
+        userId: obj.customerId,
+      };
+    });
 
     successResponse(res, { reviews, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (e) { next(e); }

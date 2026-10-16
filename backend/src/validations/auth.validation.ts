@@ -10,7 +10,7 @@ import {
 
 // ── Reusable field schemas ─────────────────────────────────────
 
-const NAME_PATTERN = /^[a-zA-Z]+$/;
+const NAME_PATTERN = /^[a-zA-Z\s.'-]+$/;
 
 const AT_LEAST_ONE_LETTER = /[a-zA-Z]/;
 
@@ -19,7 +19,10 @@ const nameSchema = z
   .trim()
   .min(2, 'Must be at least 2 characters')
   .max(50, 'Cannot exceed 50 characters')
-  .regex(NAME_PATTERN, 'Can only contain letters')
+  .regex(
+    NAME_PATTERN,
+    'Can only contain letters, spaces, hyphens, apostrophes, and periods',
+  )
   .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
     message: 'Must contain at least one letter',
   });

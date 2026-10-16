@@ -1,7 +1,7 @@
 import { bdPhoneSchema } from '@/lib/phone';
 import { z } from 'zod';
 
-const namePattern = /^[a-zA-Z]+$/;
+const namePattern = /^[a-zA-Z0-9\s&'.,()-]+$/;
 
 const atLeastOneLetter = /[a-zA-Z]/;
 
@@ -36,7 +36,7 @@ export const createRestaurantSchema = z.object({
     .trim()
     .min(2, 'Restaurant name must be at least 2 characters')
     .max(100, 'Restaurant name cannot exceed 100 characters')
-    .regex(namePattern, 'Name Can only contain letters')
+    .regex(namePattern, 'Name contains invalid characters')
     .refine((v) => atLeastOneLetter.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -86,7 +86,7 @@ export const createRestaurantSchema = z.object({
     .number()
     .min(0, 'Minimum order cannot be negative')
     .optional(),
-  deliveryFee: z.number().min(0, 'Delivery fee cannot be negative').optional(),
+  deliveryFee: z.number().min(10, 'Delivery fee must be at least ৳10').optional(),
   estimatedDeliveryTime: z
     .number()
     .min(1, 'Delivery time must be at least 1 minute')
@@ -103,7 +103,7 @@ export const menuCategorySchema = z.object({
     .trim()
     .min(2, 'Category name must be at least 2 characters')
     .max(50, 'Category name cannot exceed 50 characters')
-    .regex(namePattern, 'Name Can only contain letters')
+    .regex(namePattern, 'Category name contains invalid characters')
     .refine((v) => atLeastOneLetter.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -123,7 +123,7 @@ export const menuItemSchema = z.object({
     .trim()
     .min(2, 'Item name must be at least 2 characters')
     .max(100, 'Item name cannot exceed 100 characters')
-    .regex(namePattern, 'Name Can only contain letters')
+    .regex(namePattern, 'Item name contains invalid characters')
     .refine((v) => atLeastOneLetter.test(v), {
       message: 'Must contain at least one letter',
     }),

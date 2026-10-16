@@ -10,6 +10,7 @@ import {
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FoodImage } from "@/components/ui/FoodImage";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -43,6 +44,7 @@ const VALID_STATUSES = [
 interface OrderItem {
   menuItemId?: string;
   name: string;
+  image?: string;
   quantity: number;
   price: number;
   totalPrice: number;
@@ -140,7 +142,7 @@ export default function OrderDetailPage() {
         deliveryFeeOriginal: o.deliveryFeeOriginal as number | undefined,
         deliveryFeeDiscount: o.deliveryFeeDiscount as number | undefined,
         deliveryFeeCharged: o.deliveryFeeCharged as number | undefined,
-        deliveryCampaignSnapshot: o.deliveryCampaignSnapshot as any,
+        deliveryCampaignSnapshot: o.deliveryCampaignSnapshot as OrderDetail["deliveryCampaignSnapshot"],
         deliveryDistanceKm: o.deliveryDistanceKm as number | undefined,
         deliveryDurationMin: o.deliveryDurationMin as number | undefined,
         deliveryRouteProvider: o.deliveryRouteProvider as string | undefined,
@@ -180,6 +182,7 @@ export default function OrderDetailPage() {
         items: (o.items as Array<Record<string, unknown>>).map((i) => ({
           menuItemId: str(i.menuItemId),
           name: i.name as string,
+          image: str(i.image),
           quantity: i.quantity as number,
           price: i.price as number,
           totalPrice: (i.itemTotal ?? i.totalPrice) as number,
@@ -503,14 +506,25 @@ export default function OrderDetailPage() {
       <SectionCard title="Order Items" flush>
         <div className="divide-y divide-border">
           {order.items.map((item, i) => (
-            <div key={i} className="flex items-center justify-between px-5 py-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">{item.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  ×{item.quantity} · {formatCurrency(item.price)} each
-                </p>
+            <div key={i} className="flex items-center justify-between gap-3 px-5 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-border">
+                  <FoodImage
+                    src={item.image}
+                    name={item.name}
+                    alt={item.name}
+                    aspectRatio="1/1"
+                    className="h-full w-full"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    ×{item.quantity} · {formatCurrency(item.price)} each
+                  </p>
+                </div>
               </div>
-              <span className="text-sm font-semibold text-foreground">{formatCurrency(item.totalPrice)}</span>
+              <span className="shrink-0 text-sm font-semibold text-foreground">{formatCurrency(item.totalPrice)}</span>
             </div>
           ))}
         </div>

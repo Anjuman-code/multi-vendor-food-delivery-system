@@ -367,7 +367,6 @@ function App(): React.ReactElement {
                             element={<VerifyEmail />}
                           />
                         </Route>
-                      </Route>
 
                       {/* ── Vendor routes (guarded) ──── */}
                       <Route element={<ProtectedRoute allowedRoles={['vendor']} />}>
@@ -513,7 +512,7 @@ function App(): React.ReactElement {
                       </Route>
 
                       {/* ── Admin routes (guarded) ───── */}
-                      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                      <Route element={<ProtectedRoute allowedRoles={['admin', 'support']} />}>
                         <Route path="/admin" element={<AdminLayout />}>
                           <Route index element={<AdminDashboard />} />
                           <Route
@@ -609,6 +608,7 @@ function App(): React.ReactElement {
                             element={<AdminDeliveryCampaignsPage />}
                           />
                         </Route>
+                      </Route>
                       </Route>
                     </Routes>
                   </Suspense>

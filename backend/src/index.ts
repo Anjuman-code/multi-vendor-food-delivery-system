@@ -12,7 +12,6 @@ import { initSocket } from './socket';
 import { RATE_LIMITS } from './config/constants';
 import { connectDatabase } from './config/database';
 import { errorHandler } from './middleware/error.middleware';
-import Name from './models/Name';
 import routes from './routes';
 
 // ── App setup ────────────────────────────────────────────────────
@@ -105,17 +104,6 @@ app.use('/api', routes);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Legacy helper route (kept for backwards compatibility)
-app.get('/save/:name', async (req: Request, res: Response) => {
-  try {
-    const newName = new Name({ name: req.params.name });
-    await newName.save();
-    res.json({ message: 'Name saved successfully', data: newName });
-  } catch (_error: unknown) {
-    res.status(500).json({ error: 'Failed to save name' });
-  }
 });
 
 // ── Global error handler (must be last) ──────────────────────────

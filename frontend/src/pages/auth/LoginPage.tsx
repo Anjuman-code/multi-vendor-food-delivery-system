@@ -67,13 +67,9 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = (provider: "google" | "facebook") => {
-    if (provider === "google") {
-      const state = location.state as { from?: string } | null;
-      authService.startGoogleAuth(typeof state?.from === "string" ? state.from : "/");
-      return;
-    }
-    toast.info("Coming soon", { description: `${provider} login is on the way.` });
+  const handleSocialLogin = () => {
+    const state = location.state as { from?: string } | null;
+    authService.startGoogleAuth(typeof state?.from === "string" ? state.from : "/");
   };
 
   return (

@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -94,14 +95,9 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { name: 'Restaurants', path: '/vendor/restaurants', icon: Store },
       { name: 'Settings', path: '/vendor/settings', icon: Settings },
+      { name: 'Help & Support', path: '/vendor/support', icon: HelpCircle },
     ],
   },
-  // {
-  //   label: "Support",
-  //   items: [
-  //     { name: "Help & Support", path: "/vendor/support", icon: HelpCircle },
-  //   ],
-  // },
 ];
 
 const allItems = sidebarGroups.flatMap((g) => g.items);
@@ -122,11 +118,8 @@ const getBreadcrumbs = (
     crumbs.push({ label: active.name, href: active.path });
   }
   // Handle sub-pages
-  if (pathname.includes('/reservations/settings') || pathname.includes('/reservations')) {
-    crumbs.push({ label: 'Reservations', href: '/vendor/reservations' });
-    if (pathname.includes('/settings')) {
-      crumbs.push({ label: 'Reservation Settings' });
-    }
+  if (pathname.includes('/reservations/settings')) {
+    crumbs.push({ label: 'Reservation Settings' });
   } else if (pathname.includes('/restaurants/') && pathname.includes('/edit')) {
     crumbs.push({ label: 'Edit Restaurant' });
   } else if (pathname.includes('/restaurants/new')) {
@@ -492,20 +485,20 @@ const VendorLayoutInner: React.FC = () => {
             {/* Breadcrumbs */}
             <nav
               aria-label="Breadcrumb"
-              className="flex items-center gap-1.5 text-sm"
+              className="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm"
             >
               {breadcrumbs.map((crumb, i) => (
                 <React.Fragment key={`${crumb.label}-${i}`}>
-                  {i > 0 && <span className="text-border">/</span>}
+                  {i > 0 && <span className="shrink-0 text-border">/</span>}
                   {crumb.href && i < breadcrumbs.length - 1 ? (
                     <Link
                       to={crumb.href}
-                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      className="truncate text-muted-foreground transition-colors hover:text-foreground"
                     >
                       {crumb.label}
                     </Link>
                   ) : (
-                    <span className="font-medium text-foreground">
+                    <span className="truncate font-medium text-foreground">
                       {crumb.label}
                     </span>
                   )}

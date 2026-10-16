@@ -1,7 +1,7 @@
 import { bdPhoneSchema, emailOrBdPhoneSchema } from '@/lib/phone';
 import { z } from 'zod';
 
-const namePattern = /^[a-zA-Z]+$/;
+const namePattern = /^[a-zA-Z\s.'-]+$/;
 
 const atLeastOneLetter = /[a-zA-Z]/;
 
@@ -10,7 +10,7 @@ const nameSchema = z
   .trim()
   .min(2, 'Must be at least 2 characters')
   .max(50, 'Cannot exceed 50 characters')
-  .regex(namePattern, 'Can only contain letters')
+  .regex(namePattern, 'Can only contain letters, spaces, hyphens, and apostrophes')
   .refine((v) => atLeastOneLetter.test(v), {
     message: 'Must contain at least one letter',
   });

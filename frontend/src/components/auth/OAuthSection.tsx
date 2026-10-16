@@ -1,14 +1,14 @@
 import SocialButton from "@/components/SocialButton";
 
 interface OAuthSectionProps {
-  onProvider: (provider: "google" | "facebook") => void;
+  onProvider: (provider: "google") => void;
   isLoading?: boolean;
   /** Divider caption, e.g. "or continue with". */
   label?: string;
 }
 
 /**
- * "or continue with" divider plus the Google / Facebook buttons. Shared by
+ * "or continue with" divider plus the Google OAuth button. Shared by
  * the login and register screens so the social-auth block stays identical.
  */
 export function OAuthSection({
@@ -26,15 +26,10 @@ export function OAuthSection({
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div>
         <SocialButton
           provider="google"
           onClick={() => onProvider("google")}
-          isLoading={isLoading}
-        />
-        <SocialButton
-          provider="facebook"
-          onClick={() => onProvider("facebook")}
           isLoading={isLoading}
         />
       </div>

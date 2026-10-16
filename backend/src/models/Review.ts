@@ -14,6 +14,8 @@ export interface IReview {
   images: string[];
   helpfulVotes: number;
   unhelpfulVotes: number;
+  status: "pending" | "published" | "hidden" | "removed";
+  moderationNote?: string;
   reply?: {
     text: string;
     repliedAt: Date;
@@ -66,6 +68,13 @@ const reviewSchema = new Schema<IReview>(
     images: { type: [String], default: [] },
     helpfulVotes: { type: Number, default: 0 },
     unhelpfulVotes: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ["pending", "published", "hidden", "removed"],
+      default: "published",
+      index: true,
+    },
+    moderationNote: { type: String, trim: true, maxlength: 500 },
     reply: {
       text: { type: String },
       repliedAt: { type: Date },

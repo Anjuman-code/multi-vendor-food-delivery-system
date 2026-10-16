@@ -12,11 +12,11 @@ import { getIO } from "../socket";
 import type { AuthRequest } from "../types";
 import {
     AuthenticationError,
+    AuthorizationError,
     NotFoundError,
     ValidationError,
 } from "../utils/errors";
 import { successResponse } from "../utils/response.util";
-import { applyOrderDelivered } from "../utils/vendor-stats.util";
 import type { UpdateOrderStatusInput } from "../validations/vendor.validation";
 
 // ────────────────────────────────────────────────────────────────
@@ -27,8 +27,7 @@ const VENDOR_STATUS_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
   [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
   [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELLED],
-  [OrderStatus.READY]: [OrderStatus.PICKED_UP, OrderStatus.CANCELLED],
-  [OrderStatus.PICKED_UP]: [OrderStatus.DELIVERED],
+  [OrderStatus.READY]: [OrderStatus.CANCELLED],
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -84,11 +83,22 @@ export const getVendorOrders = async (
     const restaurantId = req.query.restaurantId as string | undefined;
     const sortBy = (req.query.sortBy as string) || "-createdAt";
 
-    // Build filter
-    const matchRestaurants =
-      restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)
-        ? [new mongoose.Types.ObjectId(restaurantId)]
-        : restaurantIds;
+    // Build filter and enforce restaurant ownership
+    let matchRestaurants = restaurantIds;
+    if (restaurantId) {
+      if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+        throw new ValidationError("Invalid restaurant ID format");
+      }
+      const isOwned = restaurantIds.some(
+        (id) => id.toString() === restaurantId,
+      );
+      if (!isOwned) {
+        throw new AuthorizationError(
+          "You do not have permission to view orders for this restaurant",
+        );
+      }
+      matchRestaurants = [new mongoose.Types.ObjectId(restaurantId)];
+    }
 
     const filter: Record<string, unknown> = {
       restaurantId: { $in: matchRestaurants },
@@ -223,25 +233,7 @@ export const updateVendorOrderStatus = async (
       order.cancelReason = note || "Cancelled by restaurant";
     }
 
-    if (newStatus === OrderStatus.DELIVERED) {
-      order.actualDeliveryTime = new Date();
-    }
-
     await order.save();
-
-    // Accrue vendor earnings on delivery. Guarded on previousStatus so a
-    // replay can't double-count; best-effort so a sync hiccup can't fail the
-    // status update (the transition is already persisted).
-    if (
-      newStatus === OrderStatus.DELIVERED &&
-      previousStatus !== OrderStatus.DELIVERED
-    ) {
-      try {
-        await applyOrderDelivered(order.restaurantId, order.subtotal);
-      } catch (statErr) {
-        console.error("[vendor-stats] applyOrderDelivered failed", statErr);
-      }
-    }
 
     // Notify the customer via DB notification
     const statusLabel = STATUS_LABELS[newStatus] || newStatus;
@@ -276,13 +268,7 @@ export const updateVendorOrderStatus = async (
     if (newStatus === OrderStatus.CANCELLED) {
       domainEvents
         .onOrderCancelled(order, "vendor", note || "Cancelled by restaurant")
-        .catch((err) => {
-          // Non-blocking
-        });
-    } else if (newStatus === OrderStatus.DELIVERED) {
-      domainEvents
-        .onOrderDelivered(order)
-        .catch((err) => {
+        .catch(() => {
           // Non-blocking
         });
     }

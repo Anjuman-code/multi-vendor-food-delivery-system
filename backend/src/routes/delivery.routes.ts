@@ -68,16 +68,17 @@ router.get("/health", getDeliveryHealth);
 
 // ── Admin Endpoints ──────────────────────────────────────────────
 
-router.use("/admin", authenticate, authorize(UserRole.ADMIN));
+const adminRead = [authenticate, authorize(UserRole.ADMIN, UserRole.SUPPORT)];
+const adminWrite = [authenticate, authorize(UserRole.ADMIN)];
 
-router.get("/admin/settings", getDeliverySettings);
-router.put("/admin/settings", updateDeliverySettings);
-router.post("/admin/simulate", simulateDelivery);
+router.get("/admin/settings", ...adminRead, getDeliverySettings);
+router.put("/admin/settings", ...adminWrite, updateDeliverySettings);
+router.post("/admin/simulate", ...adminRead, simulateDelivery);
 
-router.get("/admin/campaigns", listDeliveryCampaigns);
-router.post("/admin/campaigns", createDeliveryCampaign);
-router.get("/admin/campaigns/:id", getDeliveryCampaign);
-router.put("/admin/campaigns/:id", updateDeliveryCampaign);
-router.delete("/admin/campaigns/:id", deleteDeliveryCampaign);
+router.get("/admin/campaigns", ...adminRead, listDeliveryCampaigns);
+router.post("/admin/campaigns", ...adminWrite, createDeliveryCampaign);
+router.get("/admin/campaigns/:id", ...adminRead, getDeliveryCampaign);
+router.put("/admin/campaigns/:id", ...adminWrite, updateDeliveryCampaign);
+router.delete("/admin/campaigns/:id", ...adminWrite, deleteDeliveryCampaign);
 
 export default router;

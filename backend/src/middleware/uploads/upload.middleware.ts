@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
     cb: (error: Error | null, destination: string) => void,
   ) => {
     const dir = file.fieldname === "coverPhoto" ? COVER_DIR
-      : ["licensePhoto", "vehicleRegistrationPhoto", "insurancePhoto"].includes(file.fieldname)
+      : ["document", "licensePhoto", "vehicleRegistrationPhoto", "insurancePhoto"].includes(file.fieldname)
         ? DRIVER_DOCS_DIR
         : PROFILE_DIR;
     cb(null, dir);

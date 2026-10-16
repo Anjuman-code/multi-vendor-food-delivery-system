@@ -299,11 +299,14 @@ const VendorOnboardingPage: React.FC = () => {
       }
     }
 
-    // Numeric fields are optional, but if entered they must be valid & >= 0.
+    // Numeric fields are optional, but if entered they must be valid.
     if (!isNonNegativeNumber(minimumOrder))
       next.minimumOrder = 'Enter a valid amount (0 or more).';
-    if (!isNonNegativeNumber(deliveryFee))
-      next.deliveryFee = 'Enter a valid amount (0 or more).';
+    if (deliveryFee.trim() !== '') {
+      const f = Number(deliveryFee);
+      if (!Number.isFinite(f) || f < 10)
+        next.deliveryFee = 'Delivery fee must be at least ৳10.';
+    }
     if (deliveryTime.trim() === '') {
       next.deliveryTime = 'Enter an estimated delivery time.';
     } else {
@@ -815,14 +818,14 @@ const VendorOnboardingPage: React.FC = () => {
                 aria-invalid={errors.minimumOrder ? true : undefined}
               />
             </Field>
-            <Field label="Delivery fee (৳)" error={errors.deliveryFee} htmlFor="d-fee">
+            <Field label="Delivery fee (৳, min ৳10)" error={errors.deliveryFee} htmlFor="d-fee">
               <Input
                 id="d-fee"
                 type="number"
-                min={0}
+                min={10}
                 value={deliveryFee}
                 onChange={(e) => setDeliveryFee(e.target.value)}
-                placeholder="0"
+                placeholder="30"
                 aria-invalid={errors.deliveryFee ? true : undefined}
               />
             </Field>

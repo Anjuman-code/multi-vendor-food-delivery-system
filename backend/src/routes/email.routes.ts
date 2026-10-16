@@ -5,7 +5,7 @@ import {
   updateMyEmailPreferences,
   verifyToken,
 } from '../controllers/email.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -14,8 +14,8 @@ router.get('/unsubscribe', handleUnsubscribe);
 router.post('/unsubscribe', handleUnsubscribe);
 router.get('/verify-token', verifyToken);
 
-// Authenticated routes for managing preferences
+// Authenticated or token-verified routes for managing preferences
 router.get('/preferences', authenticate, getMyEmailPreferences);
-router.put('/preferences', authenticate, updateMyEmailPreferences);
+router.put('/preferences', optionalAuthenticate, updateMyEmailPreferences);
 
 export default router;

@@ -1,3 +1,4 @@
+import deliveryManImg from "@/assets/images/deliveryman.jpg";
 import Container from "@/components/public/Container";
 import GradientText from "@/components/public/GradientText";
 import { Button } from "@/components/ui/button";
@@ -144,7 +145,7 @@ const NewHeroSection: React.FC = () => {
             </div>
             <div className="absolute bottom-10 left-0 h-[38%] w-[34%] overflow-hidden rounded-3xl border-4 border-white shadow-xl">
               <img
-                src="/src/assets/images/deliveryman.jpg"
+                src={deliveryManImg}
                 alt="Delivery rider"
                 className="h-full w-full object-cover"
               />

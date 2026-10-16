@@ -52,6 +52,22 @@ const Navbar: React.FC = memo(() => {
   const confirm = useConfirm();
 
   const isVendor = user?.role === 'vendor';
+  const isAdmin = user?.role === 'admin' || user?.role === 'support';
+  const isDriver = user?.role === 'driver';
+  const settingsPath = isVendor
+    ? '/vendor/settings'
+    : isAdmin
+      ? '/admin/settings'
+      : isDriver
+        ? '/rider/profile'
+        : '/profile?tab=security';
+  const dashboardPath = isVendor
+    ? '/vendor'
+    : isAdmin
+      ? '/admin'
+      : isDriver
+        ? '/rider'
+        : '/profile';
 
   const API_BASE_URL =
     import.meta.env?.VITE_API_BASE_URL || 'http://localhost:2002';
@@ -214,19 +230,24 @@ const Navbar: React.FC = memo(() => {
           {/* Desktop Right Section */}
           <div className="hidden lg:flex items-center gap-3">
             {/* Location Selector */}
-            <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={() => navigate('/restaurants')}
+              title="Browse restaurants in Sylhet"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+            >
               <MapPin className="w-4 h-4 text-brand-500" />
               <span>Sylhet</span>
-              <ChevronDown className="w-3 h-3" />
             </button>
 
             {/* Notifications */}
             {isAuthenticated && <NotificationPopover />}
 
-            {/* Cart – hidden for vendor users */}
-            {!isVendor && (
+            {/* Cart – hidden for vendor/admin/driver users */}
+            {!isVendor && !isAdmin && !isDriver && (
               <Link
                 to="/cart"
+                aria-label="Shopping cart"
                 className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
               >
                 <ShoppingBag className="w-5 h-5" />
@@ -312,6 +333,14 @@ const Navbar: React.FC = memo(() => {
                         <span>Vendor Reservations</span>
                       </DropdownMenuItem>
                     </>
+                  ) : isAdmin || isDriver ? (
+                    <DropdownMenuItem
+                      onClick={() => navigate(dashboardPath)}
+                      className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
+                    >
+                      <Store className="mr-2 h-4 w-4" />
+                      <span>Go to Dashboard</span>
+                    </DropdownMenuItem>
                   ) : (
                     <>
                       <DropdownMenuItem
@@ -352,7 +381,7 @@ const Navbar: React.FC = memo(() => {
                     </>
                   )}
                   <DropdownMenuItem
-                    onClick={() => navigate('/settings')}
+                    onClick={() => navigate(settingsPath)}
                     className="px-3 py-2 rounded-lg cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:text-brand-700"
                   >
                     <Settings className="mr-2 h-4 w-4" />
@@ -394,9 +423,9 @@ const Navbar: React.FC = memo(() => {
 
           {/* Mobile Menu Button */}
           <div className="lg:hidden flex items-center gap-3">
-            {/* Mobile Cart – hidden for vendors */}
-            {!isVendor && (
-              <Link to="/cart" className="relative p-2 text-gray-600">
+            {/* Mobile Cart – hidden for vendors/admins/drivers */}
+            {!isVendor && !isAdmin && !isDriver && (
+              <Link to="/cart" aria-label="Shopping cart" className="relative p-2 text-gray-600">
                 <ShoppingBag className="w-5 h-5" />
                 {itemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-brand-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
@@ -466,6 +495,7 @@ const Navbar: React.FC = memo(() => {
                 </Link>
                 <button
                   onClick={() => setIsOpen(false)}
+                  aria-label="Close menu"
                   className="p-2 rounded-xl text-gray-500 hover:bg-gray-100"
                 >
                   <X className="w-5 h-5" />
@@ -475,7 +505,14 @@ const Navbar: React.FC = memo(() => {
               {/* Menu Content */}
               <div className="p-6">
                 {/* Location */}
-                <button className="w-full flex items-center gap-3 p-4 mb-6 bg-brand-50 rounded-2xl text-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/restaurants');
+                  }}
+                  className="w-full flex items-center gap-3 p-4 mb-6 bg-brand-50 rounded-2xl text-left"
+                >
                   <div className="p-2 bg-brand-100 rounded-xl">
                     <MapPin className="w-5 h-5 text-brand-500" />
                   </div>
@@ -485,7 +522,6 @@ const Navbar: React.FC = memo(() => {
                       Sylhet, Bangladesh
                     </p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-gray-400 ml-auto" />
                 </button>
 
                 {/* Nav Links */}
@@ -536,28 +572,30 @@ const Navbar: React.FC = memo(() => {
                       <button
                         onClick={() => {
                           setIsOpen(false);
-                          navigate(isVendor ? '/vendor' : '/profile');
+                          navigate(dashboardPath);
                         }}
                         className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
                       >
-                        {isVendor ? (
+                        {isVendor || isAdmin || isDriver ? (
                           <Store className="w-4 h-4" />
                         ) : (
                           <User className="w-4 h-4" />
                         )}
-                        {isVendor ? 'Go to Dashboard' : 'View Profile'}
+                        {isVendor || isAdmin || isDriver ? 'Go to Dashboard' : 'View Profile'}
                       </button>
-                      <button
-                        onClick={() => {
-                          setIsOpen(false);
-                          navigate(isVendor ? '/vendor/reservations' : '/reservations');
-                        }}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
-                      >
-                        <CalendarDays className="w-4 h-4" />
-                        {isVendor ? 'Reservations' : 'My Reservations'}
-                      </button>
-                      {!isVendor && (
+                      {!isAdmin && !isDriver && (
+                        <button
+                          onClick={() => {
+                            setIsOpen(false);
+                            navigate(isVendor ? '/vendor/reservations' : '/reservations');
+                          }}
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:border-brand-500 hover:text-brand-500 transition-colors"
+                        >
+                          <CalendarDays className="w-4 h-4" />
+                          {isVendor ? 'Reservations' : 'My Reservations'}
+                        </button>
+                      )}
+                      {!isVendor && !isAdmin && !isDriver && (
                         <button
                           onClick={() => {
                             setIsOpen(false);

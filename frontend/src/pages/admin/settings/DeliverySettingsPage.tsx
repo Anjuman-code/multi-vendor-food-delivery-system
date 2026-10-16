@@ -118,8 +118,11 @@ export default function DeliverySettingsPage() {
         toast.success("Delivery settings saved successfully");
       }
     } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "An error occurred.";
       toast.error("Failed to save delivery settings", {
-        description: (err as any)?.response?.data?.message || "An error occurred.",
+        description: msg,
       });
     } finally {
       setSaving(false);

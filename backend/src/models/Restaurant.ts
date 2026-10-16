@@ -134,6 +134,7 @@ const restaurantSchema = new Schema<IRestaurant>(
     },
     operatingHours: { type: [operatingHoursSchema], default: [] },
     isActive: { type: Boolean, default: true },
+    isFeatured: { type: Boolean, default: false, index: true },
     isTemporarilyClosed: { type: Boolean, default: false },
     closureReason: { type: String, trim: true, maxlength: 300 },
     approvalStatus: {
@@ -151,7 +152,7 @@ const restaurantSchema = new Schema<IRestaurant>(
       min: { type: Number, default: 20 },
       max: { type: Number, default: 45 },
     },
-    deliveryFee: { type: Number, default: 0 },
+    deliveryFee: { type: Number, default: 30, min: 10 },
     minimumOrder: { type: Number, default: 0 },
     // Price range: 1=৳ 2=৳৳ 3=৳৳৳ 4=৳৳৳৳
     priceRange: { type: Number, enum: [1, 2, 3, 4], default: 2 },

@@ -139,4 +139,5 @@ export const simulateDeliverySchema = z.object({
   destination: latLngSchema.optional(),
   itemsSubtotal: z.number().min(0, "Subtotal must be non-negative"),
   restaurantId: z.string().optional(),
+  overrideSettings: updateDeliverySettingsSchema.optional(),
 });

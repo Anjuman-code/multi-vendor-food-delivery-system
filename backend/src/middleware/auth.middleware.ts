@@ -69,6 +69,40 @@ export const authenticate = async (
 };
 
 /**
+ * Optionally attach `req.user` if a valid access token is present,
+ * otherwise proceed as an unauthenticated guest without sending 401.
+ */
+export const optionalAuthenticate = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.accessToken as string | undefined;
+    const bearerToken =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : undefined;
+    const token = bearerToken || cookieToken;
+
+    if (!token) {
+      next();
+      return;
+    }
+
+    const decoded = verifyAccessToken(token);
+    const user = await User.findById(decoded.userId).select('-password');
+    if (user && user.isActive) {
+      req.user = user;
+    }
+    next();
+  } catch {
+    next();
+  }
+};
+
+/**
  * Role-based access control – restrict endpoint to specified roles.
  *
  * @example router.get('/admin-only', authenticate, authorize(UserRole.ADMIN), handler);

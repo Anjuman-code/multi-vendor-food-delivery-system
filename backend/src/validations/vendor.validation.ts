@@ -10,7 +10,8 @@ import {
 
 // ── Reusable field schemas ─────────────────────────────────────
 
-const NAME_PATTERN = /^[a-zA-Z]+$/;
+const PERSON_NAME_PATTERN = /^[a-zA-Z\s.'-]+$/;
+const ENTITY_NAME_PATTERN = /^[a-zA-Z0-9\s&'().,\-/]+$/;
 
 const AT_LEAST_ONE_LETTER = /[a-zA-Z]/;
 
@@ -19,12 +20,26 @@ const nameSchema = z
   .trim()
   .min(2, 'Must be at least 2 characters')
   .max(50, 'Cannot exceed 50 characters')
-  .regex(NAME_PATTERN, 'Can only contain letters')
+  .regex(
+    PERSON_NAME_PATTERN,
+    'Can only contain letters, spaces, hyphens, apostrophes, and periods',
+  )
   .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
     message: 'Must contain at least one letter',
   });
 
-const businessNameSchema = nameSchema.max(100, 'Cannot exceed 100 characters');
+const businessNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Must be at least 2 characters')
+  .max(100, 'Cannot exceed 100 characters')
+  .regex(
+    ENTITY_NAME_PATTERN,
+    'Contains invalid characters',
+  )
+  .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
+    message: 'Must contain at least one letter',
+  });
 
 const phoneSchema = z
   .string()
@@ -181,7 +196,7 @@ export const createRestaurantSchema = z.object({
     .trim()
     .min(2, 'Restaurant name must be at least 2 characters')
     .max(100, 'Name cannot exceed 100 characters')
-    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .regex(ENTITY_NAME_PATTERN, 'Name contains invalid characters')
     .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -208,7 +223,11 @@ export const createRestaurantSchema = z.object({
     })
     .optional()
     .default({ min: 30, max: 45 }),
-  deliveryFee: z.number().min(0).optional().default(0),
+  deliveryFee: z
+    .number()
+    .min(10, 'Delivery fee cannot be less than ৳10')
+    .optional()
+    .default(30),
   minimumOrder: z.number().min(0).optional().default(0),
 });
 
@@ -220,7 +239,7 @@ export const updateRestaurantSchema = z.object({
     .trim()
     .min(2, 'Restaurant name must be at least 2 characters')
     .max(100, 'Name cannot exceed 100 characters')
-    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .regex(ENTITY_NAME_PATTERN, 'Name contains invalid characters')
     .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
       message: 'Must contain at least one letter',
     })
@@ -251,7 +270,10 @@ export const updateRestaurantSchema = z.object({
       max: z.number().int().min(1).max(180),
     })
     .optional(),
-  deliveryFee: z.number().min(0).optional(),
+  deliveryFee: z
+    .number()
+    .min(10, 'Delivery fee cannot be less than ৳10')
+    .optional(),
   minimumOrder: z.number().min(0).optional(),
   isActive: z.boolean().optional(),
   isTemporarilyClosed: z.boolean().optional(),
@@ -268,7 +290,7 @@ export const createMenuCategorySchema = z.object({
     .trim()
     .min(2, 'Category name must be at least 2 characters')
     .max(80, 'Category name cannot exceed 80 characters')
-    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .regex(ENTITY_NAME_PATTERN, 'Category name contains invalid characters')
     .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -288,7 +310,7 @@ export const updateMenuCategorySchema = z.object({
     .trim()
     .min(2, 'Category name must be at least 2 characters')
     .max(80, 'Category name cannot exceed 80 characters')
-    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .regex(ENTITY_NAME_PATTERN, 'Category name contains invalid characters')
     .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
       message: 'Must contain at least one letter',
     })
@@ -323,7 +345,7 @@ export const createMenuItemSchema = z.object({
     .trim()
     .min(2, 'Item name must be at least 2 characters')
     .max(100, 'Item name cannot exceed 100 characters')
-    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .regex(ENTITY_NAME_PATTERN, 'Item name contains invalid characters')
     .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -354,7 +376,7 @@ export const updateMenuItemSchema = z.object({
     .trim()
     .min(2, 'Item name must be at least 2 characters')
     .max(100, 'Item name cannot exceed 100 characters')
-    .regex(NAME_PATTERN, 'Name Can only contain letters')
+    .regex(ENTITY_NAME_PATTERN, 'Item name contains invalid characters')
     .refine((v) => AT_LEAST_ONE_LETTER.test(v), {
       message: 'Must contain at least one letter',
     })
@@ -381,10 +403,10 @@ export type UpdateMenuItemInput = z.infer<typeof updateMenuItemSchema>;
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(
-    ['confirmed', 'preparing', 'ready', 'picked_up', 'delivered', 'cancelled'],
+    ['confirmed', 'preparing', 'ready', 'cancelled'],
     {
       message:
-        'Status must be one of: confirmed, preparing, ready, picked_up, delivered, cancelled',
+        'Status must be one of: confirmed, preparing, ready, cancelled',
     },
   ),
   note: z.string().max(300, 'Note cannot exceed 300 characters').optional(),

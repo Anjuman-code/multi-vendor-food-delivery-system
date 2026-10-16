@@ -21,6 +21,7 @@ import {
   ValidationError,
 } from '../utils/errors';
 import { successResponse } from '../utils/response.util';
+import { applyOrderDelivered } from '../utils/vendor-stats.util';
 import { removeLocalFile, uploadImageToCloud } from '../middleware/uploads/upload.middleware';
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -278,9 +279,9 @@ export const getAvailableOrders = async (
     })
       .sort({ createdAt: 1 })
       .limit(20)
-      .populate('restaurantId', 'name address location')
+      .populate('restaurantId', 'name address contactInfo location')
       .select(
-        'orderNumber restaurantId deliveryAddress items deliveryFee tipAmount ' +
+        'orderNumber restaurantId deliveryAddress items deliveryFee deliveryFeeOriginal deliveryDistanceKm tipAmount ' +
           'total paymentMethod createdAt estimatedDeliveryTime',
       );
 
@@ -331,7 +332,7 @@ export const acceptOrder = async (
         deliveryStage: DeliveryStage.HEADING_TO_STORE,
       },
       { new: true },
-    ).populate('restaurantId', 'name address contactInfo');
+    ).populate('restaurantId', 'name address contactInfo location');
 
     if (!order) throw new ConflictError('Order is no longer available');
 
@@ -409,7 +410,7 @@ export const getActiveDelivery = async (
         ],
       },
     })
-      .populate('restaurantId', 'name address contactInfo')
+      .populate('restaurantId', 'name address contactInfo location')
       .populate('customerId', 'firstName lastName phoneNumber');
 
     successResponse(res, { order: order ?? null });
@@ -650,9 +651,29 @@ export const updateDeliveryStatus = async (
       codCollected?: boolean;
     };
 
+    if (status !== OrderStatus.DELIVERED && status !== OrderStatus.PICKED_UP) {
+      throw new ValidationError('Invalid driver status transition');
+    }
+
     const order = await Order.findOne({ _id: orderId, driverId: user._id });
     if (!order)
       throw new NotFoundError('Order not found or not assigned to you');
+
+    if (
+      order.status === OrderStatus.DELIVERED ||
+      order.status === OrderStatus.CANCELLED
+    ) {
+      throw new ConflictError('Order is already finalized');
+    }
+
+    if (
+      status === OrderStatus.DELIVERED &&
+      order.status !== OrderStatus.PICKED_UP
+    ) {
+      throw new ValidationError(
+        'Order must be picked up before marking as delivered',
+      );
+    }
 
     const previousStatus = order.status;
     order.status = status;
@@ -699,6 +720,13 @@ export const updateDeliveryStatus = async (
         },
       );
 
+      // Accrue vendor earnings on delivery
+      try {
+        await applyOrderDelivered(order.restaurantId, order.subtotal);
+      } catch {
+        // Best-effort so stats sync failure does not block delivery confirmation
+      }
+
       // Notify customer
       await createNotification({
         userId: order.customerId,
@@ -708,7 +736,7 @@ export const updateDeliveryStatus = async (
         data: { orderId: order._id.toString() },
       });
 
-      domainEvents.onOrderDelivered(order).catch((err) => {
+      domainEvents.onOrderDelivered(order).catch(() => {
         // Non-blocking
       });
     }
@@ -766,7 +794,7 @@ export const getEarnings = async (
       Order.find({ driverId: user._id, status: OrderStatus.DELIVERED })
         .sort({ actualDeliveryTime: -1 })
         .select(
-          'orderNumber restaurantId deliveryAddress.area deliveryFee tipAmount ' +
+          'orderNumber restaurantId deliveryAddress.area deliveryFee deliveryFeeOriginal tipAmount ' +
             'total paymentMethod codCollected actualDeliveryTime createdAt',
         )
         .populate('restaurantId', 'name'),
@@ -852,7 +880,7 @@ export const getDeliveryHistory = async (
         .skip(skip)
         .limit(limit)
         .select(
-          'orderNumber restaurantId deliveryAddress.area deliveryFee tipAmount actualDeliveryTime',
+          'orderNumber restaurantId deliveryAddress.area deliveryFee deliveryFeeOriginal tipAmount actualDeliveryTime',
         )
         .populate('restaurantId', 'name'),
       Order.countDocuments({

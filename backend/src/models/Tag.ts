@@ -10,6 +10,7 @@ export interface ITag {
   name: string;
   slug: string;
   category: TagCategory;
+  displayOrder: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ const tagSchema = new Schema<ITag>(
       enum: ["dietary", "amenity", "feature", "meal_type"],
       required: true,
     },
+    displayOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

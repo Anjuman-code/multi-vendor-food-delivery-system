@@ -88,7 +88,7 @@ export const getDashboardStats = async (
       User.countDocuments({ role: 'customer', createdAt: { $gte: today } }),
       User.countDocuments({ role: 'customer', createdAt: { $gte: yesterday, $lt: today } }),
       VendorProfile.countDocuments({ isVerified: false }),
-      DriverProfile.countDocuments({ isAvailable: false, completedDeliveries: 0 }),
+      DriverProfile.countDocuments({ applicationStatus: 'pending' }),
       Restaurant.countDocuments({ approvalStatus: 'pending', deletedAt: null }),
       SupportTicket.countDocuments({ status: { $in: ['open', 'in_progress'] } }),
       Order.aggregate([
@@ -176,7 +176,7 @@ export const getDashboardCharts = async (
     const days = rangeMap[req.query.range as string] ?? 30;
     const since = startOfDay(subDays(new Date(), days));
 
-    const [orderTimeSeries, userTimeSeries, topRestaurants, statusFunnel, cuisineDistribution] =
+    const [rawOrderTimeSeries, userTimeSeries, topRestaurants, statusFunnel, rawCuisineDistribution] =
       await Promise.all([
         // Orders + GMV per day
         Order.aggregate([
@@ -248,6 +248,15 @@ export const getDashboardCharts = async (
           { $limit: 12 },
         ]),
       ]);
+
+    const orderTimeSeries = rawOrderTimeSeries.map((item) => ({
+      ...item,
+      date: item._id,
+    }));
+    const cuisineDistribution = rawCuisineDistribution.map((item) => ({
+      ...item,
+      name: item._id,
+    }));
 
     successResponse(
       res,

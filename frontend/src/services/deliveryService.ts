@@ -176,15 +176,15 @@ export const deliveryService = {
    * GET /api/delivery/geocode/reverse
    * Reverse geocode coordinates through throttled backend proxy.
    */
-  async geocodeReverse(lat: number, lng: number): Promise<ApiResponse<{ address: GeocodingAddress | null }>> {
+  async geocodeReverse(lat: number, lng: number): Promise<ApiResponse<{ address: GeocodingAddress | null; result?: GeocodingAddress | null }>> {
     try {
-      const response = await httpClient.get<ApiResponse<{ address: GeocodingAddress | null }>>(
+      const response = await httpClient.get<ApiResponse<{ address: GeocodingAddress | null; result?: GeocodingAddress | null }>>(
         "/api/delivery/geocode/reverse",
         { params: { lat, lng } },
       );
       return response.data;
     } catch (error) {
-      return extractError(error) as ApiResponse<{ address: GeocodingAddress | null }>;
+      return extractError(error) as ApiResponse<{ address: GeocodingAddress | null; result?: GeocodingAddress | null }>;
     }
   },
 

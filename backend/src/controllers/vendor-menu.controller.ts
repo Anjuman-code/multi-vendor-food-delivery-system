@@ -49,6 +49,39 @@ const verifyRestaurantOwnership = async (req: Request) => {
 };
 
 // ────────────────────────────────────────────────────────────────
+// Full Vendor Menu (includes out_of_stock and hidden items)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/vendor/restaurants/:restaurantId/menu
+ * Get all non-deleted menu categories and items for a vendor-owned restaurant.
+ */
+export const getVendorMenu = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { restaurantId } = await verifyRestaurantOwnership(req);
+
+    const [categories, items] = await Promise.all([
+      MenuCategory.find({
+        restaurantId: new mongoose.Types.ObjectId(restaurantId),
+        deletedAt: null,
+      }).sort("displayOrder"),
+      MenuItem.find({
+        restaurantId: new mongoose.Types.ObjectId(restaurantId),
+        deletedAt: null,
+      }).sort("name"),
+    ]);
+
+    successResponse(res, { categories, items });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
 // Categories
 // ────────────────────────────────────────────────────────────────
 

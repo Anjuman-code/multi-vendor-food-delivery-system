@@ -22,7 +22,7 @@ export const SortControl: React.FC<SortControlProps> = memo(
         <label htmlFor="menu-sort-select" className="sr-only">
           Sort Food Items
         </label>
-        <div className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 shadow-sm transition-colors cursor-pointer min-h-[44px]">
+        <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 shadow-sm transition-colors cursor-pointer min-h-[44px]">
           <ArrowUpDown className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
           <span className="hidden sm:inline text-gray-500 font-normal">Sort:</span>
           <select
@@ -31,7 +31,7 @@ export const SortControl: React.FC<SortControlProps> = memo(
             onChange={(e) =>
               onSortChange(e.target.value as FilterState["sort"])
             }
-            className="bg-transparent font-semibold text-gray-800 focus:outline-none cursor-pointer pr-1"
+            className="bg-transparent font-semibold text-gray-800 focus:outline-none cursor-pointer pr-1 max-w-[116px] sm:max-w-none truncate"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

@@ -132,11 +132,40 @@ export const initSocket = (server: HTTPServer): SocketServer => {
     // recipient's role.
     void socket.join(`notify:${userId}`);
 
+    const canAccessOrder = async (orderId: string): Promise<boolean> => {
+      if (typeof orderId !== 'string' || !orderId) return false;
+      if (role === 'admin' || role === 'support') return true;
+      try {
+        const Order = (await import('./models/Order')).default;
+        const order = await Order.findById(orderId)
+          .select('customerId driverId restaurantId')
+          .lean();
+        if (!order) return false;
+        if (order.customerId?.toString() === userId) return true;
+        if (order.driverId?.toString() === userId) return true;
+        if (role === 'vendor' && order.restaurantId) {
+          const VendorProfile = (await import('./models/VendorProfile')).default;
+          const vp = await VendorProfile.findOne({
+            userId,
+            restaurantIds: order.restaurantId,
+          })
+            .select('_id')
+            .lean();
+          return Boolean(vp);
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    };
+
     // Any authenticated party viewing a live order joins its order room so it
     // receives location, stage, ETA and chat events. Per-message/-channel
     // authorization is still enforced by the REST layer.
-    socket.on('joinOrderRoom', (orderId: string) => {
-      if (typeof orderId === 'string' && orderId) void socket.join(`order:${orderId}`);
+    socket.on('joinOrderRoom', async (orderId: string) => {
+      if (await canAccessOrder(orderId)) {
+        void socket.join(`order:${orderId}`);
+      }
     });
     socket.on('leaveOrderRoom', (orderId: string) => {
       if (typeof orderId === 'string' && orderId) void socket.leave(`order:${orderId}`);
@@ -144,16 +173,19 @@ export const initSocket = (server: HTTPServer): SocketServer => {
 
     // Back-compat: the rider location-broadcast hook emits this name.
     if (role === 'driver') {
-      socket.on('driver:joinOrderRoom', (orderId: string) => {
-        if (typeof orderId === 'string' && orderId) void socket.join(`order:${orderId}`);
+      socket.on('driver:joinOrderRoom', async (orderId: string) => {
+        if (await canAccessOrder(orderId)) {
+          void socket.join(`order:${orderId}`);
+        }
       });
     }
 
     // Ephemeral typing indicator — relayed live, never persisted.
     socket.on(
       'order:chatTyping',
-      (data: { orderId: string; channel: string; isTyping: boolean }) => {
+      async (data: { orderId: string; channel: string; isTyping: boolean }) => {
         if (!data?.orderId) return;
+        if (!(await canAccessOrder(data.orderId))) return;
         socket.to(`order:${data.orderId}`).emit('order:chatTyping', {
           orderId: data.orderId,
           channel: data.channel,

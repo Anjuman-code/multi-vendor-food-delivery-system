@@ -81,12 +81,8 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = (provider: "google" | "facebook") => {
-    if (provider === "google") {
-      authService.startGoogleAuth("/");
-      return;
-    }
-    toast.info("Coming soon", { description: `${provider} sign-up is on the way.` });
+  const handleSocialLogin = () => {
+    authService.startGoogleAuth("/");
   };
 
   return (

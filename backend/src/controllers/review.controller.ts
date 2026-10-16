@@ -169,13 +169,18 @@ export const getRestaurantReviews = async (
       Math.max(1, parseInt(req.query.limit as string) || 10),
     );
 
+    const publicFilter = {
+      restaurantId,
+      status: { $nin: ["hidden", "removed"] },
+    };
+
     const [reviews, total] = await Promise.all([
-      Review.find({ restaurantId })
+      Review.find(publicFilter)
         .populate("customerId", "firstName lastName profileImage")
         .sort("-createdAt")
         .skip((page - 1) * limit)
         .limit(limit),
-      Review.countDocuments({ restaurantId }),
+      Review.countDocuments(publicFilter),
     ]);
 
     successResponse(res, {
@@ -237,6 +242,7 @@ export const deleteReview = async (
       {
         $match: {
           restaurantId: new mongoose.Types.ObjectId(restaurantId.toString()),
+          status: { $nin: ["hidden", "removed"] },
         },
       },
       {
@@ -283,6 +289,11 @@ export const getReviewStats = async (
     const [reviewAgg, restaurantCount] = await Promise.all([
       Review.aggregate([
         {
+          $match: {
+            status: { $nin: ["hidden", "removed"] },
+          },
+        },
+        {
           $group: {
             _id: null,
             totalReviews: { $sum: 1 },
@@ -320,7 +331,7 @@ export const getLatestReviews = async (
   try {
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 6));
 
-    const reviews = await Review.find()
+    const reviews = await Review.find({ status: { $nin: ["hidden", "removed"] } })
       .populate("customerId", "firstName lastName profileImage")
       .populate("restaurantId", "name address")
       .sort("-createdAt")

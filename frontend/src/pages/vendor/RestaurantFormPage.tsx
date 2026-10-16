@@ -679,15 +679,16 @@ const RestaurantFormPage: React.FC = () => {
                 )}
               </div>
               <div>
-                <Label htmlFor="deliveryFee">Delivery Fee (৳)</Label>
+                <Label htmlFor="deliveryFee">Delivery Fee (৳, min ৳10)</Label>
                 <Input
                   id="deliveryFee"
                   type="number"
+                  min={10}
                   {...register('deliveryFee', {
                     setValueAs: (value) =>
                       value === '' ? undefined : Number(value),
                   })}
-                  placeholder="0"
+                  placeholder="30"
                   className="mt-1"
                 />
                 {errors.deliveryFee && (

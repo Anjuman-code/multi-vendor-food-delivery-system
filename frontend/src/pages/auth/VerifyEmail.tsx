@@ -20,7 +20,10 @@ const VerifyEmail: React.FC = () => {
   const { run } = useBlockingLoader();
   const [searchParams] = useSearchParams();
 
-  const email = (location.state as { email?: string } | null)?.email;
+  const stateEmail = (location.state as { email?: string } | null)?.email;
+  const queryEmail = searchParams.get("email");
+  const [emailInput, setEmailInput] = useState(stateEmail || queryEmail || "");
+  const email = emailInput.trim() || undefined;
   const tokenFromURL = searchParams.get("token");
 
   const [status, setStatus] = useState<Status>("idle");
@@ -82,8 +85,8 @@ const VerifyEmail: React.FC = () => {
 
   const handleVerifyOTP = useCallback(async () => {
     if (!email) {
-      toast.error("Missing email", {
-        description: "Please register again to receive a new code.",
+      toast.error("Email required", {
+        description: "Please enter the email address you registered with.",
       });
       return;
     }
@@ -106,13 +109,13 @@ const VerifyEmail: React.FC = () => {
 
   // ── Auto-submit once 6 digits are entered ────────────────────
   useEffect(() => {
-    if (otp.length === 6 && status === "idle") void handleVerifyOTP();
-  }, [otp, status, handleVerifyOTP]);
+    if (otp.length === 6 && status === "idle" && email) void handleVerifyOTP();
+  }, [otp, status, email, handleVerifyOTP]);
 
   const handleResend = async () => {
     if (!email) {
-      toast.error("Missing email", {
-        description: "Please register again to receive a new code.",
+      toast.error("Email required", {
+        description: "Please enter your email address above to resend a code.",
       });
       return;
     }
@@ -201,7 +204,7 @@ const VerifyEmail: React.FC = () => {
         subtitle={
           <>
             We sent a 6-digit code to{" "}
-            {email ? (
+            {stateEmail || queryEmail ? (
               <span className="font-semibold text-foreground">{email}</span>
             ) : (
               "your email address"
@@ -210,6 +213,22 @@ const VerifyEmail: React.FC = () => {
           </>
         }
       />
+
+      {!stateEmail && !queryEmail && (
+        <div className="mb-5 text-left">
+          <label htmlFor="verify-email-input" className="mb-1.5 block text-sm font-medium text-foreground">
+            Registered email address
+          </label>
+          <input
+            id="verify-email-input"
+            type="email"
+            value={emailInput}
+            onChange={(e) => setEmailInput(e.target.value)}
+            placeholder="you@example.com"
+            className="flex h-11 w-full rounded-xl border border-input bg-background px-3.5 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          />
+        </div>
+      )}
 
       {status === "error" && errorMessage && (
         <motion.div
@@ -228,7 +247,7 @@ const VerifyEmail: React.FC = () => {
           onChange={setOtp}
           disabled={status === "verifying-otp"}
           invalid={status === "error"}
-          autoFocus
+          autoFocus={Boolean(stateEmail || queryEmail)}
         />
       </div>
 
@@ -236,7 +255,7 @@ const VerifyEmail: React.FC = () => {
         onClick={handleVerifyOTP}
         loading={status === "verifying-otp"}
         loadingText="Verifying…"
-        disabled={otp.length !== 6}
+        disabled={otp.length !== 6 || !email}
         className="mb-5"
       >
         Verify email

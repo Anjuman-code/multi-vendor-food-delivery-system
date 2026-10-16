@@ -591,7 +591,8 @@ export const getSession = async (
 ): Promise<void> => {
   try {
     if (!req.user) {
-      throw new AuthenticationError("Not authenticated");
+      successResponse(res, { user: null }, "No active session");
+      return;
     }
 
     const safeUser = sanitiseUser(toRecord(req.user.toObject()));

@@ -60,12 +60,12 @@ const VendorRestaurantsPage: React.FC = () => {
   };
 
   const addAction = (
-    <Link to="/vendor/restaurants/new">
-      <Button variant="brand" className="gap-2">
+    <Button asChild variant="brand" className="gap-2">
+      <Link to="/vendor/restaurants/new">
         <Plus className="h-4 w-4" />
         Add Restaurant
-      </Button>
-    </Link>
+      </Link>
+    </Button>
   );
 
   if (loading) {

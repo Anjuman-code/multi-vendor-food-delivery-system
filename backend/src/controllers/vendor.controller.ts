@@ -329,20 +329,29 @@ export const deleteMyRestaurant = async (
     const restaurant = await Restaurant.findById(restaurantId);
     if (!restaurant) throw new NotFoundError("Restaurant not found");
 
-    // Soft-delete: deactivate instead of hard-deleting
+    // Soft-delete: mark deletedAt, deactivate, and unlink from vendor profile
     restaurant.isActive = false;
+    restaurant.deletedAt = new Date();
     await restaurant.save();
+
+    profile.restaurantIds = profile.restaurantIds.filter(
+      (id) => id.toString() !== restaurantId,
+    );
+    await profile.save();
 
     await createAuditLog({
       actorId: user._id,
       actorRole: user.role,
-      action: "restaurant.deactivated",
+      action: "restaurant.deleted",
       resourceType: "Restaurant",
       resourceId: restaurant._id,
-      changes: [{ field: "isActive", oldValue: true, newValue: false }],
+      changes: [
+        { field: "isActive", oldValue: true, newValue: false },
+        { field: "deletedAt", oldValue: null, newValue: restaurant.deletedAt },
+      ],
     });
 
-    successResponse(res, null, "Restaurant deactivated");
+    successResponse(res, null, "Restaurant deleted");
   } catch (error) {
     next(error);
   }

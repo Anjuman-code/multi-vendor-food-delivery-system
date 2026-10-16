@@ -278,7 +278,7 @@ export default function VendorDetailPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Commission" value={formatPercent(vp?.commissionRate ?? 0)} icon={Percent} accent="brand" />
+        <StatCard label="Commission" value={formatPercent(vp?.commissionRate ?? 15)} icon={Percent} accent="brand" />
         <StatCard label="Restaurants" value={vp?.totalRestaurants ?? 0} icon={Store} />
         <StatCard label="Total Earnings" value={formatCurrency(vp?.totalEarnings ?? 0)} icon={Wallet} />
         <StatCard label="Pending Payout" value={formatCurrency(vp?.pendingPayout ?? 0)} icon={Wallet} />

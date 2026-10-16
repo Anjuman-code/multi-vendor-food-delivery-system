@@ -86,6 +86,7 @@ export interface IRestaurant {
   operatingHours: IOperatingHours[];
   isActive: boolean;
   isTemporarilyClosed: boolean;
+  isFeatured?: boolean;
   closureReason?: string;
   approvalStatus: "pending" | "approved" | "rejected";
   rejectionReason?: string;
@@ -106,14 +107,6 @@ export interface IRestaurant {
 
 /** Hydrated Restaurant document type */
 export type RestaurantDocument = HydratedDocument<IRestaurant>;
-
-// ────────────────────────────────────────────────────────────────
-// Name (simple model)
-// ────────────────────────────────────────────────────────────────
-
-export interface IName {
-  name: string;
-}
 
 // ────────────────────────────────────────────────────────────────
 // Express helpers

@@ -1105,7 +1105,7 @@ const seedDatabase = async (): Promise<void> => {
         approvalStatus: 'approved' as const,
         rating: { average: r.rating, count: r.review_number },
         deliveryTime: { min: Math.round(r.minimum_delivery_time), max: Math.round(r.minimum_delivery_time + 15) },
-        deliveryFee: r.minimum_delivery_fee,
+        deliveryFee: Math.max(10, r.minimum_delivery_fee || 30),
         minimumOrder: r.minimum_order_amount,
         priceRange,
         serviceOptions: [
@@ -1272,12 +1272,16 @@ const seedDatabase = async (): Promise<void> => {
       }
     }
 
+    // Pre-hash reviewer password once so User.insertMany stores valid bcrypt hashes
+    const bcrypt = backendRequire('bcryptjs') as typeof import('bcryptjs');
+    const hashedReviewerPassword = await bcrypt.hash('Reviewer@123456', 10);
+
     // Create customer users for reviewers
     const customerUsersData: any[] = [];
     for (const [, info] of reviewerMap) {
       customerUsersData.push({
         email: info.email,
-        password: 'Reviewer@123456',
+        password: hashedReviewerPassword,
         firstName: info.name.slice(0, 30),
         lastName: 'User',
         role: UserRole.CUSTOMER,
@@ -1334,7 +1338,7 @@ const seedDatabase = async (): Promise<void> => {
         const randomItem = items[Math.floor(Math.random() * items.length)];
         const subtotal = randomItem.price;
         const tax = Math.round(subtotal * 0.05);
-        const deliveryFee = restaurant.deliveryFee || 30;
+        const deliveryFee = Math.max(10, restaurant.deliveryFee || 30);
         const total = subtotal + tax + deliveryFee;
 
         const orderNumber = `SEED-${String(orderCounter).padStart(6, '0')}`;
@@ -1391,6 +1395,64 @@ const seedDatabase = async (): Promise<void> => {
           unhelpfulVotes: 0,
           createdAt: reviewDate,
           updatedAt: reviewDate,
+        });
+      }
+    }
+
+    // Also create 3 sample orders for regularUser (customer@seed.com)
+    if (createdRestaurants.length >= 2) {
+      const sampleOrderConfigs = [
+        { status: OrderStatus.DELIVERED, paymentStatus: PaymentStatus.PAID, hoursAgo: 48, restIdx: 0 },
+        { status: OrderStatus.PREPARING, paymentStatus: PaymentStatus.PAID, hoursAgo: 1, restIdx: 1 },
+        { status: OrderStatus.CANCELLED, paymentStatus: PaymentStatus.REFUNDED, hoursAgo: 72, restIdx: 0 },
+      ];
+      for (const cfg of sampleOrderConfigs) {
+        const rest = createdRestaurants[cfg.restIdx] || createdRestaurants[0];
+        const items = menuItemsByRestaurant.get(rest._id.toString()) || [];
+        if (items.length === 0) continue;
+        orderCounter++;
+        const item = items[0];
+        const subtotal = item.price * 2;
+        const tax = Math.round(subtotal * 0.05);
+        const deliveryFee = Math.max(10, rest.deliveryFee || 30);
+        const total = subtotal + tax + deliveryFee;
+        const orderDate = new Date(Date.now() - cfg.hoursAgo * 60 * 60 * 1000);
+        allOrders.push({
+          orderNumber: `ORD-CUST-${String(orderCounter).padStart(4, '0')}`,
+          customerId: regularUser._id,
+          restaurantId: rest._id,
+          items: [
+            {
+              menuItemId: item._id,
+              name: item.name,
+              price: item.price,
+              quantity: 2,
+              itemTotal: subtotal,
+            },
+          ],
+          deliveryAddress: {
+            street: 'House 12, Amberkhana Point',
+            area: 'Amberkhana',
+            district: 'Sylhet',
+            coordinates: { latitude: 24.9048, longitude: 91.8697 },
+          },
+          status: cfg.status,
+          statusHistory: [
+            { status: OrderStatus.PENDING, timestamp: orderDate },
+            ...(cfg.status !== OrderStatus.PENDING
+              ? [{ status: cfg.status, timestamp: new Date(orderDate.getTime() + 10 * 60000) }]
+              : []),
+          ],
+          paymentMethod: 'cash_on_delivery',
+          paymentStatus: cfg.paymentStatus,
+          subtotal,
+          tax,
+          deliveryFee,
+          discount: 0,
+          tipAmount: 0,
+          total,
+          createdAt: orderDate,
+          updatedAt: orderDate,
         });
       }
     }

@@ -22,7 +22,7 @@ import {
     verifyEmail,
     verifyOTP,
 } from '../controllers/auth.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import {
     changePasswordSchema,
@@ -95,7 +95,7 @@ router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 
 // ── Protected routes ───────────────────────────────────────────
-router.get('/session', authenticate, getSession);
+router.get('/session', optionalAuthenticate, getSession);
 router.post('/logout', authenticate, logout);
 router.put(
   '/change-password',

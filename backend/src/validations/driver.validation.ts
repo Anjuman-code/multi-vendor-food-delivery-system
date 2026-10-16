@@ -59,7 +59,10 @@ export const driverRegisterSchema = z.object({
     .trim()
     .min(2, 'First name must be at least 2 characters')
     .max(50, 'First name cannot exceed 50 characters')
-    .regex(/^[a-zA-Z]+$/, 'Name Can only contain letters')
+    .regex(
+      /^[a-zA-Z\s.'-]+$/,
+      'Name can only contain letters, spaces, hyphens, apostrophes, and periods',
+    )
     .refine((v) => /[a-zA-Z]/.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -68,7 +71,10 @@ export const driverRegisterSchema = z.object({
     .trim()
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name cannot exceed 50 characters')
-    .regex(/^[a-zA-Z]+$/, 'Name Can only contain letters')
+    .regex(
+      /^[a-zA-Z\s.'-]+$/,
+      'Name can only contain letters, spaces, hyphens, apostrophes, and periods',
+    )
     .refine((v) => /[a-zA-Z]/.test(v), {
       message: 'Must contain at least one letter',
     }),

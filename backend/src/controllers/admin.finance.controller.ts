@@ -52,7 +52,7 @@ export const listPayouts = async (
         .skip(skip)
         .limit(limit)
         .populate('vendorId', 'firstName lastName email')
-        .populate('driverId', 'firstName lastName email phone'),
+        .populate('driverId', 'firstName lastName email phoneNumber'),
       Payout.countDocuments(filter),
     ]);
 
@@ -248,7 +248,7 @@ export const getPayoutDetail = async (
   try {
     const payout = await Payout.findById(req.params.id)
       .populate('vendorId', 'firstName lastName email')
-      .populate('driverId', 'firstName lastName email phone');
+      .populate('driverId', 'firstName lastName email phoneNumber');
     if (!payout) throw new NotFoundError('Payout not found');
 
     successResponse(res, { payout });
@@ -330,14 +330,14 @@ export const getCodReconciliation = async (
       status: 'delivered',
     })
       .select('orderNumber driverId total codCollected codRemitted actualDeliveryTime createdAt')
-      .populate('driverId', 'firstName lastName email phone')
+      .populate('driverId', 'firstName lastName email phoneNumber')
       .sort({ actualDeliveryTime: -1 });
 
     const remittances = await PaymentTransaction.find({
       purpose: 'cod_remittance',
       status: 'success',
     })
-      .populate('payerId', 'firstName lastName email phone')
+      .populate('payerId', 'firstName lastName email phoneNumber')
       .sort({ createdAt: -1 });
 
     const totalCollected = codOrders.reduce(

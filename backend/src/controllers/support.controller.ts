@@ -5,6 +5,7 @@
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { UserRole } from "../config/constants";
+import Order from "../models/Order";
 import SupportTicket, { TicketPriority, TicketStatus } from "../models/SupportTicket";
 import { NotificationType } from "../models/Notification";
 import { createNotification } from "../services/notification.service";
@@ -39,6 +40,27 @@ export const createTicket = async (
 
     const data = req.body as CreateTicketInput;
 
+    let resolvedOrderId: mongoose.Types.ObjectId | undefined;
+    if (data.orderId && data.orderId.trim()) {
+      const rawOrderId = data.orderId.trim().replace(/^#/, "");
+      const matchedOrder = mongoose.Types.ObjectId.isValid(rawOrderId)
+        ? await Order.findOne({
+            _id: rawOrderId,
+            customerId: authReq.user._id,
+          }).select("_id")
+        : await Order.findOne({
+            orderNumber: { $regex: `^${rawOrderId}$`, $options: "i" },
+            customerId: authReq.user._id,
+          }).select("_id");
+
+      if (!matchedOrder) {
+        throw new ValidationError(
+          "Order not found or does not belong to your account",
+        );
+      }
+      resolvedOrderId = matchedOrder._id;
+    }
+
     const ticket = await SupportTicket.create({
       userId: authReq.user._id,
       type: data.type,
@@ -54,7 +76,7 @@ export const createTicket = async (
           createdAt: new Date(),
         },
       ],
-      orderId: data.orderId ? new mongoose.Types.ObjectId(data.orderId) : undefined,
+      orderId: resolvedOrderId,
     });
 
     successResponse(res, { ticket }, "Ticket created", 201);

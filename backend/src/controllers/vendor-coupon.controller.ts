@@ -198,19 +198,20 @@ export const deleteVendorCoupon = async (
       throw new AuthorizationError("You do not own this coupon");
     }
 
-    coupon.isActive = false;
-    await coupon.save();
+    const deletedCode = coupon.code;
+    const deletedId = coupon._id;
+    await coupon.deleteOne();
 
     await createAuditLog({
       actorId: user._id,
       actorRole: user.role,
-      action: "coupon.deactivated",
+      action: "coupon.deleted",
       resourceType: "Coupon",
-      resourceId: coupon._id,
-      changes: [{ field: "isActive", oldValue: true, newValue: false }],
+      resourceId: deletedId,
+      changes: [{ field: "code", oldValue: deletedCode, newValue: null }],
     });
 
-    successResponse(res, null, "Coupon deactivated");
+    successResponse(res, null, "Coupon deleted");
   } catch (error) {
     next(error);
   }

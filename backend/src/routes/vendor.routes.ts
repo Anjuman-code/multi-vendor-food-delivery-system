@@ -24,6 +24,7 @@ import {
 } from "../controllers/vendor.controller";
 
 import {
+  getVendorMenu,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -93,6 +94,7 @@ router.put(
 router.delete("/restaurants/:restaurantId", deleteMyRestaurant);
 
 // ── Menu Categories ────────────────────────────────────────────
+router.get("/restaurants/:restaurantId/menu", getVendorMenu);
 router.post(
   "/restaurants/:restaurantId/menu/categories",
   validate(createMenuCategorySchema),

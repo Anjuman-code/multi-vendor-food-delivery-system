@@ -54,7 +54,8 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 import { Switch } from "@/components/ui/switch";
 import {
@@ -125,6 +126,14 @@ const StatPill: React.FC<{
   </div>
 );
 
+const VALID_PROFILE_TABS: ProfileTab[] = [
+  "profile",
+  "addresses",
+  "payment",
+  "preferences",
+  "security",
+];
+
 const ProfilePage: React.FC = () => {
   const {
     user,
@@ -133,8 +142,24 @@ const ProfilePage: React.FC = () => {
     updateUser,
   } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as ProfileTab | null;
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
+  const [activeTab, setActiveTab] = useState<ProfileTab>(
+    tabParam && VALID_PROFILE_TABS.includes(tabParam) ? tabParam : "profile"
+  );
+
+  useEffect(() => {
+    const nextTab = searchParams.get("tab") as ProfileTab | null;
+    if (nextTab && VALID_PROFILE_TABS.includes(nextTab) && nextTab !== activeTab) {
+      setActiveTab(nextTab);
+    }
+  }, [searchParams, activeTab]);
+
+  const handleTabChange = (tab: ProfileTab) => {
+    setActiveTab(tab);
+    setSearchParams(tab === "profile" ? {} : { tab }, { replace: true });
+  };
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [customerProfile, setCustomerProfile] =
     useState<CustomerProfile | null>(null);
@@ -364,9 +389,11 @@ const ProfilePage: React.FC = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
+                        type="button"
+                        aria-label="Change cover photo"
                         onClick={() => coverPhotoRef.current?.click()}
                         disabled={isUploadingCover}
-                        className="absolute top-3 right-3 z-10 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
+                        className="absolute top-3 right-3 z-10 p-2.5 bg-black/40 rounded-xl text-white/90 opacity-100 sm:opacity-0 sm:group-hover/banner:opacity-100 hover:bg-black/60 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
                       >
                         {isUploadingCover ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -414,9 +441,11 @@ const ProfilePage: React.FC = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
+                        type="button"
+                        aria-label="Change cover photo"
                         onClick={() => coverPhotoRef.current?.click()}
                         disabled={isUploadingCover}
-                        className="absolute top-3 right-3 p-2 bg-black/30 rounded-xl text-white/80 opacity-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
+                        className="absolute top-3 right-3 p-2.5 bg-black/40 rounded-xl text-white/90 opacity-100 sm:opacity-0 sm:group-hover/banner:opacity-100 hover:bg-black/60 hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-50"
                       >
                         {isUploadingCover ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -458,14 +487,16 @@ const ProfilePage: React.FC = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
+                        type="button"
+                        aria-label="Change profile photo"
                         onClick={() => profilePhotoRef.current?.click()}
                         disabled={isUploadingProfile}
-                        className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 cursor-pointer disabled:opacity-50"
+                        className="absolute inset-0 bg-black/30 sm:bg-black/40 rounded-2xl flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover/avatar:opacity-100 transition-opacity duration-200 cursor-pointer disabled:opacity-50"
                       >
                         {isUploadingProfile ? (
                           <Loader2 className="w-5 h-5 text-white animate-spin" />
                         ) : (
-                          <Camera className="w-5 h-5 text-white" />
+                          <Camera className="w-5 h-5 text-white drop-shadow" />
                         )}
                       </button>
                     </TooltipTrigger>
@@ -557,8 +588,9 @@ const ProfilePage: React.FC = () => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap z-10 ${
+                type="button"
+                onClick={() => handleTabChange(tab.id)}
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-colors whitespace-nowrap z-10 ${
                   activeTab === tab.id
                     ? "text-white"
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -647,6 +679,7 @@ interface ProfileSectionProps {
 
 const ProfileSection: React.FC<ProfileSectionProps> = ({
   profile,
+  customerProfile,
   isLoading,
   onUpdateSuccess,
 }) => {
@@ -1034,7 +1067,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       </div>
 
       <RecentActivitySection
-        customerProfile={null}
+        customerProfile={customerProfile}
         isLoading={isLoading}
       />
 
@@ -1058,6 +1091,7 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
   isLoading,
   onRefresh,
 }) => {
+  const confirm = useConfirm();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingAddress, setEditingAddress] = useState<UserAddress | null>(
     null,
@@ -1066,6 +1100,15 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
 
   const handleDelete = async (addressId: string) => {
+    const isConfirmed = await confirm({
+      title: "Delete Address?",
+      description: "Are you sure you want to remove this saved address from your account?",
+      confirmLabel: "Delete Address",
+      cancelLabel: "Cancel",
+      variant: "destructive",
+    });
+    if (!isConfirmed) return;
+
     setDeletingId(addressId);
     const res = await userService.deleteAddress(addressId);
     if (res.success) {
@@ -1176,7 +1219,7 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
                     size="sm"
                     onClick={() => handleSetDefault(addr._id)}
                     disabled={settingDefaultId === addr._id}
-                    className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg"
+                    className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg min-h-[40px]"
                   >
                     {settingDefaultId === addr._id ? (
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -1190,7 +1233,7 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => setEditingAddress(addr)}
-                  className="text-xs text-gray-600 hover:text-gray-900 rounded-lg"
+                  className="text-xs text-gray-600 hover:text-gray-900 rounded-lg min-h-[40px]"
                 >
                   <Edit3 className="w-3 h-3 mr-1" />
                   Edit
@@ -1200,7 +1243,7 @@ const AddressesSection: React.FC<AddressesSectionProps> = ({
                   size="sm"
                   onClick={() => handleDelete(addr._id)}
                   disabled={deletingId === addr._id}
-                  className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg ml-auto"
+                  className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg ml-auto min-h-[40px]"
                 >
                   {deletingId === addr._id ? (
                     <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -1333,48 +1376,39 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
 }) => {
   if (isLoading) return null;
 
-  const hasOrders = customerProfile && customerProfile.totalOrders > 0;
+  const hasOrders = Boolean(customerProfile && customerProfile.totalOrders > 0);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
-      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-5">
-        <Clock className="w-5 h-5 text-orange-500" />
-        Recent Activity
-      </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-orange-500" />
+          Order Activity
+        </h2>
+        {hasOrders && (
+          <Button asChild variant="outline" size="sm" className="rounded-xl">
+            <Link to="/orders">
+              View All Orders
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Link>
+          </Button>
+        )}
+      </div>
 
-      {hasOrders ? (
-        <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2">
-          {[1, 2, 3].map((i) => (
-            <motion.div
-              key={i}
-              whileHover={{ y: -2 }}
-              className="flex-shrink-0 w-64 bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <UtensilsCrossed className="w-5 h-5 text-orange-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    Restaurant #{i}
-                  </p>
-                  <p className="text-xs text-gray-400">Recent order</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Delivered
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg h-7 px-2"
-                >
-                  Reorder
-                </Button>
-              </div>
-            </motion.div>
-          ))}
+      {hasOrders && customerProfile ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-orange-50/70 rounded-xl p-4 border border-orange-100">
+            <p className="text-xs font-medium text-orange-700 mb-1">Total Orders Placed</p>
+            <p className="text-2xl font-bold text-gray-900">{customerProfile.totalOrders}</p>
+          </div>
+          <div className="bg-amber-50/70 rounded-xl p-4 border border-amber-100">
+            <p className="text-xs font-medium text-amber-700 mb-1">Loyalty Points</p>
+            <p className="text-2xl font-bold text-gray-900">{customerProfile.loyaltyPoints}</p>
+          </div>
+          <div className="bg-purple-50/70 rounded-xl p-4 border border-purple-100">
+            <p className="text-xs font-medium text-purple-700 mb-1">Membership Tier</p>
+            <p className="text-2xl font-bold text-gray-900 capitalize">{customerProfile.tier}</p>
+          </div>
         </div>
       ) : (
         <div className="text-center py-8">

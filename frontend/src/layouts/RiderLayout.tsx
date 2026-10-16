@@ -222,6 +222,49 @@ const RiderShell: React.FC = () => {
             />
           )}
           <NotificationPopover />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white transition-opacity hover:opacity-90 lg:hidden"
+                aria-label="Rider account menu"
+              >
+                {initials}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {user?.firstName} {user?.lastName}
+                </span>
+                <span className="block truncate text-xs font-normal text-muted-foreground">
+                  {user?.email}
+                </span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/rider/history">
+                  <History className="mr-2 h-4 w-4" /> Delivery History
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/rider/profile">
+                  <User className="mr-2 h-4 w-4" /> Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/rider/support">
+                  <HelpCircle className="mr-2 h-4 w-4" /> Help &amp; Support
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-red-600 focus:text-red-600"
+              >
+                <LogOut className="mr-2 h-4 w-4" /> Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">

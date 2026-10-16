@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/lib/toast';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -12,43 +13,58 @@ import {
   Twitter,
   Youtube,
 } from 'lucide-react';
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Footer: React.FC = memo(() => {
   const currentYear = new Date().getFullYear();
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+
+  const handleNewsletterSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = newsletterEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast.error('Invalid email', {
+        description: 'Please enter a valid email address to subscribe.',
+      });
+      return;
+    }
+    setNewsletterEmail('');
+    toast.success('Subscribed!', {
+      description: 'You will receive exclusive deals and updates in your inbox.',
+    });
+  };
 
   const footerLinks = {
     company: [
       { name: 'About Us', href: '/about' },
       { name: 'Contact Us', href: '/contact' },
       { name: 'Careers', href: '/careers' },
-      { name: 'Blog', href: '/blog' },
+      { name: 'Explore Menu', href: '/menu' },
     ],
     support: [
       { name: 'Help Center / FAQ', href: '/faq' },
-      { name: 'Partner with Us', href: '/partner' },
-      { name: 'Become a Rider', href: '/rider' },
-      { name: 'Safety', href: '/safety' },
+      { name: 'Partner with Us', href: '/vendor/register' },
+      { name: 'Become a Rider', href: '/rider/register' },
+      { name: 'Browse Restaurants', href: '/restaurants' },
     ],
     legal: [
       { name: 'Terms of Service', href: '/terms' },
       { name: 'Privacy Policy', href: '/privacy' },
-      { name: 'Cookie Policy', href: '/cookies' },
       { name: 'Refund Policy', href: '/refund' },
     ],
   };
 
   const socialLinks = [
-    { name: 'Facebook', icon: Facebook, href: '#', color: 'hover:bg-blue-500' },
-    { name: 'Twitter', icon: Twitter, href: '#', color: 'hover:bg-sky-500' },
+    { name: 'Facebook', icon: Facebook, href: 'https://facebook.com', color: 'hover:bg-blue-500' },
+    { name: 'Twitter', icon: Twitter, href: 'https://twitter.com', color: 'hover:bg-sky-500' },
     {
       name: 'Instagram',
       icon: Instagram,
-      href: '#',
+      href: 'https://instagram.com',
       color: 'hover:bg-pink-500',
     },
-    { name: 'Youtube', icon: Youtube, href: '#', color: 'hover:bg-red-500' },
+    { name: 'Youtube', icon: Youtube, href: 'https://youtube.com', color: 'hover:bg-red-500' },
   ];
 
   return (
@@ -75,16 +91,22 @@ const Footer: React.FC = memo(() => {
               </p>
             </div>
             <div className="w-full lg:w-auto">
-              <form className="flex flex-col sm:flex-row gap-3">
+              <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-3">
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     type="email"
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
                     placeholder="Enter your email"
+                    aria-label="Email address for newsletter"
                     className="pl-12 pr-4 py-3 w-full sm:w-80 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   />
                 </div>
-                <Button className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg shadow-brand-500/25 whitespace-nowrap">
+                <Button
+                  type="submit"
+                  className="bg-gradient-to-r from-brand-500 to-red-500 hover:from-brand-600 hover:to-red-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg shadow-brand-500/25 whitespace-nowrap"
+                >
                   Subscribe
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>

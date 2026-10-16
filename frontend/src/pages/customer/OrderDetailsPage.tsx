@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/contexts/CartContext';
+import { useConfirm } from '@/contexts/ConfirmContext';
 import { useSocketContext } from '@/contexts/SocketContext';
 import { toast } from '@/lib/toast';
 import orderService from '@/services/orderService';
@@ -121,6 +122,7 @@ const OrderDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { addItem: addToCart } = useCart();
+  const confirm = useConfirm();
   const { socket, watchOrderLocation } = useSocketContext();
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -268,6 +270,15 @@ const OrderDetailsPage: React.FC = () => {
 
   const handleCancel = async () => {
     if (!order) return;
+    const isConfirmed = await confirm({
+      title: 'Cancel Order?',
+      description: `Are you sure you want to cancel order ${order.orderNumber}? This action cannot be undone.`,
+      confirmLabel: 'Yes, Cancel Order',
+      cancelLabel: 'Keep Order',
+      variant: 'destructive',
+    });
+    if (!isConfirmed) return;
+
     setCancelling(true);
     const res = await orderService.cancelOrder(order._id);
     setCancelling(false);

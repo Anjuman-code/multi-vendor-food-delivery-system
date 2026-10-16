@@ -632,6 +632,16 @@ const CheckoutPage: React.FC = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/cart')}
+          className="mb-3 -ml-2 text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          Back to Cart
+        </Button>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout</h1>
         {isMultiRestaurant ? (
           <p className="text-sm text-gray-500 mb-6">

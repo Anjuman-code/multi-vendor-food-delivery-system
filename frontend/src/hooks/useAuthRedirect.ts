@@ -11,16 +11,17 @@ import type { AuthUser } from "@/services/authService";
  * redirect rules stay consistent everywhere.
  */
 export function getPostAuthPath(user: Pick<AuthUser, "role" | "onboardingCompleted">): string {
+  const isAdminOrSupport = user.role === "admin" || user.role === "support";
   const base =
     user.role === "vendor"
       ? "/vendor"
-      : user.role === "admin"
+      : isAdminOrSupport
         ? "/admin"
         : user.role === "driver"
           ? "/rider"
           : "/";
 
-  if (user.onboardingCompleted) return base;
+  if (isAdminOrSupport || user.onboardingCompleted) return base;
   if (user.role === "driver") return "/rider/onboarding";
   if (user.role === "vendor") return "/vendor/onboarding";
   return "/onboarding";

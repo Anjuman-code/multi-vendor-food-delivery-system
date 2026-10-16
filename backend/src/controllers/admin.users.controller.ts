@@ -477,12 +477,19 @@ export const getVendorDetail = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const user = await User.findOne({ _id: req.params.id, role: UserRole.VENDOR }).select(
+    let user = await User.findOne({ _id: req.params.id, role: UserRole.VENDOR }).select(
       '-password -refreshToken',
     );
-    if (!user) throw new NotFoundError('Vendor not found');
+    let vendorProfile = user ? await VendorProfile.findOne({ userId: user._id }) : null;
 
-    const vendorProfile = await VendorProfile.findOne({ userId: user._id });
+    if (!user) {
+      vendorProfile = await VendorProfile.findById(req.params.id);
+      if (vendorProfile) {
+        user = await User.findById(vendorProfile.userId).select('-password -refreshToken');
+      }
+    }
+
+    if (!user) throw new NotFoundError('Vendor not found');
 
     const restaurantIds = vendorProfile?.restaurantIds ?? [];
     const ownedRestaurants = await Restaurant.find({ _id: { $in: restaurantIds } }).select(
@@ -891,10 +898,14 @@ export const listDriverApplications = async (
 
     const total = await DriverProfile.countDocuments({ applicationStatus: 'pending' });
 
-    const applications = profiles.map((p) => ({
-      ...p.toObject(),
-      user: userMap.get(p.userId.toString()) ?? null,
-    }));
+    const applications = profiles.map((p) => {
+      const userObj = userMap.get(p.userId.toString()) ?? null;
+      return {
+        ...p.toObject(),
+        user: userObj,
+        userId: userObj ?? p.userId,
+      };
+    });
 
     successResponse(res, { applications, pagination: buildPagination(page, limit, total) });
   } catch (error) {

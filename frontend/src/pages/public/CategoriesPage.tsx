@@ -228,7 +228,15 @@ const CategoriesPage: React.FC = () => {
             </button>
 
             <div className="relative group">
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 text-gray-700">
+              <button
+                type="button"
+                aria-label="Sort menu items"
+                onClick={(e) => {
+                  const menu = e.currentTarget.nextElementSibling;
+                  if (menu) menu.classList.toggle("hidden");
+                }}
+                className="flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 text-gray-700"
+              >
                 <SlidersHorizontal className="w-4 h-4" />
                 <span className="text-sm font-medium">
                   {sortBy === "popular" && "Popular"}
@@ -238,11 +246,12 @@ const CategoriesPage: React.FC = () => {
                 </span>
                 <ChevronRight className="w-4 h-4 transform -rotate-90" />
               </button>
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="hidden group-hover:block absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 transition-all duration-200 z-50">
                 <div className="py-2">
                   <button
+                    type="button"
                     onClick={() => setSortBy("popular")}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${
                       sortBy === "popular"
                         ? "text-brand-500 font-medium"
                         : "text-gray-700"
@@ -251,8 +260,9 @@ const CategoriesPage: React.FC = () => {
                     Most Popular
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSortBy("rating")}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${
                       sortBy === "rating"
                         ? "text-brand-500 font-medium"
                         : "text-gray-700"
@@ -261,8 +271,9 @@ const CategoriesPage: React.FC = () => {
                     Highest Rated
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSortBy("price-low")}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${
                       sortBy === "price-low"
                         ? "text-brand-500 font-medium"
                         : "text-gray-700"
@@ -271,8 +282,9 @@ const CategoriesPage: React.FC = () => {
                     Price: Low to High
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSortBy("price-high")}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${
                       sortBy === "price-high"
                         ? "text-brand-500 font-medium"
                         : "text-gray-700"
@@ -286,8 +298,10 @@ const CategoriesPage: React.FC = () => {
 
             <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
               <button
+                type="button"
+                aria-label="Grid view"
                 onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg transition-all duration-200 ${
                   viewMode === "grid"
                     ? "bg-white shadow-sm text-brand-500"
                     : "text-gray-600 hover:text-gray-900"
@@ -296,8 +310,10 @@ const CategoriesPage: React.FC = () => {
                 <Grid3x3 className="w-5 h-5" />
               </button>
               <button
+                type="button"
+                aria-label="List view"
                 onClick={() => setViewMode("list")}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg transition-all duration-200 ${
                   viewMode === "list"
                     ? "bg-white shadow-sm text-brand-500"
                     : "text-gray-600 hover:text-gray-900"

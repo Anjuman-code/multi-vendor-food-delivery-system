@@ -197,6 +197,7 @@ export interface VendorOrderItem {
   menuItemId: string;
   menuItem?: { name: string; image?: string };
   name: string;
+  image?: string;
   price: number;
   quantity: number;
   variants?: { name: string; price: number }[];

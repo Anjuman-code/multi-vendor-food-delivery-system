@@ -112,7 +112,7 @@ export const getMyEmailPreferences = async (
 
 /**
  * PUT /api/email/preferences
- * Updates the authenticated user's email preferences.
+ * Updates the user's email preferences via authenticated session or valid unsubscribe token.
  */
 export const updateMyEmailPreferences = async (
   req: Request,
@@ -121,12 +121,32 @@ export const updateMyEmailPreferences = async (
 ): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-    if (!authReq.user) throw new AuthenticationError();
+    const token =
+      (req.body?.token as string | undefined) ||
+      (req.query.token as string | undefined);
+
+    let targetUserId = authReq.user?._id?.toString();
+    if (!targetUserId && token) {
+      const payload = verifyUnsubscribeToken(token);
+      if (!payload) {
+        throw new ValidationError('Invalid or expired unsubscribe token');
+      }
+      targetUserId = payload.userId;
+    }
+
+    if (!targetUserId) {
+      throw new AuthenticationError();
+    }
+
+    const prefsSource =
+      req.body?.preferences && typeof req.body.preferences === 'object'
+        ? req.body.preferences
+        : req.body;
 
     const { orderUpdates, accountAlerts, reviewRequests, promotions, newsletter } =
-      req.body;
+      prefsSource || {};
 
-    const user = await User.findById(authReq.user._id);
+    const user = await User.findById(targetUserId);
     if (!user) throw new AuthenticationError();
 
     if (!user.emailPreferences) {

@@ -29,7 +29,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-const namePattern = /^[a-zA-Z]+$/;
+const namePattern = /^[a-zA-Z\s.'-]+$/;
 
 const contactSchema = z.object({
   name: z
@@ -37,7 +37,7 @@ const contactSchema = z.object({
     .trim()
     .min(2, 'Name must be at least 2 characters')
     .max(100, 'Name cannot exceed 100 characters')
-    .regex(namePattern, 'Name Can only contain letters')
+    .regex(namePattern, 'Name can only contain letters, spaces, hyphens, and apostrophes')
     .refine((v) => /[a-zA-Z]/.test(v), {
       message: 'Must contain at least one letter',
     }),
@@ -95,7 +95,7 @@ const contactInfo = [
   {
     icon: Phone,
     title: 'Call Us',
-    details: ['+880 1637 429498', '+880 1XXX XXXXXX'],
+    details: ['+880 1637 429498', '+880 1711 000000'],
     color: 'bg-green-100 text-green-500',
   },
   {
@@ -113,9 +113,9 @@ const contactInfo = [
 ];
 
 const socialLinks = [
-  { name: 'Facebook', icon: Facebook, href: '#', color: 'hover:bg-blue-500' },
-  { name: 'Twitter', icon: Twitter, href: '#', color: 'hover:bg-sky-500' },
-  { name: 'Instagram', icon: Instagram, href: '#', color: 'hover:bg-pink-500' },
+  { name: 'Facebook', icon: Facebook, href: 'https://facebook.com', color: 'hover:bg-blue-500' },
+  { name: 'Twitter', icon: Twitter, href: 'https://twitter.com', color: 'hover:bg-sky-500' },
+  { name: 'Instagram', icon: Instagram, href: 'https://instagram.com', color: 'hover:bg-pink-500' },
 ];
 
 const responseTiers = [

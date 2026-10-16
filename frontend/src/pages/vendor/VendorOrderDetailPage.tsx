@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { FoodImage } from '@/components/ui/FoodImage';
 import {
   PageHeader,
   SectionCard,
@@ -340,26 +341,34 @@ const VendorOrderDetailPage: React.FC = () => {
             icon={<Package className="h-5 w-5" />}
           >
             <div className="divide-y divide-border">
-              {order.items?.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-4 py-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-lg font-bold text-muted-foreground">
-                    {item.quantity}x
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">
-                      {item.menuItem?.name || item.name || 'Item'}
-                    </p>
-                    {item.specialInstructions && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Note: {item.specialInstructions}
+              {order.items?.map((item, idx) => {
+                const itemName = item.menuItem?.name || item.name || 'Item';
+                return (
+                  <div key={idx} className="flex items-center gap-4 py-3">
+                    <FoodImage
+                      name={itemName}
+                      src={item.image}
+                      aspectRatio="1/1"
+                      className="h-12 w-12 shrink-0 rounded-lg"
+                      imgClassName="h-12 w-12 rounded-lg object-cover"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground">
+                        <span className="text-primary font-semibold mr-1.5">{item.quantity}×</span>
+                        {itemName}
                       </p>
-                    )}
+                      {item.specialInstructions && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Note: {item.specialInstructions}
+                        </p>
+                      )}
+                    </div>
+                    <p className="font-medium text-foreground">
+                      {formatCurrency(item.price * item.quantity)}
+                    </p>
                   </div>
-                  <p className="font-medium text-foreground">
-                    {formatCurrency(item.price * item.quantity)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
               <div className="flex justify-between text-muted-foreground">

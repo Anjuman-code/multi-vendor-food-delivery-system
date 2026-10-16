@@ -9,7 +9,12 @@ export interface IPaymentTransaction {
   payerId: Types.ObjectId;
   payerRole: string;
   recipientId?: Types.ObjectId;
-  purpose: 'order_payment' | 'wallet_topup' | 'cod_remittance' | 'payout';
+  purpose:
+    | 'order_payment'
+    | 'reservation_deposit'
+    | 'wallet_topup'
+    | 'cod_remittance'
+    | 'payout';
   amount: number;
   currency: string;
   paymentMethod: string;
@@ -63,7 +68,13 @@ const paymentTransactionSchema = new Schema<IPaymentTransactionDocument>(
     },
     purpose: {
       type: String,
-      enum: ['order_payment', 'wallet_topup', 'cod_remittance', 'payout'],
+      enum: [
+        'order_payment',
+        'reservation_deposit',
+        'wallet_topup',
+        'cod_remittance',
+        'payout',
+      ],
       required: true,
     },
     amount: {
