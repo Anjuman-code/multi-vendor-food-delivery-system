@@ -275,7 +275,7 @@ export function useMenuExplorer() {
       cuisines: filters.cuisines,
       sort: filters.sort,
       page: 1,
-      limit: 20,
+      limit: 2000,
     };
 
     async function fetchFirstPage() {
@@ -322,7 +322,7 @@ export function useMenuExplorer() {
       cuisines: filters.cuisines,
       sort: filters.sort,
       page: nextPage,
-      limit: 20,
+      limit: 2000,
     };
 
     const res = await exploreService.getMenuItems(params);

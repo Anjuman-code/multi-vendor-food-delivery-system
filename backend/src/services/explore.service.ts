@@ -651,7 +651,7 @@ export const searchExploreMenuItems = async (
   opts: ExploreSearchOptions,
 ): Promise<ExploreMenuItemsResult> => {
   const page = Math.max(1, opts.page || 1);
-  const limit = Math.max(1, Math.min(opts.limit || 20, 50));
+  const limit = Math.max(1, Math.min(opts.limit || 2000, 5000));
   const skip = (page - 1) * limit;
 
   // Base match for active and available menu items

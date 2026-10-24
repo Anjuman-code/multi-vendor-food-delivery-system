@@ -21,7 +21,7 @@ export const exploreMenuItemsQuerySchema = z.object({
     .optional()
     .default("popular"),
   page: z.coerce.number().int().min(1).optional().default(1),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+  limit: z.coerce.number().int().min(1).max(5000).optional().default(2000),
 });
 
 export type ExploreMenuItemsQuery = z.infer<typeof exploreMenuItemsQuerySchema>;
