@@ -13,8 +13,14 @@
 
 // Eager glob import for Vite production bundling:
 const globbedImages: Record<string, string> = {};
-if (typeof import.meta !== 'undefined' && typeof (import.meta as any).glob === 'function') {
-  const eagerMap = (import.meta as any).glob('./*.webp', { eager: true, import: 'default' });
+if (
+  typeof import.meta !== 'undefined' &&
+  typeof (import.meta as any).glob === 'function'
+) {
+  const eagerMap = (import.meta as any).glob('./*.webp', {
+    eager: true,
+    import: 'default',
+  });
   for (const [key, val] of Object.entries(eagerMap)) {
     const slug = key.replace('./', '').replace('.webp', '');
     globbedImages[slug] = val as string;
@@ -22,10 +28,15 @@ if (typeof import.meta !== 'undefined' && typeof (import.meta as any).glob === '
 }
 
 export const GENERIC_FOOD_PLACEHOLDER: string =
-  globbedImages['generic-food-placeholder'] || '/src/assets/foods/generic-food-placeholder.webp';
+  globbedImages['generic-food-placeholder'] ||
+  '/src/assets/foods/generic-food-placeholder.webp';
 
 export function getDishAsset(slug: string): string {
-  return globbedImages[slug] || `/src/assets/foods/${slug}.webp`;
+  return (
+    globbedImages[slug] ||
+    `/src/assets/foods/${slug}.png` ||
+    `/src/assets/foods/${slug}.webp`
+  );
 }
 
 export interface CanonicalDish {
@@ -45,7 +56,13 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Chicken Wings',
     image: getDishAsset('chicken-wings'),
     priority: 95,
-    aliases: ['chicken wings', 'hot wings', 'buffalo wings', 'চিকেন উইংস', 'উইংস'],
+    aliases: [
+      'chicken wings',
+      'hot wings',
+      'buffalo wings',
+      'চিকেন উইংস',
+      'উইংস',
+    ],
     keywords: [['wings'], ['wing']],
     excludeKeywords: ['curry', 'rice', 'biryani', 'pizza'],
   },
@@ -81,7 +98,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Grilled Chicken Sandwich',
     image: getDishAsset('chicken-sandwich'),
     priority: 90,
-    aliases: ['grilled chicken sandwich', 'chicken sandwich', 'চিকেন স্যান্ডউইচ'],
+    aliases: [
+      'grilled chicken sandwich',
+      'chicken sandwich',
+      'চিকেন স্যান্ডউইচ',
+    ],
     keywords: [['chicken', 'sandwich']],
     excludeKeywords: ['club', 'burger', 'roll', 'curry'],
   },
@@ -99,7 +120,13 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'French Fries',
     image: getDishAsset('french-fries'),
     priority: 88,
-    aliases: ['french fries', 'fries', 'loaded fries', 'cheesy fries', 'ফ্রেঞ্চ ফ্রাই'],
+    aliases: [
+      'french fries',
+      'fries',
+      'loaded fries',
+      'cheesy fries',
+      'ফ্রেঞ্চ ফ্রাই',
+    ],
     keywords: [['fries'], ['french', 'fry']],
     excludeKeywords: ['chicken', 'fish', 'rice', 'begun', 'eggplant', 'burger'],
   },
@@ -109,7 +136,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('onion-rings'),
     priority: 95,
     aliases: ['onion rings', 'অনিয়ন রিংস'],
-    keywords: [['onion', 'ring'], ['onion', 'rings']],
+    keywords: [
+      ['onion', 'ring'],
+      ['onion', 'rings'],
+    ],
     excludeKeywords: ['curry', 'burger', 'pizza'],
   },
   {
@@ -118,7 +148,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('garlic-bread'),
     priority: 92,
     aliases: ['garlic bread', 'garlic breadsticks', 'গার্লিক ব্রেড'],
-    keywords: [['garlic', 'bread'], ['garlic', 'breadsticks']],
+    keywords: [
+      ['garlic', 'bread'],
+      ['garlic', 'breadsticks'],
+    ],
     excludeKeywords: ['naan', 'roti', 'paratha', 'curry'],
   },
   {
@@ -137,7 +170,13 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Kachchi Biryani',
     image: getDishAsset('kachchi-biryani'),
     priority: 98,
-    aliases: ['kachchi biryani', 'kacchi biryani', 'mutton kacchi', 'কাচ্চি বিরিয়ানি', 'কাচ্চি'],
+    aliases: [
+      'kachchi biryani',
+      'kacchi biryani',
+      'mutton kacchi',
+      'কাচ্চি বিরিয়ানি',
+      'কাচ্চি',
+    ],
     keywords: [['kacchi'], ['kachchi']],
     excludeKeywords: ['chicken', 'tehari', 'polao'],
   },
@@ -166,7 +205,14 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     priority: 75,
     aliases: ['biryani', 'mutton biryani', 'beef biryani', 'বিরিয়ানি'],
     keywords: [['biryani']],
-    excludeKeywords: ['chicken', 'kacchi', 'kachchi', 'tehari', 'pizza', 'roll'],
+    excludeKeywords: [
+      'chicken',
+      'kacchi',
+      'kachchi',
+      'tehari',
+      'pizza',
+      'roll',
+    ],
   },
   {
     slug: 'khichuri',
@@ -210,7 +256,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('mutton-bhuna'),
     priority: 92,
     aliases: ['mutton bhuna', 'খাসির মাংস ভুনা', 'মাটন ভুনা'],
-    keywords: [['mutton', 'bhuna'], ['goat', 'bhuna'], ['lamb', 'bhuna']],
+    keywords: [
+      ['mutton', 'bhuna'],
+      ['goat', 'bhuna'],
+      ['lamb', 'bhuna'],
+    ],
     excludeKeywords: ['beef', 'chicken', 'khichuri', 'biryani'],
   },
   {
@@ -218,8 +268,16 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Beef Curry',
     image: getDishAsset('beef-curry'),
     priority: 88,
-    aliases: ['beef curry', 'beef curry rice', 'বিফ কারি', 'গরুর মাংসের তরকারি'],
-    keywords: [['beef', 'curry'], ['beef', 'torkari']],
+    aliases: [
+      'beef curry',
+      'beef curry rice',
+      'বিফ কারি',
+      'গরুর মাংসের তরকারি',
+    ],
+    keywords: [
+      ['beef', 'curry'],
+      ['beef', 'torkari'],
+    ],
     excludeKeywords: ['bhuna', 'tehari', 'burger', 'sandwich'],
   },
   {
@@ -228,7 +286,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('fish-curry'),
     priority: 92,
     aliases: ['fish curry', 'macher jhol', 'মাছের ঝোল', 'মাছ ভুনা'],
-    keywords: [['fish', 'curry'], ['macher', 'jhol'], ['fish', 'jhol']],
+    keywords: [
+      ['fish', 'curry'],
+      ['macher', 'jhol'],
+      ['fish', 'jhol'],
+    ],
     excludeKeywords: ['fry', 'finger', 'cake', 'soup'],
   },
   {
@@ -236,9 +298,25 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Chicken Curry',
     image: getDishAsset('chicken-curry'),
     priority: 88,
-    aliases: ['chicken curry', 'murgir torkari', 'চিকেন কারি', 'মুরগির মাংসের ঝোল'],
-    keywords: [['chicken', 'curry'], ['murgir', 'jhol']],
-    excludeKeywords: ['roast', 'fry', 'burger', 'sandwich', 'butter', 'tikka', 'biryani'],
+    aliases: [
+      'chicken curry',
+      'murgir torkari',
+      'চিকেন কারি',
+      'মুরগির মাংসের ঝোল',
+    ],
+    keywords: [
+      ['chicken', 'curry'],
+      ['murgir', 'jhol'],
+    ],
+    excludeKeywords: [
+      'roast',
+      'fry',
+      'burger',
+      'sandwich',
+      'butter',
+      'tikka',
+      'biryani',
+    ],
   },
   {
     slug: 'mutton-curry',
@@ -263,8 +341,16 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Aloo Bhorta',
     image: getDishAsset('aloo-bhorta'),
     priority: 96,
-    aliases: ['aloo bhorta', 'alu bhorta', 'mashed potato bengali', 'আলু ভর্তা'],
-    keywords: [['aloo', 'bhorta'], ['alu', 'bhorta']],
+    aliases: [
+      'aloo bhorta',
+      'alu bhorta',
+      'mashed potato bengali',
+      'আলু ভর্তা',
+    ],
+    keywords: [
+      ['aloo', 'bhorta'],
+      ['alu', 'bhorta'],
+    ],
     excludeKeywords: ['begun', 'shutki', 'dim'],
   },
   {
@@ -273,7 +359,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('begun-fry'),
     priority: 96,
     aliases: ['begun fry', 'begun bhaja', 'fried eggplant', 'বেগুন ভাজা'],
-    keywords: [['begun', 'fry'], ['begun', 'bhaja'], ['eggplant', 'fry']],
+    keywords: [
+      ['begun', 'fry'],
+      ['begun', 'bhaja'],
+      ['eggplant', 'fry'],
+    ],
     excludeKeywords: ['bhorta', 'curry'],
   },
   {
@@ -338,7 +428,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('spring-rolls'),
     priority: 94,
     aliases: ['spring rolls', 'spring roll', 'স্প্রিং রোল'],
-    keywords: [['spring', 'roll'], ['spring', 'rolls']],
+    keywords: [
+      ['spring', 'roll'],
+      ['spring', 'rolls'],
+    ],
     excludeKeywords: ['egg roll', 'chicken roll'],
   },
 
@@ -367,7 +460,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('pizza-chicken'),
     priority: 94,
     aliases: ['chicken tikka pizza', 'bbq chicken pizza', 'চিকেন পিজ্জা'],
-    keywords: [['bbq', 'chicken'], ['tikka', 'pizza'], ['chicken', 'pizza']],
+    keywords: [
+      ['bbq', 'chicken'],
+      ['tikka', 'pizza'],
+      ['chicken', 'pizza'],
+    ],
     excludeKeywords: ['burger', 'sandwich', 'roll'],
   },
   {
@@ -376,7 +473,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('pizza-veggie'),
     priority: 92,
     aliases: ['veggie supreme', 'vegetarian pizza', 'ভেজি পিজ্জা'],
-    keywords: [['veggie', 'supreme'], ['vegetarian', 'pizza'], ['veggie', 'pizza']],
+    keywords: [
+      ['veggie', 'supreme'],
+      ['vegetarian', 'pizza'],
+      ['veggie', 'pizza'],
+    ],
     excludeKeywords: ['chicken', 'beef', 'meat'],
   },
   {
@@ -385,7 +486,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('pizza-meat'),
     priority: 92,
     aliases: ['meat lovers', 'meat lovers pizza'],
-    keywords: [['meat', 'lover'], ['meat', 'lovers']],
+    keywords: [
+      ['meat', 'lover'],
+      ['meat', 'lovers'],
+    ],
     excludeKeywords: ['veggie', 'margherita'],
   },
 
@@ -395,8 +499,16 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Classic Beef Burger',
     image: getDishAsset('beef-burger'),
     priority: 88,
-    aliases: ['classic beef burger', 'double patty burger', 'beef burger', 'বিফ বার্গার'],
-    keywords: [['beef', 'burger'], ['double', 'patty']],
+    aliases: [
+      'classic beef burger',
+      'double patty burger',
+      'beef burger',
+      'বিফ বার্গার',
+    ],
+    keywords: [
+      ['beef', 'burger'],
+      ['double', 'patty'],
+    ],
     excludeKeywords: ['cheese', 'chicken', 'fish'],
   },
   {
@@ -414,7 +526,11 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('chicken-burger'),
     priority: 88,
     aliases: ['chicken burger', 'spicy jalapeño burger', 'চিকেন বার্গার'],
-    keywords: [['chicken', 'burger'], ['jalapeno', 'burger'], ['jalapeño', 'burger']],
+    keywords: [
+      ['chicken', 'burger'],
+      ['jalapeno', 'burger'],
+      ['jalapeño', 'burger'],
+    ],
     excludeKeywords: ['cheese', 'beef', 'sandwich'],
   },
 
@@ -424,9 +540,29 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Crispy Fried Chicken',
     image: getDishAsset('fried-chicken'),
     priority: 88,
-    aliases: ['fried chicken', 'chicken fry', 'chicken 65', 'chicken lollipop', 'crispy chicken', 'ফ্রাইড চিকেন', 'চিকেন ফ্রাই'],
-    keywords: [['fried', 'chicken'], ['chicken', 'fry'], ['chicken', '65'], ['lollipop']],
-    excludeKeywords: ['burger', 'sandwich', 'curry', 'rice', 'chowmein', 'roll'],
+    aliases: [
+      'fried chicken',
+      'chicken fry',
+      'chicken 65',
+      'chicken lollipop',
+      'crispy chicken',
+      'ফ্রাইড চিকেন',
+      'চিকেন ফ্রাই',
+    ],
+    keywords: [
+      ['fried', 'chicken'],
+      ['chicken', 'fry'],
+      ['chicken', '65'],
+      ['lollipop'],
+    ],
+    excludeKeywords: [
+      'burger',
+      'sandwich',
+      'curry',
+      'rice',
+      'chowmein',
+      'roll',
+    ],
   },
   {
     slug: 'grilled-chicken',
@@ -451,7 +587,12 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Butter Chicken / Tikka Masala',
     image: getDishAsset('butter-chicken'),
     priority: 88,
-    aliases: ['butter chicken', 'chicken tikka masala', 'chicken vindaloo', 'বাটার চিকেন'],
+    aliases: [
+      'butter chicken',
+      'chicken tikka masala',
+      'chicken vindaloo',
+      'বাটার চিকেন',
+    ],
     keywords: [['butter', 'chicken'], ['tikka', 'masala'], ['vindaloo']],
     excludeKeywords: ['pizza', 'roll', 'burger'],
   },
@@ -481,7 +622,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('momos-fried'),
     priority: 96,
     aliases: ['fried momos', 'kothey momo', 'ফ্রাইড মোমো'],
-    keywords: [['fried', 'momo'], ['fried', 'momos']],
+    keywords: [
+      ['fried', 'momo'],
+      ['fried', 'momos'],
+    ],
     excludeKeywords: ['steamed'],
   },
   {
@@ -490,7 +634,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('fried-rice'),
     priority: 88,
     aliases: ['fried rice', 'chicken rice bowl', 'chicken rice', 'ফ্রাইড রাইস'],
-    keywords: [['fried', 'rice'], ['rice', 'bowl']],
+    keywords: [
+      ['fried', 'rice'],
+      ['rice', 'bowl'],
+    ],
     excludeKeywords: ['biryani', 'tehari', 'khichuri', 'polao'],
   },
   {
@@ -499,7 +646,10 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     image: getDishAsset('plain-rice'),
     priority: 70,
     aliases: ['plain rice', 'jeera rice', 'steamed rice', 'ভাত'],
-    keywords: [['plain', 'rice'], ['jeera', 'rice']],
+    keywords: [
+      ['plain', 'rice'],
+      ['jeera', 'rice'],
+    ],
     excludeKeywords: ['fried', 'biryani', 'khichuri', 'polao', 'curry'],
   },
   {
@@ -507,7 +657,13 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Chowmein / Noodles',
     image: getDishAsset('chowmein'),
     priority: 90,
-    aliases: ['chicken chowmein', 'hakka noodles', 'egg noodles', 'চাউমিন', 'নুডুলস'],
+    aliases: [
+      'chicken chowmein',
+      'hakka noodles',
+      'egg noodles',
+      'চাউমিন',
+      'নুডুলস',
+    ],
     keywords: [['chowmein'], ['noodles'], ['chow', 'mein']],
     excludeKeywords: ['soup'],
   },
@@ -516,8 +672,17 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Chilli Chicken / Manchurian',
     image: getDishAsset('chinese-chicken'),
     priority: 90,
-    aliases: ['chilli chicken', 'chicken manchurian', 'sweet & sour chicken', 'sweet and sour chicken'],
-    keywords: [['chilli', 'chicken'], ['manchurian'], ['sweet', 'sour', 'chicken']],
+    aliases: [
+      'chilli chicken',
+      'chicken manchurian',
+      'sweet & sour chicken',
+      'sweet and sour chicken',
+    ],
+    keywords: [
+      ['chilli', 'chicken'],
+      ['manchurian'],
+      ['sweet', 'sour', 'chicken'],
+    ],
     excludeKeywords: ['curry', 'biryani', 'pizza'],
   },
   {
@@ -599,7 +764,13 @@ export const CANONICAL_FOOD_MANIFEST: CanonicalDish[] = [
     displayName: 'Cake Slice (Chocolate / Red Velvet)',
     image: getDishAsset('cake-slice'),
     priority: 80,
-    aliases: ['chocolate cake', 'red velvet', 'black forest', 'cake slice', 'কেক'],
+    aliases: [
+      'chocolate cake',
+      'red velvet',
+      'black forest',
+      'cake slice',
+      'কেক',
+    ],
     keywords: [['cake'], ['red', 'velvet'], ['black', 'forest']],
     excludeKeywords: ['lava', 'cheese', 'pancake'],
   },
