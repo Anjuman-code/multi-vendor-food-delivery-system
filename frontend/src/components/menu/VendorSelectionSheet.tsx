@@ -1,6 +1,7 @@
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowUpDown,
   Clock,
   ExternalLink,
   Heart,
@@ -8,9 +9,12 @@ import {
   Plus,
   ShoppingBag,
   SlidersHorizontal,
+  Sparkles,
   Star,
   Store,
+  Tag,
   Truck,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +29,25 @@ import type { ClusteredDish, DishVendorOption } from "@/types/dishGrouping.types
 import type { ExploreMenuItem } from "@/services/exploreService";
 import { formatCurrency } from "@/utils/format";
 import { cn } from "@/utils/cn";
+
+export type VendorSortOption =
+  | "recommended"
+  | "price_asc"
+  | "fastest"
+  | "rating"
+  | "fee_asc";
+
+const VENDOR_SORT_TABS: Array<{
+  id: VendorSortOption;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: "recommended", label: "Best Match", icon: Sparkles },
+  { id: "price_asc", label: "Price", icon: Tag },
+  { id: "fastest", label: "Speed", icon: Zap },
+  { id: "rating", label: "Rating", icon: Star },
+  { id: "fee_asc", label: "Delivery Fee", icon: Truck },
+];
 
 export interface VendorSelectionSheetProps {
   dish: ClusteredDish | null;
@@ -54,6 +77,50 @@ export const VendorSelectionSheet: React.FC<VendorSelectionSheetProps> = memo(
     onToggleFavorite,
   }) => {
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+    const [sortOption, setSortOption] = useState<VendorSortOption>("recommended");
+
+    // Reset sort when dish changes
+    useEffect(() => {
+      if (dish?.clusterKey) {
+        setSortOption("recommended");
+      }
+    }, [dish?.clusterKey]);
+
+    // Dynamic client-side sorting of vendor options
+    const sortedVendors = useMemo(() => {
+      if (!dish) return [];
+      const list = [...dish.vendors];
+
+      switch (sortOption) {
+        case "price_asc":
+          return list.sort((a, b) => a.price - b.price);
+        case "fastest":
+          return list.sort(
+            (a, b) =>
+              (a.deliveryTime.min || 99) - (b.deliveryTime.min || 99),
+          );
+        case "rating":
+          return list.sort((a, b) => {
+            if (b.rating !== a.rating) return b.rating - a.rating;
+            return b.reviewCount - a.reviewCount;
+          });
+        case "fee_asc":
+          return list.sort(
+            (a, b) => (a.deliveryFee || 0) - (b.deliveryFee || 0),
+          );
+        case "recommended":
+        default:
+          return list.sort((a, b) => {
+            const aAvail = a.isOpen ? 1 : 0;
+            const bAvail = b.isOpen ? 1 : 0;
+            if (aAvail !== bAvail) return bAvail - aAvail;
+            if (b.rating !== a.rating) return b.rating - a.rating;
+            if (b.reviewCount !== a.reviewCount)
+              return b.reviewCount - a.reviewCount;
+            return (a.deliveryTime.min || 99) - (b.deliveryTime.min || 99);
+          });
+      }
+    }, [dish, sortOption]);
 
     const handleAdd = useCallback(
       async (vendor: DishVendorOption) => {
@@ -137,19 +204,45 @@ export const VendorSelectionSheet: React.FC<VendorSelectionSheetProps> = memo(
             </div>
           </div>
 
-          {/* Subheader callout */}
-          <div className="px-5 py-2.5 bg-brand-50/60 border-b border-brand-100/60 flex items-center justify-between text-xs text-brand-900">
-            <span className="font-semibold">
-              Comparing offers across Sylhet
-            </span>
-            <span className="text-brand-700 text-[11px]">
-              Sorted by best rating & speed
-            </span>
+          {/* Interactive Sorting Controls Bar */}
+          <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-200/80">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                <ArrowUpDown className="w-3 h-3 text-brand-500" />
+                Sort Restaurants By
+              </span>
+              <span className="text-[11px] text-gray-400">
+                {sortedVendors.length} offers
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+              {VENDOR_SORT_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = sortOption === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSortOption(tab.id)}
+                    className={cn(
+                      "flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer min-h-[34px]",
+                      isActive
+                        ? "bg-brand-500 text-white shadow-xs"
+                        : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200/80",
+                    )}
+                  >
+                    <Icon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-gray-400")} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Scrollable list of restaurants offering this dish */}
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100 p-4 sm:p-5 space-y-3">
-            {dish.vendors.map((vendor, index) => {
+            {sortedVendors.map((vendor, index) => {
               const currentQty = getCartQuantity(vendor.item._id);
               const isFav = favoriteRestaurantIds.includes(vendor.restaurantId);
               const isBestMatch = index === 0 && dish.vendorCount > 1;

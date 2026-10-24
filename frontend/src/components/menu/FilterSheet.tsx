@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from "react";
-import { Filter, RotateCcw, Search, Star } from "lucide-react";
+import { ArrowUpDown, Filter, RotateCcw, Search, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/utils/format";
+import { cn } from "@/utils/cn";
 import httpClient from "@/lib/httpClient";
 import type { FilterState } from "@/hooks/useMenuExplorer";
 
@@ -42,6 +43,9 @@ export const FilterSheet: React.FC<FilterSheetProps> = memo(
     onResetFilters,
   }) => {
     // Draft filter state for preview before clicking "Apply"
+    const [draftSort, setDraftSort] = useState<FilterState["sort"]>(
+      filters.sort || "popular",
+    );
     const [draftPrice, setDraftPrice] = useState<[number, number]>([
       filters.minPrice ?? priceBounds.min,
       filters.maxPrice ?? priceBounds.max,
@@ -64,6 +68,7 @@ export const FilterSheet: React.FC<FilterSheetProps> = memo(
     // Sync draft with current filters when opened
     useEffect(() => {
       if (isOpen) {
+        setDraftSort(filters.sort || "popular");
         setDraftPrice([
           filters.minPrice ?? priceBounds.min,
           filters.maxPrice ?? priceBounds.max,
@@ -117,6 +122,7 @@ export const FilterSheet: React.FC<FilterSheetProps> = memo(
 
     const handleApply = () => {
       onApplyFilters({
+        sort: draftSort,
         minPrice: draftPrice[0] > priceBounds.min ? draftPrice[0] : undefined,
         maxPrice: draftPrice[1] < priceBounds.max ? draftPrice[1] : undefined,
         minRating: draftRating,
@@ -128,6 +134,7 @@ export const FilterSheet: React.FC<FilterSheetProps> = memo(
     };
 
     const handleReset = () => {
+      setDraftSort("popular");
       setDraftPrice([priceBounds.min, priceBounds.max]);
       setDraftRating(undefined);
       setDraftOpenNow(false);
@@ -164,6 +171,48 @@ export const FilterSheet: React.FC<FilterSheetProps> = memo(
 
           {/* Scrollable Filter Body */}
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {/* 0. Sort Order Selector */}
+            <div className="space-y-3 bg-gray-50/70 p-4 rounded-2xl border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-bold text-gray-900 block flex items-center gap-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-brand-500" />
+                    Sort Dishes By
+                  </label>
+                  <span className="text-[11px] text-gray-500">
+                    Order of dishes in the menu explorer
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {[
+                  { id: "popular", label: "Recommended" },
+                  { id: "price_asc", label: "Price: Low to High" },
+                  { id: "price_desc", label: "Price: High to Low" },
+                  { id: "rating", label: "Top Rated" },
+                  { id: "newest", label: "Newest First" },
+                ].map((opt) => {
+                  const isSelected = draftSort === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setDraftSort(opt.id as FilterState["sort"])}
+                      className={cn(
+                        "p-2.5 rounded-xl border text-xs font-semibold text-left transition-all duration-150 cursor-pointer",
+                        isSelected
+                          ? "bg-brand-500 border-brand-500 text-white shadow-xs"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50",
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* 1. Price Range Selector */}
             <div className="space-y-3.5 bg-gray-50/70 p-4 rounded-2xl border border-gray-100">
               <div className="flex items-center justify-between">
