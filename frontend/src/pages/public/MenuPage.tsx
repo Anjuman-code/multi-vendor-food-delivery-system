@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
+  Layers,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -13,9 +14,12 @@ import { useCart } from "@/contexts/CartContext";
 import { useMenuExplorer } from "@/hooks/useMenuExplorer";
 import userService from "@/services/userService";
 import { toast } from "@/lib/toast";
+import { cn } from "@/utils/cn";
 
 // Feature Components
 import { FoodCard } from "@/components/menu/FoodCard";
+import { ClusteredFoodCard } from "@/components/menu/ClusteredFoodCard";
+import { VendorSelectionSheet } from "@/components/menu/VendorSelectionSheet";
 import { FoodCardSkeleton } from "@/components/menu/FoodCardSkeleton";
 import { CategoryPills } from "@/components/menu/CategoryPills";
 import { FilterSheet } from "@/components/menu/FilterSheet";
@@ -24,6 +28,7 @@ import { ActiveFilterChips } from "@/components/menu/ActiveFilterChips";
 import { StickyCartBar } from "@/components/menu/StickyCartBar";
 import { QuickViewSheet } from "@/components/menu/QuickViewSheet";
 import type { ExploreMenuItem } from "@/services/exploreService";
+import type { ClusteredDish } from "@/types/dishGrouping.types";
 
 const MenuPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -31,7 +36,11 @@ const MenuPage: React.FC = () => {
 
   const {
     items,
+    clusteredDishes,
     groupedItems,
+    groupedClusteredDishes,
+    isClustered,
+    setIsClustered,
     isGroupedView,
     categories,
     categoriesLoading,
@@ -55,6 +64,8 @@ const MenuPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState(filters.search);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [quickViewItem, setQuickViewItem] = useState<ExploreMenuItem | null>(null);
+  const [selectedClusterForVendors, setSelectedClusterForVendors] =
+    useState<ClusteredDish | null>(null);
 
   // Favorites tracking
   const [favoriteRestaurantIds, setFavoriteRestaurantIds] = useState<string[]>([]);
@@ -202,8 +213,8 @@ const MenuPage: React.FC = () => {
       {/* ── Page Header & Sticky Discovery Bar ── */}
       <div className="sticky top-20 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-          {/* Top Search & Controls Row */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Top Search & Controls: Mobile Column / Desktop Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             {/* Search Input */}
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -230,29 +241,52 @@ const MenuPage: React.FC = () => {
               )}
             </div>
 
-            {/* Filter Sheet Trigger Button */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsFilterSheetOpen(true)}
-              className="relative rounded-2xl border-gray-200 bg-white hover:bg-gray-50 px-3.5 h-11 text-xs font-semibold text-gray-700 min-h-[44px] shadow-sm flex-shrink-0"
-              aria-label={`Open filters (${activeFiltersCount} active)`}
-            >
-              <SlidersHorizontal className="w-4 h-4 mr-1.5 text-gray-500" />
-              <span className="hidden sm:inline">Filters</span>
-              {activeFiltersCount > 0 && (
-                <span className="ml-1.5 w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] font-extrabold flex items-center justify-center">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </Button>
+            {/* Controls Row: Grouping Toggle + Filters + Sort */}
+            <div className="flex items-center gap-2 sm:gap-3 justify-between sm:justify-end">
+              {/* Group Similar Dishes Across Multi-Vendors Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsClustered((prev) => !prev)}
+                className={cn(
+                  "rounded-2xl px-3 h-11 text-xs font-semibold min-h-[44px] shadow-xs flex items-center gap-1.5 transition-colors border",
+                  isClustered
+                    ? "bg-brand-50 border-brand-200 text-brand-700"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50",
+                )}
+                title={
+                  isClustered
+                    ? "Consolidating identical dishes across restaurants"
+                    : "Showing every restaurant's individual dish offer"
+                }
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>{isClustered ? "Grouped" : "All Offers"}</span>
+              </button>
 
-            {/* Sort Control */}
-            <div className="flex-shrink-0">
-              <SortControl
-                currentSort={filters.sort}
-                onSortChange={(sort) => updateUrlParams({ sort })}
-              />
+              {/* Filter Sheet Trigger Button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsFilterSheetOpen(true)}
+                className="relative rounded-2xl border-gray-200 bg-white hover:bg-gray-50 px-3.5 h-11 text-xs font-semibold text-gray-700 min-h-[44px] shadow-xs flex-shrink-0"
+                aria-label={`Open filters (${activeFiltersCount} active)`}
+              >
+                <SlidersHorizontal className="w-4 h-4 mr-1.5 text-gray-500" />
+                <span>Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="ml-1.5 w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] font-extrabold flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+
+              {/* Sort Control */}
+              <div className="flex-shrink-0">
+                <SortControl
+                  currentSort={filters.sort}
+                  onSortChange={(sort) => updateUrlParams({ sort })}
+                />
+              </div>
             </div>
           </div>
 
@@ -305,7 +339,7 @@ const MenuPage: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Results Count Header */}
         {!isLoading && !error && (
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
               {filters.search
                 ? `Dishes for "${filters.search}"`
@@ -319,9 +353,23 @@ const MenuPage: React.FC = () => {
             <span
               role="status"
               aria-live="polite"
-              className="text-xs font-semibold text-gray-500 bg-white border border-gray-200 px-3 py-1 rounded-full shadow-sm"
+              className="text-xs font-semibold text-gray-500 bg-white border border-gray-200 px-3 py-1 rounded-full shadow-xs"
             >
-              {totalCount} {totalCount === 1 ? "dish" : "dishes"} available
+              {isClustered ? (
+                <>
+                  <span className="text-gray-900 font-bold">
+                    {clusteredDishes.length}
+                  </span>{" "}
+                  unique dishes{" "}
+                  <span className="text-gray-400 font-normal">
+                    ({totalCount} offers)
+                  </span>
+                </>
+              ) : (
+                <>
+                  {totalCount} {totalCount === 1 ? "dish" : "dishes"} available
+                </>
+              )}
             </span>
           </div>
         )}
@@ -374,68 +422,136 @@ const MenuPage: React.FC = () => {
         {/* ── State 4: Categorized Sections (when no category filter is applied) ── */}
         {!isLoading && !error && items.length > 0 && isGroupedView && (
           <div className="space-y-10">
-            {groupedItems.map((group) => (
-              <section
-                key={group.categoryName}
-                aria-labelledby={`heading-${group.categoryName}`}
-                className="space-y-4"
-              >
-                {/* Category Section Sticky Header */}
-                <div className="sticky top-[182px] z-20 bg-gray-50/95 backdrop-blur-sm py-2 px-1 border-b border-gray-200/80 flex items-center justify-between">
-                  <h2
-                    id={`heading-${group.categoryName}`}
-                    className="text-lg font-bold text-gray-900 flex items-center gap-2"
+            {isClustered
+              ? groupedClusteredDishes.map((group) => (
+                  <section
+                    key={group.categoryName}
+                    aria-labelledby={`heading-${group.categoryName}`}
+                    className="space-y-4"
                   >
-                    <span>{group.categoryName}</span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">
-                      {group.items.length}
-                    </span>
-                  </h2>
+                    {/* Category Section Sticky Header */}
+                    <div className="sticky top-[182px] z-20 bg-gray-50/95 backdrop-blur-xs py-2 px-1 border-b border-gray-200/80 flex items-center justify-between">
+                      <h2
+                        id={`heading-${group.categoryName}`}
+                        className="text-lg font-bold text-gray-900 flex items-center gap-2"
+                      >
+                        <span>{group.categoryName}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">
+                          {group.dishes.length} dishes
+                        </span>
+                      </h2>
 
-                  <button
-                    type="button"
-                    onClick={() => toggleCategory(group.categoryName)}
-                    className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline"
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(group.categoryName)}
+                        className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline cursor-pointer"
+                      >
+                        View only {group.categoryName}
+                      </button>
+                    </div>
+
+                    {/* Items Grid for this category */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                      {group.dishes.map((dish) => (
+                        <ClusteredFoodCard
+                          key={dish.clusterKey}
+                          dish={dish}
+                          cartQuantity={getCartQuantity(dish.primaryItem._id)}
+                          onAddToCart={handleAddToCart}
+                          onUpdateQuantity={handleUpdateQuantity}
+                          onOpenQuickView={setQuickViewItem}
+                          onOpenVendorSelection={setSelectedClusterForVendors}
+                          isFavorite={favoriteRestaurantIds.includes(
+                            dish.primaryItem.restaurantId,
+                          )}
+                          onToggleFavorite={handleToggleFavorite}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))
+              : groupedItems.map((group) => (
+                  <section
+                    key={group.categoryName}
+                    aria-labelledby={`heading-${group.categoryName}`}
+                    className="space-y-4"
                   >
-                    View only {group.categoryName}
-                  </button>
-                </div>
+                    {/* Category Section Sticky Header */}
+                    <div className="sticky top-[182px] z-20 bg-gray-50/95 backdrop-blur-xs py-2 px-1 border-b border-gray-200/80 flex items-center justify-between">
+                      <h2
+                        id={`heading-${group.categoryName}`}
+                        className="text-lg font-bold text-gray-900 flex items-center gap-2"
+                      >
+                        <span>{group.categoryName}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">
+                          {group.items.length}
+                        </span>
+                      </h2>
 
-                {/* Items Grid for this category */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                  {group.items.map((item) => (
-                    <FoodCard
-                      key={item._id}
-                      item={item}
-                      cartQuantity={getCartQuantity(item._id)}
-                      onAddToCart={handleAddToCart}
-                      onUpdateQuantity={handleUpdateQuantity}
-                      onOpenQuickView={setQuickViewItem}
-                      isFavorite={favoriteRestaurantIds.includes(item.restaurantId)}
-                      onToggleFavorite={handleToggleFavorite}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(group.categoryName)}
+                        className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline cursor-pointer"
+                      >
+                        View only {group.categoryName}
+                      </button>
+                    </div>
+
+                    {/* Items Grid for this category */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                      {group.items.map((item) => (
+                        <FoodCard
+                          key={item._id}
+                          item={item}
+                          cartQuantity={getCartQuantity(item._id)}
+                          onAddToCart={handleAddToCart}
+                          onUpdateQuantity={handleUpdateQuantity}
+                          onOpenQuickView={setQuickViewItem}
+                          isFavorite={favoriteRestaurantIds.includes(
+                            item.restaurantId,
+                          )}
+                          onToggleFavorite={handleToggleFavorite}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
           </div>
         )}
 
         {/* ── State 5: Flat Grid (when one or more filters/categories are applied) ── */}
         {!isLoading && !error && items.length > 0 && !isGroupedView && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {items.map((item) => (
-              <FoodCard
-                key={item._id}
-                item={item}
-                cartQuantity={getCartQuantity(item._id)}
-                onAddToCart={handleAddToCart}
-                onUpdateQuantity={handleUpdateQuantity}
-                onOpenQuickView={setQuickViewItem}
-                isFavorite={favoriteRestaurantIds.includes(item.restaurantId)}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            ))}
+            {isClustered
+              ? clusteredDishes.map((dish) => (
+                  <ClusteredFoodCard
+                    key={dish.clusterKey}
+                    dish={dish}
+                    cartQuantity={getCartQuantity(dish.primaryItem._id)}
+                    onAddToCart={handleAddToCart}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onOpenQuickView={setQuickViewItem}
+                    onOpenVendorSelection={setSelectedClusterForVendors}
+                    isFavorite={favoriteRestaurantIds.includes(
+                      dish.primaryItem.restaurantId,
+                    )}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                ))
+              : items.map((item) => (
+                  <FoodCard
+                    key={item._id}
+                    item={item}
+                    cartQuantity={getCartQuantity(item._id)}
+                    onAddToCart={handleAddToCart}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onOpenQuickView={setQuickViewItem}
+                    isFavorite={favoriteRestaurantIds.includes(
+                      item.restaurantId,
+                    )}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                ))}
           </div>
         )}
 
@@ -480,6 +596,19 @@ const MenuPage: React.FC = () => {
         item={quickViewItem}
         isOpen={Boolean(quickViewItem)}
         onOpenChange={(open) => !open && setQuickViewItem(null)}
+      />
+
+      {/* ── Vendor Selection Sheet for Clustered Dishes ── */}
+      <VendorSelectionSheet
+        dish={selectedClusterForVendors}
+        isOpen={Boolean(selectedClusterForVendors)}
+        onOpenChange={(open) => !open && setSelectedClusterForVendors(null)}
+        getCartQuantity={getCartQuantity}
+        onAddToCart={handleAddToCart}
+        onUpdateQuantity={handleUpdateQuantity}
+        onOpenQuickView={setQuickViewItem}
+        favoriteRestaurantIds={favoriteRestaurantIds}
+        onToggleFavorite={handleToggleFavorite}
       />
 
       {/* ── Floating Mobile Cart Bar ── */}

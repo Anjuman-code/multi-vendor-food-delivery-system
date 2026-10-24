@@ -58,11 +58,11 @@ export const CategoryPills: React.FC<CategoryPillsProps> = memo(
       <div className="relative w-full group py-2">
         {/* Left Scroll Button / Affordance */}
         {canScrollLeft && (
-          <div className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 items-center h-full pr-4 bg-gradient-to-r from-white via-white/90 to-transparent">
+          <div className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 items-center h-full pr-3 bg-gradient-to-r from-white via-white/90 to-transparent pointer-events-none">
             <button
               type="button"
               onClick={() => scrollByAmount(-200)}
-              className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+              className="pointer-events-auto w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
               aria-label="Scroll categories left"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -162,11 +162,11 @@ export const CategoryPills: React.FC<CategoryPillsProps> = memo(
 
         {/* Right Scroll Button / Affordance */}
         {canScrollRight && (
-          <div className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 items-center h-full pl-4 bg-gradient-to-l from-white via-white/90 to-transparent">
+          <div className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 items-center h-full pl-3 bg-gradient-to-l from-white via-white/90 to-transparent pointer-events-none">
             <button
               type="button"
               onClick={() => scrollByAmount(200)}
-              className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+              className="pointer-events-auto w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
               aria-label="Scroll categories right"
             >
               <ChevronRight className="w-4 h-4" />

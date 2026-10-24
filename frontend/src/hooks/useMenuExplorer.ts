@@ -5,6 +5,8 @@ import exploreService, {
   ExploreMenuItem,
   ExploreMenuParams,
 } from "@/services/exploreService";
+import { clusterMenuItems } from "@/utils/dishClustering";
+import type { ClusteredDish } from "@/types/dishGrouping.types";
 
 export interface FilterState {
   search: string;
@@ -377,6 +379,13 @@ export function useMenuExplorer() {
     return count;
   }, [filters, priceBounds]);
 
+  // Clustered dishes across multi-vendors to save space and reduce duplication
+  const [isClustered, setIsClustered] = useState<boolean>(true);
+
+  const clusteredDishes = useMemo(() => {
+    return clusterMenuItems(items);
+  }, [items]);
+
   // Group items by category when no category is selected and no search term is entered
   const isGroupedView = useMemo(() => {
     return filters.categories.length === 0 && !filters.search;
@@ -400,9 +409,31 @@ export function useMenuExplorer() {
     }));
   }, [isGroupedView, items]);
 
+  const groupedClusteredDishes = useMemo(() => {
+    if (!isGroupedView) return [];
+
+    const map = new Map<string, ClusteredDish[]>();
+    for (const dish of clusteredDishes) {
+      const cat = dish.categoryName || "Other";
+      if (!map.has(cat)) {
+        map.set(cat, []);
+      }
+      map.get(cat)!.push(dish);
+    }
+
+    return Array.from(map.entries()).map(([categoryName, categoryDishes]) => ({
+      categoryName,
+      dishes: categoryDishes,
+    }));
+  }, [isGroupedView, clusteredDishes]);
+
   return {
     items,
+    clusteredDishes,
     groupedItems,
+    groupedClusteredDishes,
+    isClustered,
+    setIsClustered,
     isGroupedView,
     categories,
     categoriesLoading,
